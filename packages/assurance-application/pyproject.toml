@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "assurance-application"
+version = "0.1.0"
+description = "Use cases behind the workbench screens: engagement/team, sources and mapping review, coverage, runs and findings, SAD/readiness, lock. Server-side authorization."
+requires-python = ">=3.12"
+dependencies = [
+    "assurance-domain",
+    "assurance-persistence",
+    "assurance-artifacts",
+    "procedures-ap",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

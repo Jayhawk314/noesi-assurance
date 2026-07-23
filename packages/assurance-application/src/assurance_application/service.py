@@ -1,0 +1,505 @@
+"""WorkbenchService: typed use cases over the transactional spine.
+
+Authorization model (pilot): the first principal to create an engagement is
+its partner; partners assign the team; preparers ingest, map, normalize,
+and execute; reviewers approve mappings and review runs; partners approve
+reviewed runs and lock. Separation of duties comes from the domain layer
+and the repositories — this service adds the role matrix, never replaces
+those checks.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import json
+import sqlite3
+
+from assurance_artifacts.intake import store_artifact
+from assurance_artifacts.vault import ArtifactVault
+from assurance_domain.commands import Command
+from assurance_domain.identities import new_id
+from assurance_domain.jobs import build_manifest, run_job
+from assurance_domain.readiness import blank_engagement, readiness
+from assurance_domain.sad import summary_of_differences
+from assurance_persistence.spine import run_command
+from procedures_ap.coverage import compile_coverage, inventory_from_tables
+from procedures_ap.engines import ENGINE_VERSION, execute_procedure
+from procedures_ap.ingest import (
+    MappingSpec, NormalizedTable, normalize_table, propose_mapping,
+)
+
+
+class AuthorizationError(PermissionError):
+    """The authenticated principal lacks the role this action requires."""
+
+
+def _finding_uid(verdict: dict) -> str:
+    """Engagement-scoped stable finding identity: domain + key, no company."""
+    return f"{verdict['domain']}|{json.dumps(verdict['key'], ensure_ascii=False)}"
+
+
+class WorkbenchService:
+    def __init__(self, conn: sqlite3.Connection, vault: ArtifactVault,
+                 tenant_id: str):
+        self._conn = conn
+        self._vault = vault
+        self._tenant = tenant_id
+
+    # ------------------------------------------------------------ plumbing
+
+    def _command(self, actor: str, kind: str, engagement_id: str | None = None,
+                 command_id: str | None = None) -> Command:
+        return Command(command_id or new_id(), self._tenant, actor, kind,
+                       engagement_id=engagement_id)
+
+    def _roles(self, engagement_id: str, principal_id: str) -> set[str]:
+        rows = self._conn.execute(
+            """SELECT role FROM principal_assignment
+               WHERE engagement_id = ? AND principal_id = ?""",
+            (engagement_id, principal_id)).fetchall()
+        return {row["role"] for row in rows}
+
+    def _require(self, engagement_id: str, actor: str, *roles: str) -> None:
+        have = self._roles(engagement_id, actor)
+        if not have & set(roles):
+            raise AuthorizationError(
+                f"action requires one of {sorted(roles)} on this engagement")
+
+    # ----------------------------------------------- screen 1: engagement
+
+    def create_engagement(self, actor: str, client_name: str,
+                          period_end: str) -> dict:
+        def handler(uow):
+            engagement_id = uow.engagements.create(client_name, period_end)
+            uow.principals.assign(engagement_id, actor, "partner")
+            return {"engagement_id": engagement_id}
+        return run_command(
+            self._conn, self._command(actor, "engagement.create"),
+            handler).result
+
+    def list_engagements(self) -> list[dict]:
+        rows = self._conn.execute(
+            """SELECT engagement_id, client_name, period_end, status, version
+               FROM engagement WHERE tenant_id = ?
+               ORDER BY client_name, period_end""", (self._tenant,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def assign_team(self, actor: str, engagement_id: str,
+                    principal_id: str, role: str) -> dict:
+        def handler(uow):
+            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("only a partner assigns the team")
+            uow.principals.assign(engagement_id, principal_id, role)
+            return {"principal_id": principal_id, "role": role}
+        return run_command(
+            self._conn,
+            self._command(actor, "team.assign", engagement_id), handler).result
+
+    def team(self, engagement_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            """SELECT principal_id, role FROM principal_assignment
+               WHERE engagement_id = ? ORDER BY role, principal_id""",
+            (engagement_id,)).fetchall()
+        return [dict(row) for row in rows]
+
+    # ------------------------------------- screen 2: sources and mappings
+
+    def store_source(self, actor: str, engagement_id: str, *, content: bytes,
+                     media_type: str, original_name: str,
+                     provenance: str = "") -> dict:
+        self._require(engagement_id, actor, "preparer", "partner")
+        outcome = store_artifact(
+            self._conn, self._vault,
+            command=self._command(actor, "artifact.store", engagement_id),
+            engagement_id=engagement_id, source=io.BytesIO(content),
+            media_type=media_type, original_name=original_name,
+            provenance=provenance)
+        return outcome.result
+
+    def propose_source_mapping(self, actor: str, engagement_id: str, *,
+                               role: str, artifact_id: str) -> dict:
+        self._require(engagement_id, actor, "preparer")
+        headers, _ = self._artifact_rows(artifact_id)
+        artifact = self._conn.execute(
+            "SELECT sha256 FROM artifact WHERE artifact_id = ?",
+            (artifact_id,)).fetchone()
+        spec = propose_mapping(role, headers, source_sha256=artifact["sha256"],
+                               proposed_by=actor)
+
+        def handler(uow):
+            spec_id = uow.mappings.propose(
+                engagement_id, role=role, spec=spec.to_dict(),
+                spec_digest=spec.digest, proposed_by=actor,
+                artifact_id=artifact_id)
+            return {"spec_id": spec_id, "column_map": spec.column_map,
+                    "unmapped_headers": list(spec.unmapped_headers),
+                    "refused_fields": list(spec.refused_fields)}
+        return run_command(
+            self._conn,
+            self._command(actor, "mapping.propose", engagement_id),
+            handler).result
+
+    def approve_source_mapping(self, actor: str, engagement_id: str,
+                               spec_id: str) -> dict:
+        def handler(uow):
+            if "reviewer" not in uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("mapping approval requires a reviewer")
+            uow.mappings.approve(spec_id, approved_by=actor)
+            return {"spec_id": spec_id, "status": "approved"}
+        return run_command(
+            self._conn,
+            self._command(actor, "mapping.approve", engagement_id),
+            handler).result
+
+    def normalize_source(self, actor: str, engagement_id: str,
+                         spec_id: str) -> dict:
+        self._require(engagement_id, actor, "preparer")
+        table = self._rebuild_table(spec_id)
+
+        def handler(uow):
+            spec_row = uow.mappings.get(spec_id)
+            dataset_id = uow.datasets.record(
+                engagement_id, role=table.role, mapping_spec_id=spec_id,
+                artifact_id=spec_row["artifact_id"],
+                rows_in=len(table.records) + len(table.rejects),
+                rows_loaded=len(table.records),
+                rows_rejected=len(table.rejects),
+                control_total=str(table.control_total)
+                if table.control_total is not None else None,
+                output_digest=table.output_digest)
+            return {"dataset_id": dataset_id,
+                    "reconciliation": table.reconciliation()}
+        return run_command(
+            self._conn,
+            self._command(actor, "dataset.normalize", engagement_id),
+            handler).result
+
+    # --------------------------------------------- screen 3: coverage
+
+    def coverage(self, engagement_id: str) -> dict:
+        tables = self._tables(engagement_id)
+        return compile_coverage(inventory_from_tables(tables))
+
+    # ---------------------------------------- screen 4: runs and findings
+
+    def run_procedure(self, actor: str, engagement_id: str, *,
+                      procedure_id: str,
+                      policies: dict | None = None) -> dict:
+        self._require(engagement_id, actor, "preparer")
+        tables = {role: list(t.engine_view().records)
+                  for role, t in self._tables(engagement_id).items()}
+        manifest = build_manifest(
+            procedure_id=procedure_id, procedure_version="v1",
+            engine_version=ENGINE_VERSION, tables=tables,
+            policies=policies or {})
+        bundle = run_job(manifest, tables, execute_procedure)
+
+        def handler(uow):
+            run_id = uow.runs.record(
+                engagement_id, procedure_id=procedure_id,
+                job_id=manifest.job_id,
+                manifest={"input_tables": manifest.input_tables,
+                          "policies": manifest.policies,
+                          "engine_version": manifest.engine_version},
+                status=bundle.status, summary=bundle.summary,
+                findings=list(bundle.findings), error=bundle.error,
+                result_digest=bundle.result_digest)
+            return {"run_id": run_id, "job_id": manifest.job_id,
+                    "status": bundle.status, "summary": bundle.summary,
+                    "findings": len(bundle.findings), "error": bundle.error}
+        return run_command(
+            self._conn, self._command(actor, "run.execute", engagement_id),
+            handler).result
+
+    def review_run(self, actor: str, engagement_id: str, run_id: str, *,
+                   target: str, expected_version: int) -> dict:
+        role_needed = "reviewer" if target == "reviewed" else "partner"
+
+        def handler(uow):
+            if role_needed not in uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError(f"{target} requires a {role_needed}")
+            version = uow.runs.advance_review(
+                run_id, target, expected_version=expected_version)
+            return {"run_id": run_id, "status": target, "version": version}
+        return run_command(
+            self._conn, self._command(actor, f"run.{target}", engagement_id),
+            handler).result
+
+    def runs(self, engagement_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            """SELECT run_id, procedure_id, job_id, status, summary, error,
+               executed_by, reviewed_by, approved_by, version, created_at
+               FROM procedure_run WHERE engagement_id = ?
+               ORDER BY created_at, run_id""", (engagement_id,)).fetchall()
+        out = []
+        for row in rows:
+            item = dict(row)
+            item["summary"] = json.loads(item["summary"])
+            out.append(item)
+        return out
+
+    def findings(self, engagement_id: str) -> list[dict]:
+        dispositions = {
+            row["finding_uid"]: {"status": row["status"], "note": row["note"],
+                                 "version": row["version"]}
+            for row in self._conn.execute(
+                "SELECT * FROM disposition WHERE engagement_id = ?",
+                (engagement_id,))}
+        out = []
+        for run in self._conn.execute(
+                """SELECT run_id, procedure_id, status, findings
+                   FROM procedure_run WHERE engagement_id = ?
+                   ORDER BY created_at, run_id""", (engagement_id,)):
+            if run["status"] == "error":
+                continue
+            for verdict in json.loads(run["findings"]):
+                uid = _finding_uid(verdict)
+                out.append({
+                    "finding_uid": uid,
+                    "run_id": run["run_id"],
+                    "procedure_id": run["procedure_id"],
+                    "verdict": verdict,
+                    "tags": _tags(verdict),
+                    "disposition": dispositions.get(
+                        uid, {"status": "undisposed", "note": "", "version": 0}),
+                })
+        return out
+
+    def set_disposition(self, actor: str, engagement_id: str, *,
+                        finding_uid: str, status: str, note: str = "",
+                        expected_version: int = 0) -> dict:
+        def handler(uow):
+            roles = uow.principals.roles_for(engagement_id, actor)
+            if not roles & {"preparer", "reviewer", "partner"}:
+                raise AuthorizationError("dispositions require a team role")
+            version = uow.dispositions.set(
+                engagement_id, finding_uid, status, note=note,
+                expected_version=expected_version)
+            return {"finding_uid": finding_uid, "status": status,
+                    "version": version}
+        return run_command(
+            self._conn,
+            self._command(actor, "disposition.set", engagement_id),
+            handler).result
+
+    # ------------------------------- screen 5: SAD, workflow, readiness
+
+    def workflow_document(self, engagement_id: str) -> tuple[dict, int]:
+        row = self._conn.execute(
+            "SELECT payload, version FROM workflow_state WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()
+        if row is None:
+            info = self._engagement(engagement_id)
+            return blank_engagement({"company": info["client_name"],
+                                     "fye": info["period_end"]}), 0
+        return json.loads(row["payload"]), row["version"]
+
+    def update_workflow(self, actor: str, engagement_id: str,
+                        section: str, values: dict) -> dict:
+        """Constrained workflow updates: materiality, stages, completion."""
+        self._require(engagement_id, actor, "preparer", "partner")
+        document, version = self.workflow_document(engagement_id)
+        if section == "materiality":
+            document["materiality"].update({
+                "amount": float(values.get("amount", 0)),
+                "basis": str(values.get("basis", "")),
+                "rationale": str(values.get("rationale", ""))})
+        elif section == "stage":
+            name = values["name"]
+            if name not in document["stages"]:
+                raise ValueError(f"unknown stage {name!r}")
+            document["stages"][name] = {
+                "status": str(values.get("status", "not_started")),
+                "note": str(values.get("note", ""))}
+        elif section == "completion":
+            name = values["name"]
+            if name not in document["completion"]:
+                raise ValueError(f"unknown completion check {name!r}")
+            document["completion"][name] = {
+                "done": bool(values.get("done", False)),
+                "note": str(values.get("note", "")),
+                "evidence": list(values.get("evidence", []))}
+        else:
+            raise ValueError(f"unknown workflow section {section!r}")
+
+        def handler(uow):
+            new_version = uow.workflows.put(engagement_id, document,
+                                            expected_version=version)
+            return {"version": new_version, "section": section}
+        return run_command(
+            self._conn,
+            self._command(actor, "workflow.update", engagement_id),
+            handler).result
+
+    def sad(self, engagement_id: str, *, materiality: float | None = None) -> dict:
+        info = self._engagement(engagement_id)
+        if materiality is None:
+            document, _ = self.workflow_document(engagement_id)
+            materiality = float(document["materiality"].get("amount") or 0)
+        dispositions = {
+            row["finding_uid"]: row["status"]
+            for row in self._conn.execute(
+                "SELECT finding_uid, status FROM disposition "
+                "WHERE engagement_id = ?", (engagement_id,))}
+        rows = []
+        for item in self.findings(engagement_id):
+            verdict = item["verdict"]
+            uid = item["finding_uid"]
+            rows.append({
+                "engagement": info["client_name"],
+                "finding_uid": uid,
+                "domain": verdict["domain"],
+                "key": verdict["key"],
+                "verdict": verdict["verdict"],
+                "score": verdict.get("score"),
+                "reason": verdict.get("reason", ""),
+                "evidence": verdict.get("evidence", {}),
+                "disposition": dispositions.get(uid, "undisposed"),
+            })
+        return summary_of_differences(rows, materiality=materiality)
+
+    def readiness(self, engagement_id: str) -> dict:
+        info = self._engagement(engagement_id)
+        document, _ = self.workflow_document(engagement_id)
+        # Team names in the workflow document come from real assignments.
+        team = {"preparer": "", "reviewer": "", "engagement_partner": ""}
+        for member in self.team(engagement_id):
+            slot = ("engagement_partner" if member["role"] == "partner"
+                    else member["role"])
+            team.setdefault(slot, "")
+            if not team[slot]:
+                team[slot] = member["principal_id"]
+        document["team"] = team
+
+        datasets = self._conn.execute(
+            "SELECT COUNT(*) c FROM normalized_dataset WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()["c"]
+        coverage = self.coverage(engagement_id) if datasets else None
+        if coverage:
+            coverage = self._overlay_runs(engagement_id, coverage)
+        report = {
+            "company": info["client_name"], "fye": info["period_end"],
+            "verdicts": [], "refusals": [],
+            "procedure_coverage": coverage,
+        }
+        return readiness(report, document, self.sad(engagement_id))
+
+    def _overlay_runs(self, engagement_id: str, coverage: dict) -> dict:
+        latest: dict[str, dict] = {}
+        for run in self.runs(engagement_id):
+            latest[run["procedure_id"]] = run
+        for row in coverage.get("procedures", []):
+            run = latest.get(row["procedure_id"])
+            if not run:
+                continue
+            if run["status"] == "error":
+                row["execution_status"] = "error"
+            else:
+                row["execution_status"] = "completed"
+                row["procedure_run"] = {
+                    "run_id": run["run_id"], "status": "completed",
+                    "review_status": ("approved"
+                                      if run["status"] == "approved"
+                                      else "pending"),
+                }
+        return coverage
+
+    # ----------------------------------------------- screen 6: lock
+
+    def lock(self, actor: str, engagement_id: str, *,
+             expected_version: int) -> dict:
+        state = self.readiness(engagement_id)
+        if not state["ready"]:
+            return {"locked": False,
+                    "blockers": state["blockers"],
+                    "report_implication": state["report_implication"]}
+
+        def handler(uow):
+            if "partner" not in uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("locking requires the partner")
+            version = uow.engagements.set_status(
+                engagement_id, "locked", expected_version=expected_version)
+            return {"locked": True, "version": version,
+                    "report_implication": state["report_implication"]}
+        return run_command(
+            self._conn, self._command(actor, "engagement.lock", engagement_id),
+            handler).result
+
+    # ------------------------------------------------------------ helpers
+
+    def _engagement(self, engagement_id: str) -> sqlite3.Row:
+        row = self._conn.execute(
+            "SELECT * FROM engagement WHERE engagement_id = ? AND tenant_id = ?",
+            (engagement_id, self._tenant)).fetchone()
+        if row is None:
+            raise KeyError(f"engagement {engagement_id}")
+        return row
+
+    def _artifact_rows(self, artifact_id: str) -> tuple[list[str], list[dict]]:
+        artifact = self._conn.execute(
+            "SELECT sha256, state FROM artifact WHERE artifact_id = ?",
+            (artifact_id,)).fetchone()
+        if artifact is None:
+            raise KeyError(f"artifact {artifact_id}")
+        if artifact["state"] != "promoted":
+            raise ValueError("artifact is retired; its content is gone")
+        text = self._vault.read_bytes(artifact["sha256"]).decode(
+            "utf-8-sig", errors="replace")
+        rows = list(csv.DictReader(text.splitlines()))
+        headers = list(rows[0].keys()) if rows else []
+        return headers, rows
+
+    def _rebuild_table(self, spec_id: str) -> NormalizedTable:
+        """Reperform normalization from immutable inputs; verify the digest."""
+        spec_row = self._conn.execute(
+            "SELECT * FROM mapping_spec WHERE spec_id = ?",
+            (spec_id,)).fetchone()
+        if spec_row is None:
+            raise KeyError(f"mapping_spec {spec_id}")
+        if spec_row["status"] != "approved":
+            raise ValueError("normalization requires an approved mapping spec")
+        stored = json.loads(spec_row["spec"])
+        spec = MappingSpec(
+            role=stored["role"], headers=tuple(stored["headers"]),
+            column_map=stored["column_map"],
+            unmapped_headers=tuple(stored["unmapped_headers"]),
+            refused_fields=tuple(stored["refused_fields"]),
+            source_sha256=stored["source_sha256"], status="approved",
+            proposed_by=spec_row["proposed_by"],
+            approved_by=spec_row["approved_by"])
+        _, rows = self._artifact_rows(spec_row["artifact_id"])
+        artifact_name = self._conn.execute(
+            "SELECT original_name FROM artifact WHERE artifact_id = ?",
+            (spec_row["artifact_id"],)).fetchone()["original_name"]
+        return normalize_table(rows, spec, source_file=artifact_name)
+
+    def _tables(self, engagement_id: str) -> dict:
+        """Latest normalized dataset per role, rebuilt and digest-verified."""
+        tables: dict[str, NormalizedTable] = {}
+        for dataset in self._conn.execute(
+                """SELECT * FROM normalized_dataset WHERE engagement_id = ?
+                   ORDER BY created_at, dataset_id""", (engagement_id,)):
+            table = self._rebuild_table(dataset["mapping_spec_id"])
+            if table.output_digest != dataset["output_digest"]:
+                raise RuntimeError(
+                    f"dataset {dataset['dataset_id']} no longer reproduces its "
+                    "recorded digest; refusing to serve unverifiable data")
+            tables[dataset["role"]] = table
+        return tables
+
+
+def _tags(verdict: dict) -> dict:
+    """Tag a stored verdict dict without re-instantiating a Receipt."""
+    from procedures_ap import unified
+
+    class _View:
+        def __init__(self, data: dict):
+            self.domain = data["domain"]
+            self.key = tuple(data["key"])
+            self.verdict = data["verdict"]
+            self.policy = data["policy"]
+            self.score = data.get("score")
+            self.reason = data.get("reason", "")
+            self.evidence = data.get("evidence", {})
+    return unified.classify_verdict(_View(verdict))

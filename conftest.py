@@ -12,3 +12,6 @@ for pkg in sorted((_ROOT / "packages").iterdir()):
     src = pkg / "src"
     if src.is_dir() and str(src) not in sys.path:
         sys.path.insert(0, str(src))
+for app in sorted((_ROOT / "apps").iterdir()):
+    if app.is_dir() and str(app) not in sys.path:
+        sys.path.insert(0, str(app))

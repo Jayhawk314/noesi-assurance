@@ -143,6 +143,43 @@ CREATE TABLE normalized_dataset (
     created_at      TEXT NOT NULL
 );
 """),
+    (3, "phase4-principals-and-runs", """
+-- Authenticated principals bound to engagements with roles. Display names
+-- are never authorization inputs; these rows are.
+CREATE TABLE principal_assignment (
+    tenant_id     TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id TEXT NOT NULL REFERENCES engagement(engagement_id),
+    principal_id  TEXT NOT NULL,
+    role          TEXT NOT NULL
+                  CHECK (role IN ('preparer', 'reviewer', 'partner')),
+    assigned_by   TEXT NOT NULL,
+    assigned_at   TEXT NOT NULL,
+    PRIMARY KEY (engagement_id, principal_id, role)
+);
+
+-- Uniform procedure-run records: every run, base or incremental, gets the
+-- same immutable receipt and the same review lifecycle.
+CREATE TABLE procedure_run (
+    run_id        TEXT PRIMARY KEY,
+    tenant_id     TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id TEXT NOT NULL REFERENCES engagement(engagement_id),
+    procedure_id  TEXT NOT NULL,
+    job_id        TEXT NOT NULL,
+    manifest      TEXT NOT NULL,
+    status        TEXT NOT NULL
+                  CHECK (status IN ('completed', 'error', 'reviewed', 'approved')),
+    summary       TEXT NOT NULL,
+    findings      TEXT NOT NULL,
+    error         TEXT NOT NULL DEFAULT '',
+    result_digest TEXT NOT NULL,
+    executed_by   TEXT NOT NULL,
+    reviewed_by   TEXT NOT NULL DEFAULT '',
+    approved_by   TEXT NOT NULL DEFAULT '',
+    version       INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL,
+    UNIQUE (engagement_id, job_id)
+);
+"""),
 )
 
 
@@ -150,8 +187,16 @@ def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def connect(path: str | Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(path), isolation_level=None)
+def connect(path: str | Path, *,
+            allow_cross_thread: bool = False) -> sqlite3.Connection:
+    """Open the control database.
+
+    ``allow_cross_thread=True`` is for the single-process API server, which
+    serializes every request (reads included) on one lock; the connection is
+    never used concurrently.
+    """
+    conn = sqlite3.connect(str(path), isolation_level=None,
+                           check_same_thread=not allow_cross_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")

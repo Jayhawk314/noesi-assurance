@@ -37,6 +37,8 @@ class UnitOfWork:
         self.artifacts = ArtifactRepository(self)
         self.mappings = MappingSpecRepository(self)
         self.datasets = DatasetRepository(self)
+        self.principals = PrincipalRepository(self)
+        self.runs = ProcedureRunRepository(self)
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
@@ -356,3 +358,145 @@ class DatasetRepository:
                      "output_digest": output_digest},
             engagement_id=engagement_id)
         return dataset_id
+
+    def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
+        return self._uow.execute(
+            """SELECT * FROM normalized_dataset WHERE engagement_id = ?
+               ORDER BY created_at, dataset_id""",
+            (engagement_id,)).fetchall()
+
+
+class PrincipalRepository:
+    """Engagement role assignments: the only authorization input."""
+
+    ROLES = ("preparer", "reviewer", "partner")
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def assign(self, engagement_id: str, principal_id: str, role: str) -> None:
+        if role not in self.ROLES:
+            raise ValueError(f"unknown role {role!r}")
+        try:
+            self._uow.execute(
+                """INSERT INTO principal_assignment (tenant_id, engagement_id,
+                   principal_id, role, assigned_by, assigned_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (self._uow.command.tenant_id, engagement_id, principal_id,
+                 role, self._uow.command.actor, utcnow()))
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError(
+                "principal_assignment",
+                f"{engagement_id}/{principal_id}/{role}", 0) from exc
+        self._uow.emit(
+            entity_type="principal_assignment",
+            entity_id=f"{principal_id}/{role}",
+            event_type="team.assigned",
+            payload={"principal_id": principal_id, "role": role},
+            engagement_id=engagement_id)
+
+    def roles_for(self, engagement_id: str, principal_id: str) -> set[str]:
+        rows = self._uow.execute(
+            """SELECT role FROM principal_assignment
+               WHERE engagement_id = ? AND principal_id = ?""",
+            (engagement_id, principal_id)).fetchall()
+        return {row["role"] for row in rows}
+
+    def team(self, engagement_id: str) -> list[sqlite3.Row]:
+        return self._uow.execute(
+            """SELECT principal_id, role, assigned_at
+               FROM principal_assignment WHERE engagement_id = ?
+               ORDER BY role, principal_id""",
+            (engagement_id,)).fetchall()
+
+    def any_assigned(self, engagement_id: str) -> bool:
+        return self._uow.execute(
+            "SELECT 1 FROM principal_assignment WHERE engagement_id = ? LIMIT 1",
+            (engagement_id,)).fetchone() is not None
+
+
+class ProcedureRunRepository:
+    """Immutable run receipts walking one review lifecycle."""
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def record(self, engagement_id: str, *, procedure_id: str, job_id: str,
+               manifest: dict, status: str, summary: dict,
+               findings: list[dict], error: str,
+               result_digest: str) -> str:
+        if status not in ("completed", "error"):
+            raise ValueError("a new run is 'completed' or 'error', never reviewed")
+        run_id = new_id()
+        try:
+            self._uow.execute(
+                """INSERT INTO procedure_run (run_id, tenant_id, engagement_id,
+                   procedure_id, job_id, manifest, status, summary, findings,
+                   error, result_digest, executed_by, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (run_id, self._uow.command.tenant_id, engagement_id,
+                 procedure_id, job_id,
+                 json.dumps(manifest, ensure_ascii=False, sort_keys=True),
+                 status,
+                 json.dumps(summary, ensure_ascii=False, sort_keys=True),
+                 json.dumps(findings, ensure_ascii=False),
+                 error, result_digest, self._uow.command.actor, utcnow()))
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError(
+                "procedure_run", f"{engagement_id}/{job_id}", 0) from exc
+        self._uow.emit(
+            entity_type="procedure_run", entity_id=run_id,
+            event_type="run.recorded", after_version=1,
+            payload={"procedure_id": procedure_id, "job_id": job_id,
+                     "status": status, "result_digest": result_digest},
+            engagement_id=engagement_id)
+        return run_id
+
+    def get(self, run_id: str) -> sqlite3.Row:
+        row = self._uow.execute(
+            "SELECT * FROM procedure_run WHERE run_id = ? AND tenant_id = ?",
+            (run_id, self._uow.command.tenant_id)).fetchone()
+        if row is None:
+            raise NotFoundError(f"procedure_run {run_id}")
+        return row
+
+    def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
+        return self._uow.execute(
+            """SELECT * FROM procedure_run WHERE engagement_id = ?
+               ORDER BY created_at, run_id""",
+            (engagement_id,)).fetchall()
+
+    def advance_review(self, run_id: str, target: str, *,
+                       expected_version: int) -> int:
+        """Move a run along completed -> reviewed -> approved.
+
+        Transition legality comes from the domain state machine; separation
+        (executor may not review, reviewer may not approve their own review)
+        is enforced here, server-side.
+        """
+        from assurance_domain.lifecycle import advance, require_separation
+        row = self.get(run_id)
+        advance("procedure_run", row["status"], target)
+        actor = self._uow.command.actor
+        if target == "reviewed":
+            require_separation(prepared_by=row["executed_by"],
+                               approved_by=actor)
+            extra_sql, extra_val = "reviewed_by = ?", actor
+        elif target == "approved":
+            require_separation(prepared_by=row["reviewed_by"],
+                               approved_by=actor)
+            extra_sql, extra_val = "approved_by = ?", actor
+        else:
+            raise ValueError(f"review can only reach reviewed/approved, not {target!r}")
+        cursor = self._uow.execute(
+            f"""UPDATE procedure_run SET status = ?, {extra_sql},
+               version = version + 1 WHERE run_id = ? AND version = ?""",
+            (target, extra_val, run_id, expected_version))
+        if cursor.rowcount == 0:
+            raise ConflictError("procedure_run", run_id, expected_version)
+        self._uow.emit(
+            entity_type="procedure_run", entity_id=run_id,
+            event_type=f"run.{target}", before_version=expected_version,
+            after_version=expected_version + 1,
+            payload={"by": actor}, engagement_id=row["engagement_id"])
+        return expected_version + 1

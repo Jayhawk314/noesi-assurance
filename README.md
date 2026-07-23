@@ -14,13 +14,22 @@ persistence, evidence storage, API/UI) are being rebuilt. See
 ## Layout
 
 ```
+apps/
+  workbench-api/          # hardened localhost HTTP boundary (token, Origin,
+                          # body limits, security headers; FastAPI swap-in
+                          # planned for the firm-hosted profile)
 packages/
-  assurance-domain/       # pure entities, state machines, commands — no I/O
-  assurance-persistence/  # SQLite adapter, migrations, transactional journal
-  procedures-ap/          # AP methodology contracts + deterministic engines
+  assurance-domain/       # pure entities, state machines, money, receipts,
+                          # SAD, readiness, worker protocol — no I/O
+  assurance-persistence/  # SQLite adapter, migrations, transactional spine
+  assurance-artifacts/    # quarantine -> register -> promote evidence vault
+  assurance-application/  # use cases behind the six screens, authorization
+  procedures-ap/          # AP methodology: contracts, coverage, engines,
+                          # structural layer, ingestion/mapping
+  structural-adapters/    # owned ports of the KOMPOSOS-derived methods
 tests/
   unit/
-  golden/                 # frozen input/output bundles captured from noesi-cpa
+  golden/                 # frozen bundles captured from noesi-cpa (Phase 0)
 docs/
   architecture/
 ```
@@ -28,9 +37,9 @@ docs/
 Boundary rule: `assurance-domain` and `procedures-ap` import no framework,
 database, or HTTP code. Adapters implement ports from the outside.
 
-Further packages (`assurance-artifacts`, `assurance-execution`,
-`assurance-workpapers`, apps, workers) are split out only when a boundary
-earns it — not preemptively.
+Further pieces (`assurance-workpapers`, out-of-process workers, the
+TypeScript review UI) are split out only when a boundary earns it — not
+preemptively.
 
 ## Development
 
