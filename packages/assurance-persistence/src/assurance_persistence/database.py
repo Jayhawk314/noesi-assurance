@@ -180,6 +180,42 @@ CREATE TABLE procedure_run (
     UNIQUE (engagement_id, job_id)
 );
 """),
+    (4, "phase5-signed-locking", """
+-- Hash-chained journal: each accepted event links to its predecessor.
+-- Events written before this migration keep empty hashes; the chain (and
+-- verification) starts at the first hashed event.
+ALTER TABLE domain_event ADD COLUMN prev_hash TEXT NOT NULL DEFAULT '';
+ALTER TABLE domain_event ADD COLUMN entry_hash TEXT NOT NULL DEFAULT '';
+
+-- One frozen snapshot manifest per locked engagement: every entity,
+-- artifact digest, run receipt, disposition, and the journal head that
+-- the lock covers.
+CREATE TABLE lock_snapshot (
+    snapshot_id       TEXT PRIMARY KEY,
+    tenant_id         TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id     TEXT NOT NULL REFERENCES engagement(engagement_id),
+    manifest          TEXT NOT NULL,
+    digest            TEXT NOT NULL,
+    journal_head_seq  INTEGER NOT NULL,
+    journal_head_hash TEXT NOT NULL,
+    created_at        TEXT NOT NULL,
+    UNIQUE (engagement_id)
+);
+
+-- The signature binds an authenticated principal's device key to exactly
+-- one manifest digest; verification material is stored alongside so a
+-- packet can be verified with no access to the key store.
+CREATE TABLE lock_signature (
+    signature_id     TEXT PRIMARY KEY,
+    snapshot_id      TEXT NOT NULL REFERENCES lock_snapshot(snapshot_id),
+    signer_principal TEXT NOT NULL,
+    key_id           TEXT NOT NULL,
+    algorithm        TEXT NOT NULL,
+    public_key_pem   TEXT NOT NULL,
+    signature_hex    TEXT NOT NULL,
+    signed_at        TEXT NOT NULL
+);
+"""),
 )
 
 

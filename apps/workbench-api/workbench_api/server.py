@@ -22,7 +22,9 @@ from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from assurance_application.service import AuthorizationError, WorkbenchService
+from assurance_application.service import (
+    AuthorizationError, EngagementLockedError, WorkbenchService,
+)
 from assurance_domain.errors import ConflictError, NotFoundError
 from assurance_domain.lifecycle import SeparationOfDutiesError
 
@@ -150,6 +152,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 self._reply(exc.status, {"error": str(exc)})
             except AuthorizationError as exc:
                 self._reply(403, {"error": str(exc)})
+            except EngagementLockedError as exc:
+                self._reply(423, {"error": str(exc)})
             except SeparationOfDutiesError as exc:
                 self._reply(409, {"error": str(exc)})
             except ConflictError as exc:
@@ -189,6 +193,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.sad(eid)
                 case ["engagements", eid, "readiness"]:
                     return service.readiness(eid)
+                case ["engagements", eid, "lock"]:
+                    return service.verify_lock(eid)
             raise ApiError(404, "unknown path")
 
         def _post(self, route: list[str], actor: str) -> dict:

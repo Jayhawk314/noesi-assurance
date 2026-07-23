@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "assurance-domain",
     "assurance-persistence",
+    "cryptography>=42",
 ]
 
 [tool.setuptools.packages.find]

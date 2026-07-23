@@ -25,6 +25,57 @@ class CommandOutcome:
     replayed: bool
 
 
+def event_entry_hash(prev_hash: str, tenant_id: str, engagement_id: str | None,
+                     command_id: str, actor: str, entity_type: str,
+                     entity_id: str, event_type: str,
+                     before_version: int | None, after_version: int | None,
+                     payload_json: str, created_at: str) -> str:
+    """Chain hash of one journal entry over its full content."""
+    import hashlib
+    content = json.dumps(
+        [prev_hash, tenant_id, engagement_id, command_id, actor, entity_type,
+         entity_id, event_type, before_version, after_version, payload_json,
+         created_at],
+        ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def verify_journal(conn: sqlite3.Connection) -> dict:
+    """Walk the journal in order; recompute every chained hash.
+
+    Events older than migration 4 carry empty hashes; the chain (and the
+    verification) starts at the first hashed event.
+    """
+    checked = 0
+    prev_hash = ""
+    started = False
+    for row in conn.execute(
+            "SELECT * FROM domain_event ORDER BY event_seq"):
+        if not row["entry_hash"] and not started:
+            continue  # pre-chain prefix
+        started = True
+        expected = event_entry_hash(
+            prev_hash if checked else row["prev_hash"],
+            row["tenant_id"], row["engagement_id"], row["command_id"],
+            row["actor"], row["entity_type"], row["entity_id"],
+            row["event_type"], row["before_version"], row["after_version"],
+            row["payload"], row["created_at"])
+        if expected != row["entry_hash"] or (
+                checked and row["prev_hash"] != prev_hash):
+            return {"ok": False, "checked": checked,
+                    "break_at_seq": row["event_seq"]}
+        prev_hash = row["entry_hash"]
+        checked += 1
+    return {"ok": True, "checked": checked, "break_at_seq": None}
+
+
+def journal_head(conn: sqlite3.Connection) -> tuple[int, str]:
+    row = conn.execute(
+        "SELECT event_seq, entry_hash FROM domain_event "
+        "ORDER BY event_seq DESC LIMIT 1").fetchone()
+    return (row["event_seq"], row["entry_hash"]) if row else (0, "")
+
+
 class UnitOfWork:
     """Repositories and event emission bound to one open transaction."""
 
@@ -39,6 +90,7 @@ class UnitOfWork:
         self.datasets = DatasetRepository(self)
         self.principals = PrincipalRepository(self)
         self.runs = ProcedureRunRepository(self)
+        self.snapshots = LockSnapshotRepository(self)
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
@@ -47,18 +99,28 @@ class UnitOfWork:
              before_version: int | None = None, after_version: int | None = None,
              payload: dict | None = None,
              engagement_id: str | None = None) -> int:
-        """Append a domain event and its outbox row; returns the event_seq."""
+        """Append a hash-chained domain event and its outbox row."""
         scope = engagement_id if engagement_id is not None \
             else self.command.engagement_id
         body = json.dumps(payload or {}, ensure_ascii=False, sort_keys=True)
+        created = utcnow()
+        head = self.execute(
+            "SELECT entry_hash FROM domain_event "
+            "ORDER BY event_seq DESC LIMIT 1").fetchone()
+        prev_hash = head["entry_hash"] if head is not None else ""
+        entry_hash = event_entry_hash(
+            prev_hash, self.command.tenant_id, scope, self.command.command_id,
+            self.command.actor, entity_type, entity_id, event_type,
+            before_version, after_version, body, created)
         cursor = self.execute(
             """INSERT INTO domain_event (tenant_id, engagement_id, command_id,
                actor, entity_type, entity_id, event_type, before_version,
-               after_version, payload, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               after_version, payload, created_at, prev_hash, entry_hash)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (self.command.tenant_id, scope, self.command.command_id,
              self.command.actor, entity_type, entity_id, event_type,
-             before_version, after_version, body, utcnow()))
+             before_version, after_version, body, created,
+             prev_hash, entry_hash))
         event_seq = cursor.lastrowid
         self.execute(
             "INSERT INTO outbox (event_seq, topic, payload, created_at) VALUES (?, ?, ?, ?)",
@@ -500,3 +562,50 @@ class ProcedureRunRepository:
             after_version=expected_version + 1,
             payload={"by": actor}, engagement_id=row["engagement_id"])
         return expected_version + 1
+
+
+class LockSnapshotRepository:
+    """Frozen lock manifests and the signatures bound to them."""
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def record(self, engagement_id: str, *, manifest: dict, digest: str,
+               journal_head_seq: int, journal_head_hash: str) -> str:
+        snapshot_id = new_id()
+        try:
+            self._uow.execute(
+                """INSERT INTO lock_snapshot (snapshot_id, tenant_id,
+                   engagement_id, manifest, digest, journal_head_seq,
+                   journal_head_hash, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (snapshot_id, self._uow.command.tenant_id, engagement_id,
+                 json.dumps(manifest, ensure_ascii=False, sort_keys=True),
+                 digest, journal_head_seq, journal_head_hash, utcnow()))
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("lock_snapshot", engagement_id, 0) from exc
+        self._uow.emit(
+            entity_type="lock_snapshot", entity_id=snapshot_id,
+            event_type="lock.snapshot_recorded", after_version=1,
+            payload={"digest": digest, "journal_head_seq": journal_head_seq},
+            engagement_id=engagement_id)
+        return snapshot_id
+
+    def sign(self, snapshot_id: str, *, engagement_id: str,
+             signer_principal: str, key_id: str, algorithm: str,
+             public_key_pem: str, signature_hex: str) -> str:
+        signature_id = new_id()
+        self._uow.execute(
+            """INSERT INTO lock_signature (signature_id, snapshot_id,
+               signer_principal, key_id, algorithm, public_key_pem,
+               signature_hex, signed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (signature_id, snapshot_id, signer_principal, key_id,
+             algorithm, public_key_pem, signature_hex, utcnow()))
+        self._uow.emit(
+            entity_type="lock_signature", entity_id=signature_id,
+            event_type="lock.signed", after_version=1,
+            payload={"snapshot_id": snapshot_id, "key_id": key_id,
+                     "algorithm": algorithm,
+                     "signer_principal": signer_principal},
+            engagement_id=engagement_id)
+        return signature_id

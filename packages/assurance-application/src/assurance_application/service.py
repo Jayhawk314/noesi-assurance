@@ -1,10 +1,10 @@
-"""WorkbenchService: typed use cases over the transactional spine.
+﻿"""WorkbenchService: typed use cases over the transactional spine.
 
 Authorization model (pilot): the first principal to create an engagement is
 its partner; partners assign the team; preparers ingest, map, normalize,
 and execute; reviewers approve mappings and review runs; partners approve
 reviewed runs and lock. Separation of duties comes from the domain layer
-and the repositories — this service adds the role matrix, never replaces
+and the repositories -- this service adds the role matrix, never replaces
 those checks.
 """
 
@@ -39,12 +39,17 @@ def _finding_uid(verdict: dict) -> str:
     return f"{verdict['domain']}|{json.dumps(verdict['key'], ensure_ascii=False)}"
 
 
+class EngagementLockedError(PermissionError):
+    """The engagement is locked; its record can no longer change."""
+
+
 class WorkbenchService:
     def __init__(self, conn: sqlite3.Connection, vault: ArtifactVault,
-                 tenant_id: str):
+                 tenant_id: str, keystore=None):
         self._conn = conn
         self._vault = vault
         self._tenant = tenant_id
+        self._keystore = keystore
 
     # ------------------------------------------------------------ plumbing
 
@@ -65,6 +70,12 @@ class WorkbenchService:
         if not have & set(roles):
             raise AuthorizationError(
                 f"action requires one of {sorted(roles)} on this engagement")
+
+    def _require_unlocked(self, engagement_id: str) -> None:
+        if self._engagement(engagement_id)["status"] == "locked":
+            raise EngagementLockedError(
+                "the engagement is locked; unlock (with supersession) before "
+                "changing its record")
 
     # ----------------------------------------------- screen 1: engagement
 
@@ -87,6 +98,8 @@ class WorkbenchService:
 
     def assign_team(self, actor: str, engagement_id: str,
                     principal_id: str, role: str) -> dict:
+        self._require_unlocked(engagement_id)
+
         def handler(uow):
             if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
                 raise AuthorizationError("only a partner assigns the team")
@@ -108,6 +121,7 @@ class WorkbenchService:
     def store_source(self, actor: str, engagement_id: str, *, content: bytes,
                      media_type: str, original_name: str,
                      provenance: str = "") -> dict:
+        self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer", "partner")
         outcome = store_artifact(
             self._conn, self._vault,
@@ -119,6 +133,7 @@ class WorkbenchService:
 
     def propose_source_mapping(self, actor: str, engagement_id: str, *,
                                role: str, artifact_id: str) -> dict:
+        self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
         headers, _ = self._artifact_rows(artifact_id)
         artifact = self._conn.execute(
@@ -142,6 +157,8 @@ class WorkbenchService:
 
     def approve_source_mapping(self, actor: str, engagement_id: str,
                                spec_id: str) -> dict:
+        self._require_unlocked(engagement_id)
+
         def handler(uow):
             if "reviewer" not in uow.principals.roles_for(engagement_id, actor):
                 raise AuthorizationError("mapping approval requires a reviewer")
@@ -154,6 +171,7 @@ class WorkbenchService:
 
     def normalize_source(self, actor: str, engagement_id: str,
                          spec_id: str) -> dict:
+        self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
         table = self._rebuild_table(spec_id)
 
@@ -186,6 +204,7 @@ class WorkbenchService:
     def run_procedure(self, actor: str, engagement_id: str, *,
                       procedure_id: str,
                       policies: dict | None = None) -> dict:
+        self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
         tables = {role: list(t.engine_view().records)
                   for role, t in self._tables(engagement_id).items()}
@@ -215,6 +234,7 @@ class WorkbenchService:
     def review_run(self, actor: str, engagement_id: str, run_id: str, *,
                    target: str, expected_version: int) -> dict:
         role_needed = "reviewer" if target == "reviewed" else "partner"
+        self._require_unlocked(engagement_id)
 
         def handler(uow):
             if role_needed not in uow.principals.roles_for(engagement_id, actor):
@@ -269,6 +289,8 @@ class WorkbenchService:
     def set_disposition(self, actor: str, engagement_id: str, *,
                         finding_uid: str, status: str, note: str = "",
                         expected_version: int = 0) -> dict:
+        self._require_unlocked(engagement_id)
+
         def handler(uow):
             roles = uow.principals.roles_for(engagement_id, actor)
             if not roles & {"preparer", "reviewer", "partner"}:
@@ -298,6 +320,7 @@ class WorkbenchService:
     def update_workflow(self, actor: str, engagement_id: str,
                         section: str, values: dict) -> dict:
         """Constrained workflow updates: materiality, stages, completion."""
+        self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer", "partner")
         document, version = self.workflow_document(engagement_id)
         if section == "materiality":
@@ -383,7 +406,9 @@ class WorkbenchService:
             "verdicts": [], "refusals": [],
             "procedure_coverage": coverage,
         }
-        return readiness(report, document, self.sad(engagement_id))
+        from assurance_persistence.spine import verify_journal
+        return readiness(report, document, self.sad(engagement_id),
+                         trail_status={"ok": verify_journal(self._conn)["ok"]})
 
     def _overlay_runs(self, engagement_id: str, coverage: dict) -> dict:
         latest: dict[str, dict] = {}
@@ -409,22 +434,153 @@ class WorkbenchService:
 
     def lock(self, actor: str, engagement_id: str, *,
              expected_version: int) -> dict:
+        """Lock, snapshot, and sign — one transaction, or none of it.
+
+        The manifest freezes every entity the lock covers; the signature
+        binds the partner's device key to exactly that byte set. What it
+        proves is stated inside the manifest itself.
+        """
         state = self.readiness(engagement_id)
         if not state["ready"]:
             return {"locked": False,
                     "blockers": state["blockers"],
                     "report_implication": state["report_implication"]}
+        if self._keystore is None:
+            raise RuntimeError(
+                "locking requires a signing key store; none is configured")
+        identity = self._keystore.identity(actor)
 
         def handler(uow):
             if "partner" not in uow.principals.roles_for(engagement_id, actor):
                 raise AuthorizationError("locking requires the partner")
             version = uow.engagements.set_status(
                 engagement_id, "locked", expected_version=expected_version)
+            manifest = self._lock_manifest(engagement_id, uow.execute)
+            digest = _manifest_digest(manifest)
+            from assurance_persistence.spine import journal_head
+            head_seq, head_hash = journal_head(self._conn)
+            snapshot_id = uow.snapshots.record(
+                engagement_id, manifest=manifest, digest=digest,
+                journal_head_seq=head_seq, journal_head_hash=head_hash)
+            signature_hex = self._keystore.sign(actor, digest)
+            from assurance_artifacts.signing import ALGORITHM
+            uow.snapshots.sign(
+                snapshot_id, engagement_id=engagement_id,
+                signer_principal=actor, key_id=identity.key_id,
+                algorithm=ALGORITHM,
+                public_key_pem=identity.public_key_pem,
+                signature_hex=signature_hex)
             return {"locked": True, "version": version,
+                    "snapshot_id": snapshot_id, "digest": digest,
+                    "key_id": identity.key_id,
                     "report_implication": state["report_implication"]}
         return run_command(
             self._conn, self._command(actor, "engagement.lock", engagement_id),
             handler).result
+
+    def _lock_manifest(self, engagement_id: str, query) -> dict:
+        """Deterministic snapshot of every entity the lock covers."""
+        def rows(sql: str) -> list[dict]:
+            return [dict(row) for row in query(sql, (engagement_id,))]
+
+        engagement = rows("SELECT engagement_id, client_name, period_end, "
+                          "status, version FROM engagement "
+                          "WHERE engagement_id = ?")[0]
+        workflow = query(
+            "SELECT payload, version FROM workflow_state "
+            "WHERE engagement_id = ?", (engagement_id,)).fetchone()
+        import hashlib
+        return {
+            "schema": "noesi-lock-manifest-v1",
+            "engagement": engagement,
+            "workflow": {
+                "version": workflow["version"] if workflow else 0,
+                "payload_sha256": hashlib.sha256(
+                    workflow["payload"].encode("utf-8")).hexdigest()
+                if workflow else None,
+            },
+            "artifacts": rows(
+                "SELECT artifact_id, sha256, size_bytes, media_type, "
+                "original_name, state FROM artifact "
+                "WHERE engagement_id = ? ORDER BY artifact_id"),
+            "mapping_specs": rows(
+                "SELECT spec_id, role, spec_digest, status, proposed_by, "
+                "approved_by, version FROM mapping_spec "
+                "WHERE engagement_id = ? ORDER BY spec_id"),
+            "datasets": rows(
+                "SELECT dataset_id, role, mapping_spec_id, artifact_id, "
+                "rows_in, rows_loaded, rows_rejected, control_total, "
+                "output_digest FROM normalized_dataset "
+                "WHERE engagement_id = ? ORDER BY dataset_id"),
+            "runs": rows(
+                "SELECT run_id, procedure_id, job_id, status, result_digest, "
+                "executed_by, reviewed_by, approved_by, version "
+                "FROM procedure_run WHERE engagement_id = ? ORDER BY run_id"),
+            "dispositions": rows(
+                "SELECT finding_uid, status, note, version FROM disposition "
+                "WHERE engagement_id = ? ORDER BY finding_uid"),
+            "team": rows(
+                "SELECT principal_id, role FROM principal_assignment "
+                "WHERE engagement_id = ? ORDER BY role, principal_id"),
+            "limits": (
+                "This signature proves which principal's device key approved "
+                "exactly this byte set and when the local signer recorded "
+                "it. It does not prove the accounting source was complete "
+                "or authentic, and it does not provide trusted time."),
+        }
+
+    def verify_lock(self, engagement_id: str) -> dict:
+        """Re-derive everything a lock claims; report exactly what holds."""
+        from assurance_artifacts.signing import verify_signature
+        from assurance_persistence.spine import verify_journal
+
+        snapshot = self._conn.execute(
+            "SELECT * FROM lock_snapshot WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()
+        if snapshot is None:
+            return {"locked": False, "error": "no lock snapshot exists"}
+        signature = self._conn.execute(
+            "SELECT * FROM lock_signature WHERE snapshot_id = ?",
+            (snapshot["snapshot_id"],)).fetchone()
+
+        stored_manifest = json.loads(snapshot["manifest"])
+        current_manifest = self._lock_manifest(
+            engagement_id, self._conn.execute)
+        drift = sorted(
+            section for section in stored_manifest
+            if stored_manifest[section] != current_manifest.get(section))
+        snapshot_ok = (
+            not drift
+            and _manifest_digest(current_manifest) == snapshot["digest"])
+
+        signature_ok = bool(signature) and verify_signature(
+            signature["public_key_pem"], snapshot["digest"],
+            signature["signature_hex"])
+
+        journal = verify_journal(self._conn)
+        head_row = self._conn.execute(
+            "SELECT entry_hash FROM domain_event WHERE event_seq = ?",
+            (snapshot["journal_head_seq"],)).fetchone()
+        journal_ok = (journal["ok"] and head_row is not None
+                      and head_row["entry_hash"]
+                      == snapshot["journal_head_hash"])
+
+        return {
+            "locked": True,
+            "snapshot_ok": snapshot_ok,
+            "drift": drift,
+            "signature_ok": signature_ok,
+            "signer": dict(signature) and {
+                "principal": signature["signer_principal"],
+                "key_id": signature["key_id"],
+                "algorithm": signature["algorithm"],
+                "signed_at": signature["signed_at"],
+            } if signature else None,
+            "journal_ok": journal_ok,
+            "journal_events_checked": journal["checked"],
+            "verified": snapshot_ok and signature_ok and journal_ok,
+            "limits": stored_manifest.get("limits", ""),
+        }
 
     # ------------------------------------------------------------ helpers
 
@@ -487,6 +643,13 @@ class WorkbenchService:
                     "recorded digest; refusing to serve unverifiable data")
             tables[dataset["role"]] = table
         return tables
+
+
+def _manifest_digest(manifest: dict) -> str:
+    import hashlib
+    payload = json.dumps(manifest, sort_keys=True, separators=(",", ":"),
+                         ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _tags(verdict: dict) -> dict:
