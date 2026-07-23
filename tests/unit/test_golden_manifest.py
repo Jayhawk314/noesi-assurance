@@ -4,11 +4,21 @@ This is a tamper/consistency check only: it proves the bundles on disk are
 the ones the capture script wrote, not that their content is accurate.
 """
 
+import gzip
 import hashlib
 import json
 from pathlib import Path
 
 BUNDLES = Path(__file__).resolve().parent.parent / "golden" / "bundles"
+
+
+def _read_bundle(name: str) -> dict:
+    """Load a bundle; large bundles are stored gzipped (.gz beside the name)."""
+    raw = BUNDLES / name
+    if raw.exists():
+        return json.loads(raw.read_text(encoding="utf-8"))
+    with gzip.open(BUNDLES / (name + ".gz"), "rt", encoding="utf-8") as fh:
+        return json.load(fh)
 
 
 def _digest(obj) -> str:
@@ -36,7 +46,7 @@ def test_manifest_exists_and_covers_bundles():
 def test_bundle_digests_match_manifest():
     manifest = json.loads((BUNDLES / "MANIFEST.json").read_text(encoding="utf-8"))
     for entry in manifest["bundles"]:
-        payload = json.loads((BUNDLES / entry["file"]).read_text(encoding="utf-8"))
+        payload = _read_bundle(entry["file"])
         assert _digest(payload) == entry["sha256"], \
             f"{entry['file']} does not match its manifest digest"
 

@@ -78,6 +78,10 @@
     {
       "file": "pins.json",
       "sha256": "b1bd27487a9c879314b2a7bc1278e0431574e5a7af58cf16162a1efe493cb179"
+    },
+    {
+      "file": "rockwood_tables.json",
+      "sha256": "d75ecd5998ed952dfedc04c32914519309b34cb56ff661ce857661a323bfe822"
     }
   ]
 }

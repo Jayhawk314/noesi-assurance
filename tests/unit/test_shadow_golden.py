@@ -78,6 +78,7 @@ def test_evidence_lifecycle_overlay_matches_golden():
     "executor_ap_split_payment_review.json",
     "executor_cash_bank_clearing.json",
     "executor_gl_payment_posting.json",
+    "executor_forensic_closed_value_flow.json",
 ])
 def test_engine_receipts_match_golden_bit_for_bit(bundle):
     golden = _load(bundle)
@@ -103,8 +104,9 @@ def test_refusals_match_golden_messages():
         golden["unregistered_incremental_procedure"]["message"]
 
 
-def test_closed_value_flow_is_refused_explicitly():
-    # Divergence D2: deferred structural adapter refuses, not silently absent.
-    with pytest.raises(ValueError, match="structural adapter"):
-        execute_procedure("forensic.closed_value_flow",
-                          {"Value_flows": []}, {})
+def test_closed_value_flow_runs_on_the_owned_structural_adapter():
+    # D2 resolved: the round-trip engine runs without vendored KOMPOSOS.
+    golden = _load("executor_forensic_closed_value_flow.json")
+    findings, _ = execute_procedure(
+        "forensic.closed_value_flow", golden["tables"], {})
+    assert findings, "the golden round trip must still be detected"

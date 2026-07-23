@@ -23,13 +23,16 @@ were never actually run — a real completion gate the prototype's
 compile-time "completed" used to mask. Legacy-shaped coverage fed to the
 same function still reproduces the golden readiness exactly.
 
-## D2 — `forensic.closed_value_flow` is deferred, refused explicitly
+## D2 — vendored KOMPOSOS replaced by owned adapters (resolved)
 
-Prototype: executed via the vendored KOMPOSOS structural graph
-(`sys.path`-dependent). v2 refuses with a clear message until the structural
-code ships as an explicitly owned, benchmarked adapter package
-(`structural-adapters`). Refusal, not silent absence: the contract remains
-in the registry and compiles in coverage.
+Prototype: the structural layer reached KOMPOSOS through runtime `sys.path`
+mutation into a vendored checkout (unshippable, P1). v2 ports exactly the
+code the procedures require into the `structural-adapters` package —
+composition reachability (`CompositionIndex`, the bridge's own BFS) and
+Dempster-Shafer fusion (same author's dual-licensed math, operation order
+preserved). `forensic.closed_value_flow` and the whole Rockwood structural
+stack now run without any vendored runtime; the Rockwood shadow suite
+verifies every receipt bit-for-bit against the prototype's report.
 
 ## D3 — Decimal arithmetic with a float serialization boundary
 
@@ -57,12 +60,32 @@ them). v2 also parses ISO `YYYY-MM-DD` strings. Golden cases are unaffected
 (their periods match), but real string-dated exports now get the cutoff test
 instead of a silent skip.
 
-## Scope note (not a divergence)
+## D6 — exposure algebra label
+
+The research-queue ranking folds exposure additively. The prototype
+imported KOMPOSOS's `ADDITIVE_QUANTALE` for the same fold and labelled rows
+`komposos_additive_quantale`; v2's owned fold is labelled
+`additive_quantale`. Shadow normalization maps the old label to the new.
+
+## D7 — the structural screening layer stays float
+
+The structural/triage/fusion/ranking layer retains the prototype's float
+arithmetic (scores, similarities, energies, exposure) for bit-for-bit
+receipt parity. This is deliberate: everything that layer emits is an
+investigation lead or control observation routed to human review — never a
+SAD candidate. Deterministic monetary procedures (`engines`) run on Decimal
+(D3). Migrating screening magnitudes to Decimal is future work that will
+version the affected policies.
+
+## Scope note (closed)
 
 The five base procedures (`ap.payment_voucher_reference`,
 `ap.voucher_po_reference`, `ap.document_chain`, `ap.segregation_of_duties`,
-`ap.vendor_relational_twins`) run in the prototype through the
-rockwood/structural engines, not the incremental executor — the prototype's
-`execute_procedure` raises "no incremental executor…" for them, and v2
-preserves that exact behavior. Porting those engines (against
-`rockwood_unified.json`) is the remaining Phase 2/3 work.
+`ap.vendor_relational_twins`) run through the ported rockwood/structural
+engines (`rockwood.py`, `structural.py`, `triage.py`, `fusion.py`,
+`ranking.py`, `unified.py`), shadow-verified against `rockwood_unified.json`
+— the full 39-verdict report matches bit-for-bit. The prototype's
+`execute_procedure` behavior for these IDs (no incremental executor) is
+preserved; they execute through the unified engagement path. The ACL binary
+reader is intentionally not ported: the v2 input boundary is parsed
+canonical tables.

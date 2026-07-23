@@ -9,6 +9,7 @@ description = "Controlled AP audit methodology: procedure contracts and determin
 requires-python = ">=3.12"
 dependencies = [
     "assurance-domain",
+    "structural-adapters",
 ]
 
 [tool.setuptools.packages.find]

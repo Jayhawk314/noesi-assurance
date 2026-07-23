@@ -5,9 +5,9 @@ serialization boundary (``fnum``) so v2 receipts stay bit-compatible with the
 float-era goldens. The Phase 2 shadow tests assert receipt_id equality
 against the Phase 0 bundles.
 
-``forensic.closed_value_flow`` is deferred: its round-trip engine depends on
-the vendored KOMPOSOS structural code, which ships later as an explicitly
-owned adapter (divergence D2). It refuses rather than pretends.
+``forensic.closed_value_flow`` runs on the ported structural layer
+(``procedures_ap.structural`` + ``structural_adapters``) — the vendored
+KOMPOSOS dependency is gone (divergence D2, resolved).
 """
 
 from __future__ import annotations
@@ -17,7 +17,9 @@ from datetime import date
 from decimal import Decimal
 
 from assurance_domain.money import fnum, parse_amount, sum_amounts
-from assurance_domain.receipts import Receipt, content_hash
+from assurance_domain.receipts import Receipt
+
+from procedures_ap.structural import content_hash  # date-aware, legacy-parity
 
 ENGINE_VERSION = "noesi-procedures-ap-v2"
 
@@ -169,6 +171,13 @@ def bank_gl_closure(tables: dict, *,
                          "reason": "no general-ledger file provided; payment-to-GL "
                                    "posting and period cannot be tested",
                          "cycle": "financial_statements"})
+    # The subledger-to-GL balance tie needs AP-control account balances, not
+    # the flow data here; refuse rather than fake it.
+    refusals.append({"finding_class": "REFUSAL",
+                     "procedure": "subledger_gl_balance_tie",
+                     "reason": "AP subledger-to-GL control-account balance tie "
+                               "needs period-end control balances, not supplied",
+                     "cycle": "financial_statements"})
 
     bank_by_payment: dict[str, tuple[int, dict]] = {}
     for idx, b in enumerate(bank, 1):
@@ -321,7 +330,12 @@ def execute_procedure(procedure_id: str, tables: dict,
     if procedure_id == "ap.split_payment_review":
         return split_payment_review(tables, policies.get("split_threshold"))
     if procedure_id == "forensic.closed_value_flow":
-        raise ValueError(
-            "forensic.closed_value_flow requires the structural adapter, "
-            "which is not yet ported; the procedure is refused, not faked")
+        from procedures_ap.structural import (
+            build_rockwood_accounting_graph,
+            directed_round_trip_findings,
+        )
+        findings, stats = directed_round_trip_findings(
+            build_rockwood_accounting_graph(tables), 0.02)
+        return findings, {"population": len(_records(tables, "Value_flows")),
+                          "exceptions": len(findings), **stats}
     raise ValueError("no incremental executor is registered for this procedure")

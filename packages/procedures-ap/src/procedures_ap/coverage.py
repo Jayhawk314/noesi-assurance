@@ -20,6 +20,27 @@ def _request_id(kind: str, value: str) -> str:
     return "request|" + hashlib.sha256(raw).hexdigest()[:20]
 
 
+def inventory_from_tables(tables: dict) -> dict:
+    """Build a canonical role/field inventory from ingested table objects."""
+    inventory: dict[str, dict] = {}
+    for role, table in tables.items():
+        records = list(getattr(table, "records",
+                               table if isinstance(table, list) else []))
+        mapping = getattr(table, "column_map", {}) or {}
+        fields = set(mapping)
+        for record in records[:100]:
+            if isinstance(record, dict):
+                fields.update(k for k in record
+                              if not str(k).startswith("source_"))
+        inventory[role] = {
+            "fields": sorted(fields),
+            "rows": len(records),
+            "control_total": getattr(table, "control_total", None),
+            "source_file": getattr(table, "source_file", ""),
+        }
+    return inventory
+
+
 def compile_coverage(inventory: dict, *, policies: dict | None = None,
                      contracts: tuple[ProcedureContract, ...] = PROCEDURES) -> dict:
     """Compile one engagement inventory against the versioned contracts."""
