@@ -197,7 +197,9 @@ class WorkbenchService:
 
     def coverage(self, engagement_id: str) -> dict:
         tables = self._tables(engagement_id)
-        return compile_coverage(inventory_from_tables(tables))
+        document, _ = self.workflow_document(engagement_id)
+        return compile_coverage(inventory_from_tables(tables),
+                                policies=document.get("policies") or None)
 
     # ---------------------------------------- screen 4: runs and findings
 
@@ -343,6 +345,22 @@ class WorkbenchService:
                 "done": bool(values.get("done", False)),
                 "note": str(values.get("note", "")),
                 "evidence": list(values.get("evidence", []))}
+        elif section == "procedure_selection":
+            from procedures_ap.contracts import CONTRACTS_BY_ID
+            procedure_id = str(values["procedure_id"])
+            if procedure_id not in CONTRACTS_BY_ID:
+                raise ValueError(f"unknown procedure {procedure_id!r}")
+            document.setdefault("procedures", {})[procedure_id] = {
+                "selected": bool(values.get("selected", True)),
+                "rationale": str(values.get("rationale", ""))}
+        elif section == "policy":
+            from procedures_ap.contracts import PROCEDURES
+            name = str(values["name"])
+            known = {policy for contract in PROCEDURES
+                     for policy in contract.required_policies}
+            if name not in known:
+                raise ValueError(f"unknown policy {name!r}")
+            document.setdefault("policies", {})[name] = str(values["value"])
         else:
             raise ValueError(f"unknown workflow section {section!r}")
 
@@ -581,6 +599,141 @@ class WorkbenchService:
             "verified": snapshot_ok and signature_ok and journal_ok,
             "limits": stored_manifest.get("limits", ""),
         }
+
+    # ------------------------------------------------- screen 6b: export
+
+    def export_packet(self, actor: str, engagement_id: str) -> dict:
+        """Build, sign, and journal an evidence packet from the frozen lock.
+
+        Export refuses unless the lock fully verifies right now — a drifted
+        or broken engagement cannot produce a packet that pretends
+        otherwise.
+        """
+        from assurance_artifacts.signing import ALGORITHM
+        from assurance_workpapers.packet import (
+            PACKET_LIMITS, PACKET_VERSION, packet_digest, seal_packet,
+        )
+        from procedures_ap.contracts import PROCEDURES
+
+        self._require(engagement_id, actor,
+                      "preparer", "reviewer", "partner")
+        verification = self.verify_lock(engagement_id)
+        if not verification.get("verified"):
+            raise ValueError(
+                "export refused: the lock does not verify "
+                f"(drift={verification.get('drift')}, "
+                f"signature_ok={verification.get('signature_ok')}, "
+                f"journal_ok={verification.get('journal_ok')})")
+        if self._keystore is None:
+            raise RuntimeError(
+                "export is a signed operation; no key store is configured")
+
+        snapshot = self._conn.execute(
+            "SELECT * FROM lock_snapshot WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()
+        signature = self._conn.execute(
+            "SELECT * FROM lock_signature WHERE snapshot_id = ?",
+            (snapshot["snapshot_id"],)).fetchone()
+        info = self._engagement(engagement_id)
+
+        runs = []
+        executed = set()
+        for row in self._conn.execute(
+                """SELECT * FROM procedure_run WHERE engagement_id = ?
+                   ORDER BY created_at, run_id""", (engagement_id,)):
+            executed.add(row["procedure_id"])
+            runs.append({
+                "run_id": row["run_id"],
+                "procedure_id": row["procedure_id"],
+                "job_id": row["job_id"],
+                "manifest": json.loads(row["manifest"]),
+                "status": row["status"],
+                # The seal was taken at execution, before review moved status.
+                "status_at_execution": ("error" if row["status"] == "error"
+                                        else "completed"),
+                "summary": json.loads(row["summary"]),
+                "findings": json.loads(row["findings"]),
+                "error": row["error"],
+                "result_digest": row["result_digest"],
+                "executed_by": row["executed_by"],
+                "reviewed_by": row["reviewed_by"],
+                "approved_by": row["approved_by"],
+            })
+        document, _ = self.workflow_document(engagement_id)
+        selections = document.get("procedures", {})
+        not_run = []
+        for contract in PROCEDURES:
+            if contract.procedure_id in executed:
+                continue
+            decision = selections.get(contract.procedure_id, {})
+            reason = ("deselected: " + decision.get("rationale", "")
+                      if decision.get("selected") is False
+                      else "not executed before lock")
+            not_run.append({"procedure_id": contract.procedure_id,
+                            "reason": reason})
+
+        dispositions = {
+            row["finding_uid"]: {"status": row["status"], "note": row["note"]}
+            for row in self._conn.execute(
+                "SELECT * FROM disposition WHERE engagement_id = ?",
+                (engagement_id,))}
+
+        from assurance_persistence.database import utcnow
+        packet = {
+            "packet_version": PACKET_VERSION,
+            "generated": utcnow(),
+            "software": "noesi-assurance-workbench",
+            "engagement": {
+                "engagement_id": engagement_id,
+                "client_name": info["client_name"],
+                "period_end": info["period_end"],
+                "status": info["status"],
+            },
+            "lock": {
+                "manifest": json.loads(snapshot["manifest"]),
+                "digest": snapshot["digest"],
+                "journal_head_seq": snapshot["journal_head_seq"],
+                "journal_head_hash": snapshot["journal_head_hash"],
+                "signature": {
+                    "signer_principal": signature["signer_principal"],
+                    "key_id": signature["key_id"],
+                    "algorithm": signature["algorithm"],
+                    "public_key_pem": signature["public_key_pem"],
+                    "signature_hex": signature["signature_hex"],
+                    "signed_at": signature["signed_at"],
+                },
+            },
+            "runs": runs,
+            "procedures_not_run": not_run,
+            "dispositions": dispositions,
+            "summary_of_audit_differences": self.sad(engagement_id),
+            "limits": PACKET_LIMITS,
+        }
+        identity = self._keystore.identity(actor)
+        digest = packet_digest(packet)
+        seal_packet(
+            packet, exporter=actor, key_id=identity.key_id,
+            public_key_pem=identity.public_key_pem,
+            signature_hex=self._keystore.sign(actor, digest),
+            algorithm=ALGORITHM)
+
+        def handler(uow):
+            uow.emit(entity_type="evidence_packet",
+                     entity_id=snapshot["snapshot_id"],
+                     event_type="export.packet",
+                     payload={"packet_digest": digest,
+                              "exporter": actor,
+                              "key_id": identity.key_id},
+                     engagement_id=engagement_id)
+            return {"packet_digest": digest}
+        run_command(self._conn,
+                    self._command(actor, "export.packet", engagement_id),
+                    handler)
+        return packet
+
+    def workpaper_html(self, actor: str, engagement_id: str) -> str:
+        from assurance_workpapers.workpaper import render_workpaper
+        return render_workpaper(self.export_packet(actor, engagement_id))
 
     # ------------------------------------------------------------ helpers
 

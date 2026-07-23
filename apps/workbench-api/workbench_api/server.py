@@ -90,6 +90,19 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             self.end_headers()
             self.wfile.write(body)
 
+        def _reply_html(self, status: int, markup: str) -> None:
+            body = markup.encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            # The workpaper carries inline styles and nothing else.
+            self.send_header("Content-Security-Policy",
+                             "default-src 'none'; style-src 'unsafe-inline'")
+            for name, value in _SECURITY_HEADERS[1:]:
+                self.send_header(name, value)
+            self.end_headers()
+            self.wfile.write(body)
+
         def _allowed_hosts(self) -> set[str]:
             actual_port = self.server.server_address[1]
             return {f"127.0.0.1:{actual_port}", f"localhost:{actual_port}"}
@@ -147,7 +160,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 actor = self._authenticate()
                 parts = [p for p in urlsplit(self.path).path.split("/") if p]
                 result = self._dispatch(method, parts, actor)
-                self._reply(200, result)
+                if result is not None:  # HTML routes reply for themselves
+                    self._reply(200, result)
             except ApiError as exc:
                 self._reply(exc.status, {"error": str(exc)})
             except AuthorizationError as exc:
@@ -195,6 +209,10 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.readiness(eid)
                 case ["engagements", eid, "lock"]:
                     return service.verify_lock(eid)
+                case ["engagements", eid, "workpaper"]:
+                    self._reply_html(
+                        200, service.workpaper_html(auth.principal_id, eid))
+                    return None  # already replied
             raise ApiError(404, "unknown path")
 
         def _post(self, route: list[str], actor: str) -> dict:
@@ -255,6 +273,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.lock(
                         actor, eid,
                         expected_version=int(body["expected_version"]))
+                case ["engagements", eid, "export"]:
+                    return service.export_packet(actor, eid)
             raise ApiError(404, "unknown path")
 
     return ThreadingHTTPServer((host, port), Handler)
