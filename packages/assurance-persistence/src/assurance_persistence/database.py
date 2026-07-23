@@ -87,6 +87,62 @@ CREATE TABLE idempotency (
     created_at TEXT NOT NULL
 );
 """),
+    (2, "phase3-artifacts-and-mapping", """
+-- Immutable artifact manifests. Bytes live in the vault, addressed by
+-- sha256; the row is the authority on existence and retention. Retirement
+-- is a tombstone, never a delete.
+CREATE TABLE artifact (
+    artifact_id     TEXT PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id   TEXT NOT NULL REFERENCES engagement(engagement_id),
+    sha256          TEXT NOT NULL,
+    size_bytes      INTEGER NOT NULL,
+    media_type      TEXT NOT NULL,
+    original_name   TEXT NOT NULL,
+    provenance      TEXT NOT NULL DEFAULT '',
+    state           TEXT NOT NULL DEFAULT 'promoted'
+                    CHECK (state IN ('promoted', 'retired')),
+    retention_class TEXT NOT NULL DEFAULT 'engagement',
+    created_at      TEXT NOT NULL,
+    retired_at      TEXT,
+    retire_reason   TEXT NOT NULL DEFAULT '',
+    UNIQUE (engagement_id, sha256)
+);
+
+-- Reviewed transformation model: a mapping is a durable object that is
+-- proposed, then approved by a different principal, then consumed.
+CREATE TABLE mapping_spec (
+    spec_id       TEXT PRIMARY KEY,
+    tenant_id     TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id TEXT NOT NULL REFERENCES engagement(engagement_id),
+    role          TEXT NOT NULL,
+    artifact_id   TEXT REFERENCES artifact(artifact_id),
+    spec          TEXT NOT NULL,
+    spec_digest   TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'proposed'
+                  CHECK (status IN ('proposed', 'approved', 'superseded')),
+    proposed_by   TEXT NOT NULL,
+    approved_by   TEXT NOT NULL DEFAULT '',
+    version       INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL,
+    approved_at   TEXT
+);
+
+CREATE TABLE normalized_dataset (
+    dataset_id      TEXT PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id   TEXT NOT NULL REFERENCES engagement(engagement_id),
+    role            TEXT NOT NULL,
+    mapping_spec_id TEXT NOT NULL REFERENCES mapping_spec(spec_id),
+    artifact_id     TEXT NOT NULL REFERENCES artifact(artifact_id),
+    rows_in         INTEGER NOT NULL,
+    rows_loaded     INTEGER NOT NULL,
+    rows_rejected   INTEGER NOT NULL,
+    control_total   TEXT,
+    output_digest   TEXT NOT NULL,
+    created_at      TEXT NOT NULL
+);
+"""),
 )
 
 

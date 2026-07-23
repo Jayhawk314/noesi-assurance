@@ -34,6 +34,9 @@ class UnitOfWork:
         self.engagements = EngagementRepository(self)
         self.workflows = WorkflowStateRepository(self)
         self.dispositions = DispositionRepository(self)
+        self.artifacts = ArtifactRepository(self)
+        self.mappings = MappingSpecRepository(self)
+        self.datasets = DatasetRepository(self)
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
@@ -214,3 +217,142 @@ class DispositionRepository:
         return self._uow.execute(
             "SELECT * FROM disposition WHERE engagement_id = ? ORDER BY finding_uid",
             (engagement_id,)).fetchall()
+
+
+class ArtifactRepository:
+    """Immutable artifact manifests; retirement is a one-way tombstone."""
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def register(self, engagement_id: str, *, sha256: str, size_bytes: int,
+                 media_type: str, original_name: str,
+                 provenance: str = "", retention_class: str = "engagement",
+                 ) -> str:
+        artifact_id = new_id()
+        try:
+            self._uow.execute(
+                """INSERT INTO artifact (artifact_id, tenant_id, engagement_id,
+                   sha256, size_bytes, media_type, original_name, provenance,
+                   retention_class, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (artifact_id, self._uow.command.tenant_id, engagement_id,
+                 sha256, size_bytes, media_type, original_name, provenance,
+                 retention_class, utcnow()))
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError(
+                "artifact", f"{engagement_id}/{sha256}", 0) from exc
+        self._uow.emit(
+            entity_type="artifact", entity_id=artifact_id,
+            event_type="artifact.registered", after_version=1,
+            payload={"sha256": sha256, "size_bytes": size_bytes,
+                     "media_type": media_type, "original_name": original_name},
+            engagement_id=engagement_id)
+        return artifact_id
+
+    def get(self, artifact_id: str) -> sqlite3.Row:
+        row = self._uow.execute(
+            "SELECT * FROM artifact WHERE artifact_id = ? AND tenant_id = ?",
+            (artifact_id, self._uow.command.tenant_id)).fetchone()
+        if row is None:
+            raise NotFoundError(f"artifact {artifact_id}")
+        return row
+
+    def retire(self, artifact_id: str, reason: str) -> None:
+        cursor = self._uow.execute(
+            """UPDATE artifact SET state = 'retired', retired_at = ?,
+               retire_reason = ? WHERE artifact_id = ? AND tenant_id = ?
+               AND state = 'promoted'""",
+            (utcnow(), reason, artifact_id, self._uow.command.tenant_id))
+        if cursor.rowcount == 0:
+            raise ConflictError("artifact", artifact_id, 1)
+        self._uow.emit(
+            entity_type="artifact", entity_id=artifact_id,
+            event_type="artifact.retired", payload={"reason": reason})
+
+
+class MappingSpecRepository:
+    """Durable reviewed-transformation objects: proposed, then approved."""
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def propose(self, engagement_id: str, *, role: str, spec: dict,
+                spec_digest: str, proposed_by: str,
+                artifact_id: str | None = None) -> str:
+        spec_id = new_id()
+        self._uow.execute(
+            """INSERT INTO mapping_spec (spec_id, tenant_id, engagement_id,
+               role, artifact_id, spec, spec_digest, proposed_by, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (spec_id, self._uow.command.tenant_id, engagement_id, role,
+             artifact_id, json.dumps(spec, ensure_ascii=False, sort_keys=True),
+             spec_digest, proposed_by, utcnow()))
+        self._uow.emit(
+            entity_type="mapping_spec", entity_id=spec_id,
+            event_type="mapping.proposed", after_version=1,
+            payload={"role": role, "spec_digest": spec_digest,
+                     "proposed_by": proposed_by},
+            engagement_id=engagement_id)
+        return spec_id
+
+    def approve(self, spec_id: str, *, approved_by: str) -> None:
+        from assurance_domain.lifecycle import require_separation
+        row = self._uow.execute(
+            "SELECT proposed_by, status FROM mapping_spec "
+            "WHERE spec_id = ? AND tenant_id = ?",
+            (spec_id, self._uow.command.tenant_id)).fetchone()
+        if row is None:
+            raise NotFoundError(f"mapping_spec {spec_id}")
+        # Enforced server-side, never a UI nicety.
+        require_separation(prepared_by=row["proposed_by"],
+                           approved_by=approved_by)
+        cursor = self._uow.execute(
+            """UPDATE mapping_spec SET status = 'approved', approved_by = ?,
+               approved_at = ? WHERE spec_id = ? AND status = 'proposed'""",
+            (approved_by, utcnow(), spec_id))
+        if cursor.rowcount == 0:
+            raise ConflictError("mapping_spec", spec_id, 1)
+        self._uow.emit(
+            entity_type="mapping_spec", entity_id=spec_id,
+            event_type="mapping.approved",
+            payload={"approved_by": approved_by})
+
+    def get(self, spec_id: str) -> sqlite3.Row:
+        row = self._uow.execute(
+            "SELECT * FROM mapping_spec WHERE spec_id = ? AND tenant_id = ?",
+            (spec_id, self._uow.command.tenant_id)).fetchone()
+        if row is None:
+            raise NotFoundError(f"mapping_spec {spec_id}")
+        return row
+
+
+class DatasetRepository:
+    """Normalization receipts: what came in, what loaded, what was rejected."""
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def record(self, engagement_id: str, *, role: str, mapping_spec_id: str,
+               artifact_id: str, rows_in: int, rows_loaded: int,
+               rows_rejected: int, control_total: str | None,
+               output_digest: str) -> str:
+        dataset_id = new_id()
+        self._uow.execute(
+            """INSERT INTO normalized_dataset (dataset_id, tenant_id,
+               engagement_id, role, mapping_spec_id, artifact_id, rows_in,
+               rows_loaded, rows_rejected, control_total, output_digest,
+               created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (dataset_id, self._uow.command.tenant_id, engagement_id, role,
+             mapping_spec_id, artifact_id, rows_in, rows_loaded,
+             rows_rejected, control_total, output_digest, utcnow()))
+        self._uow.emit(
+            entity_type="normalized_dataset", entity_id=dataset_id,
+            event_type="dataset.normalized", after_version=1,
+            payload={"role": role, "rows_in": rows_in,
+                     "rows_loaded": rows_loaded,
+                     "rows_rejected": rows_rejected,
+                     "control_total": control_total,
+                     "output_digest": output_digest},
+            engagement_id=engagement_id)
+        return dataset_id
