@@ -45,25 +45,29 @@ preemptively.
 
 ## Development
 
-Requires Python >= 3.12 (plus `cryptography`) and Node >= 20 for the UI.
+Requires Python >= 3.12 and Node >= 20 (UI build only).
 
 ```
 python -m venv .venv
-.venv\Scripts\activate
-pip install -e packages/assurance-domain -e packages/assurance-persistence -e packages/procedures-ap
-pip install pytest cryptography
-pytest
+.venv\Scripts\python -m pip install -e packages/assurance-domain -e packages/structural-adapters ^
+    -e packages/assurance-persistence -e packages/assurance-artifacts -e packages/procedures-ap ^
+    -e packages/assurance-application -e packages/assurance-workpapers -e apps/workbench-api
+.venv\Scripts\python -m pip install pytest
+.venv\Scripts\python -m pytest tests\unit
 ```
 
 ## Running the workbench
 
+One-time UI build, then a one-liner:
+
 ```
-cd apps/workbench-ui && npm install && npm run build && cd ../..
-python -m workbench_api            # prints the session token
+cd apps\workbench-ui && npm install && npm run build && cd ..\..
+.venv\Scripts\noesi-workbench
 ```
 
-Open http://127.0.0.1:8347/ and paste the token. Data lives under
-`~/.noesi-assurance` (control DB, evidence vault, signing keys).
+It prints the session token; open http://127.0.0.1:8347/ and paste it.
+Data lives under `~/.noesi-assurance` (control DB, evidence vault,
+signing keys).
 
 ## Reference repository
 

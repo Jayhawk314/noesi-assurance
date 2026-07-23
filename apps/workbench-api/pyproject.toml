@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "workbench-api"
+version = "0.1.0"
+description = "The local workbench: hardened loopback API serving the review UI."
+requires-python = ">=3.12"
+dependencies = [
+    "assurance-application",
+    "assurance-workpapers",
+]
+
+[project.scripts]
+noesi-workbench = "workbench_api.__main__:main"
+
+[tool.setuptools]
+packages = ["workbench_api"]

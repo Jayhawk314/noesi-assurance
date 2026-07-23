@@ -44,11 +44,12 @@ def main(argv: list[str] | None = None) -> int:
     server = build_server(service, auth, port=args.port, static_dir=static)
 
     port = server.server_address[1]
+    # flush=True: the token must reach a redirected log immediately.
     print(f"workbench:  http://127.0.0.1:{port}/"
-          + ("" if static else "   (UI not built; API only)"))
-    print(f"principal:  {args.principal}")
-    print(f"token:      {auth.token}")
-    print("Ctrl+C stops the server. The token dies with it.")
+          + ("" if static else "   (UI not built; API only)"), flush=True)
+    print(f"principal:  {args.principal}", flush=True)
+    print(f"token:      {auth.token}", flush=True)
+    print("Ctrl+C stops the server. The token dies with it.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
