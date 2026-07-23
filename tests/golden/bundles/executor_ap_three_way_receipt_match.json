@@ -1,0 +1,92 @@
+{
+  "procedure_id": "ap.three_way_receipt_match",
+  "engine_version": "noesis-procedure-execution-v1",
+  "tables": {
+    "Vouchers": [
+      {
+        "voucher_number": "V1",
+        "po_number": "PO1",
+        "voucher_amount": 100.0
+      },
+      {
+        "voucher_number": "V2",
+        "po_number": "PO2",
+        "voucher_amount": 80.0
+      },
+      {
+        "voucher_number": "V3",
+        "po_number": "PO3",
+        "voucher_amount": 50.0
+      }
+    ],
+    "Goods_receipts": [
+      {
+        "receipt_number": "R1",
+        "po_number": "PO1",
+        "received_amount": 60.0
+      },
+      {
+        "receipt_number": "R2",
+        "po_number": "PO3",
+        "received_amount": 50.0
+      }
+    ]
+  },
+  "policies": {},
+  "summary": {
+    "population": 3,
+    "exceptions": 2
+  },
+  "findings": [
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.three_way_receipt_match",
+        "V1"
+      ],
+      "verdict": "CLASH",
+      "policy": "ap.three_way_receipt_match.v1",
+      "sources": [
+        "approved_evidence",
+        "procedure_contract"
+      ],
+      "score": 40.0,
+      "reason": "voucher V1 amount 100.0 exceeds observed receipts 60.0",
+      "evidence": {
+        "finding_class": "PROVED_EXCEPTION",
+        "cycle": "payables",
+        "voucher_number": "V1",
+        "po_number": "PO1",
+        "voucher_amount": 100.0,
+        "received_amount": 60.0,
+        "limits": "quantity, service, partial-delivery and unit-of-measure terms require review"
+      },
+      "receipt_id": "f9ba19594f227c476baa98939c780ca0f78c63decddd5b81de6cbba7403bf39f"
+    },
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.three_way_receipt_match",
+        "V2"
+      ],
+      "verdict": "ORPHAN",
+      "policy": "ap.three_way_receipt_match.v1",
+      "sources": [
+        "approved_evidence"
+      ],
+      "score": 80.0,
+      "reason": "voucher V2 references PO PO2 with no observed goods receipt",
+      "evidence": {
+        "finding_class": "EXPECTED_BUT_MISSING",
+        "cycle": "payables",
+        "voucher_number": "V2",
+        "po_number": "PO2",
+        "source_hash": null,
+        "limits": "absence may be timing, services, or an incomplete receiving export"
+      },
+      "receipt_id": "f4816f8cef6ac30c371239db7dd227b3c071185882ea97d87d149dc50a89c266"
+    }
+  ]
+}

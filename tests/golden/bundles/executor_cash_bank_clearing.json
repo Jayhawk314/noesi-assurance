@@ -1,0 +1,74 @@
+{
+  "procedure_id": "cash.bank_clearing",
+  "engine_version": "noesis-procedure-execution-v1",
+  "tables": {
+    "Payments": [
+      {
+        "payment_number": "P1",
+        "payment_amount": 500.0,
+        "payment_date": "2025-06-01"
+      },
+      {
+        "payment_number": "P2",
+        "payment_amount": 750.0,
+        "payment_date": "2025-06-02"
+      }
+    ],
+    "Bank": [
+      {
+        "bank_txn_id": "B1",
+        "payment_number": "P1",
+        "amount": 500.0,
+        "bank_date": "2025-06-03"
+      }
+    ]
+  },
+  "policies": {},
+  "summary": {
+    "population": 2,
+    "bank_present": true,
+    "gl_present": false,
+    "bank_matched": 1,
+    "gl_matched": 0,
+    "clearing_exceptions": 1,
+    "posting_exceptions": 0,
+    "unrecorded_bank_outflows": 0,
+    "closed_to_gl_pct": null,
+    "exceptions": 1
+  },
+  "findings": [
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "rockwood_closure",
+      "key": [
+        "bank_clearing",
+        "P2"
+      ],
+      "verdict": "ORPHAN",
+      "policy": "closure.bank_clearing_v1",
+      "sources": [
+        "Payments:2"
+      ],
+      "score": 750.0,
+      "reason": "payment P2 does not appear in the bank feed — not cleared",
+      "evidence": {
+        "finding_class": "EXPECTED_BUT_MISSING",
+        "cycle": "cash",
+        "graph_path": [
+          "payment:P2",
+          "bank:MISSING"
+        ],
+        "source_rows": [
+          {
+            "table": "Payments",
+            "row": 2,
+            "record_id": "P2",
+            "content_hash": "962a9a71c42623034c00f70545e1d0d9408cd84d2936312d10cfaa89936c2a37"
+          }
+        ],
+        "limits": "a payment absent from the bank feed may be uncleared, timing, or a data gap — it requires review, not an allegation."
+      },
+      "receipt_id": "1c576e064c50422a336aea3dec65346ca977b9335e98815cfe114cd82037381c"
+    }
+  ]
+}

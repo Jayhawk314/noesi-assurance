@@ -1,0 +1,304 @@
+{
+  "schema_version": "noesis-procedure-coverage-v1",
+  "engine_version": "noesis-procedure-execution-v1",
+  "procedures_py_sha256": "1ec95e47efb0a8e9d369acb3c8b22e7f55fc43e41d743b79c337fd120f4c741c",
+  "contracts": [
+    {
+      "procedure_id": "ap.payment_voucher_reference",
+      "name": "Payment-to-voucher reference",
+      "objective": "Determine whether every recorded payment references an observed voucher.",
+      "cycle": "payables",
+      "assertions": [
+        "occurrence",
+        "accuracy"
+      ],
+      "required_fields": {
+        "Payments": [
+          "payment_number",
+          "voucher_number"
+        ],
+        "Vouchers": [
+          "voucher_number"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "client accounting export",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": ""
+    },
+    {
+      "procedure_id": "ap.voucher_po_reference",
+      "name": "Voucher-to-purchase-order reference",
+      "objective": "Determine whether every voucher expected to have a PO references an observed PO.",
+      "cycle": "payables",
+      "assertions": [
+        "occurrence",
+        "authorization"
+      ],
+      "required_fields": {
+        "Vouchers": [
+          "voucher_number",
+          "po_number"
+        ],
+        "Purchase_orders": [
+          "po_number"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "client accounting export",
+      "policy_version": "v1",
+      "denominator_role": "Vouchers",
+      "default_selected": true,
+      "limitations": ""
+    },
+    {
+      "procedure_id": "ap.document_chain",
+      "name": "PO → voucher → payment chain coherence",
+      "objective": "Test whether the supplied AP document chain closes and amounts/dates cohere.",
+      "cycle": "payables",
+      "assertions": [
+        "occurrence",
+        "accuracy",
+        "cutoff"
+      ],
+      "required_fields": {
+        "Purchase_orders": [
+          "po_number",
+          "vendor_number",
+          "po_amount",
+          "po_date"
+        ],
+        "Vouchers": [
+          "voucher_number",
+          "po_number",
+          "vendor_number",
+          "voucher_amount",
+          "voucher_date"
+        ],
+        "Payments": [
+          "payment_number",
+          "voucher_number",
+          "vendor_number",
+          "payment_amount",
+          "payment_date"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "client accounting export",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": "Document-chain coherence does not authenticate any document."
+    },
+    {
+      "procedure_id": "ap.segregation_of_duties",
+      "name": "Payment segregation of duties",
+      "objective": "Evaluate observed separation between payment creation and approval.",
+      "cycle": "payables",
+      "assertions": [
+        "authorization"
+      ],
+      "required_fields": {
+        "Payments": [
+          "payment_number",
+          "created_by",
+          "approved_by"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "payment workflow or approval log",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": "Field semantics and compensating controls require auditor evaluation."
+    },
+    {
+      "procedure_id": "ap.vendor_relational_twins",
+      "name": "Vendor relational-twin screening",
+      "objective": "Identify vendors with unusually similar observed identities or relationships.",
+      "cycle": "payables",
+      "assertions": [
+        "occurrence"
+      ],
+      "required_fields": {
+        "Vendors": [
+          "vendor_number",
+          "vendor_name"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "client accounting export",
+      "policy_version": "v1",
+      "denominator_role": "Vendors",
+      "default_selected": true,
+      "limitations": "A structural twin is an investigation lead, not proof of duplication or fraud."
+    },
+    {
+      "procedure_id": "cash.bank_clearing",
+      "name": "Payment-to-bank clearing",
+      "objective": "Determine whether recorded payments clear through independent bank evidence.",
+      "cycle": "cash",
+      "assertions": [
+        "occurrence",
+        "completeness",
+        "accuracy"
+      ],
+      "required_fields": {
+        "Payments": [
+          "payment_number",
+          "payment_amount",
+          "payment_date"
+        ],
+        "Bank": [
+          "bank_txn_id",
+          "payment_number",
+          "amount",
+          "bank_date"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "independent bank or cash-disbursements feed",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": ""
+    },
+    {
+      "procedure_id": "gl.payment_posting",
+      "name": "Payment-to-general-ledger posting",
+      "objective": "Determine whether payments post to the GL at the expected amount and period.",
+      "cycle": "financial_statements",
+      "assertions": [
+        "completeness",
+        "accuracy",
+        "cutoff"
+      ],
+      "required_fields": {
+        "Payments": [
+          "payment_number",
+          "voucher_number",
+          "payment_amount",
+          "payment_date"
+        ],
+        "GL": [
+          "gl_entry_id",
+          "reference",
+          "amount",
+          "gl_date"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "general ledger export",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": ""
+    },
+    {
+      "procedure_id": "ap.subledger_gl_balance_tie",
+      "name": "AP subledger-to-GL control-account tie",
+      "objective": "Reconcile the period-end AP subledger balance to the GL control account.",
+      "cycle": "financial_statements",
+      "assertions": [
+        "completeness",
+        "accuracy"
+      ],
+      "required_fields": {
+        "AP_control_balance": [
+          "period_end",
+          "subledger_balance",
+          "gl_balance"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "period-end AP reconciliation and GL control balance",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": ""
+    },
+    {
+      "procedure_id": "ap.three_way_receipt_match",
+      "name": "PO/invoice/goods-receipt three-way match",
+      "objective": "Determine whether invoiced and paid goods were ordered and received.",
+      "cycle": "payables",
+      "assertions": [
+        "occurrence",
+        "accuracy",
+        "authorization"
+      ],
+      "required_fields": {
+        "Purchase_orders": [
+          "po_number",
+          "po_amount"
+        ],
+        "Vouchers": [
+          "voucher_number",
+          "po_number",
+          "voucher_amount"
+        ],
+        "Goods_receipts": [
+          "receipt_number",
+          "po_number",
+          "received_amount"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "PO, invoice, and receiving records",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": ""
+    },
+    {
+      "procedure_id": "ap.split_payment_review",
+      "name": "Split-payment review",
+      "objective": "Identify payments clustered below an approved authorization threshold.",
+      "cycle": "payables",
+      "assertions": [
+        "authorization"
+      ],
+      "required_fields": {
+        "Payments": [
+          "payment_number",
+          "vendor_number",
+          "payment_amount",
+          "payment_date"
+        ]
+      },
+      "required_policies": [
+        "split_threshold"
+      ],
+      "evidence_source": "client accounting export",
+      "policy_version": "v1",
+      "denominator_role": "Payments",
+      "default_selected": true,
+      "limitations": "A cluster is advisory and requires business-purpose review."
+    },
+    {
+      "procedure_id": "forensic.closed_value_flow",
+      "name": "Closed-population value-flow review",
+      "objective": "Screen complete directed value flows for coherent round trips.",
+      "cycle": "forensic",
+      "assertions": [
+        "occurrence"
+      ],
+      "required_fields": {
+        "Value_flows": [
+          "source_entity",
+          "target_entity",
+          "amount",
+          "flow_date"
+        ]
+      },
+      "required_policies": [],
+      "evidence_source": "complete counterparty-to-company inflow and outflow feed",
+      "policy_version": "v1",
+      "denominator_role": "Value_flows",
+      "default_selected": true,
+      "limitations": "A coherent cycle is a lead, not an allegation of fraud."
+    }
+  ]
+}

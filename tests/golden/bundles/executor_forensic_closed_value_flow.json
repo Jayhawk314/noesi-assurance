@@ -1,0 +1,113 @@
+{
+  "procedure_id": "forensic.closed_value_flow",
+  "engine_version": "noesis-procedure-execution-v1",
+  "tables": {
+    "Value_flows": [
+      {
+        "source_entity": "Company",
+        "target_entity": "VendorA",
+        "amount": 1000.0,
+        "flow_date": "2025-01-10"
+      },
+      {
+        "source_entity": "VendorA",
+        "target_entity": "Company",
+        "amount": 995.0,
+        "flow_date": "2025-01-20"
+      },
+      {
+        "source_entity": "Company",
+        "target_entity": "VendorB",
+        "amount": 400.0,
+        "flow_date": "2025-02-01"
+      }
+    ]
+  },
+  "policies": {},
+  "summary": {
+    "population": 3,
+    "exceptions": 1,
+    "flow_edges": 3,
+    "cycles": 1,
+    "legitimate_suppressed": 0
+  },
+  "findings": [
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "rockwood_structural",
+      "key": [
+        "directed_round_trip",
+        1,
+        "entity:VendorA"
+      ],
+      "verdict": "TENSION",
+      "policy": "rockwood.structural_coherence_v1",
+      "sources": [
+        "Value_flows:2",
+        "Value_flows:1"
+      ],
+      "score": 995.0,
+      "reason": "Directed value returned to entity:VendorA through 2 amount- and time-consistent transfers",
+      "evidence": {
+        "finding_class": "STRUCTURAL_ANOMALY",
+        "mechanism": "directed_cycle+amount_temporal_coherence",
+        "graph_path": [
+          {
+            "source": "entity:VendorA",
+            "target": "entity:Company",
+            "relation": "transfer",
+            "amount": 995.0,
+            "occurred_on": null,
+            "source_rows": [
+              {
+                "table": "Value_flows",
+                "row": 2,
+                "record_id": "row-2",
+                "content_hash": "ef7e51fa369d3f697fcc06d5ddda7ee431399f35e4dbb17787e20ef77eb0ab2c"
+              }
+            ],
+            "metadata": {
+              "flow_type": ""
+            }
+          },
+          {
+            "source": "entity:Company",
+            "target": "entity:VendorA",
+            "relation": "transfer",
+            "amount": 1000.0,
+            "occurred_on": null,
+            "source_rows": [
+              {
+                "table": "Value_flows",
+                "row": 1,
+                "record_id": "row-1",
+                "content_hash": "380319bdc3e96130335aceab654ad390e75ad51042e734e0b49c6bbf6429499c"
+              }
+            ],
+            "metadata": {
+              "flow_type": ""
+            }
+          }
+        ],
+        "amount_tolerance": 0.02,
+        "max_days": 30,
+        "source_rows": [
+          {
+            "table": "Value_flows",
+            "row": 2,
+            "record_id": "row-2",
+            "content_hash": "ef7e51fa369d3f697fcc06d5ddda7ee431399f35e4dbb17787e20ef77eb0ab2c"
+          },
+          {
+            "table": "Value_flows",
+            "row": 1,
+            "record_id": "row-1",
+            "content_hash": "380319bdc3e96130335aceab654ad390e75ad51042e734e0b49c6bbf6429499c"
+          }
+        ],
+        "limits": "A coherent round trip is not fraud; business purpose and intercompany explanations require review."
+      },
+      "receipt_id": "349d1bf864a9c0f43966344b1b93f9db8c59fe9dcf89425637a9b302fe2fa908"
+    }
+  ]
+}

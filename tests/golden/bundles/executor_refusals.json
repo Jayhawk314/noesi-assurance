@@ -1,0 +1,12 @@
+{
+  "split_threshold_missing": {
+    "raised": true,
+    "type": "ValueError",
+    "message": "split_threshold must be a positive number"
+  },
+  "unregistered_incremental_procedure": {
+    "raised": true,
+    "type": "ValueError",
+    "message": "no incremental executor is registered for this procedure"
+  }
+}

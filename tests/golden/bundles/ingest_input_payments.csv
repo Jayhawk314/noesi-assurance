@@ -1,0 +1,4 @@
+Check No,Invoice Number,Supplier ID,Paid Amount,Check Date,Entered By,Approver,Branch Memo
+1001,INV-1,V10,250.00,2025-04-01,pat,quinn,april run
+1002,INV-2,V11,1250.50,2025-04-02,pat,pat,april run
+1003,INV-3,V10,99.49,2025-04-03,ryu,quinn,april run

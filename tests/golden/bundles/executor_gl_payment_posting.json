@@ -1,0 +1,76 @@
+{
+  "procedure_id": "gl.payment_posting",
+  "engine_version": "noesis-procedure-execution-v1",
+  "tables": {
+    "Payments": [
+      {
+        "payment_number": "P1",
+        "voucher_number": "V1",
+        "payment_amount": 500.0,
+        "payment_date": "2025-06-01"
+      },
+      {
+        "payment_number": "P2",
+        "voucher_number": "V2",
+        "payment_amount": 750.0,
+        "payment_date": "2025-06-02"
+      }
+    ],
+    "GL": [
+      {
+        "gl_entry_id": "G1",
+        "reference": "P1",
+        "amount": 500.0,
+        "gl_date": "2025-06-01"
+      }
+    ]
+  },
+  "policies": {},
+  "summary": {
+    "population": 2,
+    "bank_present": false,
+    "gl_present": true,
+    "bank_matched": 0,
+    "gl_matched": 1,
+    "clearing_exceptions": 0,
+    "posting_exceptions": 1,
+    "unrecorded_bank_outflows": 0,
+    "closed_to_gl_pct": 50.0,
+    "exceptions": 1
+  },
+  "findings": [
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "rockwood_closure",
+      "key": [
+        "gl_posting",
+        "P2"
+      ],
+      "verdict": "ORPHAN",
+      "policy": "closure.gl_posting_v1",
+      "sources": [
+        "Payments:2"
+      ],
+      "score": 750.0,
+      "reason": "payment P2 is not posted to the general ledger",
+      "evidence": {
+        "finding_class": "EXPECTED_BUT_MISSING",
+        "cycle": "financial_statements",
+        "graph_path": [
+          "payment:P2",
+          "gl:MISSING"
+        ],
+        "source_rows": [
+          {
+            "table": "Payments",
+            "row": 2,
+            "record_id": "P2",
+            "content_hash": "75341a54ba8ca2843f24830a9bf430950b0502bad9271a331776a87830e5cec2"
+          }
+        ],
+        "limits": "a payment with no GL posting is an evidence gap to resolve, not a proved misstatement."
+      },
+      "receipt_id": "de116b10c6becc71c6df371fd06f0bd60813ac67971ef43c303c8dd71c8d421d"
+    }
+  ]
+}

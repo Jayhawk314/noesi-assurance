@@ -1,0 +1,50 @@
+{
+  "procedure_id": "ap.subledger_gl_balance_tie",
+  "engine_version": "noesis-procedure-execution-v1",
+  "tables": {
+    "AP_control_balance": [
+      {
+        "period_end": "2025-12-31",
+        "subledger_balance": 125000.0,
+        "gl_balance": 120000.0
+      },
+      {
+        "period_end": "2025-11-30",
+        "subledger_balance": 90000.0,
+        "gl_balance": 90000.0
+      }
+    ]
+  },
+  "policies": {},
+  "summary": {
+    "population": 2,
+    "exceptions": 1
+  },
+  "findings": [
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.subledger_gl_balance_tie",
+        "2025-12-31"
+      ],
+      "verdict": "CLASH",
+      "policy": "ap.subledger_gl_balance_tie.v1",
+      "sources": [
+        "approved_evidence",
+        "procedure_contract"
+      ],
+      "score": 5000.0,
+      "reason": "AP subledger 125000.0 does not tie to GL control 120000.0",
+      "evidence": {
+        "finding_class": "PROVED_EXCEPTION",
+        "cycle": "financial_statements",
+        "subledger_balance": 125000.0,
+        "gl_balance": 120000.0,
+        "difference": 5000.0,
+        "source_hash": null
+      },
+      "receipt_id": "b5d7065fb897b48c2d17dce365bafd2020235f7b56d7ecb9f51698d93dd32329"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "captured_at": "2026-07-23T05:37:59.614174+00:00",
+  "capture_script": "capture_phase0.py",
+  "purpose": "Freeze current noesi-cpa behavior before the port. Documents behavior; does not bless accuracy.",
+  "bundles": [
+    {
+      "file": "contracts.json",
+      "sha256": "386a3f7c880733ce65ef9e765a8853d93b650275463abe7e7e8375d3e5d62f49"
+    },
+    {
+      "file": "coverage_full.json",
+      "sha256": "ed70b31943569a0d46789a649f51e8acaf7f93b51b6fe6d757a9fdf75a39da8a"
+    },
+    {
+      "file": "coverage_partial.json",
+      "sha256": "d4c2b814701081847819e7828b5a625b7052340e703fe435a7ba3812e3c59129"
+    },
+    {
+      "file": "coverage_empty.json",
+      "sha256": "2dcfd79c1c03024d14e748170c11dc3d4cf46025e474195ecc786fbbbb6ece5b"
+    },
+    {
+      "file": "coverage_selection_overlay.json",
+      "sha256": "73cdf8dccc473854112bc77cf3d9e4ab0fe6f50ebfbeed93ebb12c50544e1d05"
+    },
+    {
+      "file": "coverage_evidence_lifecycle.json",
+      "sha256": "de6a9e5c26d34c3aa254af58475576caf54ee477f3a4c0c297e4b537c8f5f4b3"
+    },
+    {
+      "file": "executor_ap_three_way_receipt_match.json",
+      "sha256": "5400bb46173fb14c358e10ad42442cfaa4d955ed4909a8fb1197ae25ce524cd1"
+    },
+    {
+      "file": "executor_ap_subledger_gl_balance_tie.json",
+      "sha256": "41fbebf69feca5ce97335d9c3968cfbbc88e692620412bc9cee2a30912070817"
+    },
+    {
+      "file": "executor_ap_split_payment_review.json",
+      "sha256": "0b0a94f09108a190b4e3f88fd68b17277a0bacfd488d12f24de4212157aefd8e"
+    },
+    {
+      "file": "executor_cash_bank_clearing.json",
+      "sha256": "97f9a699e99a1a639f2e8f75a59fbd5aa986a56e4deee3b83c47ebe70bb0abe6"
+    },
+    {
+      "file": "executor_gl_payment_posting.json",
+      "sha256": "709f6dec76d483e2a024631118cf6b3873a60d8ec0770604abdb0736139a2fde"
+    },
+    {
+      "file": "executor_forensic_closed_value_flow.json",
+      "sha256": "9c0a0734776770082a2f7f5090f7af78fb76507bc1ba4a0d64d46f8bc49b1405"
+    },
+    {
+      "file": "executor_refusals.json",
+      "sha256": "bb85279de6308c6502ed0f6c2e98c79627052972e03be94a10e896618035c2a9"
+    },
+    {
+      "file": "ingest_mapping.json",
+      "sha256": "ae60f37ff60f3c4ab3b7cdbf2fc2865bf961624fb639e3756fccc4953947bce2"
+    },
+    {
+      "file": "sad_summary.json",
+      "sha256": "b0e8600fb9e54f844cd52f31ab569e4115e45803961b3751fc1394a39918e1ef"
+    },
+    {
+      "file": "readiness_blank.json",
+      "sha256": "6b6f241594e2ed0a71976f48c7da09089efd26d6f4a281fa35afa6f86ad4727a"
+    },
+    {
+      "file": "rockwood_unified.json",
+      "sha256": "12ab37815167490070fc7ce8ae77201ba6ad8fc9bd828bb91ab1daca7bbe2a55"
+    },
+    {
+      "file": "defect_disposition_collision.json",
+      "sha256": "1ce184e04c3bceb9629234b2429c27a129129258a222f1e8d3ed7755abd2570e"
+    },
+    {
+      "file": "pins.json",
+      "sha256": "b1bd27487a9c879314b2a7bc1278e0431574e5a7af58cf16162a1efe493cb179"
+    }
+  ]
+}

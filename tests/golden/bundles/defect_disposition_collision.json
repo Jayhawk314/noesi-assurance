@@ -1,0 +1,14 @@
+{
+  "description": "Same company, different fiscal periods: workflow engagement IDs differ, but disposition finding IDs are identical, so a shared dispositions.json cross-contaminates periods.",
+  "engagement_ids": {
+    "fy2024": "Acme|2024-12-31",
+    "fy2025": "Acme|2025-12-31"
+  },
+  "finding_ids": {
+    "fy2024": "Acme|audit_procedure_run|ap.subledger_gl_balance_tie · 2025-12-31",
+    "fy2025": "Acme|audit_procedure_run|ap.subledger_gl_balance_tie · 2025-12-31"
+  },
+  "collision": true,
+  "disposition_finding_id_source": "noesis/audit/disposition.py:37",
+  "non_transactional_writes": "workflow.save() and disposition.save() are separate whole-file JSON writes (workflow.py:105, disposition.py:49); trail append is a third write. No transaction spans them; a crash between writes leaves inconsistent state, and concurrent HTTP threads can interleave read-modify-write cycles."
+}

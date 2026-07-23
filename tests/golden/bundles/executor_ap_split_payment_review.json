@@ -1,0 +1,65 @@
+{
+  "procedure_id": "ap.split_payment_review",
+  "engine_version": "noesis-procedure-execution-v1",
+  "tables": {
+    "Payments": [
+      {
+        "payment_number": "P1",
+        "vendor_number": "V1",
+        "payment_amount": 6000.0,
+        "payment_date": "2025-03-01"
+      },
+      {
+        "payment_number": "P2",
+        "vendor_number": "V1",
+        "payment_amount": 5000.0,
+        "payment_date": "2025-03-01"
+      },
+      {
+        "payment_number": "P3",
+        "vendor_number": "V2",
+        "payment_amount": 2000.0,
+        "payment_date": "2025-03-01"
+      }
+    ]
+  },
+  "policies": {
+    "split_threshold": "10000"
+  },
+  "summary": {
+    "population": 3,
+    "exceptions": 1,
+    "threshold": 10000.0
+  },
+  "findings": [
+    {
+      "schema_version": "noesis-seam-verdict-v1",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.split_payment_review",
+        "V1",
+        "2025-03-01"
+      ],
+      "verdict": "TENSION",
+      "policy": "ap.split_payment_review.v1",
+      "sources": [
+        "approved_evidence",
+        "procedure_contract"
+      ],
+      "score": 11000.0,
+      "reason": "2 payments to vendor V1 on 2025-03-01 total 11000.0 around threshold 10000.0",
+      "evidence": {
+        "finding_class": "STRUCTURAL_ANOMALY",
+        "cycle": "payables",
+        "payment_numbers": [
+          "P1",
+          "P2"
+        ],
+        "total": 11000.0,
+        "threshold": 10000.0,
+        "limits": "a cluster is a review lead; business purpose and approval evidence decide it"
+      },
+      "receipt_id": "cf7c8d8befbd382f3c73897ee5aae68023d520111918f66e3a92952e0c8582de"
+    }
+  ]
+}

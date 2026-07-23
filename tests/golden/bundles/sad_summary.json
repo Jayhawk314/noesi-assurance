@@ -1,0 +1,94 @@
+{
+  "rows": [
+    {
+      "engagement": "Acme",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.subledger_gl_balance_tie",
+        "2025-12-31"
+      ],
+      "verdict": "CLASH",
+      "score": 5000.0,
+      "reason": "subledger does not tie to GL control",
+      "evidence": {
+        "finding_class": "PROVED_EXCEPTION"
+      },
+      "disposition": "unadjusted"
+    },
+    {
+      "engagement": "Acme",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.three_way_receipt_match",
+        "V2"
+      ],
+      "verdict": "CLASH",
+      "score": 300.0,
+      "reason": "billed exceeds received",
+      "evidence": {
+        "finding_class": "PROVED_EXCEPTION"
+      },
+      "disposition": "adjusted"
+    },
+    {
+      "engagement": "Acme",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.three_way_receipt_match",
+        "V9"
+      ],
+      "verdict": "CLASH",
+      "score": 900.0,
+      "reason": "billed exceeds received",
+      "evidence": {
+        "finding_class": "PROVED_EXCEPTION"
+      },
+      "disposition": "waived"
+    },
+    {
+      "engagement": "Acme",
+      "domain": "audit_procedure_run",
+      "key": [
+        "ap.split_payment_review",
+        "V1",
+        "2025-03-01"
+      ],
+      "verdict": "TENSION",
+      "score": 11000.0,
+      "reason": "cluster below threshold",
+      "evidence": {
+        "finding_class": "STRUCTURAL_ANOMALY"
+      },
+      "disposition": "cleared"
+    }
+  ],
+  "materiality": 10000.0,
+  "summary": {
+    "overall_materiality": 10000.0,
+    "performance_materiality": 7500.0,
+    "clearly_trivial": 500.0,
+    "unadjusted": [
+      {
+        "finding_id": "Acme|audit_procedure_run|['ap.subledger_gl_balance_tie', '2025-12-31']",
+        "engagement": "Acme",
+        "account": "audit_procedure_run",
+        "reason": "subledger does not tie to GL control",
+        "amount": 5000.0
+      }
+    ],
+    "adjusted_count": 1,
+    "total_unadjusted": 5000.0,
+    "total_adjusted": 300.0,
+    "candidates": 3,
+    "disposed": 3,
+    "undisposed": 0,
+    "open_count": 0,
+    "review_items": 0,
+    "review_open_count": 0,
+    "invalid_waiver_count": 1,
+    "invalid_waivers": [
+      "Acme|audit_procedure_run|['ap.three_way_receipt_match', 'V9']"
+    ],
+    "conclusion": null
+  }
+}

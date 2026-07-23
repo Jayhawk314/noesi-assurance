@@ -1,0 +1,76 @@
+{
+  "report": {
+    "company": "Acme",
+    "fye": "2025-12-31",
+    "procedure_coverage": "coverage_partial.json"
+  },
+  "readiness": {
+    "ready": false,
+    "status": "not_ready",
+    "report_implication": "not_ready",
+    "blockers": [
+      {
+        "code": "MATERIALITY_NOT_SET",
+        "count": 1
+      },
+      {
+        "code": "RISK_ASSESSMENT_NOT_COMPLETE",
+        "count": 1
+      },
+      {
+        "code": "CONTROLS_NOT_COMPLETE",
+        "count": 1
+      },
+      {
+        "code": "TEAM_ASSIGNMENTS_INCOMPLETE",
+        "count": 2,
+        "items": [
+          "preparer",
+          "reviewer"
+        ]
+      },
+      {
+        "code": "SELECTED_PROCEDURES_BLOCKED",
+        "count": 5,
+        "items": [
+          "cash.bank_clearing",
+          "gl.payment_posting",
+          "ap.subledger_gl_balance_tie",
+          "ap.three_way_receipt_match",
+          "forensic.closed_value_flow"
+        ]
+      },
+      {
+        "code": "SELECTED_PROCEDURES_PARTIAL",
+        "count": 4,
+        "items": [
+          "ap.voucher_po_reference",
+          "ap.document_chain",
+          "ap.segregation_of_duties",
+          "ap.split_payment_review"
+        ]
+      },
+      {
+        "code": "COMPLETION_PROCEDURES_INCOMPLETE",
+        "count": 6,
+        "items": [
+          "final_analytical_review",
+          "subsequent_events",
+          "going_concern",
+          "management_representations",
+          "evidence_sufficiency",
+          "engagement_review"
+        ]
+      }
+    ],
+    "risk_items": 0,
+    "control_items": 0,
+    "procedure_items": 11,
+    "review_sources": 0,
+    "workpaper_locked": false,
+    "scope_items": 0,
+    "scope_limitations": 0,
+    "completion_done": 0,
+    "completion_total": 6
+  }
+}
