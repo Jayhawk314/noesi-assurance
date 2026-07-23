@@ -27,7 +27,13 @@ def api(tmp_path):
     tenant = ensure_tenant(conn, "firm")
     service = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant)
     auth = SessionAuth.create("principal-alice")
-    server = build_server(service, auth, port=0)
+    static = tmp_path / "dist"
+    (static / "assets").mkdir(parents=True)
+    (static / "index.html").write_text(
+        "<!doctype html><title>workbench</title>", encoding="utf-8")
+    (static / "assets" / "app.js").write_text("console.log('ui')",
+                                              encoding="utf-8")
+    server = build_server(service, auth, port=0, static_dir=static)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield server.server_address[1], auth
@@ -101,6 +107,46 @@ def test_responses_carry_security_headers(api):
     assert response.getheader("X-Content-Type-Options") == "nosniff"
     assert response.getheader("X-Frame-Options") == "DENY"
     conn.close()
+
+
+def test_ui_shell_is_served_without_a_token_but_host_checked(api):
+    port, _ = api
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("GET", "/")
+    response = conn.getresponse()
+    body = response.read().decode()
+    assert response.status == 200
+    assert "workbench" in body
+    assert "script-src 'self'" in response.getheader("Content-Security-Policy")
+    conn.close()
+
+    status, _ = _request(port, "GET", "/",
+                         headers={"Host": "evil.example.com"})
+    assert status == 403
+
+
+def test_static_assets_serve_and_traversal_is_contained(api):
+    port, _ = api
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("GET", "/assets/app.js")
+    response = conn.getresponse()
+    assert response.status == 200
+    assert "javascript" in response.getheader("Content-Type")
+    response.read()
+    conn.close()
+
+    # Traversal attempts resolve inside the static root or 404 — never
+    # escape. (The SPA fallback may serve the shell; that is fine.)
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("GET", "/assets/../../control.db")
+    response = conn.getresponse()
+    body = response.read()
+    assert b"SQLite" not in body
+    conn.close()
+
+    # The data plane is untouched by the static allowance.
+    status, _ = _request(port, "GET", "/api/engagements")
+    assert status == 401
 
 
 def test_unknown_paths_and_internal_errors_stay_opaque(api):

@@ -16,3 +16,6 @@ Thumbs.db
 
 # Regenerable from noesi-cpa via capture_rockwood_tables.py; the .gz is committed
 tests/golden/bundles/rockwood_tables.json
+
+node_modules/
+apps/workbench-ui/dist/

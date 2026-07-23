@@ -64,10 +64,32 @@ class ApiError(Exception):
         super().__init__(message)
 
 
+_STATIC_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".map": "application/json",
+}
+
+_STATIC_CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; "
+               "connect-src 'self'; img-src 'self'")
+
+
 def build_server(service: WorkbenchService, auth: SessionAuth,
-                 host: str = "127.0.0.1", port: int = 0) -> ThreadingHTTPServer:
-    """Create (do not start) the hardened HTTP server."""
+                 host: str = "127.0.0.1", port: int = 0,
+                 static_dir=None) -> ThreadingHTTPServer:
+    """Create (do not start) the hardened HTTP server.
+
+    ``static_dir`` (the built workbench-ui dist) is served on non-/api GET
+    paths: Host-checked but tokenless (the page load cannot carry a bearer),
+    path-resolved strictly inside the directory, with a scripts-self CSP.
+    The data plane stays fully authenticated.
+    """
     write_lock = threading.Lock()
+    from pathlib import Path
+    static_root = Path(static_dir).resolve() if static_dir else None
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -155,7 +177,43 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
         def do_POST(self) -> None:  # noqa: N802
             self._handle("POST")
 
+        def _serve_static(self, path: str) -> None:
+            if self.headers.get("Host", "") not in self._allowed_hosts():
+                self._reply(403, {"error": "Host not allowed"})
+                return
+            clean = path.split("?", 1)[0]
+            candidate = (static_root / clean.lstrip("/")).resolve() \
+                if clean not in ("", "/") else static_root / "index.html"
+            try:
+                candidate.relative_to(static_root)
+            except ValueError:
+                self._reply(404, {"error": "unknown path"})
+                return
+            if candidate.is_dir():
+                candidate = candidate / "index.html"
+            if not candidate.is_file():
+                # SPA fallback: unknown non-asset paths get the shell.
+                candidate = static_root / "index.html"
+                if not candidate.is_file():
+                    self._reply(404, {"error": "unknown path"})
+                    return
+            body = candidate.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", _STATIC_TYPES.get(
+                candidate.suffix, "application/octet-stream"))
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Security-Policy", _STATIC_CSP)
+            for name, value in _SECURITY_HEADERS[1:]:
+                self.send_header(name, value)
+            self.end_headers()
+            self.wfile.write(body)
+
         def _handle(self, method: str) -> None:
+            raw_path = urlsplit(self.path).path
+            if (method == "GET" and static_root is not None
+                    and not raw_path.startswith("/api")):
+                self._serve_static(raw_path)
+                return
             try:
                 actor = self._authenticate()
                 parts = [p for p in urlsplit(self.path).path.split("/") if p]
@@ -197,8 +255,13 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return {"engagements": service.list_engagements()}
                 case ["engagements", eid, "team"]:
                     return {"team": service.team(eid)}
+                case ["engagements", eid, "sources"]:
+                    return service.sources(eid)
                 case ["engagements", eid, "coverage"]:
                     return service.coverage(eid)
+                case ["engagements", eid, "workflow"]:
+                    document, version = service.workflow_document(eid)
+                    return {"document": document, "version": version}
                 case ["engagements", eid, "runs"]:
                     return {"runs": service.runs(eid)}
                 case ["engagements", eid, "findings"]:

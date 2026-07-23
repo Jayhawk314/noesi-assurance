@@ -193,6 +193,34 @@ class WorkbenchService:
             self._command(actor, "dataset.normalize", engagement_id),
             handler).result
 
+    def sources(self, engagement_id: str) -> dict:
+        """Screen 2 inventory: artifacts, mapping specs, dataset receipts."""
+        artifacts = [dict(row) for row in self._conn.execute(
+            """SELECT artifact_id, sha256, size_bytes, media_type,
+               original_name, provenance, state, created_at FROM artifact
+               WHERE engagement_id = ? ORDER BY created_at""",
+            (engagement_id,))]
+        specs = []
+        for row in self._conn.execute(
+                """SELECT spec_id, role, artifact_id, spec, status,
+                   proposed_by, approved_by, created_at FROM mapping_spec
+                   WHERE engagement_id = ? ORDER BY created_at""",
+                (engagement_id,)):
+            item = dict(row)
+            stored = json.loads(item.pop("spec"))
+            item["column_map"] = stored.get("column_map", {})
+            item["unmapped_headers"] = stored.get("unmapped_headers", [])
+            item["refused_fields"] = stored.get("refused_fields", [])
+            specs.append(item)
+        datasets = [dict(row) for row in self._conn.execute(
+            """SELECT dataset_id, role, mapping_spec_id, artifact_id, rows_in,
+               rows_loaded, rows_rejected, control_total, output_digest,
+               created_at FROM normalized_dataset
+               WHERE engagement_id = ? ORDER BY created_at""",
+            (engagement_id,))]
+        return {"artifacts": artifacts, "mapping_specs": specs,
+                "datasets": datasets}
+
     # --------------------------------------------- screen 3: coverage
 
     def coverage(self, engagement_id: str) -> dict:

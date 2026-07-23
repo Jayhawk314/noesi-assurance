@@ -18,6 +18,8 @@ apps/
   workbench-api/          # hardened localhost HTTP boundary (token, Origin,
                           # body limits, security headers; FastAPI swap-in
                           # planned for the firm-hosted profile)
+  workbench-ui/           # dense review UI: React + TypeScript, six screens,
+                          # served as static assets by workbench-api
 packages/
   assurance-domain/       # pure entities, state machines, money, receipts,
                           # SAD, readiness, worker protocol — no I/O
@@ -43,15 +45,25 @@ preemptively.
 
 ## Development
 
-Requires Python >= 3.12.
+Requires Python >= 3.12 (plus `cryptography`) and Node >= 20 for the UI.
 
 ```
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e packages/assurance-domain -e packages/assurance-persistence -e packages/procedures-ap
-pip install pytest
+pip install pytest cryptography
 pytest
 ```
+
+## Running the workbench
+
+```
+cd apps/workbench-ui && npm install && npm run build && cd ../..
+python -m workbench_api            # prints the session token
+```
+
+Open http://127.0.0.1:8347/ and paste the token. Data lives under
+`~/.noesi-assurance` (control DB, evidence vault, signing keys).
 
 ## Reference repository
 
