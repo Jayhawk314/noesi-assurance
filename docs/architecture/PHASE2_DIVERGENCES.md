@@ -17,6 +17,12 @@ overlay's `"ready_to_run"` semantics are preserved unchanged.
 
 Shadow normalization: golden `"completed"` → `"not_run"` before diffing.
 
+Consequence (deliberate, tested): with v2-compiled coverage, `readiness()`
+now raises `SELECTED_PROCEDURES_PENDING_RUN` for executable procedures that
+were never actually run — a real completion gate the prototype's
+compile-time "completed" used to mask. Legacy-shaped coverage fed to the
+same function still reproduces the golden readiness exactly.
+
 ## D2 — `forensic.closed_value_flow` is deferred, refused explicitly
 
 Prototype: executed via the vendored KOMPOSOS structural graph
@@ -32,6 +38,16 @@ arithmetic is `Decimal` (`assurance_domain.money`); floats are produced only
 by `fnum()` when writing receipts/reasons, keeping v2 receipts diffable
 against float-era goldens. Mixed-currency aggregation raises
 `CurrencyMismatchError` instead of silently summing.
+
+SAD aggregation (`assurance_domain.sad`) accumulates exact Decimals and
+quantizes once at the boundary, where the prototype re-rounded floats after
+each addition — identical on clean inputs (shadow-verified), and the exact
+path cannot accumulate drift on messy ones.
+
+Finding identity in the SAD prefers an engagement-scoped `finding_uid` and
+falls back to the legacy `engagement|domain|key` composition only for
+migrated rows (`assurance_domain.readiness.legacy_report_finding_id` is
+likewise migration-only).
 
 ## D4 — GL/bank period comparison accepts ISO date strings
 
