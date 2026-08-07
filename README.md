@@ -6,10 +6,12 @@ records why the others cannot run, and produces a reproducible
 evidence-linked workpaper.
 
 This is the v2 product repository. The audit logic (procedure contracts,
-coverage compiler, refusal semantics, review gates) is being ported from the
+coverage compiler, refusal semantics, review gates) was ported from the
 `noesi-cpa` prototype; the product boundaries around it (identity,
-persistence, evidence storage, API/UI) are being rebuilt. See
-`docs/architecture/` for the full assessment and target design.
+persistence, evidence storage, API/UI) were rebuilt. **See
+`docs/ARCHITECTURE.md` for the current system description** —
+`docs/architecture/` is the historical prototype assessment and porting
+notes, kept as record.
 
 ## Layout
 
@@ -65,9 +67,54 @@ cd apps\workbench-ui && npm install && npm run build && cd ..\..
 .venv\Scripts\noesi-workbench
 ```
 
-It prints the session token; open http://127.0.0.1:8347/ and paste it.
+Open the address it prints — the served page carries its own session token.
 Data lives under `~/.noesi-assurance` (control DB, evidence vault,
 signing keys).
+
+### First five minutes
+
+```
+.venv\Scripts\noesi-workbench --demo
+```
+
+`--demo` seeds a fully loaded engagement from the Harborline Marine teaching
+case (846 rows across ten record sets, loaded through the real three-chair
+review path, with the split-payment policies approved). Open it, press "run"
+on any procedure, and read what the engine found — and refused to claim.
+
+### One operator, several chairs
+
+Separation of duties is enforced server-side: whoever proposes a mapping
+cannot approve it, whoever runs a procedure cannot review it, and only the
+partner locks. On a single laptop you play every part — the **acting as**
+control in the header switches which chair you sit in (the demo comes with
+`demo-preparer` and `demo-reviewer`; the Team screen adds more). Every action
+is journaled under the chair that performed it and appears that way on the
+signed workpaper. This is the pilot's honest trust model: the console owner
+already controls every local identity, so the switcher changes convenience,
+not the security boundary. A firm-hosted profile with real per-person
+sessions replaces it.
+
+### Locking, reopening, and the amendment record
+
+Locking freezes a signed manifest of every covered entity, anchored to the
+hash-chained journal. Reopening a locked engagement follows the professional
+rule for changes after file assembly (AU-C 230 / PCAOB AS 1215): nothing is
+ever deleted. Unlock **supersedes** the lock — the partner must give a
+specific reason, which enters the journal permanently; the superseded
+snapshot, its signature, and its journal anchor stay verifiable forever; work
+after reopening passes through the same preparer/reviewer/partner gates; and
+the next lock signs a manifest that names its predecessor and the reason it
+was reopened. Evidence packets carry the full amendment history, and
+`verify_packet` re-verifies every superseded lock offline along with the
+active one.
+
+### The teaching case
+
+`case-studies/harborline-marine/` is a complete instructor-ready case:
+generated data with 40 planted exceptions, student assignments, and an answer
+key. `instructor/verify_run.py` re-runs the whole case headlessly and prints
+every finding for reconciliation against the key.
 
 ## Reference repository
 

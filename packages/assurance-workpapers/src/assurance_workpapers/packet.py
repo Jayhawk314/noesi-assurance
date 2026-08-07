@@ -8,8 +8,10 @@ only the packet — and reports each claim separately instead of one flag:
 2. every run's result digest re-derives from its recorded content;
 3. the lock manifest re-hashes to the digest the lock signature covers;
 4. the lock signature verifies with the public key carried in the packet;
-5. the export signature verifies likewise over the packet digest;
-6. the packet digest itself re-derives.
+5. every superseded lock in the amendment history re-hashes and its
+   signature verifies the same way (v3);
+6. the export signature verifies likewise over the packet digest;
+7. the packet digest itself re-derives.
 
 What none of this proves (stated in the packet): source authenticity,
 extraction completeness, or trusted time.
@@ -22,7 +24,11 @@ import json
 
 from assurance_artifacts.signing import verify_signature
 
-PACKET_VERSION = "noesi-evidence-packet-v2"
+# v3: adds "lock_history" — superseded locks carried whole (manifest,
+# signature, unlock reason/who/when) per AU-C 230's record of changes after
+# file assembly. Absent or empty history verifies vacuously, so v2 packets
+# still verify.
+PACKET_VERSION = "noesi-evidence-packet-v3"
 
 PACKET_LIMITS = (
     "Digests make this packet tamper-evident and the signatures prove which "
@@ -97,6 +103,17 @@ def verify_packet(packet: dict) -> dict:
         lock.get("digest", ""),
         lock_signature.get("signature_hex", ""))
 
+    history_failures = []
+    for item in packet.get("lock_history", []):
+        item_signature = item.get("signature") or {}
+        item_ok = (
+            _sha(_canonical(item.get("manifest", {}))) == item.get("digest")
+            and verify_signature(item_signature.get("public_key_pem", ""),
+                                 item.get("digest", ""),
+                                 item_signature.get("signature_hex", "")))
+        if not item_ok:
+            history_failures.append(item.get("sequence"))
+
     seal = packet.get("seal") or {}
     digest_ok = packet_digest(packet) == seal.get("packet_digest")
     export_signature_ok = verify_signature(
@@ -109,6 +126,7 @@ def verify_packet(packet: dict) -> dict:
         "run_seals_ok": not run_seal_failures,
         "lock_manifest_ok": manifest_ok,
         "lock_signature_ok": lock_signature_ok,
+        "lock_history_ok": not history_failures,
         "packet_digest_ok": digest_ok,
         "export_signature_ok": export_signature_ok,
     }
@@ -117,5 +135,6 @@ def verify_packet(packet: dict) -> dict:
         "verified": all(checks.values()),
         "receipt_failures": receipt_failures,
         "run_seal_failures": run_seal_failures,
+        "lock_history_failures": history_failures,
         "limits": packet.get("limits", ""),
     }

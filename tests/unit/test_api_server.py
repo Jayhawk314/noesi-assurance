@@ -193,8 +193,8 @@ def test_full_engagement_journey_over_http(api):
     assert status == 200
     assert proposal["column_map"]["payment_number"] == "Payment No"
 
-    # The single session principal cannot approve their own mapping — the
-    # server enforces it; this is the pilot's honest single-user limit.
+    # A proposal's author cannot approve it, whatever roles they hold — the
+    # separation gates treat chairs as people.
     status, denied = _request(
         port, "POST",
         f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
@@ -216,3 +216,78 @@ def test_full_engagement_journey_over_http(api):
                             token=token, body={"expected_version": 1})
     assert status == 200
     assert lock["locked"] is False
+
+    # Unlock is reachable and fails closed on an engagement never locked.
+    status, body = _request(port, "POST", f"/api/engagements/{eid}/unlock",
+                            token=token,
+                            body={"reason": "A specific documented reason.",
+                                  "expected_version": 1})
+    assert status == 400
+    assert "not locked" in body["error"]
+
+
+# ---------------------------------------------------------- chair switching
+
+def test_acting_principal_header_completes_the_review_loop(api):
+    """One operator, several chairs: the loop that used to dead-end."""
+    port, auth = api
+    token = auth.token
+
+    status, session = _request(port, "GET", "/api/session", token=token)
+    assert status == 200
+    assert session["principal_id"] == "principal-alice"
+
+    _, created = _request(
+        port, "POST", "/api/engagements", token=token,
+        body={"client_name": "Acme", "period_end": "2025-12-31"})
+    eid = created["engagement_id"]
+    for principal, role in (("pat-preparer", "preparer"),
+                            ("rae-reviewer", "reviewer")):
+        status, _ = _request(port, "POST", f"/api/engagements/{eid}/team",
+                             token=token,
+                             body={"principal_id": principal, "role": role})
+        assert status == 200
+
+    as_pat = {"X-Acting-Principal": "pat-preparer"}
+    as_rae = {"X-Acting-Principal": "rae-reviewer"}
+
+    status, artifact = _request(
+        port, "POST", f"/api/engagements/{eid}/sources", token=token,
+        raw_body=PAYMENTS_CSV,
+        headers={**as_pat, "Content-Type": "text/csv",
+                 "X-Original-Name": "payments.csv"})
+    assert status == 200
+    status, proposal = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings", token=token,
+        headers=as_pat,
+        body={"role": "Payments", "artifact_id": artifact["artifact_id"]})
+    assert status == 200
+
+    # The preparer still cannot approve their own proposal…
+    status, _ = _request(
+        port, "POST",
+        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
+        token=token, headers=as_pat, body={})
+    assert status == 403
+    # …but the reviewer chair can, and the preparer then normalizes.
+    status, _ = _request(
+        port, "POST",
+        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
+        token=token, headers=as_rae, body={})
+    assert status == 200
+    status, normalized = _request(
+        port, "POST",
+        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/normalize",
+        token=token, headers=as_pat, body={})
+    assert status == 200
+    assert normalized["reconciliation"]["rows_loaded"] == 2
+
+
+def test_garbage_acting_principal_header_is_refused(api):
+    port, auth = api
+    for bad in ("two words", "x" * 121, "tab\there"):
+        status, body = _request(
+            port, "GET", "/api/engagements", token=auth.token,
+            headers={"X-Acting-Principal": bad})
+        assert status == 400, bad
+        assert "X-Acting-Principal" in body["error"]

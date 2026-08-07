@@ -216,6 +216,61 @@ CREATE TABLE lock_signature (
     signed_at        TEXT NOT NULL
 );
 """),
+    (5, "phase6-lock-supersession", """
+-- Unlock is supersession, never deletion (AU-C 230 / AS 1215: after file
+-- assembly, documentation is not deleted or discarded, and changes carry
+-- the specific reason plus who and when). A superseded snapshot keeps its
+-- manifest, digest, signature, and journal anchor forever. At most one
+-- ACTIVE lock per engagement, enforced by a partial unique index.
+-- SQLite cannot drop the old UNIQUE(engagement_id), so both lock tables
+-- are rebuilt in place. RENAME rewrites the child FK to the final name.
+CREATE TABLE lock_snapshot_v2 (
+    snapshot_id       TEXT PRIMARY KEY,
+    tenant_id         TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id     TEXT NOT NULL REFERENCES engagement(engagement_id),
+    sequence          INTEGER NOT NULL DEFAULT 1,
+    manifest          TEXT NOT NULL,
+    digest            TEXT NOT NULL,
+    journal_head_seq  INTEGER NOT NULL,
+    journal_head_hash TEXT NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active', 'superseded')),
+    superseded_at     TEXT,
+    superseded_by     TEXT NOT NULL DEFAULT '',
+    supersede_reason  TEXT NOT NULL DEFAULT '',
+    created_at        TEXT NOT NULL,
+    UNIQUE (engagement_id, sequence)
+);
+
+INSERT INTO lock_snapshot_v2 (snapshot_id, tenant_id, engagement_id,
+    sequence, manifest, digest, journal_head_seq, journal_head_hash,
+    status, created_at)
+SELECT snapshot_id, tenant_id, engagement_id, 1, manifest, digest,
+    journal_head_seq, journal_head_hash, 'active', created_at
+FROM lock_snapshot;
+
+CREATE TABLE lock_signature_v2 (
+    signature_id     TEXT PRIMARY KEY,
+    snapshot_id      TEXT NOT NULL REFERENCES lock_snapshot_v2(snapshot_id),
+    signer_principal TEXT NOT NULL,
+    key_id           TEXT NOT NULL,
+    algorithm        TEXT NOT NULL,
+    public_key_pem   TEXT NOT NULL,
+    signature_hex    TEXT NOT NULL,
+    signed_at        TEXT NOT NULL
+);
+
+INSERT INTO lock_signature_v2 SELECT * FROM lock_signature;
+
+DROP TABLE lock_signature;
+DROP TABLE lock_snapshot;
+
+ALTER TABLE lock_snapshot_v2 RENAME TO lock_snapshot;
+ALTER TABLE lock_signature_v2 RENAME TO lock_signature;
+
+CREATE UNIQUE INDEX ux_lock_snapshot_active
+    ON lock_snapshot(engagement_id) WHERE status = 'active';
+"""),
 )
 
 

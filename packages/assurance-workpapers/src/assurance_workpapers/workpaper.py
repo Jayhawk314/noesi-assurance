@@ -61,6 +61,24 @@ Lock manifest digest <code>{_esc(lock['digest'])}</code><br>
 Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>
 </p>"""]
 
+    if packet.get("lock_history"):
+        sections.append(
+            "<h2>Lock amendment history</h2>"
+            "<p class='meta'>Earlier locks were superseded, never deleted. "
+            "Each entry keeps its full signed manifest in the packet and the "
+            "documented reason for reopening (AU-C 230: changes after file "
+            "assembly record the reason, by whom, and when).</p>"
+            + _table(
+                ["Seq", "Locked (signed by)", "Unlocked (by)", "Reason",
+                 "Manifest digest"],
+                [[item["sequence"],
+                  f"{item.get('locked_at', '')} "
+                  f"({(item.get('signature') or {}).get('signer_principal', '—')})",
+                  f"{item.get('unlocked_at', '')} ({item.get('unlocked_by', '—')})",
+                  item.get("reason", ""),
+                  item["digest"][:16] + "…"]
+                 for item in packet["lock_history"]]))
+
     sections.append("<h2>Source inventory</h2>" + _table(
         ["File", "SHA-256", "Bytes", "State"],
         [[a["original_name"], a["sha256"][:16] + "…", a["size_bytes"],

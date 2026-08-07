@@ -238,10 +238,17 @@ class WorkbenchService:
         self._require(engagement_id, actor, "preparer")
         tables = {role: list(t.engine_view().records)
                   for role, t in self._tables(engagement_id).items()}
+        # Approved engagement policies (workflow document) apply to every
+        # run; explicit per-run values override them. Coverage compiles
+        # against the same document, so what coverage calls executable is
+        # what the run actually receives.
+        document, _ = self.workflow_document(engagement_id)
+        effective_policies = {**(document.get("policies") or {}),
+                              **(policies or {})}
         manifest = build_manifest(
             procedure_id=procedure_id, procedure_version="v1",
             engine_version=ENGINE_VERSION, tables=tables,
-            policies=policies or {})
+            policies=effective_policies)
         bundle = run_job(manifest, tables, execute_procedure)
 
         def handler(uow):
@@ -382,10 +389,11 @@ class WorkbenchService:
                 "selected": bool(values.get("selected", True)),
                 "rationale": str(values.get("rationale", ""))}
         elif section == "policy":
-            from procedures_ap.contracts import PROCEDURES
+            from procedures_ap.contracts import OPTIONAL_POLICIES, PROCEDURES
             name = str(values["name"])
             known = {policy for contract in PROCEDURES
                      for policy in contract.required_policies}
+            known.update(OPTIONAL_POLICIES)
             if name not in known:
                 raise ValueError(f"unknown policy {name!r}")
             document.setdefault("policies", {})[name] = str(values["value"])
@@ -524,8 +532,51 @@ class WorkbenchService:
             self._conn, self._command(actor, "engagement.lock", engagement_id),
             handler).result
 
+    def unlock(self, actor: str, engagement_id: str, *, reason: str,
+               expected_version: int) -> dict:
+        """Reopen a locked engagement by superseding its lock — never erasing it.
+
+        Professional basis (AU-C 230 / AS 1215): after the file is assembled,
+        documentation is not deleted or discarded, and any change must record
+        the specific reason, by whom, and when. Here the superseded snapshot,
+        its signature, and its journal anchor remain permanently verifiable;
+        the reason enters the hash-chained journal under the partner's
+        principal; work after reopening flows through the same preparer /
+        reviewer / partner gates (who made and reviewed each change); and the
+        next lock signs a new manifest that names its predecessor and the
+        reason it was reopened.
+        """
+        reason = " ".join(str(reason or "").split())
+        if len(reason) < 10:
+            raise ValueError(
+                "unlocking requires a specific reason (ten characters or "
+                "more); it becomes a permanent part of the engagement record")
+        if self._engagement(engagement_id)["status"] != "locked":
+            raise ValueError("the engagement is not locked")
+
+        def handler(uow):
+            if "partner" not in uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("unlocking requires the partner")
+            superseded = uow.snapshots.supersede(
+                engagement_id, actor=actor, reason=reason)
+            version = uow.engagements.set_status(
+                engagement_id, "open", expected_version=expected_version)
+            return {"unlocked": True, "version": version,
+                    "superseded": superseded, "reason": reason}
+        return run_command(
+            self._conn,
+            self._command(actor, "engagement.unlock", engagement_id),
+            handler).result
+
     def _lock_manifest(self, engagement_id: str, query) -> dict:
-        """Deterministic snapshot of every entity the lock covers."""
+        """Deterministic snapshot of every entity the lock covers.
+
+        A re-lock names its predecessor: the superseded snapshot's digest and
+        the documented reason ride inside the new manifest, so the partner's
+        signature covers the amendment record itself (AU-C 230's reason /
+        who / when for changes after assembly). A first lock has no such
+        section and keeps the original v1 byte shape.
+        """
         def rows(sql: str) -> list[dict]:
             return [dict(row) for row in query(sql, (engagement_id,))]
 
@@ -535,9 +586,27 @@ class WorkbenchService:
         workflow = query(
             "SELECT payload, version FROM workflow_state "
             "WHERE engagement_id = ?", (engagement_id,)).fetchone()
+        predecessor = query(
+            """SELECT snapshot_id, sequence, digest, supersede_reason,
+               superseded_by, superseded_at FROM lock_snapshot
+               WHERE engagement_id = ? AND status = 'superseded'
+               ORDER BY sequence DESC LIMIT 1""",
+            (engagement_id,)).fetchone()
+        supersession = {} if predecessor is None else {
+            "sequence": predecessor["sequence"] + 1,
+            "supersedes": {
+                "snapshot_id": predecessor["snapshot_id"],
+                "sequence": predecessor["sequence"],
+                "digest": predecessor["digest"],
+                "reason": predecessor["supersede_reason"],
+                "unlocked_by": predecessor["superseded_by"],
+                "unlocked_at": predecessor["superseded_at"],
+            },
+        }
         import hashlib
         return {
             "schema": "noesi-lock-manifest-v1",
+            **supersession,
             "engagement": engagement,
             "workflow": {
                 "version": workflow["version"] if workflow else 0,
@@ -575,16 +644,57 @@ class WorkbenchService:
                 "or authentic, and it does not provide trusted time."),
         }
 
+    def _lock_history(self, engagement_id: str) -> list[dict]:
+        """Superseded locks, each re-verified from stored material alone."""
+        from assurance_artifacts.signing import verify_signature
+
+        history = []
+        for row in self._conn.execute(
+                """SELECT * FROM lock_snapshot WHERE engagement_id = ?
+                   AND status = 'superseded' ORDER BY sequence""",
+                (engagement_id,)):
+            signature = self._conn.execute(
+                "SELECT * FROM lock_signature WHERE snapshot_id = ?",
+                (row["snapshot_id"],)).fetchone()
+            head = self._conn.execute(
+                "SELECT entry_hash FROM domain_event WHERE event_seq = ?",
+                (row["journal_head_seq"],)).fetchone()
+            history.append({
+                "sequence": row["sequence"],
+                "snapshot_id": row["snapshot_id"],
+                "digest": row["digest"],
+                "locked_at": row["created_at"],
+                "manifest_ok": _manifest_digest(
+                    json.loads(row["manifest"])) == row["digest"],
+                "signature_ok": bool(signature) and verify_signature(
+                    signature["public_key_pem"], row["digest"],
+                    signature["signature_hex"]),
+                "journal_anchor_ok": head is not None
+                and head["entry_hash"] == row["journal_head_hash"],
+                "signer": signature["signer_principal"] if signature else None,
+                "signed_at": signature["signed_at"] if signature else None,
+                "unlocked_by": row["superseded_by"],
+                "unlocked_at": row["superseded_at"],
+                "reason": row["supersede_reason"],
+            })
+        return history
+
     def verify_lock(self, engagement_id: str) -> dict:
         """Re-derive everything a lock claims; report exactly what holds."""
         from assurance_artifacts.signing import verify_signature
         from assurance_persistence.spine import verify_journal
 
+        history = self._lock_history(engagement_id)
         snapshot = self._conn.execute(
-            "SELECT * FROM lock_snapshot WHERE engagement_id = ?",
+            """SELECT * FROM lock_snapshot WHERE engagement_id = ?
+               AND status = 'active'""",
             (engagement_id,)).fetchone()
         if snapshot is None:
-            return {"locked": False, "error": "no lock snapshot exists"}
+            return {"locked": False,
+                    "error": ("the lock was superseded; the engagement is "
+                              "reopened" if history
+                              else "no lock snapshot exists"),
+                    "history": history}
         signature = self._conn.execute(
             "SELECT * FROM lock_signature WHERE snapshot_id = ?",
             (snapshot["snapshot_id"],)).fetchone()
@@ -613,6 +723,7 @@ class WorkbenchService:
 
         return {
             "locked": True,
+            "sequence": snapshot["sequence"],
             "snapshot_ok": snapshot_ok,
             "drift": drift,
             "signature_ok": signature_ok,
@@ -625,6 +736,7 @@ class WorkbenchService:
             "journal_ok": journal_ok,
             "journal_events_checked": journal["checked"],
             "verified": snapshot_ok and signature_ok and journal_ok,
+            "history": history,
             "limits": stored_manifest.get("limits", ""),
         }
 
@@ -657,12 +769,43 @@ class WorkbenchService:
                 "export is a signed operation; no key store is configured")
 
         snapshot = self._conn.execute(
-            "SELECT * FROM lock_snapshot WHERE engagement_id = ?",
+            """SELECT * FROM lock_snapshot WHERE engagement_id = ?
+               AND status = 'active'""",
             (engagement_id,)).fetchone()
         signature = self._conn.execute(
             "SELECT * FROM lock_signature WHERE snapshot_id = ?",
             (snapshot["snapshot_id"],)).fetchone()
         info = self._engagement(engagement_id)
+
+        # Superseded locks travel whole — manifest, signature, reason — so
+        # the amendment record verifies offline like everything else.
+        lock_history = []
+        for row in self._conn.execute(
+                """SELECT * FROM lock_snapshot WHERE engagement_id = ?
+                   AND status = 'superseded' ORDER BY sequence""",
+                (engagement_id,)):
+            old_signature = self._conn.execute(
+                "SELECT * FROM lock_signature WHERE snapshot_id = ?",
+                (row["snapshot_id"],)).fetchone()
+            lock_history.append({
+                "sequence": row["sequence"],
+                "manifest": json.loads(row["manifest"]),
+                "digest": row["digest"],
+                "journal_head_seq": row["journal_head_seq"],
+                "journal_head_hash": row["journal_head_hash"],
+                "locked_at": row["created_at"],
+                "signature": {
+                    "signer_principal": old_signature["signer_principal"],
+                    "key_id": old_signature["key_id"],
+                    "algorithm": old_signature["algorithm"],
+                    "public_key_pem": old_signature["public_key_pem"],
+                    "signature_hex": old_signature["signature_hex"],
+                    "signed_at": old_signature["signed_at"],
+                } if old_signature else None,
+                "unlocked_by": row["superseded_by"],
+                "unlocked_at": row["superseded_at"],
+                "reason": row["supersede_reason"],
+            })
 
         runs = []
         executed = set()
@@ -731,6 +874,7 @@ class WorkbenchService:
                     "signed_at": signature["signed_at"],
                 },
             },
+            "lock_history": lock_history,
             "runs": runs,
             "procedures_not_run": not_run,
             "dispositions": dispositions,
@@ -781,8 +925,17 @@ class WorkbenchService:
             raise KeyError(f"artifact {artifact_id}")
         if artifact["state"] != "promoted":
             raise ValueError("artifact is retired; its content is gone")
-        text = self._vault.read_bytes(artifact["sha256"]).decode(
-            "utf-8-sig", errors="replace")
+        content = self._vault.read_bytes(artifact["sha256"])
+        # Refuse with instructions rather than mis-parse: Excel workbooks
+        # (xlsx = zip, legacy xls = OLE) are common uploads and would
+        # otherwise decode into one garbage header row. The original bytes
+        # stay in the vault as evidence either way.
+        if content[:4] == b"PK\x03\x04" or content[:4] == b"\xd0\xcf\x11\xe0":
+            raise ValueError(
+                "this artifact is an Excel workbook, not CSV; export the "
+                "sheet as CSV and upload that (the original workbook stays "
+                "in the evidence vault)")
+        text = content.decode("utf-8-sig", errors="replace")
         rows = list(csv.DictReader(text.splitlines()))
         headers = list(rows[0].keys()) if rows else []
         return headers, rows

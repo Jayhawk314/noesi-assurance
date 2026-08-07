@@ -73,6 +73,19 @@ def test_source_to_normalized_dataset_with_review_gate(service, engagement):
                                        "check_number"]
 
 
+def test_excel_uploads_are_refused_at_mapping_with_instructions(service,
+                                                                engagement):
+    artifact = service.store_source(
+        BOB, engagement, content=b"PK\x03\x04" + b"\x00" * 64,
+        media_type="application/vnd.openxmlformats-officedocument"
+                   ".spreadsheetml.sheet",
+        original_name="payments.xlsx")
+    with pytest.raises(ValueError, match="Excel workbook"):
+        service.propose_source_mapping(
+            BOB, engagement, role="Payments",
+            artifact_id=artifact["artifact_id"])
+
+
 def test_unassigned_principals_cannot_touch_sources(service, engagement):
     with pytest.raises(AuthorizationError):
         service.store_source("principal-stranger", engagement,
@@ -118,6 +131,27 @@ def test_run_review_approve_lifecycle_with_separation(service, engagement):
                                   target="approved",
                                   expected_version=reviewed["version"])
     assert approved["status"] == "approved"
+
+
+def test_workflow_policy_reaches_runs_without_per_run_override(service,
+                                                               engagement):
+    _ingest(service, engagement, PAYMENTS_CSV, "payments.csv", "Payments")
+    service.update_workflow(ALICE, engagement, "policy",
+                            {"name": "split_threshold", "value": "10000"})
+    coverage = service.coverage(engagement)
+    split = next(row for row in coverage["procedures"]
+                 if row["procedure_id"] == "ap.split_payment_review")
+    assert split["status"] == "executable"
+    # The run inherits the approved engagement policy; no request-body value.
+    run = service.run_procedure(
+        BOB, engagement, procedure_id="ap.split_payment_review")
+    assert run["status"] == "completed"
+    assert run["findings"] == 1
+    # A per-run value still overrides the document.
+    run = service.run_procedure(
+        BOB, engagement, procedure_id="ap.split_payment_review",
+        policies={"split_threshold": "100000"})
+    assert run["status"] == "completed"
 
 
 def test_error_runs_are_recorded_not_hidden(service, engagement):
