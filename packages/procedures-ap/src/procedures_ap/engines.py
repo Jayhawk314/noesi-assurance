@@ -12,9 +12,13 @@ KOMPOSOS dependency is gone (divergence D2, resolved).
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from difflib import SequenceMatcher
+from itertools import combinations
+from typing import Callable
 
 from assurance_domain.money import fnum, parse_amount, sum_amounts
 from assurance_domain.receipts import Receipt
@@ -114,33 +118,269 @@ def subledger_gl_balance_tie(tables: dict) -> tuple[list[Receipt], dict]:
     return findings, {"population": len(rows), "exceptions": len(findings)}
 
 
-def split_payment_review(tables: dict, threshold) -> tuple[list[Receipt], dict]:
+def _day(value) -> date | None:
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str) and len(value) >= 10:
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    return None
+
+
+def split_payment_review(tables: dict, threshold,
+                         window_days=0) -> tuple[list[Receipt], dict]:
+    """Sub-threshold payment clusters per vendor.
+
+    ``window_days`` is an explicit audit parameter (policy
+    ``split_window_days``): 0 keeps the original same-day grouping the Phase 0
+    goldens froze; N > 0 clusters payments whose dates span at most N days,
+    because structuring rarely lands on one day. The tool never picks a
+    window silently — a same-day-only run is documented in the summary.
+    """
     threshold = parse_amount(threshold)
     if threshold is None or threshold <= 0:
         raise ValueError("split_threshold must be a positive number")
-    groups = defaultdict(list)
+    try:
+        window_days = int(str(window_days or 0).strip() or 0)
+        if window_days < 0:
+            raise ValueError
+    except ValueError:
+        raise ValueError(
+            "split_window_days must be zero or a positive integer") from None
+
     payments = _records(tables, "Payments")
-    for row in payments:
-        amount = parse_amount(row.get("payment_amount"))
-        if amount is not None and 0 < amount < threshold:
-            groups[(str(row.get("vendor_number") or ""),
-                    str(row.get("payment_date") or ""))].append(row)
     findings = []
-    for (vendor, day), rows in groups.items():
-        total = sum_amounts(parse_amount(r.get("payment_amount")) for r in rows)
-        if len(rows) > 1 and total >= threshold:
-            ids = [str(row.get("payment_number") or "") for row in rows]
+
+    def flag(vendor: str, rows: list[dict], first: str, last: str) -> None:
+        total = sum_amounts(parse_amount(r.get("payment_amount"))
+                            for r in rows)
+        if len(rows) <= 1 or total < threshold:
+            return
+        ids = [str(row.get("payment_number") or "") for row in rows]
+        when = (f"on {first}" if first == last
+                else f"between {first} and {last}")
+        key = first if first == last else f"{first}..{last}"
+        evidence = {"finding_class": "STRUCTURAL_ANOMALY", "cycle": "payables",
+                    "payment_numbers": ids, "total": fnum(total),
+                    "threshold": fnum(threshold),
+                    "limits": "a cluster is a review lead; business purpose "
+                              "and approval evidence decide it"}
+        if window_days:
+            evidence["window_days"] = window_days
+        findings.append(_run_verdict(
+            "ap.split_payment_review", (vendor, key), "TENSION",
+            f"{len(rows)} payments to vendor {vendor} {when} total "
+            f"{fnum(total)} around threshold {fnum(threshold)}",
+            evidence, total))
+
+    if window_days == 0:
+        groups = defaultdict(list)
+        for row in payments:
+            amount = parse_amount(row.get("payment_amount"))
+            if amount is not None and 0 < amount < threshold:
+                groups[(str(row.get("vendor_number") or ""),
+                        str(row.get("payment_date") or ""))].append(row)
+        for (vendor, day), rows in groups.items():
+            flag(vendor, rows, day, day)
+    else:
+        by_vendor: dict[str, list[tuple[date, dict]]] = defaultdict(list)
+        for row in payments:
+            amount = parse_amount(row.get("payment_amount"))
+            day = _day(row.get("payment_date"))
+            if amount is not None and 0 < amount < threshold and day:
+                by_vendor[str(row.get("vendor_number") or "")].append(
+                    (day, row))
+        for vendor, dated in by_vendor.items():
+            dated.sort(key=lambda item: (
+                item[0], str(item[1].get("payment_number") or "")))
+            cluster: list[tuple[date, dict]] = []
+            for day, row in dated:
+                if cluster and (day - cluster[0][0]).days > window_days:
+                    flag(vendor, [r for _, r in cluster],
+                         str(cluster[0][0]), str(cluster[-1][0]))
+                    cluster = []
+                cluster.append((day, row))
+            if cluster:
+                flag(vendor, [r for _, r in cluster],
+                     str(cluster[0][0]), str(cluster[-1][0]))
+
+    summary = {"population": len(payments), "exceptions": len(findings),
+               "threshold": fnum(threshold)}
+    if window_days:
+        summary["window_days"] = window_days
+    return findings, summary
+
+
+def payment_voucher_reference(tables: dict) -> tuple[list[Receipt], dict]:
+    vouchers = {str(row.get("voucher_number") or "")
+                for row in _records(tables, "Vouchers")} - {""}
+    payments = _records(tables, "Payments")
+    findings = []
+    for payment in payments:
+        pnum = str(payment.get("payment_number") or "")
+        vnum = str(payment.get("voucher_number") or "")
+        if vnum in vouchers:
+            continue
+        reason = (f"payment {pnum} records no voucher reference" if not vnum
+                  else f"payment {pnum} cites voucher {vnum}, which is absent "
+                       "from the voucher population")
+        findings.append(_run_verdict(
+            "ap.payment_voucher_reference", (pnum,), "ORPHAN", reason,
+            {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "payables",
+             "payment_number": pnum, "voucher_number": vnum or None,
+             "source_hash": payment.get("source_hash"),
+             "limits": "what absence proves depends on the completeness of "
+                       "the voucher export; a period boundary or a partial "
+                       "extract can explain a missing reference"},
+            parse_amount(payment.get("payment_amount"))))
+    return findings, {"population": len(payments), "exceptions": len(findings)}
+
+
+def voucher_po_reference(tables: dict) -> tuple[list[Receipt], dict]:
+    pos = {str(row.get("po_number") or "")
+           for row in _records(tables, "Purchase_orders")} - {""}
+    vouchers = _records(tables, "Vouchers")
+    findings = []
+    without_reference = 0
+    for voucher in vouchers:
+        vnum = str(voucher.get("voucher_number") or "")
+        po = str(voucher.get("po_number") or "")
+        if not po:
+            # Non-PO spend (utilities, rent, services) is a population fact,
+            # not a row exception; it is reported in the summary instead.
+            without_reference += 1
+            continue
+        if po in pos:
+            continue
+        findings.append(_run_verdict(
+            "ap.voucher_po_reference", (vnum,), "ORPHAN",
+            f"voucher {vnum} cites purchase order {po}, which is absent "
+            "from the purchase-order population",
+            {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "payables",
+             "voucher_number": vnum, "po_number": po,
+             "source_hash": voucher.get("source_hash"),
+             "limits": "an unreachable PO may be a keying error, an "
+                       "incomplete PO export, or unauthorized purchasing; "
+                       "which one is the auditor's determination"},
+            parse_amount(voucher.get("voucher_amount"))))
+    return findings, {"population": len(vouchers),
+                      "without_po_reference": without_reference,
+                      "exceptions": len(findings)}
+
+
+def segregation_of_duties(tables: dict) -> tuple[list[Receipt], dict]:
+    payments = _records(tables, "Payments")
+    findings = []
+    observed = self_approved = 0
+    for payment in payments:
+        pnum = str(payment.get("payment_number") or "")
+        creator = str(payment.get("created_by") or "").strip()
+        approver = str(payment.get("approved_by") or "").strip()
+        amount = parse_amount(payment.get("payment_amount"))
+        if not creator or not approver:
+            missing = "creator" if not creator else "approver"
             findings.append(_run_verdict(
-                "ap.split_payment_review", (vendor, day), "TENSION",
-                f"{len(rows)} payments to vendor {vendor} on {day} total "
-                f"{fnum(total)} around threshold {fnum(threshold)}",
-                {"finding_class": "STRUCTURAL_ANOMALY", "cycle": "payables",
-                 "payment_numbers": ids, "total": fnum(total),
-                 "threshold": fnum(threshold),
-                 "limits": "a cluster is a review lead; business purpose and approval evidence decide it"},
-                total))
-    return findings, {"population": len(payments), "exceptions": len(findings),
-                      "threshold": fnum(threshold)}
+                "ap.segregation_of_duties", (pnum,), "ORPHAN",
+                f"payment {pnum} has no observed {missing}",
+                {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "payables",
+                 "check": "segregation_of_duties", "payment_number": pnum,
+                 "created_by": creator or None, "approved_by": approver or None,
+                 "source_hash": payment.get("source_hash"),
+                 "limits": "a blank workflow field is an evidence gap, not a "
+                           "proved control failure"},
+                amount))
+            continue
+        observed += 1
+        if creator == approver:
+            self_approved += 1
+            findings.append(_run_verdict(
+                "ap.segregation_of_duties", (pnum,), "CLASH",
+                f"payment {pnum} was created and approved by the same "
+                f"actor {creator}",
+                {"finding_class": "CONTROL_OBSERVATION", "cycle": "payables",
+                 "check": "segregation_of_duties", "payment_number": pnum,
+                 "created_by": creator, "approved_by": approver,
+                 "source_hash": payment.get("source_hash"),
+                 "limits": "field semantics and compensating controls require "
+                           "auditor evaluation before concluding the control "
+                           "failed"},
+                amount))
+    return findings, {"population": len(payments),
+                      "approvals_observed": observed,
+                      "self_approved": self_approved,
+                      "exceptions": len(findings)}
+
+
+_NAME_NOISE = frozenset({
+    "llc", "llp", "lp", "inc", "incorporated", "co", "corp", "corporation",
+    "company", "ltd", "limited", "the",
+})
+_NAME_SIMILARITY = 0.85
+
+
+def _identity_key(name: str) -> str:
+    text = re.sub(r"[^a-z0-9 ]+", " ", name.lower().replace("&", " and "))
+    return " ".join(t for t in text.split() if t not in _NAME_NOISE)
+
+
+def vendor_relational_twins(tables: dict) -> tuple[list[Receipt], dict]:
+    """Identity twins from the vendor master; relationship twins from activity."""
+    from procedures_ap.structural import relational_twin_findings
+
+    vendors = [row for row in _records(tables, "Vendors")
+               if row.get("vendor_number")]
+    profiles = [(str(row["vendor_number"]),
+                 str(row.get("vendor_name") or ""),
+                 _identity_key(str(row.get("vendor_name") or "")))
+                for row in vendors]
+    findings = []
+    for (num_a, name_a, key_a), (num_b, name_b, key_b) in combinations(
+            profiles, 2):
+        if not key_a or not key_b:
+            continue
+        matcher = SequenceMatcher(None, key_a, key_b)
+        if (matcher.real_quick_ratio() < _NAME_SIMILARITY
+                or matcher.quick_ratio() < _NAME_SIMILARITY):
+            continue
+        similarity = matcher.ratio()
+        if similarity < _NAME_SIMILARITY:
+            continue
+        findings.append(_run_verdict(
+            "ap.vendor_relational_twins", ("identity", num_a, num_b),
+            "TENSION",
+            f"vendors {num_a} and {num_b} have near-identical observed "
+            f"identities {name_a!r} and {name_b!r}",
+            {"finding_class": "STRUCTURAL_ANOMALY", "cycle": "payables",
+             "vendors": [num_a, num_b], "vendor_names": [name_a, name_b],
+             "name_similarity": round(similarity, 4),
+             "limits": "a structural twin is an investigation lead, not "
+                       "proof of duplication or fraud"},
+            Decimal(str(round(similarity, 4)))))
+    relationship, twin_stats, refusals = relational_twin_findings(
+        tables, domain="audit_procedure_run",
+        policy="ap.vendor_relational_twins.v1")
+    combined = findings + relationship
+    stats = {"population": len(vendors),
+             "identity_pairs": len(findings),
+             "relationship_candidates": twin_stats.get("candidates", 0),
+             "relationship_findings": len(relationship),
+             "exceptions": len(combined)}
+    if refusals:
+        stats["refusals"] = refusals
+    return combined, stats
+
+
+def document_chain(tables: dict) -> tuple[list[Receipt], dict]:
+    from procedures_ap.structural import document_chain_findings
+    findings, stats = document_chain_findings(
+        tables, float(_TOLERANCE), domain="audit_procedure_run",
+        policy="ap.document_chain.v1",
+        gl_scope_note="GL posting coherence is tested by gl.payment_posting, "
+                      "not by this procedure.",
+        gl_path_node="gl:OUT_OF_SCOPE")
+    return findings, {**stats, "exceptions": len(findings)}
 
 
 def _closure_verdict(key, verdict, policy, sources, score: Decimal | None,
@@ -313,29 +553,60 @@ def bank_gl_closure(tables: dict, *,
     return {"findings": findings, "stats": stats, "refusals": refusals}
 
 
-def execute_procedure(procedure_id: str, tables: dict,
-                      policies: dict | None = None) -> tuple[list[Receipt], dict]:
-    """Execute one registered procedure over canonical tables."""
-    policies = policies or {}
-    if procedure_id in ("cash.bank_clearing", "gl.payment_posting"):
+def _closure_slice(prefix: str):
+    def run(tables: dict, policies: dict) -> tuple[list[Receipt], dict]:
         result = bank_gl_closure(tables)
-        prefix = "closure.bank" if procedure_id == "cash.bank_clearing" else "closure.gl"
         findings = [item for item in result["findings"]
                     if item.policy.startswith(prefix)]
         return findings, {**result["stats"], "exceptions": len(findings)}
-    if procedure_id == "ap.three_way_receipt_match":
-        return three_way_receipt_match(tables)
-    if procedure_id == "ap.subledger_gl_balance_tie":
-        return subledger_gl_balance_tie(tables)
-    if procedure_id == "ap.split_payment_review":
-        return split_payment_review(tables, policies.get("split_threshold"))
-    if procedure_id == "forensic.closed_value_flow":
-        from procedures_ap.structural import (
-            build_rockwood_accounting_graph,
-            directed_round_trip_findings,
-        )
-        findings, stats = directed_round_trip_findings(
-            build_rockwood_accounting_graph(tables), 0.02)
-        return findings, {"population": len(_records(tables, "Value_flows")),
-                          "exceptions": len(findings), **stats}
-    raise ValueError("no incremental executor is registered for this procedure")
+    return run
+
+
+def _closed_value_flow(tables: dict, policies: dict) -> tuple[list[Receipt], dict]:
+    from procedures_ap.structural import (
+        build_rockwood_accounting_graph,
+        directed_round_trip_findings,
+    )
+    findings, stats = directed_round_trip_findings(
+        build_rockwood_accounting_graph(tables), 0.02)
+    return findings, {"population": len(_records(tables, "Value_flows")),
+                      "exceptions": len(findings), **stats}
+
+
+# The single source of truth for what this build can actually run. Coverage
+# compilation reconciles contracts against this registry: a contract with no
+# entry here reports "unsupported", never "executable".
+EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
+    "cash.bank_clearing": _closure_slice("closure.bank"),
+    "gl.payment_posting": _closure_slice("closure.gl"),
+    "ap.three_way_receipt_match": lambda tables, policies:
+        three_way_receipt_match(tables),
+    "ap.subledger_gl_balance_tie": lambda tables, policies:
+        subledger_gl_balance_tie(tables),
+    "ap.split_payment_review": lambda tables, policies:
+        split_payment_review(tables, policies.get("split_threshold"),
+                             policies.get("split_window_days") or 0),
+    "forensic.closed_value_flow": _closed_value_flow,
+    "ap.payment_voucher_reference": lambda tables, policies:
+        payment_voucher_reference(tables),
+    "ap.voucher_po_reference": lambda tables, policies:
+        voucher_po_reference(tables),
+    "ap.segregation_of_duties": lambda tables, policies:
+        segregation_of_duties(tables),
+    "ap.vendor_relational_twins": lambda tables, policies:
+        vendor_relational_twins(tables),
+    "ap.document_chain": lambda tables, policies: document_chain(tables),
+}
+
+
+def registered_procedures() -> frozenset[str]:
+    return frozenset(EXECUTORS)
+
+
+def execute_procedure(procedure_id: str, tables: dict,
+                      policies: dict | None = None) -> tuple[list[Receipt], dict]:
+    """Execute one registered procedure over canonical tables."""
+    executor = EXECUTORS.get(procedure_id)
+    if executor is None:
+        raise ValueError("no incremental executor is registered for this procedure")
+    return executor(tables, policies or {})

@@ -237,19 +237,29 @@ def build_rockwood_accounting_graph(tables: dict) -> AccountingGraph:
 
 def _receipt(key: tuple, classification: FindingClass, sources: Iterable[str],
              score: float | None, reason: str, mechanism: str, evidence: dict,
-             verdict: str = "TENSION") -> Receipt:
+             verdict: str = "TENSION", *,
+             domain: str = "rockwood_structural",
+             policy: str = "rockwood.structural_coherence_v1") -> Receipt:
     source_tuple = tuple(dict.fromkeys(sources))
     if verdict in {"AGREE", "TENSION", "CLASH"} and len(source_tuple) < 2:
         source_tuple += ("accounting_policy",)
     return Receipt(
-        domain="rockwood_structural", key=key, verdict=verdict,
-        policy="rockwood.structural_coherence_v1", sources=source_tuple,
+        domain=domain, key=key, verdict=verdict,
+        policy=policy, sources=source_tuple,
         score=score, reason=reason,
         evidence={"finding_class": classification, "mechanism": mechanism,
                   **_jsonable(evidence)})
 
 
-def document_chain_findings(tables: dict, amount_tolerance: float = 0.02,
+_ROCKWOOD_GL_NOTE = ("Rockwood has no GL table; payment-to-GL coherence "
+                     "is explicitly refused.")
+
+
+def document_chain_findings(tables: dict, amount_tolerance: float = 0.02, *,
+                            domain: str = "rockwood_structural",
+                            policy: str = "rockwood.structural_coherence_v1",
+                            gl_scope_note: str = _ROCKWOOD_GL_NOTE,
+                            gl_path_node: str = "gl:UNAVAILABLE",
                             ) -> tuple[list[Receipt], dict]:
     """Cheap full-population AP triage; only nonzero-energy chains escalate."""
     pos = {str(row["po_number"]): row
@@ -300,7 +310,8 @@ def document_chain_findings(tables: dict, amount_tolerance: float = 0.02,
                  "This is an observed population exception rate. The auditor "
                  "must determine whether the fields represent real approval "
                  "events, whether compensating controls exist, and whether "
-                 "control reliance is appropriate.")}))
+                 "control reliance is appropriate.")},
+            domain=domain, policy=policy))
     self_approval_is_discriminating = 0 < self_approval_rate <= 0.10
     for payment in payments:
         voucher = vouchers.get(str(payment.get("voucher_number")))
@@ -362,11 +373,11 @@ def document_chain_findings(tables: dict, amount_tolerance: float = 0.02,
                  _id("voucher", voucher.get("voucher_number"))
                  if voucher else "voucher:MISSING",
                  _id("payment", payment.get("payment_number")),
-                 "gl:UNAVAILABLE"],
+                 gl_path_node],
              "source_rows": [ref.to_dict() for ref in refs],
-             "limits": ("Rockwood has no GL table; payment-to-GL coherence "
-                        "is explicitly refused.")},
-            "ORPHAN" if missing else "TENSION"))
+             "limits": gl_scope_note},
+            "ORPHAN" if missing else "TENSION",
+            domain=domain, policy=policy))
 
     population = len(payments)
     return control_findings + findings, {
@@ -407,7 +418,9 @@ def _vendor_profiles(tables: dict,
 
 
 def relational_twin_findings(tables: dict, threshold: float = 0.9,
-                             max_escalations: int = 500,
+                             max_escalations: int = 500, *,
+                             domain: str = "rockwood_structural",
+                             policy: str = "rockwood.structural_coherence_v1",
                              ) -> tuple[list[Receipt], dict, list[dict]]:
     """Compare cheap candidates with audit-scoped Hom fingerprints."""
     profiles, refs = _vendor_profiles(tables)
@@ -474,7 +487,8 @@ def relational_twin_findings(tables: dict, threshold: float = 0.9,
              "right_feature_paths": right_paths,
              "source_rows": [ref.to_dict() for ref in source_refs],
              "limits": ("Structural equivalence is an alias indicator, not "
-                        "proof of common ownership or fraud.")}))
+                        "proof of common ownership or fraud.")},
+            domain=domain, policy=policy))
     return findings, {
         "population": len(profiles), "candidates": len(candidates),
         "escalated": len(selected), "findings": len(findings)}, refusals

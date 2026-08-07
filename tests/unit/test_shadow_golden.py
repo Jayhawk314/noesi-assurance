@@ -98,8 +98,11 @@ def test_refusals_match_golden_messages():
         execute_procedure("ap.split_payment_review", split_tables, {})
     assert str(excinfo.value) == golden["split_threshold_missing"]["message"]
 
+    # Phase 0 probed with ap.payment_voucher_reference, which had no executor
+    # then. That procedure runs now, so the probe uses an id that can never be
+    # registered; the frozen refusal message is unchanged.
     with pytest.raises(ValueError) as excinfo:
-        execute_procedure("ap.payment_voucher_reference", {}, {})
+        execute_procedure("ap.never_registered_probe", {}, {})
     assert str(excinfo.value) == \
         golden["unregistered_incremental_procedure"]["message"]
 

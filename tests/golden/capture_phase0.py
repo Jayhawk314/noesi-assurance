@@ -285,9 +285,12 @@ def main() -> int:
         refusal = {"raised": False}
     except ValueError as exc:
         refusal = {"raised": True, "type": "ValueError", "message": str(exc)}
-    # Unregistered procedure refusal.
+    # Unregistered procedure refusal. Phase 0 probed with
+    # ap.payment_voucher_reference; that procedure gained an executor later,
+    # so a re-capture must probe with an id that stays unregistered to
+    # reproduce the same bundle bytes.
     try:
-        execute_procedure("ap.payment_voucher_reference", {}, {})
+        execute_procedure("ap.never_registered_probe", {}, {})
         unregistered = {"raised": False}
     except ValueError as exc:
         unregistered = {"raised": True, "type": "ValueError", "message": str(exc)}

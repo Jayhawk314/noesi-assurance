@@ -1,10 +1,12 @@
 """Coverage compilation: which procedures can the supplied data honestly support?
 
 Faithful port of the prototype's compiler, output-compatible with the Phase 0
-golden bundles, with one deliberate divergence (D1, see
-docs/architecture/PHASE2_DIVERGENCES.md): compiling coverage never marks a
-procedure ``completed``. Presence of required fields means *executable*;
-completion belongs to the run lifecycle alone.
+golden bundles, with two deliberate divergences: D1 (compiling coverage never
+marks a procedure ``completed`` — completion belongs to the run lifecycle
+alone) and D3 (coverage is reconciled against the executor registry — a
+contract with no registered executor reports ``unsupported``, never
+``executable``, because "the data supports it" is not the same claim as "this
+build can run it").
 """
 
 from __future__ import annotations
@@ -13,6 +15,10 @@ import hashlib
 import json
 
 from procedures_ap.contracts import PROCEDURES, SCHEMA_VERSION, ProcedureContract
+from procedures_ap.engines import registered_procedures
+
+_UNSUPPORTED_REASON = ("no executor is registered for this procedure in this "
+                       "build; it cannot run regardless of the data supplied")
 
 
 def _request_id(kind: str, value: str) -> str:
@@ -42,9 +48,11 @@ def inventory_from_tables(tables: dict) -> dict:
 
 
 def compile_coverage(inventory: dict, *, policies: dict | None = None,
-                     contracts: tuple[ProcedureContract, ...] = PROCEDURES) -> dict:
+                     contracts: tuple[ProcedureContract, ...] = PROCEDURES,
+                     executors: frozenset[str] | None = None) -> dict:
     """Compile one engagement inventory against the versioned contracts."""
     policies = policies or {}
+    supported = registered_procedures() if executors is None else executors
     rows = []
     for contract in contracts:
         missing_roles = [role for role in contract.required_fields
@@ -59,7 +67,10 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
                 missing_fields[role] = absent
         missing_policies = [name for name in contract.required_policies
                             if policies.get(name) in (None, "")]
-        if missing_roles:
+        # D3: a software gap outranks any data status.
+        if contract.procedure_id not in supported:
+            status = "unsupported"
+        elif missing_roles:
             status = "blocked"
         elif missing_fields or missing_policies:
             status = "partial"
@@ -76,6 +87,8 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
             # D1: never "completed" at compile time.
             "execution_status": "not_run",
         })
+        if status == "unsupported":
+            row["unsupported_reason"] = _UNSUPPORTED_REASON
         rows.append(row)
     return {
         "schema_version": SCHEMA_VERSION,
@@ -146,7 +159,10 @@ def apply_evidence_lifecycle(coverage: dict, records: dict) -> dict:
                     policy for policy in procedure.get("missing_policies", [])
                     if policy != request["item"]
                 ]
-        if procedure.get("missing_roles"):
+        if "unsupported_reason" in procedure:
+            # D3: no amount of evidence unlocks a procedure the build cannot run.
+            status = "unsupported"
+        elif procedure.get("missing_roles"):
             status = "blocked"
         elif procedure.get("missing_fields") or procedure.get("missing_policies"):
             status = "partial"
@@ -190,6 +206,10 @@ def evidence_requests(rows: list[dict]) -> list[dict]:
     grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
         if not row.get("selected", True):
+            continue
+        if row.get("status") == "unsupported":
+            # Asking the client for data that cannot unlock anything would
+            # misstate what the evidence request is for.
             continue
         for role in row.get("missing_roles", []):
             key = ("role", role)

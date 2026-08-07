@@ -130,3 +130,8 @@ PROCEDURES: tuple[ProcedureContract, ...] = (
 )
 
 CONTRACTS_BY_ID = {contract.procedure_id: contract for contract in PROCEDURES}
+
+# Policies a team may set that no contract *requires* (coverage does not gate
+# on them). Kept outside the contract dataclass because contract content is
+# frozen against the Phase 0 golden bundle.
+OPTIONAL_POLICIES: tuple[str, ...] = ("split_window_days",)
