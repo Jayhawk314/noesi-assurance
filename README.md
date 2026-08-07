@@ -79,7 +79,7 @@ signing keys).
 ```
 
 `--demo` seeds a fully loaded engagement from the Harborline Marine teaching
-case (846 rows across ten record sets, loaded through the real three-chair
+case (836 rows across ten record sets, loaded through the real three-chair
 review path, with the split-payment policies approved). Open it, press "run"
 on any procedure, and read what the engine found — and refused to claim.
 
@@ -110,11 +110,17 @@ was reopened. Evidence packets carry the full amendment history, and
 `verify_packet` re-verifies every superseded lock offline along with the
 active one.
 
-### The teaching case
+### The manual and the teaching case
 
-`case-studies/harborline-marine/` is a complete instructor-ready case:
-generated data with 40 planted exceptions, student assignments, and an answer
-key. `instructor/verify_run.py` re-runs the whole case headlessly and prints
+`docs/manual/` is a working textbook that teaches the audit process and the
+workbench together — every chapter pairs what professional standards require
+(**in practice**) with the concrete steps in the tool (**in the workbench**)
+and the running example (**in Harborline**).
+
+`case-studies/harborline-marine/` is the complete instructor-ready case
+behind it: generated data with 40 planted exceptions, spreadsheet-first
+student assignments, workpaper templates, and an answer key.
+`instructor/verify_run.py` re-runs the whole case headlessly and prints
 every finding for reconciliation against the key.
 
 ## Reference repository

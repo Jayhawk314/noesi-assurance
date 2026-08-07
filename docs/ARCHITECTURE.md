@@ -276,7 +276,7 @@ split window, supersession) is covered by ordinary unit tests, not goldens.
 
 `case-studies/harborline-marine/` — a complete, instructor-ready case:
 
-- `generate.py` — deterministic generator (846 rows across ten roles,
+- `generate.py` — deterministic generator (836 rows across ten roles,
   **40 planted exceptions** across all eleven procedures); regenerating the
   data regenerates the answer key, so they cannot drift apart.
 - `data/` — the ten CSV exports.

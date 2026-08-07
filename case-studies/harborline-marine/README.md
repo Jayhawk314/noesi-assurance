@@ -1,6 +1,6 @@
 # Harborline Marine Group — integrated audit practice case
 
-A complete, fabricated accounts-payable audit you can work end to end: 826 rows
+A complete, fabricated accounts-payable audit you can work end to end: 836 rows
 of client data across ten record sets, with **40 exceptions deliberately
 planted** and a verified instructor key.
 
@@ -20,6 +20,10 @@ Two audiences, one case:
 
 Doing both is the point: form your own expectation in a spreadsheet, then see
 whether the tool agrees with you.
+
+For the full pairing — each audit-process step taught alongside the workbench
+step that implements it, with this case as the running example — read the
+**manual** at [`docs/manual/`](../../docs/manual/README.md) in the repo root.
 
 ## Folder map
 
@@ -67,15 +71,23 @@ about it.
 ## Before you start: what actually runs today
 
 Verified by loading this case through the engine (see
-`instructor/VERIFIED-RUN.md`). Of the eleven procedure contracts:
+`instructor/VERIFIED-RUN.md`, which records the run verbatim and is the
+authority on tool behaviour). **All eleven procedure contracts execute** —
+with two engagement policies the partner must approve first:
 
-- **Six execute** and produce findings.
-- **One is permanently partial** — `ap.split_payment_review` needs a
-  `split_threshold` policy, and there is currently no way to set one.
-- **Four report "executable" in coverage but fail when run**, because no
-  executor is registered for them.
+- `split_threshold = 10000` (the client's written approval limit), and
+- `split_window_days = 9` (the testing window — an audit judgment; the
+  engine's default of 0 tests same-day clusters only, and the planted
+  cluster spans nine days on purpose).
 
-That last group is a real defect in the product, not a flaw in this case. The
-assignments are written so the spreadsheet work covers all eleven procedures
-regardless, and `docs/03-walkthrough.md` tells you exactly where you will hit
-the wall.
+Expect **52 findings**, reconciling to the 40 planted exceptions plus
+documented cross-findings and one deliberate silence inside the 2% clearing
+tolerance. The assignments still do every procedure spreadsheet-first —
+forming your own expectation before the tool reports is the point of the
+case, not a workaround.
+
+> An earlier build of the workbench could execute only six of the eleven
+> contracts while coverage claimed ten were runnable, and the threshold
+> policy could not be set at all. That defect is fixed (coverage now
+> reconciles against the executor registry), but it remains a good story:
+> the tool's honesty about its own capability had to be audited too.

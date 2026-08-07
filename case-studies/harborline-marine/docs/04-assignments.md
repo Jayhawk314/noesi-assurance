@@ -24,7 +24,7 @@ For amount comparisons, guard against floating point:
 ---
 
 ## Assignment 1 — Vendor master review
-**Procedure:** `ap.vendor_relational_twins` · **Workbench: errors, do it by hand**
+**Procedure:** `ap.vendor_relational_twins` · **Workbench: works — do it by hand first, compare after**
 
 Open `vendors.csv`. Sort by `Vendor Name`.
 
@@ -46,7 +46,7 @@ with your conclusion and the amounts involved.
 ---
 
 ## Assignment 2 — Segregation of duties over disbursements
-**Procedure:** `ap.segregation_of_duties` · **Workbench: errors, do it by hand**
+**Procedure:** `ap.segregation_of_duties` · **Workbench: works — do it by hand first, compare after**
 
 In `payments.csv`, compare `Created By` and `Approved By`.
 
@@ -66,7 +66,7 @@ In `payments.csv`, compare `Created By` and `Approved By`.
 
 ## Assignment 3 — Reference integrity
 **Procedures:** `ap.payment_voucher_reference`, `ap.voucher_po_reference` ·
-**Workbench: both error, do them by hand**
+**Workbench: both work — do them by hand first, compare after**
 
 1. Every `Voucher Number` in `payments.csv` should exist in `vouchers.csv`.
    Find the ones that do not.
@@ -132,7 +132,7 @@ your count to the tool's.
 ---
 
 ## Assignment 7 — Split payments
-**Procedure:** `ap.split_payment_review` · **Workbench: permanently partial**
+**Procedure:** `ap.split_payment_review` · **Workbench: works, but only as well as your parameters**
 
 The approval threshold is **$10,000**.
 
@@ -140,9 +140,14 @@ The approval threshold is **$10,000**.
    just below the threshold within a short window.
 2. Total each cluster. Would a single payment of that total have required a
    second signature?
-3. The workbench reports this procedure as *partial* because it needs a
-   `split_threshold` policy and there is no way to set one. Write the sentence
-   you would put in the workpaper's limitations section describing this.
+3. In the workbench, run the procedure twice: once with only
+   `split_threshold = 10000` set (the window defaults to same-day), and once
+   with `split_window_days = 9`. The first run is silent; the second finds
+   the cluster you found by hand. Same data, different parameter, different
+   evidence. Write the paragraph for the workpaper that (a) states the
+   window you chose, (b) defends why it is wide enough to catch structuring
+   and narrow enough not to sweep in ordinary payment patterns, and (c)
+   acknowledges what a cluster just outside your window would mean.
 
 **Deliver:** `workpapers/WP-A7-split-payments.csv`.
 
@@ -187,13 +192,15 @@ Write the limitations section for the workpaper. At minimum, address:
 1. Purchase-order approval timestamps are absent, so approval sequence cannot
    be tested.
 2. The value-flow population's completeness is unverified.
-3. Five of eleven planned procedures could not be performed by the software and
-   were performed manually — describe the effect, if any, on the evidence
-   obtained.
+3. Automated procedures conclude only within their stated tolerances and
+   parameters: the 2% amount tolerance absorbed one known clearing
+   difference, and the split-payment window was an engagement choice
+   (yours, from Assignment 7). State what the silences do and do not mean.
 4. The audit covered accounts payable and cash disbursements only.
 
 **Deliver:** a limitations memo, one page.
 
-> Point 3 is the one to think hardest about. Manual performance is not
-> inherently weaker evidence — but it is less reproducible, and the workpaper
-> should say so plainly rather than leave a reader to assume the tool did it.
+> Point 3 is the one to think hardest about. Relying on a tool's procedure
+> is legitimate — the runs are reperformable and their inputs are
+> digest-frozen — but reliance without stating the tolerances and parameters
+> would let a reader assume the procedures prove more than they do.

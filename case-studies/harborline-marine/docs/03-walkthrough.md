@@ -1,55 +1,52 @@
 # Walkthrough — running the case in the workbench
 
-Load the Harborline case into Noesi and watch coverage compile. Roughly 30
+Load the Harborline case into Noesi and work it end to end. Roughly 45
 minutes. Read `04-assignments.md` first if you would rather form your own
-expectation before the tool gives you one — that is the better learning order.
+expectation before the tool gives you one — that is the better learning
+order. For the full pairing of tool steps with the audit process they
+implement, read this alongside the manual (`docs/manual/` at the repo
+root).
 
-## 0. Know this before you start
+> **Shortcut:** `noesi-workbench --demo` performs steps 1–5 for you through
+> the real three-chair path and opens with coverage green. Use it when you
+> want to start at step 6. This walkthrough does everything by hand once,
+> because the ingestion review is worth experiencing.
 
-**The workbench binds one principal per process.** The audit domain enforces
-separation of duties: whoever proposes a mapping may not approve it. Because
-the running process authenticates as exactly one person, you must **restart the
-server under a different `--principal` to change hats.** There is no in-app user
-switch.
+## 0. Chairs, not restarts
 
-This is a real limitation of the current build, not a quirk of the case. Plan
-for it: you will restart three times.
+The workbench authenticates one local operator and lets you act as any
+principal via the **acting as** control in the header. Separation of duties
+is enforced server-side against the *acting chair*: whoever proposes a
+mapping cannot approve it, whoever runs a procedure cannot review it. You
+will switch chairs several times in this walkthrough — the header always
+shows which one you are sitting in, and every action is journaled under it.
 
 ## 1. Build and start
 
 ```
 cd apps\workbench-ui && npm install && npm run build && cd ..\..
-.venv\Scripts\python -m workbench_api --principal "u:partner" --data .\case-run
+.venv\Scripts\noesi-workbench --data .\case-run
 ```
 
-Open the address it prints. The page carries its own session token — there is
-nothing to paste.
+Open the address it prints. The served page carries its own session token —
+there is nothing to paste.
 
-## 2. Create the engagement (as partner)
+## 2. Create the engagement (partner chair)
 
 Client name **Harborline Marine Group**, period end **2026-12-31**.
 
-Creating it makes `u:partner` the partner. On the **Team** tab, add:
+Creating it makes your current chair the partner. On the **Team** tab, add:
 
 | Principal | Role |
 |---|---|
 | `u:preparer` | preparer |
 | `u:reviewer` | reviewer |
 
-Note the engagement id from the URL or the engagement list; you will come back
-to the same `--data` directory each restart.
+## 3. Upload and map (switch to `u:preparer`)
 
-## 3. Upload and map (as preparer)
-
-Restart:
-
-```
-.venv\Scripts\python -m workbench_api --principal "u:preparer" --data .\case-run
-```
-
-On **Sources & Mappings**, upload all ten files from `data/`, then propose a
-mapping for each with the role below. The header detector does the column work;
-you are confirming its proposal, not typing it.
+On **Sources & Mappings**, upload all ten files from `data/`, then propose
+a mapping for each with the role below. The header detector does the column
+work; you are confirming its proposal, not typing it.
 
 | File | Role |
 |---|---|
@@ -64,102 +61,132 @@ you are confirming its proposal, not typing it.
 | `ap_control_balance.csv` | AP_control_balance |
 | `value_flows.csv` | Value_flows |
 
-**Look at the refusals.** Two mappings refuse fields, and both are real audit
-facts rather than software problems:
+**Look at the refusals.** Two mappings refuse fields, and both are real
+audit facts rather than software problems:
 
-- `Purchase_orders` refuses `created_on` and `approved_on` — the timestamps are
-  genuinely absent, exactly as the engagement brief said.
+- `Purchase_orders` refuses `created_on` and `approved_on` — the
+  timestamps are genuinely absent, exactly as the engagement brief said.
 - `Value_flows` refuses `flow_type`.
 
-Record the PO refusal. It is scope limitation #1 from the audit plan, and the
-tool has now found it independently.
+Record the PO refusal. It is scope limitation #1 from the audit plan, and
+the tool has now found it independently.
 
-## 4. Approve the mappings (as reviewer)
+## 4. Approve the mappings (switch to `u:reviewer`)
 
-Restart as `u:reviewer` and approve all ten. You cannot approve your own work,
-which is why this is a separate step and a separate person.
+Approve all ten. Try approving one while still sitting in the preparer
+chair first — the refusal is the separation-of-duties gate working.
 
-## 5. Normalize (as preparer)
+## 5. Normalize (switch to `u:preparer`)
 
-Restart as `u:preparer` and normalize each approved spec. Check the
-reconciliation on each: **rows in should equal rows loaded, with zero
-rejected**, for all ten files. If anything is rejected, the mapping is wrong.
-
-Expected control totals worth noting in your workpaper:
-
-- Vouchers: the AP subledger figure you will tie out later.
-- Payments: total disbursements for the year.
+Normalize each approved spec. Check the reconciliation on each: **rows in
+should equal rows loaded, with zero rejected**, for all ten files. If
+anything is rejected, the mapping is wrong.
 
 ## 6. Read the flow map
 
-Open the **Flow Map** tab. Every box should now be green with a row count. This
-is the moment the case pays off — you can see the whole purchase-to-pay cycle
-and, on each arrow, whether the procedure testing that link can run.
+Open the **Flow Map** tab. Every box should now be green with a row count —
+the whole purchase-to-pay cycle, and on each arrow, whether the procedure
+testing that link can run. Click a box to see what it unlocks; click an
+arrow to see the procedures on it.
 
-Click a box to see what it unlocks. Click an arrow to see the procedures on it.
+## 7. Set the engagement policies (partner chair)
 
-## 7. Run the procedures — and meet the wall
+Coverage reads **10 executable, 1 partial**: the split-payment review needs
+the client's approval threshold. On the **Coverage** tab set:
 
-Coverage will report **10 executable, 1 partial**. That is optimistic. When you
-actually run them, only six complete:
+- `split_threshold` = **10000** — Harborline's written policy requires a
+  second signature above $10,000.
+- `split_window_days` = **9** — your testing window. The engine's default
+  is 0 (same-day clusters only), and a clerk splitting invoices to dodge a
+  signature has no reason to write every check the same afternoon. Nine
+  days is a judgment, not a fact — Assignment 7 asks you to defend it.
 
-| Procedure | What happens |
+Coverage moves to **11 executable**. Approved policies apply to every run
+automatically.
+
+## 8. Run the procedures (preparer chair)
+
+Run all eleven. All eleven complete. Expected findings:
+
+| Procedure | Findings |
 |---|---|
-| `cash.bank_clearing` | ✅ completes — 5 findings |
-| `gl.payment_posting` | ✅ completes — 5 findings |
-| `ap.subledger_gl_balance_tie` | ✅ completes — 1 finding |
-| `ap.three_way_receipt_match` | ✅ completes — 10 findings |
-| `forensic.closed_value_flow` | ✅ completes — 1 finding |
-| `ap.split_payment_review` | ⚠️ partial — needs a `split_threshold` policy, and there is no way to set one |
-| `ap.payment_voucher_reference` | ❌ errors — no executor registered |
-| `ap.voucher_po_reference` | ❌ errors — no executor registered |
-| `ap.document_chain` | ❌ errors — no executor registered |
-| `ap.segregation_of_duties` | ❌ errors — no executor registered |
-| `ap.vendor_relational_twins` | ❌ errors — no executor registered |
+| `ap.document_chain` | 15 |
+| `ap.payment_voucher_reference` | 3 |
+| `ap.segregation_of_duties` | 5 |
+| `ap.split_payment_review` | 1 |
+| `ap.subledger_gl_balance_tie` | 1 |
+| `ap.three_way_receipt_match` | 10 |
+| `ap.vendor_relational_twins` | 3 |
+| `ap.voucher_po_reference` | 3 |
+| `cash.bank_clearing` | 5 |
+| `forensic.closed_value_flow` | 1 |
+| `gl.payment_posting` | 5 |
 
-**This is the most important lesson in the case.** Coverage claims a procedure
-is executable when all it has verified is that the *data* is present. It does
-not check that an executor exists. A tool whose whole pitch is honesty about
-what it can prove is, here, overclaiming.
+**52 findings** — and three deliberate lessons hiding in the counts:
 
-For the five that error, do the work in LibreOffice instead —
-`04-assignments.md` covers each one. That is not a consolation prize: an
-auditor's judgment does not depend on a vendor shipping a feature.
+1. **Bank clearing shows 5, not 6.** One planted difference sits at 0.9%,
+   inside the engine's 2% tolerance, and produces no finding — correctly.
+   A silent procedure means *within tolerance*, not *nothing there*.
+   Reconcile the bank column by hand and you will find what the tool never
+   mentions; deciding whether it matters is your call.
+2. **Three-way match shows 10, not 7.** The three vouchers citing phantom
+   POs have no reachable goods receipt either, so one defect surfaces in
+   two procedures. Whether that is one finding or two on the SAD is
+   Assignment 4's hidden question.
+3. **The split review found its cluster only because you set the window.**
+   Re-run it after clearing `split_window_days` and watch it go silent on
+   the same data. Same population, different parameter, different
+   evidence — which is why the parameter is documented as a policy.
 
-## 8. Disposition the findings
+## 9. Disposition the findings
 
-On **Runs & Findings** you should have 22 findings from the six working
-procedures. Every one needs a disposition:
+Every finding needs a disposition with a written note:
 
-- `cleared` — investigated, no misstatement
-- `unadjusted` — a real difference the client will not fix (flows to the SAD)
+- `cleared` — investigated, no misstatement (the note says why)
+- `unadjusted` — a real difference the client will not fix (flows to SAD)
 - `adjusted` — the client corrected it
-- `waived` — below clearly trivial and not qualitatively significant
-- `follow_up` — unresolved at this stage
-
-Write a note on every one. "Cleared" with no reason is not documentation.
+- `waived` — below clearly trivial *and* not qualitatively significant
+- `follow_up` — unresolved; blocks completion until it is not
 
 Mind the distinction the tool will not make for you: a payment that never
-cleared the bank is a $20,000 *exposure*, but the *misstatement* is whatever the
-investigation concludes — possibly zero, if it cleared in January.
+cleared the bank is a $20,000 *exposure*; the *misstatement* is whatever
+the investigation concludes — possibly zero, if it cleared in January. And
+watch the cross-findings from lesson 2: clear one side by reference to the
+other, or you will double-count ~27,000 on the SAD.
 
-## 9. Review, complete, lock
+## 10. Review, complete, lock
 
-Runs must go `completed → reviewed → approved`, and separation of duties applies
-again, so reviewing means another restart as `u:reviewer`.
+Runs walk `completed → reviewed → approved`: review each as `u:reviewer`,
+approve as the partner chair (the tool refuses to let the same chair do
+both — including the chair that executed).
 
-Then on **SAD & Completion**: set materiality to **420000**, mark the stages,
-and work the six completion checks. Readiness will stay red until every blocker
-clears — read them; each names exactly what is outstanding.
+On **SAD & Completion**: set materiality **420000** (performance
+materiality and clearly-trivial derive automatically — check them against
+the audit plan), mark both stages complete, and work the six completion
+checks with real notes. Readiness stays red until every blocker clears —
+read the blockers; each names exactly what is outstanding. That is the
+gate working, not an error.
 
-Finally, as `u:partner`, lock. Locking signs a snapshot and cannot be undone.
-Export the evidence packet and open the workpaper.
+As the partner chair, **lock**. Export the evidence packet and open the
+workpaper: your scope limitations, disposition notes, review chains, and
+the signed manifest are all in it, and the packet re-verifies offline.
+
+## 11. Optional but recommended: reopen it
+
+Real files get reopened; do it once here so the mechanics are familiar.
+As partner, unlock with a specific reason (it becomes a permanent part of
+the record). Reperform one procedure, watch the re-lock refuse until the
+rerun is reviewed and approved, then re-lock and re-export. The packet now
+carries a **lock amendment history**: both lock generations, both
+signatures, and your reason. Nothing was deleted — that is the point.
 
 ## What you should have at the end
 
 - Ten normalized datasets, zero rejected rows.
 - A documented scope limitation for the missing PO approval timestamps.
-- 22 tool findings, each disposed with a written note.
-- Five procedures performed manually because the software could not run them.
-- A signed, offline-verifiable evidence packet.
+- 52 tool findings, each disposed with a written note, reconciled to your
+  own spreadsheet work from the assignments.
+- Two engagement policies set and defended (threshold, window).
+- A signed, offline-verifiable evidence packet — and, if you did step 11,
+  a verifiable amendment history behind it.
 - An honest limitations section that says what this audit did *not* cover.
