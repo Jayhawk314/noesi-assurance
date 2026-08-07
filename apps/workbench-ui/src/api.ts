@@ -61,7 +61,7 @@ export interface CoverageRow {
   name: string;
   objective: string;
   cycle: string;
-  status: "executable" | "partial" | "blocked";
+  status: "executable" | "partial" | "blocked" | "unsupported";
   selected: boolean;
   missing_roles: string[];
   missing_fields: Record<string, string[]>;
@@ -70,6 +70,8 @@ export interface CoverageRow {
   execution_status: string;
   required_policies: string[];
   limitations: string;
+  /** Present only when no executor is registered for this procedure. */
+  unsupported_reason?: string;
 }
 
 export interface EvidenceRequest {
@@ -170,7 +172,25 @@ export interface LockVerification {
   journal_ok?: boolean;
   journal_events_checked?: number;
   verified?: boolean;
+  sequence?: number;
+  history?: LockHistoryEntry[];
   limits?: string;
+}
+
+/** A superseded lock: retained forever, re-verified from stored material. */
+export interface LockHistoryEntry {
+  sequence: number;
+  snapshot_id: string;
+  digest: string;
+  locked_at: string;
+  manifest_ok: boolean;
+  signature_ok: boolean;
+  journal_anchor_ok: boolean;
+  signer: string | null;
+  signed_at: string | null;
+  unlocked_by: string;
+  unlocked_at: string;
+  reason: string;
 }
 
 export class ApiError extends Error {
@@ -180,11 +200,15 @@ export class ApiError extends Error {
 }
 
 export class Client {
+  /** Chair this session acts from; empty means the server's default. */
+  actingAs = "";
+
   constructor(private token: string) {}
 
   private async request<T>(method: string, path: string, body?: unknown,
                            raw?: { data: Blob | ArrayBuffer; headers: Record<string, string> }): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
+    if (this.actingAs) headers["X-Acting-Principal"] = this.actingAs;
     let payload: BodyInit | undefined;
     if (raw) {
       payload = raw.data;
@@ -200,6 +224,9 @@ export class Client {
     }
     return data as T;
   }
+
+  session = () =>
+    this.request<{ principal_id: string }>("GET", "/api/session");
 
   listEngagements = () =>
     this.request<{ engagements: Engagement[] }>("GET", "/api/engagements");
@@ -258,6 +285,9 @@ export class Client {
   lock = (eid: string, expected_version: number) =>
     this.request<{ locked: boolean; blockers?: Blocker[]; digest?: string }>(
       "POST", `/api/engagements/${eid}/lock`, { expected_version });
+  unlock = (eid: string, reason: string, expected_version: number) =>
+    this.request<{ unlocked: boolean; version: number }>(
+      "POST", `/api/engagements/${eid}/unlock`, { reason, expected_version });
   exportPacket = (eid: string) =>
     this.request<Record<string, unknown>>("POST", `/api/engagements/${eid}/export`, {});
 }

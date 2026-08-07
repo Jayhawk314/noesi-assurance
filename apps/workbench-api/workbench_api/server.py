@@ -42,7 +42,16 @@ _SECURITY_HEADERS = (
 
 @dataclass(frozen=True)
 class SessionAuth:
-    """One local session: a random bearer token bound to one principal."""
+    """One local session: a random bearer token held by one operator.
+
+    ``principal_id`` is the chair the operator sits in by default. A request
+    may act as a different principal via ``X-Acting-Principal`` — on a local
+    single-operator pilot the console owner already controls every local
+    identity (they could restart with any ``--principal``), so the header
+    changes convenience, not the trust boundary. Every command is journaled
+    under the chair that performed it, and the separation-of-duties gates
+    apply to chairs exactly as they would to distinct people.
+    """
 
     principal_id: str
     token: str
@@ -50,6 +59,21 @@ class SessionAuth:
     @classmethod
     def create(cls, principal_id: str) -> "SessionAuth":
         return cls(principal_id, secrets.token_urlsafe(32))
+
+
+_MAX_PRINCIPAL_LEN = 120
+
+
+def _acting_principal(header_value: str | None, default: str) -> str:
+    """Validate the acting-principal header; fail closed on nonsense."""
+    if header_value is None or header_value == "":
+        return default
+    principal = header_value.strip()
+    if (not principal or len(principal) > _MAX_PRINCIPAL_LEN
+            or any(ch.isspace() for ch in principal)
+            or not principal.isprintable()):
+        raise ApiError(400, "invalid X-Acting-Principal header")
+    return principal
 
 
 def _json_default(value):
@@ -75,6 +99,10 @@ _STATIC_TYPES = {
 
 _STATIC_CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; "
                "connect-src 'self'; img-src 'self'")
+
+# Replaced in the served index.html with the live session token. An inline
+# script would be simpler but the static CSP forbids one, so it rides a meta tag.
+_TOKEN_PLACEHOLDER = b"__NOESI_SESSION_TOKEN__"
 
 
 def build_server(service: WorkbenchService, auth: SessionAuth,
@@ -145,7 +173,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             if scheme != "Bearer" or not secrets.compare_digest(
                     token.strip(), auth.token):
                 raise ApiError(401, "missing or invalid session token")
-            return auth.principal_id
+            return _acting_principal(
+                self.headers.get("X-Acting-Principal"), auth.principal_id)
 
         def _read_body(self, limit: int) -> bytes:
             length_header = self.headers.get("Content-Length")
@@ -156,6 +185,15 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             except ValueError as exc:
                 raise ApiError(400, "bad Content-Length") from exc
             if length < 0 or length > limit:
+                # Drain a bounded amount before refusing, so the client
+                # reads an honest 413 instead of a connection reset (the
+                # OS RSTs a close with unread data still in flight).
+                remaining = min(length, limit + 1024 * 1024) if length > 0 else 0
+                while remaining > 0:
+                    chunk = self.rfile.read(min(65536, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
                 raise ApiError(413, f"body exceeds the {limit}-byte limit")
             return self.rfile.read(length)
 
@@ -198,6 +236,12 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     self._reply(404, {"error": "unknown path"})
                     return
             body = candidate.read_bytes()
+            if candidate.name == "index.html":
+                # The page load cannot carry a bearer, so the shell is handed
+                # the session token inline. Reachable only through the
+                # Host-checked loopback listener, and never cached.
+                body = body.replace(_TOKEN_PLACEHOLDER,
+                                    auth.token.encode("ascii"))
             self.send_response(200)
             self.send_header("Content-Type", _STATIC_TYPES.get(
                 candidate.suffix, "application/octet-stream"))
@@ -246,11 +290,13 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             # pilot is single-user; correctness beats concurrency here.
             with write_lock:
                 if method == "GET":
-                    return self._get(route)
+                    return self._get(route, actor)
                 return self._post(route, actor)
 
-        def _get(self, route: list[str]) -> dict:
+        def _get(self, route: list[str], actor: str) -> dict:
             match route:
+                case ["session"]:
+                    return {"principal_id": auth.principal_id}
                 case ["engagements"]:
                     return {"engagements": service.list_engagements()}
                 case ["engagements", eid, "team"]:
@@ -274,7 +320,7 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.verify_lock(eid)
                 case ["engagements", eid, "workpaper"]:
                     self._reply_html(
-                        200, service.workpaper_html(auth.principal_id, eid))
+                        200, service.workpaper_html(actor, eid))
                     return None  # already replied
             raise ApiError(404, "unknown path")
 
@@ -335,6 +381,12 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     body = self._read_json()
                     return service.lock(
                         actor, eid,
+                        expected_version=int(body["expected_version"]))
+                case ["engagements", eid, "unlock"]:
+                    body = self._read_json()
+                    return service.unlock(
+                        actor, eid,
+                        reason=str(body.get("reason", "")),
                         expected_version=int(body["expected_version"]))
                 case ["engagements", eid, "export"]:
                     return service.export_packet(actor, eid)

@@ -1,0 +1,158 @@
+/* The purchase-to-pay map. Colour carries the meaning; the legend names it. */
+
+.fm-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 0.6rem;
+  overflow-x: auto;
+}
+.fm-svg { display: block; width: 100%; height: auto; min-width: 660px; }
+
+/* ------------------------------------------------------------------ nodes */
+
+.fm-node { cursor: pointer; }
+.fm-node .fm-box {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  transition: stroke 0.12s, fill 0.12s;
+}
+.fm-node .fm-label {
+  font-size: 13px;
+  font-weight: 620;
+  fill: var(--ink);
+}
+.fm-node .fm-sub {
+  font-size: 11px;
+  fill: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.fm-node .fm-dot { r: 5; }
+
+.fm-node.supplied .fm-box { fill: var(--good-soft); stroke: var(--good-line); }
+.fm-node.supplied .fm-dot { fill: var(--good); }
+.fm-node.supplied .fm-sub { fill: var(--good); }
+
+.fm-node.mapped .fm-box { fill: var(--warn-soft); stroke: var(--warn-line); }
+.fm-node.mapped .fm-dot { fill: var(--warn); }
+.fm-node.mapped .fm-sub { fill: var(--warn); }
+
+.fm-node.missing .fm-box {
+  fill: var(--node-empty);
+  stroke: var(--line);
+  stroke-dasharray: 4 3;
+}
+.fm-node.missing .fm-dot { fill: var(--dot-empty); }
+.fm-node.missing .fm-label { fill: var(--ink-faint); }
+
+.fm-node:hover .fm-box { stroke: var(--accent); }
+.fm-node.selected .fm-box { stroke: var(--accent); stroke-width: 2.5; }
+.fm-node:focus { outline: none; }
+.fm-node:focus-visible .fm-box { stroke: var(--accent); stroke-width: 2.5; }
+
+/* ------------------------------------------------------------------ edges */
+
+.fm-edge { cursor: pointer; }
+.fm-edge .fm-line { fill: none; stroke-width: 2; }
+/* Invisible fat line so thin arrows are still clickable. */
+.fm-edge .fm-hit { fill: none; stroke: transparent; stroke-width: 16; }
+
+.fm-edge.structural .fm-line { stroke: var(--edge-structural); stroke-width: 1.5; }
+
+/* Arrowheads live inside <marker>, so they cannot inherit the path's stroke
+   reliably across browsers — colour them from the same tokens instead. */
+.fm-head.structural { fill: var(--edge-structural); }
+.fm-head.executable { fill: var(--good); }
+.fm-head.partial { fill: var(--warn); }
+.fm-head.blocked { fill: var(--bad); }
+.fm-head.unsupported { fill: var(--bad); }
+.fm-edge.executable .fm-line { stroke: var(--good); }
+.fm-edge.partial .fm-line { stroke: var(--warn); stroke-dasharray: 7 4; }
+.fm-edge.blocked .fm-line { stroke: var(--bad); stroke-dasharray: 2 4; }
+.fm-edge.unsupported .fm-line { stroke: var(--bad); stroke-dasharray: 1 6; }
+.fm-edge:hover .fm-line { stroke-width: 3; }
+
+.fm-chip-box { rx: 9; stroke-width: 1; }
+.fm-chip-text {
+  font-size: 10.5px;
+  font-weight: 650;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.fm-edge.executable .fm-chip-box { fill: var(--good-soft); stroke: var(--good-line); }
+.fm-edge.executable .fm-chip-text { fill: var(--good); }
+.fm-edge.partial .fm-chip-box { fill: var(--warn-soft); stroke: var(--warn-line); }
+.fm-edge.partial .fm-chip-text { fill: var(--warn); }
+.fm-edge.blocked .fm-chip-box { fill: var(--bad-soft); stroke: var(--bad-line); }
+.fm-edge.blocked .fm-chip-text { fill: var(--bad); }
+.fm-edge.unsupported .fm-chip-box { fill: var(--bad-soft); stroke: var(--bad-line); }
+.fm-edge.unsupported .fm-chip-text { fill: var(--bad); }
+
+/* ----------------------------------------------------------------- legend */
+
+.fm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.7rem 0.2rem 0;
+}
+.fm-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.fm-key {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid;
+}
+.fm-key.supplied { background: var(--good-soft); border-color: var(--good-line); }
+.fm-key.mapped { background: var(--warn-soft); border-color: var(--warn-line); }
+.fm-key.missing { background: var(--node-empty); border-color: var(--line);
+                  border-style: dashed; }
+.fm-key.executable { background: var(--good); border-color: var(--good); }
+.fm-key.partial { background: var(--warn); border-color: var(--warn); }
+.fm-key.blocked { background: var(--bad); border-color: var(--bad); }
+
+/* ----------------------------------------------------------- detail panel */
+
+.fm-detail { margin-top: 0.9rem; }
+.fm-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+.fm-detail-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.fm-proc {
+  border-top: 1px solid var(--line-soft);
+  padding: 0.6rem 0;
+}
+.fm-proc:first-of-type { border-top: none; }
+.fm-proc-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.fm-proc-head b { font-size: 0.9rem; font-weight: 620; }
+.fm-proc-head .spacer { margin-left: auto; }
+.fm-gap {
+  font-size: 0.8rem;
+  color: var(--bad);
+  margin: 0.25rem 0 0;
+}
+.fm-hint {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}

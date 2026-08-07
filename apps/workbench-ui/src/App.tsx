@@ -1,64 +1,55 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, Client, Engagement } from "./api";
+import { Client, Engagement, TeamMember } from "./api";
 import {
   CoverageScreen, LockScreen, RunsScreen, SadScreen, SourcesScreen,
   TeamScreen,
 } from "./screens";
+import { FlowMapScreen } from "./screens/FlowMap";
+import { useTheme } from "./lib/theme";
 
 const TABS = [
-  "Team", "Sources & Mappings", "Coverage", "Runs & Findings",
+  "Flow Map", "Team", "Sources & Mappings", "Coverage", "Runs & Findings",
   "SAD & Completion", "Lock & Export",
 ] as const;
 type Tab = (typeof TABS)[number];
 
+// The workbench rewrites this placeholder in the page it serves. It survives
+// only when the built dist is served by something else, which cannot mint a
+// token — the shell says so rather than offering a login it cannot satisfy.
+const TOKEN_PLACEHOLDER = ["__NOESI", "SESSION", "TOKEN__"].join("_");
+
+const CLIENT = (() => {
+  const served = document.querySelector('meta[name="noesi-session"]')
+    ?.getAttribute("content")?.trim() ?? "";
+  return served && served !== TOKEN_PLACEHOLDER ? new Client(served) : null;
+})();
+
 export function App() {
-  const [client, setClient] = useState<Client | null>(null);
-  if (!client) return <TokenGate onReady={setClient} />;
-  return <Workbench client={client} />;
-}
-
-function TokenGate({ onReady }: { onReady: (client: Client) => void }) {
-  const [token, setToken] = useState("");
-  const [error, setError] = useState("");
-
-  async function connect() {
-    const candidate = new Client(token.trim());
-    try {
-      await candidate.listEngagements();
-      onReady(candidate);
-    } catch (exc) {
-      setError(exc instanceof ApiError && exc.status === 401
-        ? "That token was not accepted."
-        : `Could not reach the workbench API: ${String(exc)}`);
-    }
+  if (!CLIENT) {
+    return (
+      <div className="token-gate panel">
+        <h2>Noesi Assurance Workbench</h2>
+        <div className="error-bar">
+          This page was served without a session token. Start the workbench
+          with <code>noesi-workbench</code> and open the address it prints.
+        </div>
+      </div>
+    );
   }
-
-  return (
-    <div className="token-gate panel">
-      <h2>Noesi Assurance Workbench</h2>
-      <p className="note">
-        Paste the session token the workbench printed at startup. It is held
-        in memory only.
-      </p>
-      <form className="inline" onSubmit={(e) => { e.preventDefault(); void connect(); }}>
-        <input type="password" value={token} placeholder="session token"
-               onChange={(e) => setToken(e.target.value)} size={40} autoFocus />
-        <button className="action" type="submit" disabled={!token.trim()}>
-          Connect
-        </button>
-      </form>
-      {error && <div className="error-bar">{error}</div>}
-    </div>
-  );
+  return <Workbench client={CLIENT} />;
 }
 
 function Workbench({ client }: { client: Client }) {
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [selected, setSelected] = useState<Engagement | null>(null);
-  const [tab, setTab] = useState<Tab>("Team");
+  const [tab, setTab] = useState<Tab>("Flow Map");
   const [error, setError] = useState("");
   const [newClient, setNewClient] = useState("");
   const [newPeriod, setNewPeriod] = useState("");
+  const [theme, toggleTheme] = useTheme();
+  const [sessionPrincipal, setSessionPrincipal] = useState("");
+  const [acting, setActing] = useState("");
+  const [team, setTeam] = useState<TeamMember[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -78,6 +69,33 @@ function Workbench({ client }: { client: Client }) {
   const report = (exc: unknown) =>
     setError(exc instanceof Error ? exc.message : String(exc));
 
+  useEffect(() => {
+    client.session()
+      .then(({ principal_id }) => {
+        setSessionPrincipal(principal_id);
+        setActing((current) => current || principal_id);
+      })
+      .catch(report);
+  }, [client]);
+
+  // The chairs the operator can sit in: the session default plus everyone
+  // assigned to the open engagement. Free text is allowed — a chair that
+  // does not hold the required role is refused by the server, loudly.
+  useEffect(() => {
+    if (!selected) { setTeam([]); return; }
+    client.team(selected.engagement_id)
+      .then(({ team: members }) => setTeam(members))
+      .catch(() => setTeam([]));
+  }, [client, selected, engagements]);
+
+  function switchChair(next: string) {
+    const principal = next.trim();
+    if (!principal || principal === acting) return;
+    client.actingAs = principal;
+    setActing(principal);
+    setError("");
+  }
+
   async function create() {
     try {
       setError("");
@@ -93,14 +111,20 @@ function Workbench({ client }: { client: Client }) {
       <header className="app">
         <h1>Noesi Assurance Workbench</h1>
         {selected && (
-          <span>
+          <span className="context">
             {selected.client_name} — FYE {selected.period_end}{" "}
             <span className={`status ${selected.status === "locked" ? "ok" : "pending"}`}>
               [{selected.status}]
             </span>
           </span>
         )}
-        <span className="who">local session</span>
+        <ChairSwitcher acting={acting} sessionPrincipal={sessionPrincipal}
+                       team={team} onSwitch={switchChair} />
+        <button className="theme-toggle" onClick={toggleTheme}
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+          {theme === "dark" ? "☀" : "☾"}
+        </button>
       </header>
       <main>
         {error && (
@@ -127,7 +151,7 @@ function Workbench({ client }: { client: Client }) {
                     </td>
                     <td>
                       <button className="action"
-                              onClick={() => { setSelected(engagement); setTab("Team"); }}>
+                              onClick={() => { setSelected(engagement); setTab("Flow Map"); }}>
                         open
                       </button>
                     </td>
@@ -146,8 +170,9 @@ function Workbench({ client }: { client: Client }) {
               </button>
             </form>
             <p className="note">
-              Creating an engagement makes this session's principal its
-              partner.
+              Creating an engagement makes the acting principal (top right)
+              its partner. Preparing, reviewing, and approving are separate
+              chairs — switch up there when a gate refuses you.
             </p>
           </>
         ) : (
@@ -164,7 +189,8 @@ function Workbench({ client }: { client: Client }) {
               ))}
             </nav>
             <ScreenBody tab={tab} client={client} engagement={selected}
-                        onError={report} onChanged={refresh} />
+                        onError={report} onChanged={refresh}
+                        onNavigate={setTab} />
           </>
         )}
       </main>
@@ -172,15 +198,66 @@ function Workbench({ client }: { client: Client }) {
   );
 }
 
-function ScreenBody({ tab, client, engagement, onError, onChanged }: {
+/** One operator, several chairs. Server-side gates treat chairs as people:
+ *  a proposal's author cannot approve it, a run's executor cannot review
+ *  it. Which chair performed each action is journaled and appears on the
+ *  workpaper — switching is explicit and always visible here. */
+function ChairSwitcher({ acting, sessionPrincipal, team, onSwitch }: {
+  acting: string;
+  sessionPrincipal: string;
+  team: TeamMember[];
+  onSwitch: (principal: string) => void;
+}) {
+  const [draft, setDraft] = useState(acting);
+  useEffect(() => { setDraft(acting); }, [acting]);
+  const roles = new Map<string, string[]>();
+  if (sessionPrincipal) roles.set(sessionPrincipal, ["session"]);
+  for (const member of team) {
+    roles.set(member.principal_id,
+              [...(roles.get(member.principal_id) ?? []), member.role]);
+  }
+  const actingRoles = team
+    .filter((m) => m.principal_id === acting)
+    .map((m) => m.role);
+  return (
+    <span className="who">
+      acting as
+      <input className="chair-input" list="chair-options" value={draft}
+             aria-label="acting principal"
+             onChange={(e) => setDraft(e.target.value)}
+             onBlur={() => (draft.trim() ? onSwitch(draft) : setDraft(acting))}
+             onKeyDown={(e) => {
+               if (e.key === "Enter") {
+                 e.preventDefault();
+                 onSwitch(draft);
+                 (e.target as HTMLInputElement).blur();
+               }
+             }} />
+      <datalist id="chair-options">
+        {[...roles.entries()].map(([id, held]) => (
+          <option key={id} value={id}>{held.join(", ")}</option>
+        ))}
+      </datalist>
+      {actingRoles.length > 0 && (
+        <span className="chair-roles">{actingRoles.join(" · ")}</span>
+      )}
+    </span>
+  );
+}
+
+function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }: {
   tab: Tab;
   client: Client;
   engagement: Engagement;
   onError: (exc: unknown) => void;
   onChanged: () => Promise<void>;
+  onNavigate: (tab: Tab) => void;
 }) {
   const eid = engagement.engagement_id;
   switch (tab) {
+    case "Flow Map":
+      return <FlowMapScreen client={client} eid={eid} onError={onError}
+                            onGoToSources={() => onNavigate("Sources & Mappings")} />;
     case "Team":
       return <TeamScreen client={client} eid={eid} onError={onError} />;
     case "Sources & Mappings":

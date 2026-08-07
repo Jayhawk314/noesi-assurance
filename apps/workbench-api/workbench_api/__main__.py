@@ -29,6 +29,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8347)
     parser.add_argument("--principal", default=f"local:{getpass.getuser()}",
                         help="principal id for this session")
+    parser.add_argument("--demo", nargs="?", const="", default=None,
+                        metavar="CASE_DIR",
+                        help="seed the Harborline demo engagement (optionally "
+                             "from an explicit case data directory)")
     args = parser.parse_args(argv)
 
     data = Path(args.data)
@@ -43,12 +47,22 @@ def main(argv: list[str] | None = None) -> int:
     static = _UI_DIST if _UI_DIST.is_dir() else None
     server = build_server(service, auth, port=args.port, static_dir=static)
 
+    demo_note = ""
+    if args.demo is not None:
+        from workbench_api.demo import seed_demo
+        outcome = seed_demo(service, args.principal,
+                            case_dir=Path(args.demo) if args.demo else None)
+        demo_note = ("seeded — switch chairs in the UI to run procedures"
+                     if outcome["seeded"] else "already present")
+
     port = server.server_address[1]
     # flush=True: the token must reach a redirected log immediately.
     print(f"workbench:  http://127.0.0.1:{port}/"
           + ("" if static else "   (UI not built; API only)"), flush=True)
     print(f"principal:  {args.principal}", flush=True)
     print(f"token:      {auth.token}", flush=True)
+    if demo_note:
+        print(f"demo:       Harborline Marine Group ({demo_note})", flush=True)
     print("Ctrl+C stops the server. The token dies with it.", flush=True)
     try:
         server.serve_forever()

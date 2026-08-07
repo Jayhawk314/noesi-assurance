@@ -210,9 +210,34 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
 
 // ------------------------------------------------------- screen 3: coverage
 
+function PolicySetter({ policy, onSet }: {
+  policy: string;
+  onSet: (name: string, value: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  return (
+    <form className="inline"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (value.trim()) onSet(policy, value.trim());
+          }}>
+      <span>policy: {policy}</span>
+      <input value={value} size={9} placeholder="value"
+             onChange={(e) => setValue(e.target.value)} />
+      <button className="action" type="submit" disabled={!value.trim()}>
+        set
+      </button>
+    </form>
+  );
+}
+
 export function CoverageScreen({ client, eid, onError }: ScreenProps) {
   const load = useCallback(() => client.coverage(eid), [client, eid]);
-  const { data } = useLoader<Coverage>(load, onError);
+  const { data, reload } = useLoader<Coverage>(load, onError);
+  const setPolicy = (name: string, value: string) => {
+    client.updateWorkflow(eid, "policy", { name, value })
+      .then(reload).catch(onError);
+  };
   if (!data) return <p className="note">Compiling coverage…</p>;
   return (
     <>
@@ -224,6 +249,12 @@ export function CoverageScreen({ client, eid, onError }: ScreenProps) {
             {state}
           </span>
         ))}
+        {(data.summary.unsupported ?? 0) > 0 && (
+          <span className="metric">
+            <b className="status unsupported">{data.summary.unsupported}</b>
+            unsupported
+          </span>
+        )}
         <span className="metric"><b>{data.summary.total ?? 0}</b>total</span>
       </div>
       <table className="dense">
@@ -239,12 +270,15 @@ export function CoverageScreen({ client, eid, onError }: ScreenProps) {
               <td><span className={`status ${row.status}`}>{row.status}</span></td>
               <td>{row.population ?? "—"}</td>
               <td>
+                {row.unsupported_reason && (
+                  <div className="note">{row.unsupported_reason}</div>
+                )}
                 {row.missing_roles.map((role) => <div key={role}>dataset: {role}</div>)}
                 {Object.entries(row.missing_fields).map(([role, fields]) => (
                   <div key={role}>fields: {role}.{fields.join(", ")}</div>
                 ))}
                 {row.missing_policies.map((policy) => (
-                  <div key={policy}>policy: {policy}</div>
+                  <PolicySetter key={policy} policy={policy} onSet={setPolicy} />
                 ))}
               </td>
               <td className="note">{row.limitations}</td>
@@ -524,10 +558,20 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
     return { readiness, lock };
   }, [client, eid]);
   const { data, reload } = useLoader(load, onError);
+  const [unlockReason, setUnlockReason] = useState("");
 
   async function lockNow() {
     try {
       await client.lock(eid, engagement.version);
+      await onChanged();
+      reload();
+    } catch (exc) { onError(exc); }
+  }
+
+  async function unlockNow() {
+    try {
+      await client.unlock(eid, unlockReason, engagement.version);
+      setUnlockReason("");
       await onChanged();
       reload();
     } catch (exc) { onError(exc); }
@@ -639,6 +683,68 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
           <p className="note">
             The workpaper link requires the bearer session; if it opens
             unauthorized, download the packet here and render offline.
+          </p>
+
+          <h3>Reopen (supersede the lock)</h3>
+          <p className="note">
+            Unlocking never deletes anything: this lock, its signature, and
+            its journal anchor stay in the record permanently, and the next
+            lock names it. The reason is required and becomes part of the
+            engagement record (AU-C 230: changes after file assembly document
+            the reason, by whom, and when). Requires the partner chair.
+          </p>
+          <form className="inline"
+                onSubmit={(e) => { e.preventDefault(); void unlockNow(); }}>
+            <input value={unlockReason} size={48}
+                   placeholder="specific reason for reopening (required)"
+                   onChange={(e) => setUnlockReason(e.target.value)} />
+            <button className="action" type="submit"
+                    disabled={unlockReason.trim().length < 10}>
+              unlock with reason
+            </button>
+          </form>
+        </>
+      )}
+
+      {(lock.history ?? []).length > 0 && (
+        <>
+          <h3>Lock amendment history</h3>
+          <table className="dense">
+            <thead>
+              <tr><th>Seq</th><th>Locked</th><th>Unlocked</th><th>Reason</th>
+                  <th>Integrity</th></tr>
+            </thead>
+            <tbody>
+              {(lock.history ?? []).map((item) => (
+                <tr key={item.snapshot_id}>
+                  <td>{item.sequence}</td>
+                  <td className="note">
+                    {item.locked_at}<br />
+                    signed by <code>{item.signer ?? "—"}</code>
+                  </td>
+                  <td className="note">
+                    {item.unlocked_at}<br />
+                    by <code>{item.unlocked_by}</code>
+                  </td>
+                  <td>{item.reason}</td>
+                  <td>
+                    <span className={`status ${item.manifest_ok
+                      && item.signature_ok && item.journal_anchor_ok
+                      ? "ok" : "broken"}`}>
+                      {item.manifest_ok && item.signature_ok
+                        && item.journal_anchor_ok
+                        ? "verifies" : "FAILS"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="note">
+            Superseded locks are re-verified from stored material on every
+            read: manifest re-hashes to its digest, the signature still
+            binds, and the journal hash chain still contains the head each
+            lock was anchored to.
           </p>
         </>
       )}
