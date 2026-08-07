@@ -245,10 +245,18 @@ class WorkbenchService:
         document, _ = self.workflow_document(engagement_id)
         effective_policies = {**(document.get("policies") or {}),
                               **(policies or {})}
+        # Reperformance is legitimate — after a reviewer sends work back, or
+        # after an unlock. Same procedure, same data, same policies must
+        # still mint a distinct job, so the manifest carries a rerun
+        # sequence instead of colliding on the frozen job_id.
+        rerun_sequence = self._conn.execute(
+            """SELECT COUNT(*) AS c FROM procedure_run
+               WHERE engagement_id = ? AND procedure_id = ?""",
+            (engagement_id, procedure_id)).fetchone()["c"]
         manifest = build_manifest(
             procedure_id=procedure_id, procedure_version="v1",
             engine_version=ENGINE_VERSION, tables=tables,
-            policies=effective_policies)
+            policies=effective_policies, rerun_sequence=rerun_sequence)
         bundle = run_job(manifest, tables, execute_procedure)
 
         def handler(uow):

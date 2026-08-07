@@ -294,13 +294,40 @@ tolerance and stays silent; the three phantom-PO vouchers surface in two
 procedures (double-count judgment for the SAD); the split cluster spans nine
 days and is invisible until the auditor chooses a window.
 
+## Review gates, precisely
+
+What is second-person gated before *any* lock (first or re-lock):
+
+- **Mappings** — a proposal's author cannot approve it; normalization
+  requires an approved spec.
+- **Runs** — a completed run must be reviewed (reviewer) and approved
+  (partner, not the same person as the reviewer) or readiness blocks with
+  `PROCEDURE_RUN_REVIEW_PENDING`. This applies identically after reopening:
+  a reperformed run is a new run and is re-gated (tested end-to-end).
+  Reperformance mints a distinct job via the manifest's `rerun_sequence`.
+- **Selections** — deselecting a procedure without a rationale blocks
+  (`PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE`).
+- **Findings** — undisposed misstatements block
+  (`MISSTATEMENTS_UNRESOLVED` / `SUBSTANTIVE_ITEMS_UNRESOLVED`).
+
+What is **not** second-person gated today (tracked in
+[`PRODUCTION-READINESS.md`](PRODUCTION-READINESS.md)):
+
+- Dispositions: any team role sets them; there is no disposition review
+  lifecycle.
+- Workflow edits (materiality, stages, completion checks, policies): partner
+  or preparer writes directly.
+- An engagement with **zero normalized datasets** skips the procedure gates
+  entirely (coverage is not compiled), so a data-less shell can lock on the
+  workflow gates alone.
+
 ## Known limits / next hardening
 
-- Readiness does not yet distinguish a first lock from a re-lock: after
-  reopening, nothing forces the *new* work to be re-reviewed before relocking
-  (each run's own review state still shows on the workpaper).
 - Source loading is one file at a time (upload → propose → approve →
   normalize per role); fine for the demo seed, tedious for real engagements.
 - Single process, single writer, requests serialized; the firm-hosted
   profile (real sessions, ASGI, external time-stamping) is a boundary swap by
   design, not a rewrite.
+- The full path from pilot to real-industry deployment — identity, trusted
+  time, retention, quality management, confidentiality — is tracked item by
+  item in [`PRODUCTION-READINESS.md`](PRODUCTION-READINESS.md).

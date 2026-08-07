@@ -9,9 +9,10 @@ This is the v2 product repository. The audit logic (procedure contracts,
 coverage compiler, refusal semantics, review gates) was ported from the
 `noesi-cpa` prototype; the product boundaries around it (identity,
 persistence, evidence storage, API/UI) were rebuilt. **See
-`docs/ARCHITECTURE.md` for the current system description** —
-`docs/architecture/` is the historical prototype assessment and porting
-notes, kept as record.
+`docs/ARCHITECTURE.md` for the current system description** and
+`docs/PRODUCTION-READINESS.md` for the tracked gap list between this pilot
+and real-industry deployment — `docs/architecture/` is the historical
+prototype assessment and porting notes, kept as record.
 
 ## Layout
 

@@ -178,6 +178,50 @@ def test_export_refuses_when_post_lock_drift_exists(service,
         service.export_packet(CAROL, locked_engagement)
 
 
+def test_reopened_work_is_regated_before_relock(service, locked_engagement):
+    """After unlock, rework passes the same gates a first lock required.
+
+    Reperformance of the same procedure on the same data is the normal
+    post-reopening event (AU-C 230 changes after assembly), so the rerun
+    must mint a distinct job, and the re-lock must refuse until the new run
+    is reviewed and approved like any other.
+    """
+    eid = locked_engagement
+    service.unlock(
+        ALICE, eid,
+        reason="Client delivered a corrected AP control balance after "
+               "archiving; reperforming the control-account tie.",
+        expected_version=2)
+
+    # Same procedure, same tables, same policies — a true reperformance.
+    rerun = service.run_procedure(
+        BOB, eid, procedure_id="ap.subledger_gl_balance_tie")
+    assert rerun["status"] == "completed"
+
+    attempt = service.lock(ALICE, eid, expected_version=3)
+    assert attempt["locked"] is False
+    codes = {b["code"] for b in attempt["blockers"]}
+    assert "PROCEDURE_RUN_REVIEW_PENDING" in codes
+
+    reviewed = service.review_run(CAROL, eid, rerun["run_id"],
+                                  target="reviewed", expected_version=1)
+    service.review_run(ALICE, eid, rerun["run_id"], target="approved",
+                       expected_version=reviewed["version"])
+
+    relock = service.lock(ALICE, eid, expected_version=3)
+    assert relock["locked"] is True, relock.get("blockers")
+    verification = service.verify_lock(eid)
+    assert verification["verified"] is True
+    assert verification["sequence"] == 2
+    # Both generations of the tie run are in the packet, review chains intact.
+    packet = service.export_packet(CAROL, eid)
+    tie_runs = [run for run in packet["runs"]
+                if run["procedure_id"] == "ap.subledger_gl_balance_tie"]
+    assert len(tie_runs) == 2
+    assert tie_runs[0]["job_id"] != tie_runs[1]["job_id"]
+    assert all(run["approved_by"] == ALICE for run in tie_runs)
+
+
 def test_workpaper_renders_conclusions_with_lineage(service,
                                                     locked_engagement):
     html = service.workpaper_html(CAROL, locked_engagement)
