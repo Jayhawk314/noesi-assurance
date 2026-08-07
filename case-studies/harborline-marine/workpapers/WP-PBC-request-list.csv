@@ -1,0 +1,7 @@
+Request ID,Item Requested,Reason Needed,Procedure It Unlocks,Owner,Date Requested,Date Received,Status,Notes
+R-01,Purchase order approval timestamps (created_on / approved_on),PO extract omits both fields; approval sequence untestable,ap.document_chain,Controller,,,Open,Scope limitation if not received
+R-02,Approval limit policy in force June-September 2026,Supervisor vacancy period; threshold for split-payment test,ap.split_payment_review,Controller,,,Open,
+R-03,Vendor bank detail change log,Vendor creation moved to purchasing in April,ap.vendor_relational_twins,Purchasing Manager,,,Open,
+R-04,Reconciliation of value-flow extract to source system,Extract is management-prepared and unverified,forensic.closed_value_flow,Controller,,,Open,
+R-05,Receiving documentation for transition weeks,Scanner rollout may have dropped receipts,ap.three_way_receipt_match,Warehouse Manager,,,Open,
+,,,,,,,,

@@ -1,0 +1,11 @@
+Line,Description,Amount,Source,Notes
+1,Sum of Voucher Amount per voucher file,,vouchers.csv,
+2,AP subledger balance per client,,ap_control_balance.csv,
+3,Difference (line 1 less line 2),,calculated,Explain any difference
+4,GL control account balance,,ap_control_balance.csv,Account 2000
+5,Variance (line 4 less line 2),,calculated,
+6,Overall materiality,420000,audit plan,
+7,Variance as % of materiality,,calculated,
+8,Conclusion,,,Below materiality is not automatically acceptable — argue both sides
+Prepared By,,,,
+Date,,,,
