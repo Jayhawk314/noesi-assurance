@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Two-batch structural triage over the whole disbursement population.
 
 Composition logic sorts every payment into CLEARED (the PO -> voucher ->

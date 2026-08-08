@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Verify the Phase 0 golden bundles match their manifest digests.
 
 This is a tamper/consistency check only: it proves the bundles on disk are

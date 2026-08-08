@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Whole-company referential integrity and AP recovery, ported from noesi-cpa.
 
 The ACL binary reader is NOT ported — real clients export CSVs; the v2 input

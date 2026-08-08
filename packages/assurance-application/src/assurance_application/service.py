@@ -1,4 +1,5 @@
-﻿"""WorkbenchService: typed use cases over the transactional spine.
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+"""WorkbenchService: typed use cases over the transactional spine.
 
 Authorization model (pilot): the first principal to create an engagement is
 its partner; partners assign the team; preparers ingest, map, normalize,

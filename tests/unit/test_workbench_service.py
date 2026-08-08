@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """The six screens as one journey: engagement -> sources -> coverage ->
 runs -> SAD/readiness -> lock, with server-side authorization throughout."""
 

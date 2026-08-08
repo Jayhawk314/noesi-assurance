@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Render one self-contained HTML workpaper from an evidence packet.
 
 A document, not an application: inline styles, no scripts, nothing loaded

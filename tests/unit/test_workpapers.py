@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Evidence packets: exported from a frozen verified lock, offline-verifiable,
 tamper-naming; the workpaper renders every conclusion with its lineage."""
 

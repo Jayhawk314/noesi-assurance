@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Coverage compilation: which procedures can the supplied data honestly support?
 
 Faithful port of the prototype's compiler, output-compatible with the Phase 0

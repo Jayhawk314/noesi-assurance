@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """One engagement, every layer, mapped to the traditional audit process.
 
 Port of the prototype's connector: tags every receipt with cycle x assertion

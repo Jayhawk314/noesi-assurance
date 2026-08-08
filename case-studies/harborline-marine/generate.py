@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Generate the Harborline Marine Group integrated audit practice case.
 
 An original teaching case in the tradition of published integrated audit

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Seed a ready-to-explore demo engagement from the Harborline teaching case.
 
 The seed goes through the real service path — three chairs, mapping review,

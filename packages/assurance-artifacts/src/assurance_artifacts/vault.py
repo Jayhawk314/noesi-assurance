@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Content-addressed write-once artifact vault with quarantine staging.
 
 Layout under the vault root:

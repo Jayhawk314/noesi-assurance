@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Deterministic AP procedure engines, ported from noesi-cpa on Decimal money.
 
 Arithmetic is Decimal end to end; floats appear only at the receipt

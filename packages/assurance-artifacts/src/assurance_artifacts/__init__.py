@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Immutable evidence vault and artifact intake.
 
 Bytes are staged into quarantine (streamed, hashed, size- and type-policed),

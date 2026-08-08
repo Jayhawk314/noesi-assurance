@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """AP-recovery detectors, ported from the prototype's noesis.ap package.
 
 Screening-layer arithmetic stays float for receipt parity with the prototype

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """The hardened boundary: every request authenticated, origins policed,
 bodies limited, and the six screens reachable over HTTP."""
 

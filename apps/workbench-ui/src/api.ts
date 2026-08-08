@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 /** Typed client for the workbench API — the shapes mirror the server contract. */
 
 export interface Engagement {

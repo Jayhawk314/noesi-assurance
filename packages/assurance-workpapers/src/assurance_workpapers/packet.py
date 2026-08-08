@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Evidence packet sealing and offline verification.
 
 ``seal_packet`` computes the packet digest over everything except the seal

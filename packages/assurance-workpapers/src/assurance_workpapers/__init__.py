@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Evidence packets and workpapers, built from frozen signed snapshots.
 
 Never from live mutable rows: export refuses unless the lock verifies, and

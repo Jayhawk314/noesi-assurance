@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """The stable worker protocol: frozen job manifests and result bundles.
 
 A procedure never runs against "whatever is loaded" — it runs against a

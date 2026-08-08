@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Dempster-Shafer theory of evidence.
 
 Audited port of the KOMPOSOS ``categorical.dempster_shafer`` module (same

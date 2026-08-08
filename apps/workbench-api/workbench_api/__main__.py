@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Run the local workbench: API + built review UI on loopback.
 
     python -m workbench_api [--data DIR] [--port N]

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Phase 0 golden capture: freeze current noesi-cpa audit behavior.
 
 Run with the noesi-cpa virtualenv, from the noesi-cpa checkout root (the

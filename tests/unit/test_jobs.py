@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Worker protocol: frozen manifests, verified inputs, sealed results."""
 
 import json

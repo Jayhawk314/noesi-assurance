@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Re-run the Harborline case end to end and print what the engine finds.
 
 Loads ``data/`` through WorkbenchService with three principals (partner,

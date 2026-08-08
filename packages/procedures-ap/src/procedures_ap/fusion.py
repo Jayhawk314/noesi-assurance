@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Dempster-Shafer fusion of structural detectors, per entity.
 
 Adding detector scores would be the exact antipattern the product warns

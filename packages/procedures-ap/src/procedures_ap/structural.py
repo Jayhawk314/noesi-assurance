@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Structural coherence over evidential accounting graphs, ported from noesi-cpa.
 
 The composition/twin/round-trip screening layer. Arithmetic stays float here

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """The eleven versioned AP procedure contracts, ported from noesi-cpa.
 
 Contract content is frozen against the Phase 0 golden bundle

@@ -5,6 +5,11 @@ that compiles which audit procedures supplied data can honestly support,
 records why the others cannot run, and produces a reproducible
 evidence-linked workpaper.
 
+**Not an audit, not an opinion, not professional advice.** Free for
+noncommercial use (students, teaching, research); commercial use requires a
+license — see [License, use, and professional
+disclaimers](#license-use-and-professional-disclaimers).
+
 This is the v2 product repository. The audit logic (procedure contracts,
 coverage compiler, refusal semantics, review gates) was ported from the
 `noesi-cpa` prototype; the product boundaries around it (identity,
@@ -127,3 +132,34 @@ every finding for reconciliation against the key.
 
 `../noesi-cpa` is read-only reference material: golden-bundle capture runs
 there; ported code is copied from there. No new features land there.
+
+## License, use, and professional disclaimers
+
+Copyright (c) 2026 Jayhawk314. Licensed under the **PolyForm Noncommercial
+License 1.0.0** — see [LICENSE.md](LICENSE.md). In plain terms: personal
+study, teaching, research, and use by noncommercial organizations (including
+classroom use of the Harborline case) are free; **any commercial use —
+including use on client engagements — requires a separate commercial license
+from the copyright holder** (jhawk314@gmail.com).
+
+Say plainly what this software is not:
+
+- **It is not an audit.** Running its procedures does not constitute an
+  audit, a review, or any assurance engagement under any professional
+  standard.
+- **It produces no opinion.** Its outputs — findings, coverage, readiness,
+  workpapers, evidence packets — are records of mechanical checks over the
+  data supplied, not audit opinions or professional conclusions. The
+  "report implication" language describes what a practitioner would have to
+  consider; it decides nothing.
+- **It is not professional advice.** Nothing in this software, its manual,
+  or its teaching case is accounting, auditing, legal, or tax advice.
+  Professional judgments remain the responsibility of the licensed
+  practitioners who make them, exactly as the workbench's own review gates
+  assume.
+- **No warranty.** The software comes as is, without warranty or condition
+  of any kind; see the "No Liability" section of LICENSE.md.
+
+The references to AU-C, AS, and other standards in the manual and in code
+comments explain the design intent; they are not claims of compliance with,
+or endorsement by, the AICPA, PCAOB, or any other body.
