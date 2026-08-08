@@ -1,4 +1,4 @@
-Required Notice: Copyright (c) 2026 Jayhawk314 (https://github.com/Jayhawk314/noesi-assurance)
+Required Notice: Copyright (c) 2026 James Hawkins (https://github.com/Jayhawk314/noesi-assurance)
 
 # PolyForm Noncommercial License 1.0.0
 

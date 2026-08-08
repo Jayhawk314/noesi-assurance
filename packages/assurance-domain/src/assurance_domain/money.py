@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+# Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Decimal money: the canonical arithmetic boundary.
 
 The prototype computed on binary floats (P1 defect). Here all arithmetic is

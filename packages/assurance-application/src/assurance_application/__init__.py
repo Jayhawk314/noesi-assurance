@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+# Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Application layer: the use cases the workbench API exposes.
 
 Every mutation is a command through the transactional spine, authorized

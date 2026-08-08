@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+# Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """The five executors added after Phase 0, and the coverage reconciliation
 that keeps "executable" honest: a contract with no registered executor must
 never compile as runnable, no matter how complete the data is."""

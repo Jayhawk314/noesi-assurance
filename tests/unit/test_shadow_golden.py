@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+# Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Shadow mode: the v2 port diffed against the Phase 0 golden bundles.
 
 Contracts and coverage must match the prototype exactly (after the

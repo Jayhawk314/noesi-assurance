@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+# Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Completion readiness: the gates that decide whether an engagement can close.
 
 Faithful port of the prototype's readiness derivation — blocker codes,

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Jayhawk314. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
+# Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Owned, audited ports of the KOMPOSOS-derived methods audit procedures use.
 
 The prototype reached these through runtime sys.path mutation into a vendored

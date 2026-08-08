@@ -135,7 +135,7 @@ there; ported code is copied from there. No new features land there.
 
 ## License, use, and professional disclaimers
 
-Copyright (c) 2026 Jayhawk314. Licensed under the **PolyForm Noncommercial
+Copyright (c) 2026 James Hawkins. Licensed under the **PolyForm Noncommercial
 License 1.0.0** — see [LICENSE.md](LICENSE.md). In plain terms: personal
 study, teaching, research, and use by noncommercial organizations (including
 classroom use of the Harborline case) are free; **any commercial use —
