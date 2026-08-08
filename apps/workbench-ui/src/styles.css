@@ -431,3 +431,82 @@ button.theme-toggle:focus-visible {
   outline: 2px solid var(--header-fg);
   outline-offset: 2px;
 }
+
+/* ------------------------------------------------------------- manual */
+
+button.manual-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--header-fg);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+button.manual-toggle:hover,
+button.manual-toggle.active { background: rgba(255, 255, 255, 0.22); }
+
+.manual {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 46rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+.manual-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: sticky;
+  top: 1rem;
+}
+.manual-nav button {
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.manual-nav button:hover { background: var(--accent-soft); color: var(--ink); }
+.manual-nav button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--line);
+  font-weight: 600;
+}
+.manual-content { line-height: 1.55; }
+.manual-content h1 { margin: 0 0 0.75rem; }
+.manual-content h2 { margin: 1.5rem 0 0.5rem; }
+.manual-content h3 { margin: 1.25rem 0 0.4rem; }
+.manual-content p { margin: 0.6rem 0; }
+.manual-content ul, .manual-content ol { margin: 0.6rem 0 0.6rem 1.4rem; }
+.manual-content li { margin: 0.25rem 0; }
+.manual-content a { color: var(--accent); }
+.manual-content code {
+  background: var(--idle-soft);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.9em;
+}
+.manual-content pre {
+  background: var(--idle-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+.manual-content pre code { background: none; padding: 0; }
+.manual-content table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  width: 100%;
+}
+.manual-content th, .manual-content td {
+  border: 1px solid var(--line);
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+.manual-content th { background: var(--th-bg); }

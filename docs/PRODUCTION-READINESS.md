@@ -10,6 +10,12 @@ evidence model do not change.
 Legend: **[P0]** blocks any real-client use · **[P1]** blocks firm-wide
 rollout · **[P2]** competitive/operational maturity.
 
+The P0 items (plus trusted time) are sequenced into a concrete build plan
+with arc-by-arc exit criteria in [P0-DEPLOYMENT-PLAN.md](P0-DEPLOYMENT-PLAN.md);
+the independent review of 2026-08-07 (`reviews/REVIEW-2026-08-07.md`) is
+the current statement of what the tool may be used for until that plan
+completes.
+
 ---
 
 ## 1. Identity, sessions, and signatures

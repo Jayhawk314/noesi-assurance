@@ -406,3 +406,21 @@ def test_integrity_refusal_is_named_at_the_boundary(api, tmp_path):
                             f"/api/engagements/{eid}/coverage", token=token)
     assert status == 409
     assert "recorded digest" in body["error"]
+
+
+def test_manual_is_served_authenticated_and_traversal_safe(api):
+    port, auth = api
+    status, _ = _request(port, "GET", "/api/manual")
+    assert status == 401                    # reads included, manual included
+    status, listing = _request(port, "GET", "/api/manual", token=auth.token)
+    assert status == 200
+    names = [c["name"] for c in listing["chapters"]]
+    assert names[0] == "README.md" and len(names) >= 9
+    status, chapter = _request(
+        port, "GET", "/api/manual/01-engagement-and-team.md",
+        token=auth.token)
+    assert status == 200
+    assert "<h1>" in chapter["html"]
+    status, _ = _request(port, "GET", "/api/manual/..%2F..%2FLICENSE.md",
+                         token=auth.token)
+    assert status == 404

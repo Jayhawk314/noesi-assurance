@@ -259,6 +259,13 @@ export class Client {
   session = () =>
     this.request<{ principal_id: string }>("GET", "/api/session");
 
+  manualChapters = () =>
+    this.request<{ chapters: { name: string; title: string }[] }>(
+      "GET", "/api/manual");
+  manualChapter = (name: string) =>
+    this.request<{ name: string; title: string; html: string }>(
+      "GET", `/api/manual/${name}`);
+
   listEngagements = () =>
     this.request<{ engagements: Engagement[] }>("GET", "/api/engagements");
   createEngagement = (client_name: string, period_end: string) =>

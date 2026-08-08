@@ -123,7 +123,9 @@ active one.
 `docs/manual/` is a working textbook that teaches the audit process and the
 workbench together — every chapter pairs what professional standards require
 (**in practice**) with the concrete steps in the tool (**in the workbench**)
-and the running example (**in Harborline**).
+and the running example (**in Harborline**). The workbench serves it
+rendered: the **📖 manual** button in the header, from any screen — so a
+student never leaves the tool to look up why a gate refused them.
 
 `case-studies/harborline-marine/` is the complete instructor-ready case
 behind it: generated data with 40 planted exceptions, spreadsheet-first

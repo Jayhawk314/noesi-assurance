@@ -312,6 +312,19 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             match route:
                 case ["session"]:
                     return {"principal_id": auth.principal_id}
+                case ["manual"]:
+                    from workbench_api.manual import (
+                        default_manual_dir, list_chapters,
+                    )
+                    try:
+                        return {"chapters": list_chapters(default_manual_dir())}
+                    except FileNotFoundError as exc:
+                        raise ApiError(404, str(exc)) from exc
+                case ["manual", chapter]:
+                    from workbench_api.manual import (
+                        default_manual_dir, render_chapter,
+                    )
+                    return render_chapter(default_manual_dir(), chapter)
                 case ["engagements"]:
                     return {"engagements": service.list_engagements()}
                 case ["engagements", eid, "team"]:

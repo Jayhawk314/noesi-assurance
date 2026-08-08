@@ -6,6 +6,7 @@ import {
   TeamScreen,
 } from "./screens";
 import { FlowMapScreen } from "./screens/FlowMap";
+import { ManualScreen } from "./screens/Manual";
 import { useTheme } from "./lib/theme";
 
 const TABS = [
@@ -51,6 +52,7 @@ function Workbench({ client }: { client: Client }) {
   const [sessionPrincipal, setSessionPrincipal] = useState("");
   const [acting, setActing] = useState("");
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -121,6 +123,11 @@ function Workbench({ client }: { client: Client }) {
         )}
         <ChairSwitcher acting={acting} sessionPrincipal={sessionPrincipal}
                        team={team} onSwitch={switchChair} />
+        <button className={`manual-toggle ${manualOpen ? "active" : ""}`}
+                onClick={() => setManualOpen((open) => !open)}
+                title="The manual: the audit process and the workbench, taught together">
+          {manualOpen ? "✕ manual" : "📖 manual"}
+        </button>
         <button className="theme-toggle" onClick={toggleTheme}
                 aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                 title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
@@ -133,7 +140,9 @@ function Workbench({ client }: { client: Client }) {
             {error} <em>(click to dismiss)</em>
           </div>
         )}
-        {!selected ? (
+        {manualOpen ? (
+          <ManualScreen client={client} onError={report} />
+        ) : !selected ? (
           <>
             <h2>Engagements</h2>
             <table className="dense">
