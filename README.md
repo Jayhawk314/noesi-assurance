@@ -37,6 +37,7 @@ packages/
   procedures-ap/          # AP methodology: contracts, coverage, engines,
                           # structural layer, ingestion/mapping
   structural-adapters/    # owned ports of the KOMPOSOS-derived methods
+                          # (authorship verified: docs/PROVENANCE.md)
 tests/
   unit/
   golden/                 # frozen bundles captured from noesi-cpa (Phase 0)
