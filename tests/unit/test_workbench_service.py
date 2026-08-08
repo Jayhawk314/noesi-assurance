@@ -223,11 +223,34 @@ def test_green_engagement_locks_and_lock_requires_partner(service):
         service.update_workflow(ALICE, eid, "completion",
                                 {"name": check, "done": True,
                                  "note": "performed"})
+
+    # Zero datasets: workflow gates alone no longer suffice (tracker 3.4,
+    # reproduced by the independent review as C1). The silence must be
+    # owned by the partner, on the record, with a reason.
+    state = service.readiness(eid)
+    assert state["ready"] is False
+    assert {"code": "NO_DATA_WITHOUT_PARTNER_ASSERTION", "count": 1} \
+        in state["blockers"]
+    refused = service.lock(ALICE, eid, expected_version=1)
+    assert refused["locked"] is False
+
+    service.assign_team(ALICE, eid, BOB, "preparer")
+    with pytest.raises(AuthorizationError):   # the assertion is the partner's
+        service.update_workflow(BOB, eid, "no_data_assertion",
+                                {"asserted": True,
+                                 "reason": "planning-only engagement"})
+    with pytest.raises(ValueError, match="specific reason"):
+        service.update_workflow(ALICE, eid, "no_data_assertion",
+                                {"asserted": True, "reason": "n/a"})
+    service.update_workflow(ALICE, eid, "no_data_assertion",
+                            {"asserted": True,
+                             "reason": "planning-only engagement; no "
+                                       "client data was in scope this period"})
+
     state = service.readiness(eid)
     assert state["ready"] is True
     assert state["report_implication"] == "unmodified_opinion_candidate"
 
-    service.assign_team(ALICE, eid, BOB, "preparer")
     with pytest.raises(AuthorizationError):
         service.lock(BOB, eid, expected_version=1)
     locked = service.lock(ALICE, eid, expected_version=1)
@@ -418,3 +441,23 @@ def test_below_clearly_trivial_needs_no_concurrence(service, engagement):
     sad = service.sad(engagement)
     assert sad["concurrence_pending_count"] == 0
     assert sad["conclusion"] == "immaterial"
+
+
+# ------------------------------------------- independent review follow-ups
+
+def test_invalid_disposition_status_is_a_validation_error(service, engagement):
+    """Review F1: a bad status value must not masquerade as a version
+    conflict."""
+    with pytest.raises(ValueError, match="disposition status"):
+        service.set_disposition(BOB, engagement, finding_uid="x|1",
+                                status="accepted_as_is")
+
+
+def test_tampered_digest_raises_a_named_integrity_error(service, engagement):
+    """Review F3: the refusal names the evidence chain, not a generic crash."""
+    from assurance_application.service import EvidenceIntegrityError
+    _ingest(service, engagement, PAYMENTS_CSV, "payments.csv", "Payments")
+    service._conn.execute(
+        "UPDATE normalized_dataset SET output_digest = 'tampered'")
+    with pytest.raises(EvidenceIntegrityError, match="recorded digest"):
+        service.coverage(engagement)

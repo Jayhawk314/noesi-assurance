@@ -49,6 +49,22 @@ class EngagementLockedError(PermissionError):
     """The engagement is locked; its record can no longer change."""
 
 
+class EvidenceIntegrityError(RuntimeError):
+    """Stored evidence no longer reproduces its recorded digest.
+
+    Raised instead of serving unverifiable data. Distinct from a generic
+    internal error so the boundary can *name* the integrity failure —
+    an operator seeing it should suspect the evidence chain, not a crash
+    (independent review 2026-08-07, F3).
+    """
+
+
+# The five judgments a disposition can record; "undisposed" is the absence
+# of one, not a settable value.
+_DISPOSITION_STATUSES = ("cleared", "unadjusted", "adjusted", "waived",
+                         "follow_up")
+
+
 class WorkbenchService:
     def __init__(self, conn: sqlite3.Connection, vault: ArtifactVault,
                  tenant_id: str, keystore=None):
@@ -469,6 +485,14 @@ class WorkbenchService:
                         finding_uid: str, status: str, note: str = "",
                         expected_version: int = 0) -> dict:
         self._require_unlocked(engagement_id)
+        # Validate before the write: the table's CHECK constraint would
+        # refuse anyway, but as an IntegrityError that the repository
+        # relabels as a version conflict — a misleading message for what
+        # is a bad field value (review F1).
+        if status not in _DISPOSITION_STATUSES:
+            raise ValueError(
+                f"unknown disposition status {status!r}; expected one of "
+                f"{list(_DISPOSITION_STATUSES)}")
 
         def handler(uow):
             roles = uow.principals.roles_for(engagement_id, actor)
@@ -555,6 +579,22 @@ class WorkbenchService:
             document.setdefault("procedures", {})[procedure_id] = {
                 "selected": bool(values.get("selected", True)),
                 "rationale": str(values.get("rationale", ""))}
+        elif section == "no_data_assertion":
+            # Tracker 3.4: an engagement with zero normalized datasets skips
+            # every procedure gate, so a lock could silently attest to no
+            # substantive work. The silence must be owned — by the partner,
+            # on the record, with a reason that enters the signed manifest
+            # (the workflow payload hash covers it).
+            self._require(engagement_id, actor, "partner")
+            asserted = bool(values.get("asserted", False))
+            reason = " ".join(str(values.get("reason", "")).split())
+            if asserted and len(reason) < 10:
+                raise ValueError(
+                    "asserting that no data-dependent procedures apply "
+                    "requires a specific reason (ten characters or more); "
+                    "it becomes part of the signed engagement record")
+            document["no_data_assertion"] = {
+                "asserted": asserted, "reason": reason, "asserted_by": actor}
         elif section == "policy":
             from procedures_ap.contracts import OPTIONAL_POLICIES, PROCEDURES
             name = str(values["name"])
@@ -636,6 +676,15 @@ class WorkbenchService:
         datasets = self._conn.execute(
             "SELECT COUNT(*) c FROM normalized_dataset WHERE engagement_id = ?",
             (engagement_id,)).fetchone()["c"]
+        if not datasets:
+            # No data means no procedure gates at all, so readiness must
+            # demand the partner's explicit no-data assertion instead of
+            # silence (tracker 3.4). "required" is set here — where dataset
+            # absence is a fact — and read by the domain blocker; it is
+            # never persisted, so documents with data stay untouched.
+            assertion = dict(document.get("no_data_assertion") or {})
+            assertion["required"] = True
+            document["no_data_assertion"] = assertion
         coverage = self.coverage(engagement_id) if datasets else None
         if coverage:
             coverage = self._overlay_runs(engagement_id, coverage)
@@ -1063,6 +1112,10 @@ class WorkbenchService:
             "lock_history": lock_history,
             "runs": runs,
             "procedures_not_run": not_run,
+            # Present when the partner asserted no data-dependent procedures
+            # apply (tracker 3.4); the workflow payload hash in the lock
+            # manifest already covers it, this puts the words in the packet.
+            "no_data_assertion": document.get("no_data_assertion"),
             "dispositions": dispositions,
             "summary_of_audit_differences": self.sad(engagement_id),
             "limits": PACKET_LIMITS,
@@ -1158,7 +1211,7 @@ class WorkbenchService:
                    ORDER BY created_at, dataset_id""", (engagement_id,)):
             table = self._rebuild_table(dataset["mapping_spec_id"])
             if table.output_digest != dataset["output_digest"]:
-                raise RuntimeError(
+                raise EvidenceIntegrityError(
                     f"dataset {dataset['dataset_id']} no longer reproduces its "
                     "recorded digest; refusing to serve unverifiable data")
             tables[dataset["role"]] = table

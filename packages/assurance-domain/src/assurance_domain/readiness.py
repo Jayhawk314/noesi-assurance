@@ -211,6 +211,17 @@ def readiness(report: dict, engagement: dict, sad: dict,
                          "count": len(unjustified_exclusions),
                          "items": unjustified_exclusions})
 
+    # A data-less engagement skips every procedure gate above, so a lock
+    # could attest to no substantive work without anyone saying so. When
+    # the application layer marks the assertion required (dataset count is
+    # its fact, not this function's), the partner's explicit statement —
+    # "no data-dependent procedures apply, because…" — is a gate like any
+    # other. Legacy documents never carry the key and are unaffected.
+    assertion = engagement.get("no_data_assertion") or {}
+    if assertion.get("required") and not assertion.get("asserted"):
+        blockers.append({"code": "NO_DATA_WITHOUT_PARTNER_ASSERTION",
+                         "count": 1})
+
     evidence_review_pending = [
         item.get("request_id")
         for item in procedure_coverage.get("evidence_requests", [])

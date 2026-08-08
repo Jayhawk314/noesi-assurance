@@ -38,6 +38,11 @@ def _green_locked(service):
     for check in COMPLETION_CHECKS:
         service.update_workflow(ALICE, eid, "completion",
                                 {"name": check, "done": True, "note": "done"})
+    # Data-less engagement: the partner owns the silence explicitly (3.4).
+    service.update_workflow(ALICE, eid, "no_data_assertion",
+                            {"asserted": True,
+                             "reason": "keystore/lock unit fixture; no "
+                                       "client data in scope"})
     outcome = service.lock(ALICE, eid, expected_version=1)
     assert outcome["locked"] is True
     return eid, outcome
@@ -138,6 +143,10 @@ def test_lock_requires_a_configured_keystore(tmp_path):
     for check in COMPLETION_CHECKS:
         service.update_workflow(ALICE, eid, "completion",
                                 {"name": check, "done": True, "note": "n"})
+    service.update_workflow(ALICE, eid, "no_data_assertion",
+                            {"asserted": True,
+                             "reason": "keystore/lock unit fixture; no "
+                                       "client data in scope"})
     with pytest.raises(RuntimeError, match="signing key store"):
         service.lock(ALICE, eid, expected_version=1)
     conn.close()

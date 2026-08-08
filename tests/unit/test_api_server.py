@@ -359,3 +359,50 @@ def test_batch_endpoints_bulk_load_in_one_pass_per_chair(api):
         port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
         token=token, headers=as_rae, body={"spec_ids": "nope"})
     assert status == 400
+
+
+def test_integrity_refusal_is_named_at_the_boundary(api, tmp_path):
+    """Review F3: digest tampering surfaces as a 409 naming the evidence
+    chain, never an opaque 500."""
+    import sqlite3
+    port, auth = api
+    token = auth.token
+    _, created = _request(
+        port, "POST", "/api/engagements", token=token,
+        body={"client_name": "Acme", "period_end": "2025-12-31"})
+    eid = created["engagement_id"]
+    for principal, role in (("pat-preparer", "preparer"),
+                            ("rae-reviewer", "reviewer")):
+        _request(port, "POST", f"/api/engagements/{eid}/team", token=token,
+                 body={"principal_id": principal, "role": role})
+    as_pat = {"X-Acting-Principal": "pat-preparer"}
+    _, artifact = _request(
+        port, "POST", f"/api/engagements/{eid}/sources", token=token,
+        raw_body=PAYMENTS_CSV,
+        headers={**as_pat, "Content-Type": "text/csv",
+                 "X-Original-Name": "payments.csv"})
+    _, proposal = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings", token=token,
+        headers=as_pat,
+        body={"role": "Payments", "artifact_id": artifact["artifact_id"]})
+    _request(port, "POST",
+             f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
+             token=token, headers={"X-Acting-Principal": "rae-reviewer"},
+             body={})
+    status, _ = _request(
+        port, "POST",
+        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/normalize",
+        token=token, headers=as_pat, body={})
+    assert status == 200
+
+    # Tamper behind the API's back through a second connection to the
+    # same database file — the read path must refuse, by name.
+    saboteur = sqlite3.connect(tmp_path / "control.db")
+    saboteur.execute("UPDATE normalized_dataset SET output_digest = 'x'")
+    saboteur.commit()
+    saboteur.close()
+
+    status, body = _request(port, "GET",
+                            f"/api/engagements/{eid}/coverage", token=token)
+    assert status == 409
+    assert "recorded digest" in body["error"]

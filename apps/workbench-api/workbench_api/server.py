@@ -24,8 +24,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 from assurance_application.service import (
-    AuthorizationError, EngagementLockedError, WorkbenchService,
+    AuthorizationError, EngagementLockedError, EvidenceIntegrityError,
+    WorkbenchService,
 )
+from assurance_artifacts.vault import VaultIntegrityError
 from assurance_domain.errors import ConflictError, NotFoundError
 from assurance_domain.lifecycle import SeparationOfDutiesError
 
@@ -282,6 +284,10 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             except SeparationOfDutiesError as exc:
                 self._reply(409, {"error": str(exc)})
             except ConflictError as exc:
+                self._reply(409, {"error": str(exc)})
+            except (VaultIntegrityError, EvidenceIntegrityError) as exc:
+                # A named refusal, never an opaque 500: the operator must
+                # know to suspect the evidence chain, not a crash (F3).
                 self._reply(409, {"error": str(exc)})
             except (NotFoundError, KeyError) as exc:
                 self._reply(404, {"error": str(exc)})

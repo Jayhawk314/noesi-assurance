@@ -54,7 +54,9 @@ preemptively.
 
 ## Development
 
-Requires Python >= 3.12 and Node >= 20 (UI build only).
+Requires Python >= 3.10 and Node >= 20 (UI build only). (Developed and
+independently reviewed on 3.10.11; an earlier ">= 3.12" floor here was
+never exercised and overstated the requirement.)
 
 ```
 python -m venv .venv

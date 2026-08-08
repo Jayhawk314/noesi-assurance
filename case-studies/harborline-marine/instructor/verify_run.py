@@ -116,7 +116,14 @@ def main() -> int:
             print(f"\n  {procedure_id} — {len(items)}")
             for item in items:
                 verdict = item["verdict"]
-                print(f"    [{verdict['verdict']:<7}] {verdict['reason']}")
+                # The key carries the reference id even when the reason is
+                # an aggregate string (ap.document_chain); without it the
+                # composite block cannot be line-reconciled against the
+                # answer key from stdout alone (review F2).
+                key = " · ".join(str(part) for part in verdict["key"][1:]) \
+                    or str(verdict["key"][0])
+                print(f"    [{verdict['verdict']:<7}] {key:<24} "
+                      f"{verdict['reason']}")
         total = sum(len(v) for v in by_procedure.values())
         print(f"\n== Total findings: {total} ==")
         conn.close()

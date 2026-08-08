@@ -528,6 +528,7 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
   }, [client, eid]);
   const { data, reload } = useLoader(load, onError);
   const [materiality, setMateriality] = useState("");
+  const [noDataReason, setNoDataReason] = useState("");
 
   const act = (work: () => Promise<unknown>) => () => {
     work().then(reload).catch(onError);
@@ -537,6 +538,8 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
   const { sad, workflow, readiness } = data as {
     sad: Sad; workflow: WorkflowDocument; readiness: Readiness;
   };
+  const needsNoDataAssertion = readiness.blockers.some(
+    (b) => b.code === "NO_DATA_WITHOUT_PARTNER_ASSERTION");
 
   return (
     <>
@@ -559,6 +562,27 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
           conclusion
         </span>
       </div>
+      {needsNoDataAssertion && (
+        <form className="inline"
+              onSubmit={(e) => {
+                e.preventDefault();
+                act(() => client.updateWorkflow(eid, "no_data_assertion",
+                  { asserted: true, reason: noDataReason }))();
+              }}>
+          <span className="status pending">no data loaded</span>
+          <input value={noDataReason} size={48}
+                 placeholder="why no data-dependent procedures apply this period"
+                 onChange={(e) => setNoDataReason(e.target.value)} />
+          <button className="action" type="submit"
+                  disabled={noDataReason.trim().length < 10}>
+            assert (partner chair)
+          </button>
+          <span className="note">
+            Zero datasets means no procedure ever gated this engagement; the
+            partner must own that on the record before it can lock.
+          </span>
+        </form>
+      )}
       <table className="dense">
         <thead><tr><th>Unadjusted item</th><th>Reason</th><th>Amount</th></tr></thead>
         <tbody>
