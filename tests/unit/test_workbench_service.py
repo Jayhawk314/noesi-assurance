@@ -232,3 +232,110 @@ def test_dataset_rebuild_is_digest_verified(service, engagement, tmp_path):
     blob.write_bytes(PAYMENTS_CSV.replace(b"6000.00", b"9999.99"))
     with pytest.raises(Exception):
         service.coverage(engagement)
+
+
+# --------------------------------------------------------------- bulk loading
+
+def test_bulk_loading_is_one_pass_per_chair_with_inference(service, engagement):
+    ids = []
+    for name, content in (("payments.csv", PAYMENTS_CSV),
+                          ("ap_control_balance.csv", BALANCES_CSV)):
+        artifact = service.store_source(
+            BOB, engagement, content=content, media_type="text/csv",
+            original_name=name)
+        ids.append(artifact["artifact_id"])
+
+    # The inventory suggests roles; the suggestion is not a mapping.
+    inventory = service.sources(engagement)
+    assert [a["inferred_role"] for a in inventory["artifacts"]] == [
+        "Payments", "AP_control_balance"]
+
+    # Preparer pass: one batch, roles inferred from filenames.
+    proposals = service.propose_source_mappings(
+        BOB, engagement, [{"artifact_id": aid} for aid in ids])
+    assert proposals["proposed"] == 2 and proposals["errors"] == 0
+    assert [r["role"] for r in proposals["results"]] == [
+        "Payments", "AP_control_balance"]
+    spec_ids = [r["spec_id"] for r in proposals["results"]]
+
+    # Repeating the batch skips, so 'propose all' is idempotent.
+    again = service.propose_source_mappings(
+        BOB, engagement, [{"artifact_id": aid} for aid in ids])
+    assert again["skipped"] == 2 and again["proposed"] == 0
+
+    # The reviewer gate still stands: the preparer cannot batch-approve.
+    with pytest.raises(AuthorizationError):
+        service.approve_source_mappings(BOB, engagement, spec_ids)
+
+    # Normalizing before approval fails per item, batching or not.
+    early = service.normalize_sources(BOB, engagement, spec_ids)
+    assert early["errors"] == 2
+
+    # Reviewer pass, then preparer pass.
+    approvals = service.approve_source_mappings(CAROL, engagement, spec_ids)
+    assert approvals["approved"] == 2 and approvals["errors"] == 0
+
+    normalized = service.normalize_sources(BOB, engagement, spec_ids)
+    assert normalized["normalized"] == 2 and normalized["errors"] == 0
+    recon = {r["reconciliation"]["role"]: r["reconciliation"]
+             for r in normalized["results"]}
+    assert recon["Payments"]["rows_loaded"] == 3
+    assert recon["Payments"]["control_total"] == "13000.00"
+
+    # Re-normalizing skips instead of minting duplicate receipts.
+    again = service.normalize_sources(BOB, engagement, spec_ids)
+    assert again["skipped"] == 2 and again["normalized"] == 0
+
+
+def test_bulk_proposal_reports_per_item_without_blocking_the_rest(
+        service, engagement):
+    good = service.store_source(
+        BOB, engagement, content=PAYMENTS_CSV, media_type="text/csv",
+        original_name="payments.csv")["artifact_id"]
+    unnamed = service.store_source(
+        BOB, engagement, content=BALANCES_CSV, media_type="text/csv",
+        original_name="export_final_v2.csv")["artifact_id"]
+
+    outcome = service.propose_source_mappings(
+        BOB, engagement,
+        [{"artifact_id": good},
+         {"artifact_id": unnamed},                       # nothing inferable
+         {"artifact_id": "no-such-artifact"}])
+    assert outcome["proposed"] == 1 and outcome["errors"] == 2
+    by_id = {r["artifact_id"]: r for r in outcome["results"]}
+    assert by_id[good]["status"] == "proposed"
+    assert "choose the role explicitly" in by_id[unnamed]["error"]
+    assert by_id["no-such-artifact"]["status"] == "error"
+
+    # An uninferable file loads fine once the preparer names the role.
+    named = service.propose_source_mappings(
+        BOB, engagement,
+        [{"artifact_id": unnamed, "role": "AP_control_balance"}])
+    assert named["proposed"] == 1
+
+
+def test_bulk_approval_enforces_separation_per_item(service, engagement):
+    # Dana holds both chairs; the batch approves Bob's spec but refuses the
+    # one Dana proposed — separation is judged item by item.
+    service.assign_team(ALICE, engagement, "principal-dana", "preparer")
+    service.assign_team(ALICE, engagement, "principal-dana", "reviewer")
+    bobs = service.store_source(
+        BOB, engagement, content=PAYMENTS_CSV, media_type="text/csv",
+        original_name="payments.csv")["artifact_id"]
+    danas = service.store_source(
+        "principal-dana", engagement, content=BALANCES_CSV,
+        media_type="text/csv",
+        original_name="ap_control_balance.csv")["artifact_id"]
+    specs = [
+        service.propose_source_mapping(
+            BOB, engagement, role="Payments",
+            artifact_id=bobs)["spec_id"],
+        service.propose_source_mapping(
+            "principal-dana", engagement, role="AP_control_balance",
+            artifact_id=danas)["spec_id"],
+    ]
+    outcome = service.approve_source_mappings(
+        "principal-dana", engagement, specs)
+    assert outcome["approved"] == 1 and outcome["errors"] == 1
+    assert outcome["results"][0]["status"] == "approved"
+    assert outcome["results"][1]["status"] == "error"

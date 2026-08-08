@@ -179,10 +179,14 @@ run's executor cannot review it; a reviewer cannot approve their own review)
 The screen-by-screen use cases:
 
 1. **Engagement/team** — create, assign roles.
-2. **Sources & mappings** — upload artifact → propose mapping (auto header
+2. **Sources & mappings** — upload artifacts → propose mapping (auto header
    detection; unmapped headers and refused fields are explicit) → reviewer
    approves → normalize (Excel uploads are refused at mapping time with
-   instructions; the workbook bytes stay in the vault as evidence).
+   instructions; the workbook bytes stay in the vault as evidence). Bulk
+   loading batches each step per chair — multi-file upload, filename role
+   inference (a suggestion, never a guess), batch propose/approve/normalize
+   with per-item outcomes — while every item keeps its own journaled
+   command and the same separation gates.
 3. **Coverage** — compile against live data + approved policies; set
    policies inline (`update_workflow` section `"policy"`).
 4. **Runs & findings** — run executable procedures (approved engagement

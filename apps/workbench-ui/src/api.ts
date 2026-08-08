@@ -22,6 +22,28 @@ export interface Artifact {
   provenance: string;
   state: "promoted" | "retired";
   created_at: string;
+  /** Filename-based role suggestion; null when nothing is inferable. */
+  inferred_role: string | null;
+}
+
+/** One item of a batch outcome; exactly one of the statuses applies. */
+export interface BatchItem {
+  artifact_id?: string;
+  spec_id?: string;
+  role?: string;
+  status: "proposed" | "approved" | "normalized" | "skipped" | "error";
+  reason?: string;
+  error?: string;
+  reconciliation?: Record<string, unknown>;
+}
+
+export interface BatchOutcome {
+  results: BatchItem[];
+  skipped: number;
+  errors: number;
+  proposed?: number;
+  approved?: number;
+  normalized?: number;
 }
 
 export interface MappingSpec {
@@ -252,6 +274,15 @@ export class Client {
   normalize = (eid: string, spec_id: string) =>
     this.request<{ dataset_id: string; reconciliation: Record<string, unknown> }>(
       "POST", `/api/engagements/${eid}/mappings/${spec_id}/normalize`, {});
+  proposeMappings = (eid: string, items: { artifact_id: string; role?: string }[]) =>
+    this.request<BatchOutcome>(
+      "POST", `/api/engagements/${eid}/mappings/propose-batch`, { items });
+  approveMappings = (eid: string, spec_ids: string[]) =>
+    this.request<BatchOutcome>(
+      "POST", `/api/engagements/${eid}/mappings/approve-batch`, { spec_ids });
+  normalizeBatch = (eid: string, spec_ids: string[]) =>
+    this.request<BatchOutcome>(
+      "POST", `/api/engagements/${eid}/mappings/normalize-batch`, { spec_ids });
 
   coverage = (eid: string) =>
     this.request<Coverage>("GET", `/api/engagements/${eid}/coverage`);

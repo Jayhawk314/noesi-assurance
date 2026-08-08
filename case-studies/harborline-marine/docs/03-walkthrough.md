@@ -44,9 +44,12 @@ Creating it makes your current chair the partner. On the **Team** tab, add:
 
 ## 3. Upload and map (switch to `u:preparer`)
 
-On **Sources & Mappings**, upload all ten files from `data/`, then propose
-a mapping for each with the role below. The header detector does the column
-work; you are confirming its proposal, not typing it.
+On **Sources & Mappings**, select all ten files from `data/` in one
+upload. Every filename infers its role — check the "Map as" column
+against the table below, then press **propose all**. The detectors do the
+work; you are confirming their proposals, not typing them. (Each file
+also still has its own *propose mapping* button if you prefer, or if a
+real client's filename stumps the inference.)
 
 | File | Role |
 |---|---|
@@ -73,14 +76,15 @@ the tool has now found it independently.
 
 ## 4. Approve the mappings (switch to `u:reviewer`)
 
-Approve all ten. Try approving one while still sitting in the preparer
-chair first — the refusal is the separation-of-duties gate working.
+Press **approve all proposed**. Try it while still sitting in the
+preparer chair first — the refusal is the separation-of-duties gate
+working; batching compresses the clicks, never the review.
 
 ## 5. Normalize (switch to `u:preparer`)
 
-Normalize each approved spec. Check the reconciliation on each: **rows in
-should equal rows loaded, with zero rejected**, for all ten files. If
-anything is rejected, the mapping is wrong.
+Press **normalize all approved**, then check the reconciliation on each
+dataset: **rows in should equal rows loaded, with zero rejected**, for
+all ten files. If anything is rejected, the mapping is wrong.
 
 ## 6. Read the flow map
 

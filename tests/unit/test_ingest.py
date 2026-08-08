@@ -12,7 +12,8 @@ import pytest
 
 from assurance_domain.lifecycle import SeparationOfDutiesError
 from procedures_ap.ingest import (
-    approve_mapping, normalize_table, parse_decimal, propose_mapping,
+    approve_mapping, infer_role, normalize_table, parse_decimal,
+    propose_mapping,
 )
 
 BUNDLES = Path(__file__).resolve().parent.parent / "golden" / "bundles"
@@ -146,3 +147,32 @@ def test_engine_view_projects_decimals_to_floats():
     view = table.engine_view()
     assert isinstance(view.records[0]["payment_amount"], float)
     assert isinstance(table.records[0]["payment_amount"], Decimal)
+
+
+# ------------------------------------------------- filename role inference
+
+def test_harborline_filenames_all_infer_their_role():
+    expected = {
+        "vendors.csv": "Vendors", "employees.csv": "Employees",
+        "purchase_orders.csv": "Purchase_orders",
+        "goods_receipts.csv": "Goods_receipts", "vouchers.csv": "Vouchers",
+        "payments.csv": "Payments", "bank.csv": "Bank", "gl.csv": "GL",
+        "ap_control_balance.csv": "AP_control_balance",
+        "value_flows.csv": "Value_flows",
+    }
+    assert {name: infer_role(name) for name in expected} == expected
+
+
+def test_inference_survives_client_naming_noise():
+    assert infer_role("Harborline_Bank_Statement_Dec2026.csv") == "Bank"
+    assert infer_role("2026 AP Invoices (final).csv") == "Vouchers"
+    assert infer_role("check_register_q4.csv") == "Payments"
+    assert infer_role("C:/exports/general ledger FY26.csv") == "GL"
+    # A compound name binds to what the file *is*, not what it mentions.
+    assert infer_role("vendor_payments.csv") == "Payments"
+
+
+def test_inference_refuses_to_guess():
+    assert infer_role("data.csv") is None            # no hint at all
+    assert infer_role("") is None
+    assert infer_role("q4_export_v2.csv") is None    # naming noise only

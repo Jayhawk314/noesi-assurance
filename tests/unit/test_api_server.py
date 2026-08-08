@@ -291,3 +291,70 @@ def test_garbage_acting_principal_header_is_refused(api):
             headers={"X-Acting-Principal": bad})
         assert status == 400, bad
         assert "X-Acting-Principal" in body["error"]
+
+
+def test_batch_endpoints_bulk_load_in_one_pass_per_chair(api):
+    """Ten round trips per file become three batch calls across the chairs."""
+    port, auth = api
+    token = auth.token
+
+    _, created = _request(
+        port, "POST", "/api/engagements", token=token,
+        body={"client_name": "Acme", "period_end": "2025-12-31"})
+    eid = created["engagement_id"]
+    for principal, role in (("pat-preparer", "preparer"),
+                            ("rae-reviewer", "reviewer")):
+        _request(port, "POST", f"/api/engagements/{eid}/team", token=token,
+                 body={"principal_id": principal, "role": role})
+    as_pat = {"X-Acting-Principal": "pat-preparer"}
+    as_rae = {"X-Acting-Principal": "rae-reviewer"}
+
+    ids = []
+    for name, payload in (("payments.csv", PAYMENTS_CSV),
+                          ("ap_control_balance.csv",
+                           b"Period End,Subledger Balance,GL Balance\n"
+                           b"2025-12-31,1000.00,1000.00\n")):
+        status, artifact = _request(
+            port, "POST", f"/api/engagements/{eid}/sources", token=token,
+            raw_body=payload,
+            headers={**as_pat, "Content-Type": "text/csv",
+                     "X-Original-Name": name})
+        assert status == 200
+        ids.append(artifact["artifact_id"])
+
+    # Preparer pass: one call, roles inferred from the filenames.
+    status, proposals = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/propose-batch",
+        token=token, headers=as_pat,
+        body={"items": [{"artifact_id": aid} for aid in ids]})
+    assert status == 200
+    assert proposals["proposed"] == 2 and proposals["errors"] == 0
+    spec_ids = [r["spec_id"] for r in proposals["results"]]
+
+    # Reviewer pass; the proposing chair is refused outright.
+    status, _ = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
+        token=token, headers=as_pat, body={"spec_ids": spec_ids})
+    assert status == 403
+    status, approvals = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
+        token=token, headers=as_rae, body={"spec_ids": spec_ids})
+    assert status == 200
+    assert approvals["approved"] == 2
+
+    # Preparer pass: batch normalize closes the loop.
+    status, normalized = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/normalize-batch",
+        token=token, headers=as_pat, body={"spec_ids": spec_ids})
+    assert status == 200
+    assert normalized["normalized"] == 2
+
+    # Malformed batch bodies are refused before touching the service.
+    status, body = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/propose-batch",
+        token=token, headers=as_pat, body={"items": "nope"})
+    assert status == 400
+    status, body = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
+        token=token, headers=as_rae, body={"spec_ids": "nope"})
+    assert status == 400

@@ -63,20 +63,38 @@ def seed_demo(service, partner: str,
     service.assign_team(partner, eid, DEMO_PREPARER, "preparer")
     service.assign_team(partner, eid, DEMO_REVIEWER, "reviewer")
 
-    loaded = {}
-    for filename, role in ROLE_FILES.items():
+    # Bulk path, one pass per chair: the preparer uploads everything and
+    # batch-proposes with roles inferred from the filenames, the reviewer
+    # batch-approves, the preparer batch-normalizes. The seed asserts every
+    # inference landed on the answer key's role, so the demo doubles as an
+    # end-to-end check of bulk loading against real case files.
+    expected_role = {}
+    for filename in ROLE_FILES:
         artifact = service.store_source(
             DEMO_PREPARER, eid, content=(case_dir / filename).read_bytes(),
             media_type="text/csv", original_name=filename,
             provenance=f"harborline-marine teaching case: {filename}")
-        proposal = service.propose_source_mapping(
-            DEMO_PREPARER, eid, role=role,
-            artifact_id=artifact["artifact_id"])
-        service.approve_source_mapping(DEMO_REVIEWER, eid,
-                                       proposal["spec_id"])
-        recon = service.normalize_source(
-            DEMO_PREPARER, eid, proposal["spec_id"])["reconciliation"]
-        loaded[role] = recon["rows_loaded"]
+        expected_role[artifact["artifact_id"]] = ROLE_FILES[filename]
+
+    proposals = service.propose_source_mappings(
+        DEMO_PREPARER, eid,
+        [{"artifact_id": aid} for aid in expected_role])
+    wrong = [r for r in proposals["results"]
+             if r["status"] != "proposed"
+             or r["role"] != expected_role[r["artifact_id"]]]
+    if wrong:
+        raise RuntimeError(f"demo seed: role inference went wrong: {wrong}")
+    spec_ids = [r["spec_id"] for r in proposals["results"]]
+
+    approvals = service.approve_source_mappings(DEMO_REVIEWER, eid, spec_ids)
+    if approvals["approved"] != len(spec_ids):
+        raise RuntimeError(f"demo seed: approval failed: {approvals}")
+
+    normalized = service.normalize_sources(DEMO_PREPARER, eid, spec_ids)
+    if normalized["normalized"] != len(spec_ids):
+        raise RuntimeError(f"demo seed: normalization failed: {normalized}")
+    loaded = {r["reconciliation"]["role"]: r["reconciliation"]["rows_loaded"]
+              for r in normalized["results"]}
 
     for name, value in DEMO_POLICIES:
         service.update_workflow(partner, eid, "policy",

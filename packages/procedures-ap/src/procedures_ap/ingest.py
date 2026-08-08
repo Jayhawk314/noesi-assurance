@@ -143,6 +143,60 @@ _REQUIRED: dict[str, tuple[str, ...]] = {
 _DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%Y/%m/%d", "%d-%b-%Y",
                  "%m-%d-%Y", "%Y%m%d", "%d/%m/%Y")
 
+# Filename hints per canonical role, for bulk loading. Inference is only a
+# *suggestion* that pre-fills the role on a proposal; the proposal still
+# crosses the reviewer's approval gate, so a wrong hint costs a click, not
+# an integrity property. Ambiguity or no hit yields None — never a guess.
+ROLE_FILENAME_HINTS: dict[str, list[str]] = {
+    "Vendors": ["vendors", "vendor", "vendor master", "suppliers",
+                "supplier master"],
+    "Employees": ["employees", "employee", "employee master", "staff",
+                  "personnel"],
+    "Purchase_orders": ["purchase orders", "purchase order", "po register",
+                        "pos", "po"],
+    "Goods_receipts": ["goods receipts", "goods receipt", "goods received",
+                       "receipts", "receiving", "grn"],
+    "Vouchers": ["vouchers", "voucher", "invoices", "invoice", "ap invoices",
+                 "bills"],
+    "Payments": ["payments", "payment", "disbursements", "disbursement",
+                 "checks", "cheques", "check register"],
+    "Bank": ["bank", "bank statement", "bank transactions", "bank stmt"],
+    "GL": ["general ledger", "gl detail", "journal entries", "ledger", "gl",
+           "je"],
+    "AP_control_balance": ["ap control balance", "ap control",
+                           "control balance", "ap balance",
+                           "ap reconciliation"],
+    "Value_flows": ["value flows", "flows", "transfers", "related party",
+                    "intercompany"],
+}
+
+
+def infer_role(filename: str) -> str | None:
+    """Suggest the canonical role a filename most likely carries.
+
+    The stem is tokenized on non-alphanumerics and every contiguous token
+    run is matched against the normalized hints; the longest hint wins.
+    A tie between different roles returns None rather than picking one.
+    """
+    stem = (filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+    stem = stem.rsplit(".", 1)[0] if "." in stem else stem
+    tokens = "".join(ch if ch.isalnum() else " " for ch in stem.lower()).split()
+    grams = {"".join(tokens[i:j]) for i in range(len(tokens))
+             for j in range(i + 1, len(tokens) + 1)}
+    best_role: str | None = None
+    best_len = 0
+    tied = False
+    for role, hints in ROLE_FILENAME_HINTS.items():
+        for hint in hints:
+            normalized = _norm(hint)
+            if normalized not in grams:
+                continue
+            if len(normalized) > best_len:
+                best_role, best_len, tied = role, len(normalized), False
+            elif len(normalized) == best_len and role != best_role:
+                tied = True
+    return None if tied else best_role
+
 
 def _norm(header: str) -> str:
     return "".join(ch for ch in (header or "").lower() if ch.isalnum())

@@ -47,6 +47,18 @@ The **Sources & Mappings** flow implements exactly those habits:
    dropped; a Decimal control total accumulates. Check the reconciliation:
    rows in = rows loaded + rows rejected, always.
 
+**Bulk loading batches the clicks, never the review.** A real engagement
+arrives as ten files, not one. Select them all in one upload; the
+workbench suggests each file's role from its name (`bank.csv` → Bank,
+`ap_invoices.csv` → Vouchers) and refuses to guess when a name is
+ambiguous — a suggestion you can override before proposing. **Propose
+all** files in one pass, the reviewer chair **approves all** proposals in
+one pass, and the preparer **normalizes all** approved mappings in one
+pass. Each file still gets its own proposal, its own approval, its own
+reconciliation, and its own journal entry; a file that fails (an Excel
+workbook, an unrecognizable name) is reported individually and never
+blocks the rest.
+
 **Reperformance is the read path.** The workbench does not store your
 normalized table as the working copy. Every time any screen needs the
 data, it re-derives the table from the immutable artifact through the
@@ -56,10 +68,11 @@ evidence still supports.
 
 ## In Harborline
 
-Load all ten files from `data/` with the roles listed in the walkthrough
-(or start from `--demo`, which performs this whole chapter through the
-three chairs). All ten load with **zero rejected rows** — and two mappings
-refuse fields:
+Load all ten files from `data/` in one bulk pass — every Harborline
+filename infers its role, so the suggestions should match the walkthrough
+exactly (or start from `--demo`, which performs this whole chapter through
+the three chairs, batch path included). All ten load with **zero
+rejected rows** — and two mappings refuse fields:
 
 - `Purchase_orders` refuses `created_on` / `approved_on` — the PO extract
   genuinely lacks approval timestamps. This is scope limitation #1 in the

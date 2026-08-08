@@ -18,7 +18,9 @@ import sqlite3
 from assurance_artifacts.intake import store_artifact
 from assurance_artifacts.vault import ArtifactVault
 from assurance_domain.commands import Command
+from assurance_domain.errors import ConflictError, NotFoundError
 from assurance_domain.identities import new_id
+from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
 from assurance_domain.readiness import blank_engagement, readiness
 from assurance_domain.sad import summary_of_differences
@@ -26,7 +28,7 @@ from assurance_persistence.spine import run_command
 from procedures_ap.coverage import compile_coverage, inventory_from_tables
 from procedures_ap.engines import ENGINE_VERSION, execute_procedure
 from procedures_ap.ingest import (
-    MappingSpec, NormalizedTable, normalize_table, propose_mapping,
+    MappingSpec, NormalizedTable, infer_role, normalize_table, propose_mapping,
 )
 
 
@@ -193,13 +195,124 @@ class WorkbenchService:
             self._command(actor, "dataset.normalize", engagement_id),
             handler).result
 
+    # Bulk loading batches the *clicks*, never the review: each batch method
+    # loops the corresponding single-item use case, so every item keeps its
+    # own journaled command, its own role check, and the same separation-of-
+    # duties gates. Items fail or are skipped individually — one bad file
+    # never blocks the other nine — and the caller gets a per-item report.
+
+    def propose_source_mappings(self, actor: str, engagement_id: str,
+                                items: list[dict]) -> dict:
+        """Batch propose. Each item: artifact_id plus an optional role; a
+        missing role is inferred from the artifact's filename (still just a
+        proposal for the reviewer). Artifacts that already carry an active
+        spec are skipped, so 'propose all' is safe to repeat."""
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer")
+        active = {row["artifact_id"] for row in self._conn.execute(
+            """SELECT artifact_id FROM mapping_spec
+               WHERE engagement_id = ? AND status != 'superseded'""",
+            (engagement_id,))}
+        results = []
+        for item in items:
+            artifact_id = str(item.get("artifact_id") or "")
+            entry: dict = {"artifact_id": artifact_id}
+            try:
+                if artifact_id in active:
+                    entry.update(status="skipped",
+                                 reason="an active mapping spec already "
+                                        "exists for this artifact")
+                else:
+                    role = str(item.get("role") or "")
+                    if not role:
+                        name = self._conn.execute(
+                            "SELECT original_name FROM artifact "
+                            "WHERE artifact_id = ?",
+                            (artifact_id,)).fetchone()
+                        if name is None:
+                            raise KeyError(f"artifact {artifact_id}")
+                        role = infer_role(name["original_name"]) or ""
+                    if not role:
+                        raise ValueError(
+                            "no role given and none inferable from the "
+                            "filename; choose the role explicitly")
+                    entry.update(self.propose_source_mapping(
+                        actor, engagement_id, role=role,
+                        artifact_id=artifact_id))
+                    entry.update(status="proposed", role=role)
+                    active.add(artifact_id)
+            except (ValueError, KeyError, NotFoundError) as exc:
+                entry.update(status="error", error=str(exc))
+            results.append(entry)
+        return _batch_report(results, done="proposed")
+
+    def approve_source_mappings(self, actor: str, engagement_id: str,
+                                spec_ids: list[str]) -> dict:
+        """Batch approve, for the reviewer's single pass over a bulk load.
+        Non-proposed specs are skipped; separation of duties still refuses,
+        per item, any spec the approver proposed themselves."""
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "reviewer")
+        results = []
+        for spec_id in spec_ids:
+            entry: dict = {"spec_id": str(spec_id)}
+            try:
+                row = self._conn.execute(
+                    "SELECT status FROM mapping_spec WHERE spec_id = ?",
+                    (str(spec_id),)).fetchone()
+                if row is None:
+                    raise KeyError(f"mapping_spec {spec_id}")
+                if row["status"] != "proposed":
+                    entry.update(status="skipped",
+                                 reason=f"spec is {row['status']}, "
+                                        "not proposed")
+                else:
+                    self.approve_source_mapping(actor, engagement_id,
+                                                str(spec_id))
+                    entry.update(status="approved")
+            except (ValueError, KeyError, NotFoundError, ConflictError,
+                    SeparationOfDutiesError) as exc:
+                entry.update(status="error", error=str(exc))
+            results.append(entry)
+        return _batch_report(results, done="approved")
+
+    def normalize_sources(self, actor: str, engagement_id: str,
+                          spec_ids: list[str]) -> dict:
+        """Batch normalize approved specs. Specs that already produced a
+        dataset are skipped rather than re-recorded."""
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer")
+        normalized = {row["mapping_spec_id"] for row in self._conn.execute(
+            "SELECT mapping_spec_id FROM normalized_dataset "
+            "WHERE engagement_id = ?", (engagement_id,))}
+        results = []
+        for spec_id in spec_ids:
+            entry: dict = {"spec_id": str(spec_id)}
+            try:
+                if spec_id in normalized:
+                    entry.update(status="skipped",
+                                 reason="this spec already produced a "
+                                        "dataset")
+                else:
+                    entry.update(self.normalize_source(
+                        actor, engagement_id, str(spec_id)))
+                    entry.update(status="normalized")
+            except (ValueError, KeyError, NotFoundError) as exc:
+                entry.update(status="error", error=str(exc))
+            results.append(entry)
+        return _batch_report(results, done="normalized")
+
     def sources(self, engagement_id: str) -> dict:
         """Screen 2 inventory: artifacts, mapping specs, dataset receipts."""
-        artifacts = [dict(row) for row in self._conn.execute(
-            """SELECT artifact_id, sha256, size_bytes, media_type,
-               original_name, provenance, state, created_at FROM artifact
-               WHERE engagement_id = ? ORDER BY created_at""",
-            (engagement_id,))]
+        artifacts = []
+        for row in self._conn.execute(
+                """SELECT artifact_id, sha256, size_bytes, media_type,
+                   original_name, provenance, state, created_at FROM artifact
+                   WHERE engagement_id = ? ORDER BY created_at""",
+                (engagement_id,)):
+            item = dict(row)
+            item["inferred_role"] = infer_role(item["original_name"])
+            artifacts.append(item)
         specs = []
         for row in self._conn.execute(
                 """SELECT spec_id, role, artifact_id, spec, status,
@@ -985,6 +1098,14 @@ class WorkbenchService:
                     "recorded digest; refusing to serve unverifiable data")
             tables[dataset["role"]] = table
         return tables
+
+
+def _batch_report(results: list[dict], *, done: str) -> dict:
+    """Per-item results plus honest counts of what happened and what didn't."""
+    return {"results": results,
+            done: sum(r["status"] == done for r in results),
+            "skipped": sum(r["status"] == "skipped" for r in results),
+            "errors": sum(r["status"] == "error" for r in results)}
 
 
 def _manifest_digest(manifest: dict) -> str:

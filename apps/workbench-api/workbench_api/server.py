@@ -207,6 +207,14 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 raise ApiError(400, "request body must be a JSON object")
             return payload
 
+        def _spec_ids(self) -> list[str]:
+            body = self._read_json()
+            spec_ids = body.get("spec_ids")
+            if (not isinstance(spec_ids, list)
+                    or not all(isinstance(s, str) for s in spec_ids)):
+                raise ApiError(400, "spec_ids must be a list of strings")
+            return spec_ids
+
         # ------------------------------------------------------- routing
 
         def do_GET(self) -> None:  # noqa: N802 — stdlib naming
@@ -350,6 +358,22 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.propose_source_mapping(
                         actor, eid, role=str(body["role"]),
                         artifact_id=str(body["artifact_id"]))
+                # Bulk loading: batch endpoints compress the round trips of a
+                # ten-file engagement into one pass per chair. The gates are
+                # unchanged — the service loops the single-item use cases.
+                case ["engagements", eid, "mappings", "propose-batch"]:
+                    body = self._read_json()
+                    items = body.get("items")
+                    if (not isinstance(items, list)
+                            or not all(isinstance(i, dict) for i in items)):
+                        raise ApiError(400, "items must be a list of objects")
+                    return service.propose_source_mappings(actor, eid, items)
+                case ["engagements", eid, "mappings", "approve-batch"]:
+                    return service.approve_source_mappings(
+                        actor, eid, self._spec_ids())
+                case ["engagements", eid, "mappings", "normalize-batch"]:
+                    return service.normalize_sources(
+                        actor, eid, self._spec_ids())
                 case ["engagements", eid, "mappings", spec_id, "approve"]:
                     return service.approve_source_mapping(actor, eid, spec_id)
                 case ["engagements", eid, "mappings", spec_id, "normalize"]:

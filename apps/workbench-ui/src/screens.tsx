@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Client, Coverage, Engagement, Finding, Readiness, Run, Sad, Sources,
-  TeamMember, WorkflowDocument, LockVerification,
+  Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
+  Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification,
 } from "./api";
 
 interface ScreenProps {
@@ -89,15 +89,46 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
     work().then(reload).catch(onError);
   };
 
+  // Batch calls succeed as a whole while individual items may fail; the
+  // per-item errors still deserve the error banner.
+  const batch = (work: () => Promise<BatchOutcome>) => () => {
+    work().then((outcome) => {
+      const failed = outcome.results.filter((r) => r.status === "error");
+      if (failed.length) {
+        onError(new Error(failed.map(
+          (r) => `${r.artifact_id ?? r.spec_id}: ${r.error}`).join("; ")));
+      }
+      reload();
+    }).catch(onError);
+  };
+
   async function upload() {
-    const file = fileInput.current?.files?.[0];
-    if (!file) return;
+    const files = Array.from(fileInput.current?.files ?? []);
+    if (!files.length) return;
     try {
-      await client.uploadSource(eid, file);
+      for (const file of files) await client.uploadSource(eid, file);
       if (fileInput.current) fileInput.current.value = "";
       reload();
-    } catch (exc) { onError(exc); }
+    } catch (exc) { onError(exc); reload(); }
   }
+
+  // The role a proposal would use: an explicit choice beats the filename
+  // suggestion. Artifacts already under an active spec are done mapping.
+  const chosenRole = (artifact: Artifact) =>
+    mapRole[artifact.artifact_id] ?? artifact.inferred_role ?? "";
+  const activelyMapped = new Set(
+    (data?.mapping_specs ?? [])
+      .filter((s) => s.status !== "superseded")
+      .map((s) => s.artifact_id));
+  const proposable = (data?.artifacts ?? []).filter(
+    (a) => a.state === "promoted" && !activelyMapped.has(a.artifact_id)
+           && chosenRole(a));
+  const proposedSpecs = (data?.mapping_specs ?? [])
+    .filter((s) => s.status === "proposed");
+  const normalizedSpecs = new Set(
+    (data?.datasets ?? []).map((d) => d.mapping_spec_id));
+  const normalizable = (data?.mapping_specs ?? []).filter(
+    (s) => s.status === "approved" && !normalizedSpecs.has(s.spec_id));
 
   return (
     <>
@@ -117,30 +148,64 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                 {artifact.state}
               </td>
               <td>
-                <select value={mapRole[artifact.artifact_id] ?? ""}
+                <select value={chosenRole(artifact)}
                         onChange={(e) => setMapRole({ ...mapRole, [artifact.artifact_id]: e.target.value })}>
                   <option value="">choose role…</option>
                   {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
                 </select>
               </td>
               <td>
-                <button className="action"
-                        disabled={!mapRole[artifact.artifact_id]}
-                        onClick={act(() => client.proposeMapping(
-                          eid, mapRole[artifact.artifact_id], artifact.artifact_id))}>
-                  propose mapping
-                </button>
+                {!activelyMapped.has(artifact.artifact_id) && (
+                  <button className="action"
+                          disabled={!chosenRole(artifact)}
+                          onClick={act(() => client.proposeMapping(
+                            eid, chosenRole(artifact), artifact.artifact_id))}>
+                    propose mapping
+                  </button>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void upload(); }}>
-        <input type="file" ref={fileInput} accept=".csv,.txt" />
-        <button className="action" type="submit">upload source</button>
+        <input type="file" ref={fileInput} accept=".csv,.txt" multiple />
+        <button className="action" type="submit">upload sources</button>
+        {proposable.length > 0 && (
+          <button className="action" type="button"
+                  onClick={batch(() => client.proposeMappings(
+                    eid, proposable.map((a) => ({
+                      artifact_id: a.artifact_id, role: chosenRole(a) }))))}>
+            propose all ({proposable.length})
+          </button>
+        )}
       </form>
+      <p className="note">
+        Select several exports at once; roles are suggested from the
+        filenames, and each suggestion stays overridable above. Batching
+        compresses the clicks, never the review — every proposal still
+        crosses the reviewer's approval before it can normalize.
+      </p>
 
       <h3>Mapping specs (proposal → reviewer approval → normalize)</h3>
+      {(proposedSpecs.length > 1 || normalizable.length > 1) && (
+        <form className="inline" onSubmit={(e) => e.preventDefault()}>
+          {proposedSpecs.length > 1 && (
+            <button className="action" type="button"
+                    onClick={batch(() => client.approveMappings(
+                      eid, proposedSpecs.map((s) => s.spec_id)))}>
+              approve all proposed ({proposedSpecs.length})
+            </button>
+          )}
+          {normalizable.length > 1 && (
+            <button className="action" type="button"
+                    onClick={batch(() => client.normalizeBatch(
+                      eid, normalizable.map((s) => s.spec_id)))}>
+              normalize all approved ({normalizable.length})
+            </button>
+          )}
+        </form>
+      )}
       <table className="dense">
         <thead>
           <tr><th>Role</th><th>Status</th><th>Proposed by</th><th>Approved by</th>
