@@ -182,10 +182,20 @@ def test_findings_dispositions_and_sad(service, engagement):
     service.set_disposition(BOB, engagement,
                             finding_uid=tie["finding_uid"],
                             status="unadjusted", note="client declines")
+    # $5,000 is far above clearly-trivial ($500 at this materiality): the
+    # disposition is a proposal, and the SAD refuses to conclude over it.
     sad = service.sad(engagement, materiality=10000.0)
     assert sad["total_unadjusted"] == 5000.0
-    assert sad["conclusion"] == "immaterial"
+    assert sad["concurrence_pending"] == [tie["finding_uid"]]
+    assert sad["conclusion"] is None
     assert sad["candidates"] == 1  # the split cluster is a lead, not a SAD item
+
+    service.concur_disposition(CAROL, engagement,
+                               finding_uid=tie["finding_uid"],
+                               expected_version=1)
+    sad = service.sad(engagement, materiality=10000.0)
+    assert sad["concurrence_pending_count"] == 0
+    assert sad["conclusion"] == "immaterial"
 
 
 def test_readiness_gates_a_partially_worked_engagement(service, engagement):
@@ -339,3 +349,71 @@ def test_bulk_approval_enforces_separation_per_item(service, engagement):
     assert outcome["approved"] == 1 and outcome["errors"] == 1
     assert outcome["results"][0]["status"] == "approved"
     assert outcome["results"][1]["status"] == "error"
+
+
+# ------------------------------------------------- disposition concurrence
+
+def _tie_finding(service, engagement):
+    _ingest(service, engagement, PAYMENTS_CSV, "payments.csv", "Payments")
+    _ingest(service, engagement, BALANCES_CSV, "recon.csv",
+            "AP_control_balance")
+    service.run_procedure(BOB, engagement,
+                          procedure_id="ap.subledger_gl_balance_tie")
+    return next(f for f in service.findings(engagement)
+                if f["procedure_id"] == "ap.subledger_gl_balance_tie")
+
+
+def test_disposition_concurrence_mirrors_the_review_gates(service, engagement):
+    service.update_workflow(ALICE, engagement, "materiality",
+                            {"amount": 10000.0, "basis": "revenue"})
+    tie = _tie_finding(service, engagement)
+    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
+                            status="unadjusted", note="client declines")
+
+    # The preparer proposed; the preparer cannot concur — not for lack of
+    # a role, but because it is their own judgment.
+    with pytest.raises(AuthorizationError):
+        service.concur_disposition(BOB, engagement,
+                                   finding_uid=tie["finding_uid"],
+                                   expected_version=1)
+    service.assign_team(ALICE, engagement, BOB, "reviewer")
+    with pytest.raises(SeparationOfDutiesError):
+        service.concur_disposition(BOB, engagement,
+                                   finding_uid=tie["finding_uid"],
+                                   expected_version=1)
+
+    state = service.readiness(engagement)
+    pending = next(b for b in state["blockers"]
+                   if b["code"] == "DISPOSITIONS_AWAITING_CONCURRENCE")
+    assert pending["items"] == [tie["finding_uid"]]
+
+    outcome = service.concur_disposition(CAROL, engagement,
+                                         finding_uid=tie["finding_uid"],
+                                         expected_version=1)
+    assert outcome["concurred_by"] == CAROL
+    codes = {b["code"] for b in service.readiness(engagement)["blockers"]}
+    assert "DISPOSITIONS_AWAITING_CONCURRENCE" not in codes
+
+    # A changed judgment voids the old concurrence: re-set, and the
+    # finding is awaiting concurrence again.
+    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
+                            status="adjusted", note="client booked it",
+                            expected_version=2)
+    refreshed = next(f for f in service.findings(engagement)
+                     if f["finding_uid"] == tie["finding_uid"])
+    assert refreshed["awaiting_concurrence"] is True
+    assert refreshed["disposition"]["concurred_by"] == ""
+
+
+def test_below_clearly_trivial_needs_no_concurrence(service, engagement):
+    # $5,000 misstatement under a $200,000 materiality: clearly trivial
+    # territory ($10,000); one person's judgment stands alone.
+    service.update_workflow(ALICE, engagement, "materiality",
+                            {"amount": 200000.0, "basis": "assets"})
+    tie = _tie_finding(service, engagement)
+    assert tie["requires_concurrence"] is False
+    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
+                            status="unadjusted", note="clearly trivial")
+    sad = service.sad(engagement)
+    assert sad["concurrence_pending_count"] == 0
+    assert sad["conclusion"] == "immaterial"

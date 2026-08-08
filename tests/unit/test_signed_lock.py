@@ -296,7 +296,7 @@ def test_migration_5_rebuilds_lock_tables_without_losing_locks(tmp_path,
     conn.execute("COMMIT")
 
     monkeypatch.undo()
-    assert db.migrate(conn) == [5]
+    assert db.migrate(conn) == [5, 6]
 
     row = conn.execute("SELECT * FROM lock_snapshot").fetchone()
     assert (row["snapshot_id"], row["sequence"], row["status"]) == \

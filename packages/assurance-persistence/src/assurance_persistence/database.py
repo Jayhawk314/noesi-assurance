@@ -271,6 +271,15 @@ ALTER TABLE lock_signature_v2 RENAME TO lock_signature;
 CREATE UNIQUE INDEX ux_lock_snapshot_active
     ON lock_snapshot(engagement_id) WHERE status = 'active';
 """),
+    (6, "disposition-concurrence", """
+-- Disposition review lifecycle: a disposition above the clearly-trivial
+-- threshold is a significant judgment (AU-C 220), so it is a *proposal*
+-- until a second person concurs — mirroring the run-review lifecycle.
+-- Existing rows keep empty principals: their concurrence never happened,
+-- so above-trivial ones honestly reappear as awaiting concurrence.
+ALTER TABLE disposition ADD COLUMN proposed_by TEXT NOT NULL DEFAULT '';
+ALTER TABLE disposition ADD COLUMN concurred_by TEXT NOT NULL DEFAULT '';
+"""),
 )
 
 

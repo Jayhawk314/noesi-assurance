@@ -47,11 +47,24 @@ Every finding requires a **disposition** with a note:
 "Cleared" with an empty note is not documentation. Write the sentence a
 reviewer will read.
 
+**Above clearly-trivial, a disposition is a proposal.** Judging a
+material-in-context exception — even to *clear* it — is a significant
+judgment (AU-C 220), so the workbench treats it exactly like a run or a
+mapping: the proposer's disposition awaits a second person's concurrence
+(reviewer or partner chair, never the proposer — separation is enforced),
+and changing the disposition voids any concurrence it had, because the
+concurrence was with a different judgment. Below the threshold, one
+person's judgment stands alone, for the same reason clearly-trivial items
+stay off the SAD. The **Review** column on the findings table shows where
+each judgment stands.
+
 The **SAD** screen aggregates unadjusted items against materiality,
 performance materiality, and clearly trivial, and concludes
-immaterial/material. Undisposed findings and invalid waivers (waived above
-the trivial threshold) are completion blockers — the gate that implements
-AU-C 450's "evaluate before you conclude".
+immaterial/material. Undisposed findings, invalid waivers (waived above
+the trivial threshold), and dispositions still awaiting concurrence are
+completion blockers — the SAD refuses to conclude over an unreviewed
+judgment. This is the gate that implements AU-C 450's "evaluate before
+you conclude".
 
 ## In Harborline
 

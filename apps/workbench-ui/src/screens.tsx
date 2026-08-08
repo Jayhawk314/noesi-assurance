@@ -455,7 +455,8 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
       <table className="dense">
         <thead>
           <tr><th>Procedure</th><th>Verdict</th><th>Class</th><th>Reason</th>
-              <th>Magnitude</th><th>Disposition</th><th>Note</th><th /></tr>
+              <th>Magnitude</th><th>Disposition</th><th>Note</th>
+              <th>Review</th><th /></tr>
         </thead>
         <tbody>
           {(data?.findings ?? []).map((finding: Finding) => (
@@ -482,11 +483,35 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
                        onChange={(e) => setNoteDraft({
                          ...noteDraft, [finding.finding_uid]: e.target.value })} />
               </td>
+              <td>
+                {finding.awaiting_concurrence ? (
+                  <button className="action"
+                          title="Above clearly-trivial: a second person must concur (reviewer or partner chair)"
+                          onClick={act(() => client.concurDisposition(
+                            eid, finding.finding_uid,
+                            finding.disposition.version))}>
+                    concur
+                  </button>
+                ) : finding.requires_concurrence
+                    && finding.disposition.concurred_by ? (
+                  <span className="status ok"
+                        title={`concurred by ${finding.disposition.concurred_by}`}>
+                    concurred
+                  </span>
+                ) : (
+                  <span className="note">—</span>
+                )}
+              </td>
               <td><code>{short(finding.verdict.receipt_id)}</code></td>
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="note">
+        Dispositions above the clearly-trivial threshold are proposals until
+        a second person concurs — the same preparer/reviewer separation as
+        runs and mappings. Changing a disposition voids its concurrence.
+      </p>
     </>
   );
 }
@@ -520,6 +545,12 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
         <span className="metric"><b>{sad.clearly_trivial.toLocaleString()}</b>clearly trivial</span>
         <span className="metric"><b>{sad.total_unadjusted.toLocaleString()}</b>unadjusted</span>
         <span className="metric"><b>{sad.total_adjusted.toLocaleString()}</b>adjusted</span>
+        {sad.concurrence_pending_count > 0 && (
+          <span className="metric">
+            <b className="status pending">{sad.concurrence_pending_count}</b>
+            awaiting concurrence
+          </span>
+        )}
         <span className="metric">
           <b className={`status ${sad.conclusion === "material" ? "broken" : "ok"}`}>
             {sad.conclusion ?? "open"}

@@ -118,16 +118,20 @@ Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>
             uid = (f"{finding['domain']}|"
                    + json.dumps(finding["key"], ensure_ascii=False))
             disposition = packet.get("dispositions", {}).get(uid, {})
+            judged = disposition.get("proposed_by", "")
+            if disposition.get("concurred_by"):
+                judged += f" / concurred: {disposition['concurred_by']}"
             finding_rows.append([
                 run["procedure_id"], finding["verdict"],
                 finding.get("reason", ""),
                 finding.get("score"),
                 disposition.get("status", "undisposed"),
                 disposition.get("note", ""),
+                judged,
                 finding["receipt_id"][:16] + "…"])
     sections.append("<h2>Findings and dispositions</h2>" + (
         _table(["Procedure", "Verdict", "Reason", "Magnitude", "Disposition",
-                "Note", "Receipt"], finding_rows)
+                "Note", "Judged by", "Receipt"], finding_rows)
         if finding_rows else "<p>No findings.</p>"))
 
     sections.append("<h2>Summary of audit differences</h2>" + _table(

@@ -396,6 +396,11 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                         status=str(body["status"]),
                         note=str(body.get("note", "")),
                         expected_version=int(body.get("expected_version", 0)))
+                case ["engagements", eid, "dispositions", "concur"]:
+                    body = self._read_json()
+                    return service.concur_disposition(
+                        actor, eid, finding_uid=str(body["finding_uid"]),
+                        expected_version=int(body["expected_version"]))
                 case ["engagements", eid, "workflow"]:
                     body = self._read_json()
                     return service.update_workflow(

@@ -250,6 +250,14 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if sad.get("invalid_waiver_count"):
         blockers.append({"code": "WAIVERS_ABOVE_TRIVIAL_THRESHOLD",
                          "count": sad["invalid_waiver_count"]})
+    # Above-trivial dispositions are proposals until a second person
+    # concurs (AU-C 220). The count arrives on the sad dict from the
+    # application layer, which knows who proposed and who concurred;
+    # legacy sad dicts without the key are unaffected.
+    if sad.get("concurrence_pending_count"):
+        blockers.append({"code": "DISPOSITIONS_AWAITING_CONCURRENCE",
+                         "count": sad["concurrence_pending_count"],
+                         "items": list(sad.get("concurrence_pending", []))})
 
     unresolved_scope = 0
     limitations = 0

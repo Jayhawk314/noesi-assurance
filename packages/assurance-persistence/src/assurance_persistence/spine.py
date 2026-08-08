@@ -244,15 +244,18 @@ class DispositionRepository:
 
     def set(self, engagement_id: str, finding_uid: str, status: str,
             note: str = "", expected_version: int = 0,
-            migration_note: str = "") -> int:
+            migration_note: str = "", proposed_by: str = "") -> int:
+        # A set (or re-set) is the proposer's judgment: any prior
+        # concurrence is void, because it concurred with a different one.
         if expected_version == 0:
             try:
                 self._uow.execute(
                     """INSERT INTO disposition (tenant_id, engagement_id,
-                       finding_uid, status, note, migration_note, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       finding_uid, status, note, migration_note,
+                       proposed_by, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (self._uow.command.tenant_id, engagement_id, finding_uid,
-                     status, note, migration_note, utcnow()))
+                     status, note, migration_note, proposed_by, utcnow()))
             except sqlite3.IntegrityError as exc:
                 raise ConflictError("disposition",
                                     f"{engagement_id}/{finding_uid}", 0) from exc
@@ -260,10 +263,11 @@ class DispositionRepository:
         else:
             cursor = self._uow.execute(
                 """UPDATE disposition SET status = ?, note = ?,
+                   proposed_by = ?, concurred_by = '',
                    version = version + 1, updated_at = ?
                    WHERE engagement_id = ? AND finding_uid = ? AND version = ?""",
-                (status, note, utcnow(), engagement_id, finding_uid,
-                 expected_version))
+                (status, note, proposed_by, utcnow(), engagement_id,
+                 finding_uid, expected_version))
             if cursor.rowcount == 0:
                 raise ConflictError("disposition",
                                     f"{engagement_id}/{finding_uid}",
@@ -273,9 +277,45 @@ class DispositionRepository:
             entity_type="disposition", entity_id=finding_uid,
             event_type="disposition.set",
             before_version=expected_version or None, after_version=after,
-            payload={"status": status, "note": note},
+            payload={"status": status, "note": note,
+                     "proposed_by": proposed_by},
             engagement_id=engagement_id)
         return after
+
+    def concur(self, engagement_id: str, finding_uid: str, *,
+               concurred_by: str, expected_version: int) -> int:
+        """A second person concurs with the proposed disposition.
+
+        Separation is enforced against the recorded proposer, exactly as
+        mapping approval enforces it against the mapping's proposer.
+        """
+        from assurance_domain.lifecycle import require_separation
+        row = self._uow.execute(
+            """SELECT status, proposed_by FROM disposition
+               WHERE engagement_id = ? AND finding_uid = ?""",
+            (engagement_id, finding_uid)).fetchone()
+        if row is None:
+            raise NotFoundError(f"disposition {engagement_id}/{finding_uid}")
+        require_separation(prepared_by=row["proposed_by"],
+                           approved_by=concurred_by)
+        cursor = self._uow.execute(
+            """UPDATE disposition SET concurred_by = ?,
+               version = version + 1, updated_at = ?
+               WHERE engagement_id = ? AND finding_uid = ? AND version = ?""",
+            (concurred_by, utcnow(), engagement_id, finding_uid,
+             expected_version))
+        if cursor.rowcount == 0:
+            raise ConflictError("disposition",
+                                f"{engagement_id}/{finding_uid}",
+                                expected_version)
+        self._uow.emit(
+            entity_type="disposition", entity_id=finding_uid,
+            event_type="disposition.concurred",
+            before_version=expected_version,
+            after_version=expected_version + 1,
+            payload={"status": row["status"], "concurred_by": concurred_by},
+            engagement_id=engagement_id)
+        return expected_version + 1
 
     def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
         return self._uow.execute(

@@ -69,13 +69,19 @@ def locked_engagement(service):
                            expected_version=reviewed["version"])
         executed[procedure_id] = run
 
-    # Judge the findings.
+    # Judge the findings; the reviewer concurs with judgments above
+    # clearly-trivial (the lock blocks on unconcurred ones).
     for item in service.findings(eid):
         status = ("unadjusted" if item["verdict"]["verdict"] == "CLASH"
                   else "cleared")
         service.set_disposition(BOB, eid, finding_uid=item["finding_uid"],
                                 status=status,
                                 note="reviewed with client")
+    for item in service.findings(eid):
+        if item["awaiting_concurrence"]:
+            service.concur_disposition(
+                CAROL, eid, finding_uid=item["finding_uid"],
+                expected_version=item["disposition"]["version"])
 
     # Deselect everything the data cannot support, with rationale.
     for contract in PROCEDURES:

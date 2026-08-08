@@ -192,6 +192,10 @@ The screen-by-screen use cases:
 4. **Runs & findings** — run executable procedures (approved engagement
    policies merge into every run; per-run values override), review/approve
    runs, disposition findings (cleared/unadjusted/adjusted/waived/follow-up).
+   A disposition above the clearly-trivial threshold is a *proposal* until a
+   reviewer or partner concurs (separation enforced against the proposer;
+   re-setting a disposition voids its concurrence); pending concurrence
+   withholds the SAD conclusion and blocks the lock.
 5. **SAD & readiness** — summary of audit differences vs materiality with a
    clearly-trivial threshold; readiness derives blockers and a report
    implication.

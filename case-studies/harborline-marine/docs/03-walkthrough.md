@@ -158,6 +158,15 @@ the investigation concludes — possibly zero, if it cleared in January. And
 watch the cross-findings from lesson 2: clear one side by reference to the
 other, or you will double-count ~27,000 on the SAD.
 
+Set materiality (step 10's **420000**) *before* you judge: clearly-trivial
+derives from it, and it decides which judgments need a second chair. A
+disposition above clearly-trivial ($21,000 here) — even a `cleared` one —
+is a *proposal*: switch to `u:reviewer` (or the partner chair) and
+**concur** in the Review column. The proposing chair cannot concur with
+its own judgment, and changing a disposition voids the concurrence it had.
+Until every above-trivial judgment is concurred, the SAD refuses to
+conclude and the lock stays blocked.
+
 ## 10. Review, complete, lock
 
 Runs walk `completed → reviewed → approved`: review each as `u:reviewer`,

@@ -34,7 +34,7 @@ rollout · **[P2]** competitive/operational maturity.
 
 | # | Item | Today | Deployment requires |
 |---|---|---|---|
-| 3.1 | **[P1] Disposition review lifecycle** | Any team role sets a disposition; no second-person review of the judgment | Preparer proposes / reviewer concurs on dispositions above the clearly-trivial threshold, mirroring the run-review lifecycle that already exists |
+| 3.1 | **[P1] Disposition review lifecycle** | **Done (Aug 2026).** A disposition on a factual dollar exception above clearly-trivial is a proposal until a reviewer or partner (never the proposer — separation enforced) concurs; changing a disposition voids its concurrence; the SAD withholds its conclusion and readiness blocks the lock (`DISPOSITIONS_AWAITING_CONCURRENCE`) while concurrence is pending; proposer and concurrer travel in the packet | — |
 | 3.2 | **[P1] Workflow-edit review** | Materiality, stages, completion checks, and policies are direct writes (partner/preparer) | Materiality and policy changes carry rationale and reviewer concurrence; the journal already records who/when |
 | 3.3 | **[P1] Engagement quality review (EQR)** | Roles are preparer/reviewer/partner | An EQR role with its own gate before lock for engagements that require it (SQMS No. 1 / QC 1000 risk criteria); the role matrix and readiness blockers are the extension points |
 | 3.4 | **[P1] Data-less lock hole** | An engagement with zero normalized datasets skips procedure gates entirely and can lock on workflow gates alone | Readiness should require an explicit partner assertion ("no data-dependent procedures apply this period, because…") instead of silence |

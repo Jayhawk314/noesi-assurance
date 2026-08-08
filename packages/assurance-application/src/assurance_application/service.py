@@ -14,6 +14,7 @@ import csv
 import io
 import json
 import sqlite3
+from decimal import Decimal
 
 from assurance_artifacts.intake import store_artifact
 from assurance_artifacts.vault import ArtifactVault
@@ -23,7 +24,9 @@ from assurance_domain.identities import new_id
 from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
 from assurance_domain.readiness import blank_engagement, readiness
-from assurance_domain.sad import summary_of_differences
+from assurance_domain.sad import (
+    TRIVIAL_PCT, requires_concurrence, summary_of_differences,
+)
 from assurance_persistence.spine import run_command
 from procedures_ap.coverage import compile_coverage, inventory_from_tables
 from procedures_ap.engines import ENGINE_VERSION, execute_procedure
@@ -420,10 +423,15 @@ class WorkbenchService:
     def findings(self, engagement_id: str) -> list[dict]:
         dispositions = {
             row["finding_uid"]: {"status": row["status"], "note": row["note"],
-                                 "version": row["version"]}
+                                 "version": row["version"],
+                                 "proposed_by": row["proposed_by"],
+                                 "concurred_by": row["concurred_by"]}
             for row in self._conn.execute(
                 "SELECT * FROM disposition WHERE engagement_id = ?",
                 (engagement_id,))}
+        document, _ = self.workflow_document(engagement_id)
+        clearly_trivial = TRIVIAL_PCT * (
+            Decimal(str(document["materiality"].get("amount") or 0)))
         out = []
         for run in self._conn.execute(
                 """SELECT run_id, procedure_id, status, findings
@@ -433,14 +441,26 @@ class WorkbenchService:
                 continue
             for verdict in json.loads(run["findings"]):
                 uid = _finding_uid(verdict)
+                disposition = dispositions.get(
+                    uid, {"status": "undisposed", "note": "", "version": 0,
+                          "proposed_by": "", "concurred_by": ""})
+                needs = requires_concurrence(
+                    {"score": verdict.get("score"),
+                     "evidence": verdict.get("evidence", {}),
+                     "verdict": verdict["verdict"]}, clearly_trivial)
                 out.append({
                     "finding_uid": uid,
                     "run_id": run["run_id"],
                     "procedure_id": run["procedure_id"],
                     "verdict": verdict,
                     "tags": _tags(verdict),
-                    "disposition": dispositions.get(
-                        uid, {"status": "undisposed", "note": "", "version": 0}),
+                    "disposition": disposition,
+                    "requires_concurrence": needs,
+                    "awaiting_concurrence": (
+                        needs
+                        and disposition["status"] not in ("undisposed",
+                                                          "follow_up")
+                        and not disposition["concurred_by"]),
                 })
         return out
 
@@ -455,12 +475,37 @@ class WorkbenchService:
                 raise AuthorizationError("dispositions require a team role")
             version = uow.dispositions.set(
                 engagement_id, finding_uid, status, note=note,
-                expected_version=expected_version)
+                expected_version=expected_version, proposed_by=actor)
             return {"finding_uid": finding_uid, "status": status,
                     "version": version}
         return run_command(
             self._conn,
             self._command(actor, "disposition.set", engagement_id),
+            handler).result
+
+    def concur_disposition(self, actor: str, engagement_id: str, *,
+                           finding_uid: str, expected_version: int) -> dict:
+        """A reviewer (or partner) concurs with a proposed disposition.
+
+        Mirrors the run-review lifecycle: the proposer's judgment stands
+        alone below the clearly-trivial threshold, but above it the record
+        shows who judged and who concurred — and the two must differ.
+        """
+        self._require_unlocked(engagement_id)
+
+        def handler(uow):
+            roles = uow.principals.roles_for(engagement_id, actor)
+            if not roles & {"reviewer", "partner"}:
+                raise AuthorizationError(
+                    "disposition concurrence requires a reviewer or partner")
+            version = uow.dispositions.concur(
+                engagement_id, finding_uid, concurred_by=actor,
+                expected_version=expected_version)
+            return {"finding_uid": finding_uid, "concurred_by": actor,
+                    "version": version}
+        return run_command(
+            self._conn,
+            self._command(actor, "disposition.concur", engagement_id),
             handler).result
 
     # ------------------------------- screen 5: SAD, workflow, readiness
@@ -536,14 +581,15 @@ class WorkbenchService:
             document, _ = self.workflow_document(engagement_id)
             materiality = float(document["materiality"].get("amount") or 0)
         dispositions = {
-            row["finding_uid"]: row["status"]
+            row["finding_uid"]: row
             for row in self._conn.execute(
-                "SELECT finding_uid, status FROM disposition "
+                "SELECT finding_uid, status, concurred_by FROM disposition "
                 "WHERE engagement_id = ?", (engagement_id,))}
         rows = []
         for item in self.findings(engagement_id):
             verdict = item["verdict"]
             uid = item["finding_uid"]
+            record = dispositions.get(uid)
             rows.append({
                 "engagement": info["client_name"],
                 "finding_uid": uid,
@@ -553,9 +599,25 @@ class WorkbenchService:
                 "score": verdict.get("score"),
                 "reason": verdict.get("reason", ""),
                 "evidence": verdict.get("evidence", {}),
-                "disposition": dispositions.get(uid, "undisposed"),
+                "disposition": record["status"] if record else "undisposed",
+                "disposition_concurred": bool(record["concurred_by"])
+                if record else False,
             })
-        return summary_of_differences(rows, materiality=materiality)
+        summary = summary_of_differences(rows, materiality=materiality)
+        # Above-trivial dispositions are proposals until concurred (AU-C
+        # 220); the SAD refuses to conclude over unreviewed judgments. The
+        # domain summary keeps its golden-tested shape — these keys ride on
+        # top, and readiness turns the count into a lock blocker.
+        pending = sorted({
+            row["finding_uid"] for row in rows
+            if row["disposition"] not in ("undisposed", "follow_up")
+            and not row["disposition_concurred"]
+            and requires_concurrence(row, summary["clearly_trivial"])})
+        summary["concurrence_pending"] = pending
+        summary["concurrence_pending_count"] = len(pending)
+        if pending:
+            summary["conclusion"] = None
+        return summary
 
     def readiness(self, engagement_id: str) -> dict:
         info = self._engagement(engagement_id)
@@ -965,7 +1027,9 @@ class WorkbenchService:
                             "reason": reason})
 
         dispositions = {
-            row["finding_uid"]: {"status": row["status"], "note": row["note"]}
+            row["finding_uid"]: {"status": row["status"], "note": row["note"],
+                                 "proposed_by": row["proposed_by"],
+                                 "concurred_by": row["concurred_by"]}
             for row in self._conn.execute(
                 "SELECT * FROM disposition WHERE engagement_id = ?",
                 (engagement_id,))}

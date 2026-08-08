@@ -73,6 +73,22 @@ def _quantized(value: Decimal) -> Decimal:
     return value.quantize(_CENT)
 
 
+def requires_concurrence(row: dict, clearly_trivial) -> bool:
+    """Does this finding's disposition need a second person's concurrence?
+
+    A disposed factual dollar exception above the clearly-trivial threshold
+    is a significant judgment (AU-C 220): the disposition is a proposal
+    until someone other than the proposer concurs. Below the threshold —
+    or for findings with no dollar magnitude — a single judgment stands,
+    exactly as clearly-trivial items stay off the SAD.
+    """
+    if not _is_candidate(row):
+        return False
+    ctt = parse_amount(clearly_trivial) or Decimal("0")
+    magnitude = abs(parse_amount(row.get("score")) or Decimal("0"))
+    return magnitude > ctt
+
+
 def summary_of_differences(rows: list[dict], *, materiality) -> dict:
     """Aggregate unadjusted misstatements and conclude against materiality."""
     overall = parse_amount(materiality) or Decimal("0")

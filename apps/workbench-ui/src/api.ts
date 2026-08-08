@@ -143,7 +143,13 @@ export interface Finding {
   procedure_id: string;
   verdict: Verdict;
   tags: { cycle: string; class: string; phase: string; assertion: string };
-  disposition: { status: string; note: string; version: number };
+  disposition: {
+    status: string; note: string; version: number;
+    proposed_by: string; concurred_by: string;
+  };
+  /** Above clearly-trivial: the disposition needs a second person's concurrence. */
+  requires_concurrence: boolean;
+  awaiting_concurrence: boolean;
 }
 
 export interface Sad {
@@ -157,6 +163,8 @@ export interface Sad {
   disposed: number;
   open_count: number;
   invalid_waiver_count: number;
+  concurrence_pending: string[];
+  concurrence_pending_count: number;
   conclusion: "immaterial" | "material" | null;
 }
 
@@ -301,6 +309,10 @@ export class Client {
   setDisposition = (eid: string, finding_uid: string, status: string, note: string, expected_version: number) =>
     this.request("POST", `/api/engagements/${eid}/dispositions`,
                  { finding_uid, status, note, expected_version });
+  concurDisposition = (eid: string, finding_uid: string, expected_version: number) =>
+    this.request<{ concurred_by: string; version: number }>(
+      "POST", `/api/engagements/${eid}/dispositions/concur`,
+      { finding_uid, expected_version });
 
   sad = (eid: string) => this.request<Sad>("GET", `/api/engagements/${eid}/sad`);
   readiness = (eid: string) =>
