@@ -424,3 +424,27 @@ def test_manual_is_served_authenticated_and_traversal_safe(api):
     status, _ = _request(port, "GET", "/api/manual/..%2F..%2FLICENSE.md",
                          token=auth.token)
     assert status == 404
+
+
+def test_unread_bodies_do_not_poison_keepalive_connections(api):
+    """A browser reuses connections. A route that replies without reading
+    its JSON body (approve, normalize, export) must not leave those bytes
+    in the stream, or the next request parses as garbage — observed live
+    as 501 "Unsupported method ('{}GET')" while filming the demo."""
+    port, auth = api
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    headers = {"Authorization": f"Bearer {auth.token}",
+               "Content-Type": "application/json"}
+    # A body-carrying POST to a route that raises before reading it (the
+    # spec does not exist -> 404), then a GET on the SAME connection.
+    conn.request("POST", "/api/engagements/nope/mappings/nope/approve",
+                 body=b"{}", headers=headers)
+    first = conn.getresponse()
+    first.read()
+    assert first.status in (404, 409)
+    conn.request("GET", "/api/engagements",
+                 headers={"Authorization": f"Bearer {auth.token}"})
+    second = conn.getresponse()
+    body = second.read()
+    assert second.status == 200, body
+    conn.close()

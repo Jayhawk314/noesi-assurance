@@ -180,6 +180,7 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 self.headers.get("X-Acting-Principal"), auth.principal_id)
 
         def _read_body(self, limit: int) -> bytes:
+            self._body_consumed = True
             length_header = self.headers.get("Content-Length")
             if length_header is None:
                 raise ApiError(411, "Content-Length required")
@@ -263,7 +264,37 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             self.end_headers()
             self.wfile.write(body)
 
+        def _drain_unread_body(self) -> None:
+            """Consume a request body no route read, or drop the connection.
+
+            A route that replies without reading its body (an early refusal,
+            a body-less handler) would otherwise leave those bytes in the
+            keep-alive stream, and the *next* request on the connection
+            would be parsed starting mid-garbage — observed live as
+            ``Unsupported method ('{}GET')`` replacing a separation-of-
+            duties refusal in the UI.
+            """
+            if getattr(self, "_body_consumed", False):
+                return
+            length_header = self.headers.get("Content-Length")
+            if length_header is None:
+                return
+            try:
+                remaining = int(length_header)
+            except ValueError:
+                self.close_connection = True
+                return
+            if remaining < 0 or remaining > MAX_JSON_BODY:
+                self.close_connection = True  # not worth reading to reuse
+                return
+            while remaining > 0:
+                chunk = self.rfile.read(min(65536, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+
         def _handle(self, method: str) -> None:
+            self._body_consumed = False
             raw_path = urlsplit(self.path).path
             if (method == "GET" and static_root is not None
                     and not raw_path.startswith("/api")):
@@ -295,6 +326,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 self._reply(400, {"error": str(exc)})
             except Exception:  # noqa: BLE001 — no internals in responses
                 self._reply(500, {"error": "internal error"})
+            finally:
+                self._drain_unread_body()
 
         def _dispatch(self, method: str, parts: list[str], actor: str) -> dict:
             if parts[:1] != ["api"]:
