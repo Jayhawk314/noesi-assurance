@@ -92,6 +92,7 @@ class UnitOfWork:
         self.principals = PrincipalRepository(self)
         self.runs = ProcedureRunRepository(self)
         self.snapshots = LockSnapshotRepository(self)
+        self.risks = RiskRepository(self)
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
@@ -322,6 +323,125 @@ class DispositionRepository:
         return self._uow.execute(
             "SELECT * FROM disposition WHERE engagement_id = ? ORDER BY finding_uid",
             (engagement_id,)).fetchall()
+
+
+class RiskRepository:
+    """Assessed risks: the auditor's planning judgment, tracked like a
+    disposition. A re-assessment or a change of response voids any prior
+    concurrence (it concurred a different judgment); concurrence itself
+    enforces separation against the recorded proposer."""
+
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
+
+    def assess(self, engagement_id: str, risk_id: str, *, title: str,
+               assertion: str, level: str, rationale: str, response: str,
+               expected_version: int, proposed_by: str) -> int:
+        if expected_version == 0:
+            try:
+                self._uow.execute(
+                    """INSERT INTO risk_assessment (tenant_id, engagement_id,
+                       risk_id, title, assertion, level, rationale, response,
+                       proposed_by, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (self._uow.command.tenant_id, engagement_id, risk_id,
+                     title, assertion, level, rationale, response,
+                     proposed_by, utcnow()))
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("risk_assessment",
+                                    f"{engagement_id}/{risk_id}", 0) from exc
+            after = 1
+        else:
+            cursor = self._uow.execute(
+                """UPDATE risk_assessment SET title = ?, assertion = ?,
+                   level = ?, rationale = ?, response = ?, proposed_by = ?,
+                   concurred_by = '', version = version + 1, updated_at = ?
+                   WHERE engagement_id = ? AND risk_id = ? AND version = ?""",
+                (title, assertion, level, rationale, response, proposed_by,
+                 utcnow(), engagement_id, risk_id, expected_version))
+            if cursor.rowcount == 0:
+                raise ConflictError("risk_assessment",
+                                    f"{engagement_id}/{risk_id}",
+                                    expected_version)
+            after = expected_version + 1
+        self._uow.emit(
+            entity_type="risk_assessment", entity_id=risk_id,
+            event_type="risk.assessed",
+            before_version=expected_version or None, after_version=after,
+            payload={"assertion": assertion, "level": level,
+                     "proposed_by": proposed_by},
+            engagement_id=engagement_id)
+        return after
+
+    def link_procedures(self, engagement_id: str, risk_id: str, *,
+                        procedure_ids: list[str], expected_version: int) -> int:
+        """Record which procedures respond to this risk. Changing the response
+        voids concurrence, since the concurrer concurred a different plan."""
+        cursor = self._uow.execute(
+            """UPDATE risk_assessment SET procedure_ids = ?, concurred_by = '',
+               version = version + 1, updated_at = ?
+               WHERE engagement_id = ? AND risk_id = ? AND version = ?""",
+            (json.dumps(sorted(set(procedure_ids))), utcnow(),
+             engagement_id, risk_id, expected_version))
+        if cursor.rowcount == 0:
+            raise ConflictError("risk_assessment",
+                                f"{engagement_id}/{risk_id}", expected_version)
+        self._uow.emit(
+            entity_type="risk_assessment", entity_id=risk_id,
+            event_type="risk.procedures_linked",
+            before_version=expected_version, after_version=expected_version + 1,
+            payload={"procedure_ids": sorted(set(procedure_ids))},
+            engagement_id=engagement_id)
+        return expected_version + 1
+
+    def concur(self, engagement_id: str, risk_id: str, *,
+               concurred_by: str, expected_version: int) -> int:
+        from assurance_domain.lifecycle import require_separation
+        row = self._uow.execute(
+            """SELECT level, proposed_by FROM risk_assessment
+               WHERE engagement_id = ? AND risk_id = ?""",
+            (engagement_id, risk_id)).fetchone()
+        if row is None:
+            raise NotFoundError(f"risk_assessment {engagement_id}/{risk_id}")
+        require_separation(prepared_by=row["proposed_by"],
+                           approved_by=concurred_by)
+        cursor = self._uow.execute(
+            """UPDATE risk_assessment SET concurred_by = ?,
+               version = version + 1, updated_at = ?
+               WHERE engagement_id = ? AND risk_id = ? AND version = ?""",
+            (concurred_by, utcnow(), engagement_id, risk_id, expected_version))
+        if cursor.rowcount == 0:
+            raise ConflictError("risk_assessment",
+                                f"{engagement_id}/{risk_id}", expected_version)
+        self._uow.emit(
+            entity_type="risk_assessment", entity_id=risk_id,
+            event_type="risk.concurred",
+            before_version=expected_version, after_version=expected_version + 1,
+            payload={"level": row["level"], "concurred_by": concurred_by},
+            engagement_id=engagement_id)
+        return expected_version + 1
+
+    def archive(self, engagement_id: str, risk_id: str, *,
+                expected_version: int) -> int:
+        cursor = self._uow.execute(
+            """UPDATE risk_assessment SET archived = 1, concurred_by = '',
+               version = version + 1, updated_at = ?
+               WHERE engagement_id = ? AND risk_id = ? AND version = ?""",
+            (utcnow(), engagement_id, risk_id, expected_version))
+        if cursor.rowcount == 0:
+            raise ConflictError("risk_assessment",
+                                f"{engagement_id}/{risk_id}", expected_version)
+        self._uow.emit(
+            entity_type="risk_assessment", entity_id=risk_id,
+            event_type="risk.archived",
+            before_version=expected_version, after_version=expected_version + 1,
+            payload={}, engagement_id=engagement_id)
+        return expected_version + 1
+
+    def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
+        return self._uow.execute(
+            "SELECT * FROM risk_assessment WHERE engagement_id = ? "
+            "ORDER BY updated_at, risk_id", (engagement_id,)).fetchall()
 
 
 class ArtifactRepository:

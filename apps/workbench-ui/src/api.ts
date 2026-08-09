@@ -153,6 +153,30 @@ export interface Finding {
   awaiting_concurrence: boolean;
 }
 
+/** One assessed risk: auditor judgment, tracked like a disposition. */
+export interface Risk {
+  risk_id: string;
+  title: string;
+  assertion: string;
+  level: "unassessed" | "low" | "moderate" | "high" | "significant";
+  rationale: string;
+  response: string;
+  procedure_ids: string[];
+  /** Procedures whose contract addresses this risk's assertion. */
+  candidate_procedures: string[];
+  proposed_by: string;
+  concurred_by: string;
+  version: number;
+  requires_concurrence: boolean;
+  awaiting_concurrence: boolean;
+}
+
+export interface RiskRegister {
+  risks: Risk[];
+  assertions: string[];
+  levels: string[];
+}
+
 export interface Sad {
   overall_materiality: number;
   performance_materiality: number | null;
@@ -321,6 +345,28 @@ export class Client {
     this.request<{ concurred_by: string; version: number }>(
       "POST", `/api/engagements/${eid}/dispositions/concur`,
       { finding_uid, expected_version });
+
+  risks = (eid: string) =>
+    this.request<RiskRegister>("GET", `/api/engagements/${eid}/risks`);
+  assessRisk = (eid: string, risk: {
+    risk_id?: string; title: string; assertion: string; level: string;
+    rationale?: string; response?: string; expected_version?: number;
+  }) =>
+    this.request<{ risk_id: string; version: number }>(
+      "POST", `/api/engagements/${eid}/risks`, risk);
+  linkRiskProcedures = (eid: string, risk_id: string, procedure_ids: string[],
+                        expected_version: number) =>
+    this.request<{ version: number }>(
+      "POST", `/api/engagements/${eid}/risks/${risk_id}/procedures`,
+      { procedure_ids, expected_version });
+  concurRisk = (eid: string, risk_id: string, expected_version: number) =>
+    this.request<{ concurred_by: string; version: number }>(
+      "POST", `/api/engagements/${eid}/risks/${risk_id}/concur`,
+      { expected_version });
+  archiveRisk = (eid: string, risk_id: string, expected_version: number) =>
+    this.request<{ archived: boolean; version: number }>(
+      "POST", `/api/engagements/${eid}/risks/${risk_id}/archive`,
+      { expected_version });
 
   sad = (eid: string) => this.request<Sad>("GET", `/api/engagements/${eid}/sad`);
   readiness = (eid: string) =>

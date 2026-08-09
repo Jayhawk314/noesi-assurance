@@ -533,6 +533,135 @@ class WorkbenchService:
             self._command(actor, "disposition.concur", engagement_id),
             handler).result
 
+    # ------------------------------------ screen 4b: risk assessment register
+
+    def assess_risk(self, actor: str, engagement_id: str, *,
+                    risk_id: str | None = None, title: str, assertion: str,
+                    level: str = "unassessed", rationale: str = "",
+                    response: str = "", expected_version: int = 0) -> dict:
+        """Record (or re-assess) a risk at the assertion level.
+
+        The judgment is the auditor's: this stores it, names the proposer, and
+        voids any prior concurrence on a re-assessment. It computes nothing —
+        the engine never grades a risk.
+        """
+        from procedures_ap.contracts import ASSERTIONS, RISK_LEVELS
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
+        if assertion not in ASSERTIONS:
+            raise ValueError(
+                f"unknown assertion {assertion!r}; one of {sorted(ASSERTIONS)}")
+        if level not in RISK_LEVELS:
+            raise ValueError(
+                f"unknown risk level {level!r}; one of {list(RISK_LEVELS)}")
+        rid = risk_id or new_id()
+
+        def handler(uow):
+            version = uow.risks.assess(
+                engagement_id, rid, title=title, assertion=assertion,
+                level=level, rationale=rationale, response=response,
+                expected_version=expected_version, proposed_by=actor)
+            return {"risk_id": rid, "version": version}
+        return run_command(
+            self._conn, self._command(actor, "risk.assess", engagement_id),
+            handler).result
+
+    def link_risk_procedures(self, actor: str, engagement_id: str, *,
+                             risk_id: str, procedure_ids: list[str],
+                             expected_version: int) -> dict:
+        """Link the procedures that respond to a risk (the audit response)."""
+        from procedures_ap.contracts import CONTRACTS_BY_ID
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
+        unknown = [p for p in procedure_ids if p not in CONTRACTS_BY_ID]
+        if unknown:
+            raise ValueError(f"unknown procedure(s): {unknown}")
+
+        def handler(uow):
+            version = uow.risks.link_procedures(
+                engagement_id, risk_id, procedure_ids=procedure_ids,
+                expected_version=expected_version)
+            return {"risk_id": risk_id, "version": version}
+        return run_command(
+            self._conn,
+            self._command(actor, "risk.link_procedures", engagement_id),
+            handler).result
+
+    def concur_risk(self, actor: str, engagement_id: str, *, risk_id: str,
+                    expected_version: int) -> dict:
+        """A reviewer or partner concurs with a proposed risk assessment —
+        and must not be the principal who proposed it (AU-C 315/220)."""
+        self._require_unlocked(engagement_id)
+
+        def handler(uow):
+            roles = uow.principals.roles_for(engagement_id, actor)
+            if not roles & {"reviewer", "partner"}:
+                raise AuthorizationError(
+                    "risk concurrence requires a reviewer or partner")
+            version = uow.risks.concur(
+                engagement_id, risk_id, concurred_by=actor,
+                expected_version=expected_version)
+            return {"risk_id": risk_id, "concurred_by": actor,
+                    "version": version}
+        return run_command(
+            self._conn, self._command(actor, "risk.concur", engagement_id),
+            handler).result
+
+    def archive_risk(self, actor: str, engagement_id: str, *, risk_id: str,
+                     expected_version: int) -> dict:
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
+
+        def handler(uow):
+            version = uow.risks.archive(
+                engagement_id, risk_id, expected_version=expected_version)
+            return {"risk_id": risk_id, "archived": True, "version": version}
+        return run_command(
+            self._conn, self._command(actor, "risk.archive", engagement_id),
+            handler).result
+
+    def risks(self, engagement_id: str) -> dict:
+        """The risk register for screen 4b: each risk with its response
+        linkage and concurrence state, plus the procedures that *could*
+        respond to each assertion (candidates), so the UI can suggest."""
+        from procedures_ap.contracts import (
+            ASSERTIONS, RISK_LEVELS, procedures_for_assertion,
+        )
+        rows = []
+        for r in self._risk_records(engagement_id):
+            requires = r["level"] in ("high", "significant")
+            rows.append({
+                "risk_id": r["risk_id"],
+                "title": r["title"],
+                "assertion": r["assertion"],
+                "level": r["level"],
+                "rationale": r["rationale"],
+                "response": r["response"],
+                "procedure_ids": r["procedure_ids"],
+                "candidate_procedures": procedures_for_assertion(r["assertion"]),
+                "proposed_by": r["proposed_by"],
+                "concurred_by": r["concurred_by"],
+                "version": r["version"],
+                "requires_concurrence": requires,
+                "awaiting_concurrence": bool(
+                    requires and r["proposed_by"] and r["response"]
+                    and r["procedure_ids"] and not r["concurred_by"]),
+            })
+        return {"risks": rows, "assertions": list(ASSERTIONS),
+                "levels": list(RISK_LEVELS)}
+
+    def _risk_records(self, engagement_id: str) -> list[dict]:
+        """Active (non-archived) risks, procedure_ids decoded to a list."""
+        out = []
+        for row in self._conn.execute(
+                "SELECT * FROM risk_assessment WHERE engagement_id = ? "
+                "AND archived = 0 ORDER BY updated_at, risk_id",
+                (engagement_id,)):
+            item = dict(row)
+            item["procedure_ids"] = json.loads(item["procedure_ids"] or "[]")
+            out.append(item)
+        return out
+
     # ------------------------------- screen 5: SAD, workflow, readiness
 
     def workflow_document(self, engagement_id: str) -> tuple[dict, int]:
@@ -672,6 +801,20 @@ class WorkbenchService:
             if not team[slot]:
                 team[slot] = member["principal_id"]
         document["team"] = team
+
+        # Assessed risks live in their own table (judgment, versioned and
+        # concurred like dispositions); overlay them into the document shape
+        # the readiness gates already read, so the risk→procedure linkage is
+        # what a lock is refused over.
+        document["risks"] = {
+            r["risk_id"]: {
+                "manual": True, "archived": False,
+                "assertion": r["assertion"], "level": r["level"],
+                "response": r["response"], "procedure_ids": r["procedure_ids"],
+                "proposed_by": r["proposed_by"],
+                "concurred_by": r["concurred_by"],
+            }
+            for r in self._risk_records(engagement_id)}
 
         datasets = self._conn.execute(
             "SELECT COUNT(*) c FROM normalized_dataset WHERE engagement_id = ?",
@@ -867,6 +1010,11 @@ class WorkbenchService:
             "dispositions": rows(
                 "SELECT finding_uid, status, note, version FROM disposition "
                 "WHERE engagement_id = ? ORDER BY finding_uid"),
+            "risks": rows(
+                "SELECT risk_id, assertion, level, response, procedure_ids, "
+                "proposed_by, concurred_by, archived, version "
+                "FROM risk_assessment WHERE engagement_id = ? "
+                "ORDER BY risk_id"),
             "team": rows(
                 "SELECT principal_id, role FROM principal_assignment "
                 "WHERE engagement_id = ? ORDER BY role, principal_id"),

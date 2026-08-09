@@ -305,6 +305,15 @@ button.action.primary:hover:not(:disabled) { background: var(--accent-hover); }
   cursor: pointer;
 }
 .note { font-size: 0.8rem; color: var(--ink-soft); margin: 0.35rem 0; line-height: 1.5; }
+.proc-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  margin: 0 0.5rem 0.2rem 0;
+  white-space: nowrap;
+}
+.proc-option input { margin: 0; }
 .limits {
   background: var(--warn-soft);
   border: 1px solid var(--warn-line);

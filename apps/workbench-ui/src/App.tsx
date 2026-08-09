@@ -7,11 +7,12 @@ import {
 } from "./screens";
 import { FlowMapScreen } from "./screens/FlowMap";
 import { ManualScreen } from "./screens/Manual";
+import { RiskScreen } from "./screens/Risk";
 import { useTheme } from "./lib/theme";
 
 const TABS = [
-  "Flow Map", "Team", "Sources & Mappings", "Coverage", "Runs & Findings",
-  "SAD & Completion", "Lock & Export",
+  "Flow Map", "Team", "Planning & Risk", "Sources & Mappings", "Coverage",
+  "Runs & Findings", "SAD & Completion", "Lock & Export",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -270,6 +271,8 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
                             onGoToSources={() => onNavigate("Sources & Mappings")} />;
     case "Team":
       return <TeamScreen client={client} eid={eid} onError={onError} />;
+    case "Planning & Risk":
+      return <RiskScreen client={client} eid={eid} onError={onError} />;
     case "Sources & Mappings":
       return <SourcesScreen client={client} eid={eid} onError={onError} />;
     case "Coverage":

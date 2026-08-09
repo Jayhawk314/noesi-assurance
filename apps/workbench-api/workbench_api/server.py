@@ -373,6 +373,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return {"runs": service.runs(eid)}
                 case ["engagements", eid, "findings"]:
                     return {"findings": service.findings(eid)}
+                case ["engagements", eid, "risks"]:
+                    return service.risks(eid)
                 case ["engagements", eid, "sad"]:
                     return service.sad(eid)
                 case ["engagements", eid, "readiness"]:
@@ -453,6 +455,38 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     body = self._read_json()
                     return service.concur_disposition(
                         actor, eid, finding_uid=str(body["finding_uid"]),
+                        expected_version=int(body["expected_version"]))
+                case ["engagements", eid, "risks"]:
+                    body = self._read_json()
+                    return service.assess_risk(
+                        actor, eid,
+                        risk_id=(str(body["risk_id"])
+                                 if body.get("risk_id") else None),
+                        title=str(body.get("title", "")),
+                        assertion=str(body["assertion"]),
+                        level=str(body.get("level", "unassessed")),
+                        rationale=str(body.get("rationale", "")),
+                        response=str(body.get("response", "")),
+                        expected_version=int(body.get("expected_version", 0)))
+                case ["engagements", eid, "risks", rid, "procedures"]:
+                    body = self._read_json()
+                    ids = body.get("procedure_ids")
+                    if (not isinstance(ids, list)
+                            or not all(isinstance(p, str) for p in ids)):
+                        raise ApiError(
+                            400, "procedure_ids must be a list of strings")
+                    return service.link_risk_procedures(
+                        actor, eid, risk_id=rid, procedure_ids=ids,
+                        expected_version=int(body["expected_version"]))
+                case ["engagements", eid, "risks", rid, "concur"]:
+                    body = self._read_json()
+                    return service.concur_risk(
+                        actor, eid, risk_id=rid,
+                        expected_version=int(body["expected_version"]))
+                case ["engagements", eid, "risks", rid, "archive"]:
+                    body = self._read_json()
+                    return service.archive_risk(
+                        actor, eid, risk_id=rid,
                         expected_version=int(body["expected_version"]))
                 case ["engagements", eid, "workflow"]:
                     body = self._read_json()

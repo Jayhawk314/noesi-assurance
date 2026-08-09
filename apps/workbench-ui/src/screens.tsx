@@ -455,8 +455,8 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
       <h3>Findings and dispositions</h3>
       <table className="dense">
         <thead>
-          <tr><th>Procedure</th><th>Verdict</th><th>Class</th><th>Reason</th>
-              <th>Magnitude</th><th>Disposition</th><th>Note</th>
+          <tr><th>Procedure</th><th>Verdict</th><th>Assertion</th><th>Class</th>
+              <th>Reason</th><th>Magnitude</th><th>Disposition</th><th>Note</th>
               <th>Review</th><th /></tr>
         </thead>
         <tbody>
@@ -464,6 +464,7 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
             <tr key={finding.finding_uid}>
               <td><code>{finding.procedure_id}</code></td>
               <td>{finding.verdict.verdict}</td>
+              <td><code>{finding.tags.assertion}</code></td>
               <td>{finding.tags.class}</td>
               <td>{finding.verdict.reason}</td>
               <td>{finding.verdict.score ?? "—"}</td>

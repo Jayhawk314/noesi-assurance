@@ -11,6 +11,10 @@
 | Evidence request | An incremental **PBC item**, annotated with the procedures it would unlock |
 | Policy | A documented engagement-level parameter (approval threshold, testing window) — an audit decision, not a data fact |
 | Contract | The versioned definition of a procedure: objective, assertions, required evidence, limitations — the methodology artifact |
+| Risk register | The assessed **risks of material misstatement** at the assertion level (AU-C 315), each graded and linked to the procedures that respond to it (AU-C 330) |
+| Risk level | The combined inherent-times-control **RMM** conclusion (unassessed → significant); `high`/`significant` require a second person's concurrence, like a disposition |
+| Assertion | What a finding (or a risk) is about: occurrence, accuracy, authorization, cutoff, completeness — the audit assertions this cycle tests |
+| Concurrence | A second person's agreement with a proposed judgment (AU-C 220), required above the trivial threshold for dispositions and for high/significant risks; never the proposer |
 | Disposition | The auditor's documented conclusion on a finding (AU-C 450 accumulation and evaluation) |
 | SAD | Summary of audit differences / uncorrected misstatements |
 | Lock | File assembly: the frozen, signed, journal-anchored record of the completed engagement |
@@ -47,6 +51,10 @@ Finding classes inside evidence: `PROVED_EXCEPTION`, `EXPECTED_BUT_MISSING`,
 |---|---|
 | `MATERIALITY_NOT_SET` | Materiality entered with an amount > 0 |
 | `RISK_ASSESSMENT_NOT_COMPLETE` / `CONTROLS_NOT_COMPLETE` | Stage marked complete |
+| `RISKS_UNASSESSED` | Every recorded risk graded to a level |
+| `HIGH_RISKS_WITHOUT_RESPONSE` | Every high/significant risk has a planned response |
+| `HIGH_RISKS_WITHOUT_PROCEDURE` | Every high/significant risk has a responding procedure linked |
+| `RISKS_AWAITING_CONCURRENCE` | Every fully-specified high/significant risk concurred by a second person |
 | `TEAM_ASSIGNMENTS_INCOMPLETE` | Preparer and reviewer assigned |
 | `SELECTED_PROCEDURES_BLOCKED` / `_PARTIAL` | Missing data/fields/policies supplied — or the procedure deselected with rationale |
 | `SELECTED_PROCEDURES_PENDING_RUN` | Every selected executable procedure has been run |

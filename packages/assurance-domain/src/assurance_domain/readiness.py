@@ -108,6 +108,7 @@ def readiness(report: dict, engagement: dict, sad: dict,
     unassessed_risks = []
     missing_responses = []
     missing_procedure_links = []
+    awaiting_risk_concurrence = []
     have_procedure_contracts = bool(
         (report.get("procedure_coverage") or {}).get("procedures"))
     if have_procedure_contracts:
@@ -127,6 +128,16 @@ def readiness(report: dict, engagement: dict, sad: dict,
         if (have_procedure_contracts and level in ("high", "significant")
                 and not assessment.get("procedure_ids")):
             missing_procedure_links.append(fid)
+        # A fully-specified high/significant risk is a significant judgment
+        # (AU-C 315/220): it stands as a proposal until a second person
+        # concurs, exactly as an above-trivial disposition does. Only risks
+        # carrying a proposer travel this gate, so legacy documents (and the
+        # report-derived risk items, which have no proposer) are unaffected.
+        if (level in ("high", "significant") and assessment.get("proposed_by")
+                and assessment.get("response")
+                and assessment.get("procedure_ids")
+                and not assessment.get("concurred_by")):
+            awaiting_risk_concurrence.append(fid)
     if unassessed_risks:
         blockers.append({"code": "RISKS_UNASSESSED", "count": len(unassessed_risks)})
     if missing_responses:
@@ -135,6 +146,10 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if missing_procedure_links:
         blockers.append({"code": "HIGH_RISKS_WITHOUT_PROCEDURE",
                          "count": len(missing_procedure_links)})
+    if awaiting_risk_concurrence:
+        blockers.append({"code": "RISKS_AWAITING_CONCURRENCE",
+                         "count": len(awaiting_risk_concurrence),
+                         "items": awaiting_risk_concurrence})
 
     control_items = _phase_items(report, "controls")
     control_ids = [legacy_report_finding_id(report, item)

@@ -281,6 +281,35 @@ CREATE UNIQUE INDEX ux_lock_snapshot_active
 ALTER TABLE disposition ADD COLUMN proposed_by TEXT NOT NULL DEFAULT '';
 ALTER TABLE disposition ADD COLUMN concurred_by TEXT NOT NULL DEFAULT '';
 """),
+    (7, "risk-assessment-register", """
+-- Assessed risks at the assertion level, linked to the procedures that
+-- respond to them (AU-C 315/330). A risk assessment is auditor judgment,
+-- not a computed output: it carries a proposer and, above a moderate level,
+-- a second person's concurrence — the same separation dispositions enforce.
+-- The response linkage is what lets readiness refuse a lock when a
+-- significant risk has no procedure answering it. Engagement-scoped by
+-- construction, like dispositions.
+CREATE TABLE risk_assessment (
+    tenant_id      TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id  TEXT NOT NULL REFERENCES engagement(engagement_id),
+    risk_id        TEXT NOT NULL,
+    title          TEXT NOT NULL DEFAULT '',
+    assertion      TEXT NOT NULL CHECK (assertion IN
+                   ('occurrence', 'accuracy', 'authorization', 'cutoff',
+                    'completeness')),
+    level          TEXT NOT NULL DEFAULT 'unassessed' CHECK (level IN
+                   ('unassessed', 'low', 'moderate', 'high', 'significant')),
+    rationale      TEXT NOT NULL DEFAULT '',
+    response       TEXT NOT NULL DEFAULT '',
+    procedure_ids  TEXT NOT NULL DEFAULT '[]',
+    proposed_by    TEXT NOT NULL DEFAULT '',
+    concurred_by   TEXT NOT NULL DEFAULT '',
+    version        INTEGER NOT NULL DEFAULT 1,
+    archived       INTEGER NOT NULL DEFAULT 0,
+    updated_at     TEXT NOT NULL,
+    PRIMARY KEY (engagement_id, risk_id)
+);
+"""),
 )
 
 

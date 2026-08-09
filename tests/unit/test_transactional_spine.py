@@ -39,7 +39,7 @@ def _create_engagement(conn, tenant, client="Acme", period="2025-12-31",
 
 def test_migrate_is_idempotent(tmp_path):
     connection = connect(tmp_path / "m.db")
-    assert migrate(connection) == [1, 2, 3, 4, 5, 6]
+    assert migrate(connection) == [1, 2, 3, 4, 5, 6, 7]
     assert migrate(connection) == []
     connection.close()
 

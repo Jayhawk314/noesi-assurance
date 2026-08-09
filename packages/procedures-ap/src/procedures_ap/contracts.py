@@ -132,6 +132,26 @@ PROCEDURES: tuple[ProcedureContract, ...] = (
 
 CONTRACTS_BY_ID = {contract.procedure_id: contract for contract in PROCEDURES}
 
+# The financial-statement assertions these contracts actually address — the
+# union across every procedure, so each assertion maps to at least one
+# procedure that can respond to a risk raised against it. Risk assessment is
+# offered at this granularity (AU-C 315); the risk register's CHECK constraint
+# mirrors this set.
+ASSERTIONS: tuple[str, ...] = tuple(sorted(
+    {assertion for contract in PROCEDURES for assertion in contract.assertions}))
+
+# Assessed-risk levels, coarsest to most severe. "unassessed" is the default a
+# risk carries before the auditor grades it; readiness treats it as pending.
+RISK_LEVELS: tuple[str, ...] = (
+    "unassessed", "low", "moderate", "high", "significant")
+
+
+def procedures_for_assertion(assertion: str) -> list[str]:
+    """Procedure ids whose contract addresses this assertion — the candidate
+    responses when a risk is raised against it."""
+    return [contract.procedure_id for contract in PROCEDURES
+            if assertion in contract.assertions]
+
 # Policies a team may set that no contract *requires* (coverage does not gate
 # on them). Kept outside the contract dataclass because contract content is
 # frozen against the Phase 0 golden bundle.
