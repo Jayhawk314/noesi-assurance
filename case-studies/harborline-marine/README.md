@@ -34,6 +34,8 @@ docs/
   02-audit-plan.md          materiality, risks, planned procedures
   03-walkthrough.md         load the case into the workbench, step by step
   04-assignments.md         graded tasks, spreadsheet-first
+  05-revised-evidence.md    Assignment 11: the client sends a corrected file
+revision/             the corrected voucher extract and the script that builds it
 workpapers/           CSV templates that open directly in LibreOffice Calc
 instructor/           answer key and a verified run log — do not distribute
 generate.py           rebuilds data/ and the answer key from a fixed seed

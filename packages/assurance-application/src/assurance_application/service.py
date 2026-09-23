@@ -533,6 +533,149 @@ class WorkbenchService:
             self._command(actor, "disposition.concur", engagement_id),
             handler).result
 
+    # ----------------------------- screen 4c: revised evidence and its reach
+
+    def revision_impact(self, engagement_id: str) -> dict:
+        """What a newer client file touches: runs, findings, judgments, SAD.
+
+        Read-only. Compares each role's newest dataset with the one before it,
+        finds the latest run of every procedure whose *required* inputs no
+        longer match the current data, and reperforms those procedures in
+        memory to show which findings appear, disappear, or move. Nothing is
+        recorded; rerunning and re-judging stay the team's journaled actions.
+        """
+        from assurance_domain.jobs import table_digest
+        from procedures_ap.contracts import PROCEDURES
+        from assurance_application.impact import (
+            KEY_FIELDS, compare_findings, diff_records, sad_effect,
+            thresholds,
+        )
+        from assurance_domain.money import fnum
+
+        document, _ = self.workflow_document(engagement_id)
+        limits = thresholds(document["materiality"].get("amount") or 0)
+        current = self._tables(engagement_id)
+        current_records = {role: list(t.engine_view().records)
+                           for role, t in current.items()}
+        current_digest = {role: table_digest(records)
+                          for role, records in current_records.items()}
+
+        history: dict[str, list[sqlite3.Row]] = {}
+        for dataset in self._conn.execute(
+                """SELECT * FROM normalized_dataset WHERE engagement_id = ?
+                   ORDER BY created_at, dataset_id""", (engagement_id,)):
+            history.setdefault(dataset["role"], []).append(dataset)
+        revisions = []
+        for role, versions in sorted(history.items()):
+            if len(versions) < 2:
+                continue
+            previous, latest = versions[-2], versions[-1]
+            old_table = self._rebuild_table(previous["mapping_spec_id"])
+            if old_table.output_digest != previous["output_digest"]:
+                raise EvidenceIntegrityError(
+                    f"dataset {previous['dataset_id']} no longer reproduces "
+                    "its recorded digest; refusing to compare against it")
+            names = {row["artifact_id"]: row["original_name"]
+                     for row in self._conn.execute(
+                         "SELECT artifact_id, original_name FROM artifact "
+                         "WHERE artifact_id IN (?, ?)",
+                         (previous["artifact_id"], latest["artifact_id"]))}
+            revisions.append({
+                "role": role,
+                "versions": len(versions),
+                "before": {"dataset_id": previous["dataset_id"],
+                           "file": names.get(previous["artifact_id"], ""),
+                           "loaded_at": previous["created_at"]},
+                "after": {"dataset_id": latest["dataset_id"],
+                          "file": names.get(latest["artifact_id"], ""),
+                          "loaded_at": latest["created_at"]},
+                "diff": diff_records(
+                    list(old_table.engine_view().records),
+                    current_records.get(role, []),
+                    KEY_FIELDS.get(role, ()), limits),
+            })
+
+        needs = {p.procedure_id: set(p.required_fields) for p in PROCEDURES}
+        latest_runs: dict[str, sqlite3.Row] = {}
+        for run in self._conn.execute(
+                """SELECT * FROM procedure_run WHERE engagement_id = ?
+                   ORDER BY created_at, run_id""", (engagement_id,)):
+            latest_runs[run["procedure_id"]] = run
+        dispositions = {
+            row["finding_uid"]: {"status": row["status"],
+                                 "concurred_by": row["concurred_by"]}
+            for row in self._conn.execute(
+                "SELECT finding_uid, status, concurred_by FROM disposition "
+                "WHERE engagement_id = ?", (engagement_id,))}
+        effective_policies = document.get("policies") or {}
+
+        runs_out, cards = [], []
+        for procedure_id, run in sorted(latest_runs.items()):
+            manifest = json.loads(run["manifest"])
+            inputs = manifest.get("input_tables", {})
+            changed_roles = sorted(
+                role for role in needs.get(procedure_id, set(inputs))
+                if inputs.get(role, {}).get("sha256")
+                != current_digest.get(role))
+            if not changed_roles:
+                continue
+            rerun = run_job(
+                build_manifest(
+                    procedure_id=procedure_id, procedure_version="v1",
+                    engine_version=ENGINE_VERSION, tables=current_records,
+                    policies={**effective_policies,
+                              **(manifest.get("policies") or {})}),
+                current_records, execute_procedure)
+            old = {_finding_uid(v): v for v in json.loads(run["findings"])}
+            new = {_finding_uid(v): v for v in rerun.findings}
+            run_cards = compare_findings(old, new, dispositions, limits)
+            for card in run_cards:
+                card["procedure_id"] = procedure_id
+                card["run_id"] = run["run_id"]
+            cards.extend(run_cards)
+            runs_out.append({
+                "run_id": run["run_id"], "procedure_id": procedure_id,
+                "status": run["status"],
+                "changed_inputs": changed_roles,
+                "findings_before": len(old), "findings_after": len(new),
+                "rerun_error": rerun.error,
+                "action": ("rerun, then re-review and re-approve"
+                           if run["status"] in ("reviewed", "approved")
+                           else "rerun"),
+            })
+
+        actions: dict[str, int] = {}
+        for card in cards:
+            actions[card["action"]] = actions.get(card["action"], 0) + 1
+        return {
+            "engagement_id": engagement_id,
+            "thresholds": {key: fnum(value) for key, value in limits.items()},
+            "revisions": revisions,
+            "stale_runs": runs_out,
+            "cards": cards,
+            "summary": {
+                "revised_files": len(revisions),
+                "stale_runs": len(runs_out),
+                "affected_findings": len(cards),
+                "judgments_to_revisit": sum(
+                    1 for card in cards if card["action"] in
+                    ("revisit_disposition", "reassess_disposition")),
+                "new_findings": sum(1 for card in cards
+                                    if card["change"] == "new_after_revision"),
+                "actions": actions,
+                "significance": max(
+                    [card["significance"] for card in cards]
+                    + [rev["diff"]["significance"] for rev in revisions],
+                    key=("none", "below_trivial", "above_trivial",
+                         "above_performance").index, default="none"),
+                "sad_effect": sad_effect(cards),
+            },
+            "limits": ("An impact report compares recorded data and reperforms "
+                       "procedures in memory. It changes nothing, concludes "
+                       "nothing about misstatement, and covers only procedures "
+                       "that have been run at least once."),
+        }
+
     # ------------------------------------ screen 4b: risk assessment register
 
     def assess_risk(self, actor: str, engagement_id: str, *,
