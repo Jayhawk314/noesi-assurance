@@ -168,3 +168,39 @@ Say plainly what this software is not:
 The references to AU-C, AS, and other standards in the manual and in code
 comments explain the design intent; they are not claims of compliance with,
 or endorsement by, the AICPA, PCAOB, or any other body.
+
+## Two faces, one record
+
+`noesi-workbench` serves two UIs over the same API and the same journaled
+commands:
+
+- **Workbench** (`/`) — the full-control instrument and teaching surface: every
+  screen, every chair, the manual.
+- **Studio** (`/studio/`) — the visual practitioner view: an eight-stage journey
+  read straight off the record, a "next step" card naming the chair that can
+  take it, the purchase-to-pay cycle drawn with each test's result, exceptions
+  judged in plain words, the SAD against a materiality ruler, and a cascade of
+  what a corrected client file reaches. Build it with
+  `cd apps/studio-ui && npm install && npm run build`.
+
+**Revised evidence.** When a client replaces a file, `GET
+/api/engagements/{id}/impact` (the **What Changed** tab in both UIs) compares
+the old and new versions, names the runs whose inputs moved, reperforms them in
+memory, and shows which findings appear, disappear or move and which recorded
+judgments to revisit. It is read-only: it records nothing and concludes nothing
+about misstatement. Harborline's Assignment 11 exercises it.
+
+**Learn the audit** (`/studio/#/learn`) is a ten-lesson course through a typical
+CPA financial-statement audit, from client acceptance to the report, taught on
+the Harborline case. Each lesson reveals section by section, checks
+understanding with explained questions, sets a hands-on task, and ends with an
+**In Noesi** reminder: what the system does for that step, where, and what it
+does not do. The course needs no session. Its plan, research notes and sources
+are in `docs/learn/CURRICULUM.md`.
+
+**The documents** (`/studio/#/learn/documents`) renders the paper trail an
+auditor reads: one real Harborline purchase (PO-2026-0009) traced from order to
+ledger, the AP tie-out and a year-end bank reconciliation built from the case
+data, plus illustrative confirmations, a count sheet and a representation
+letter. Numbered markers point at each figure to check, with the assertion it
+evidences and the Noesi test that compares it.

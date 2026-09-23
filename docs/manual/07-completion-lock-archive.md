@@ -7,8 +7,9 @@ team performs final analytical review, evaluates subsequent events
 (AU-C 560), considers going concern, obtains written representations
 (AU-C 580), concludes on evidence sufficiency, and completes the
 engagement-level review. After release, the file is **assembled** — a
-complete, final set of documentation — within 60 days (AU-C 230; 45 under
-PCAOB AS 1215).
+complete, final set of documentation — within 60 days (AU-C 230). PCAOB
+AS 1215 allowed 45 days; the amended AS 1215, effective December 15, 2026,
+requires assembly within 14 days of the report release date.
 
 After assembly, the rules harden:
 

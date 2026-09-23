@@ -519,3 +519,13 @@ button.manual-toggle.active { background: rgba(255, 255, 255, 0.22); }
   vertical-align: top;
 }
 .manual-content th { background: var(--th-bg); }
+
+/* What Changed: one card per finding whose standing moves. */
+.impact-card {
+  border: 1px solid var(--line, #2a3340);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.impact-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.impact-body { margin-top: 6px; display: grid; gap: 4px; }

@@ -73,7 +73,8 @@ post-assembly changes), 240 (fraud considerations), 300/315/330 (planning,
 risk, responses), 320 (materiality), 450 (evaluation of misstatements),
 500 (audit evidence), 560 (subsequent events), 580 (written
 representations), 700 (forming the opinion). PCAOB AS 1215 where retention
-and the 45-day assembly window differ. Citations anchor further reading;
+(7 years) and the assembly window differ: 45 days, amended to 14 days effective
+December 15, 2026. Citations anchor further reading;
 they are not a substitute for the standards themselves.
 
 ## The case, cross-referenced

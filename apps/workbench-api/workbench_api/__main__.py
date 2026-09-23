@@ -21,6 +21,7 @@ from assurance_persistence.legacy_import import ensure_tenant
 from workbench_api.server import SessionAuth, build_server
 
 _UI_DIST = Path(__file__).resolve().parents[2] / "workbench-ui" / "dist"
+_STUDIO_DIST = Path(__file__).resolve().parents[2] / "studio-ui" / "dist"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,7 +47,9 @@ def main(argv: list[str] | None = None) -> int:
         keystore=LocalKeyStore(data / "keys"))
     auth = SessionAuth.create(args.principal)
     static = _UI_DIST if _UI_DIST.is_dir() else None
-    server = build_server(service, auth, port=args.port, static_dir=static)
+    studio = _STUDIO_DIST if _STUDIO_DIST.is_dir() else None
+    server = build_server(service, auth, port=args.port, static_dir=static,
+                          studio_dir=studio)
 
     demo_note = ""
     if args.demo is not None:
@@ -60,6 +63,8 @@ def main(argv: list[str] | None = None) -> int:
     # flush=True: the token must reach a redirected log immediately.
     print(f"workbench:  http://127.0.0.1:{port}/"
           + ("" if static else "   (UI not built; API only)"), flush=True)
+    if studio:
+        print(f"studio:     http://127.0.0.1:{port}/studio/", flush=True)
     print(f"principal:  {args.principal}", flush=True)
     print(f"token:      {auth.token}", flush=True)
     if demo_note:

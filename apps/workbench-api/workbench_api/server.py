@@ -110,17 +110,21 @@ _TOKEN_PLACEHOLDER = b"__NOESI_SESSION_TOKEN__"
 
 def build_server(service: WorkbenchService, auth: SessionAuth,
                  host: str = "127.0.0.1", port: int = 0,
-                 static_dir=None) -> ThreadingHTTPServer:
+                 static_dir=None, studio_dir=None) -> ThreadingHTTPServer:
     """Create (do not start) the hardened HTTP server.
 
     ``static_dir`` (the built workbench-ui dist) is served on non-/api GET
     paths: Host-checked but tokenless (the page load cannot carry a bearer),
     path-resolved strictly inside the directory, with a scripts-self CSP.
-    The data plane stays fully authenticated.
+    The data plane stays fully authenticated. ``studio_dir`` (the built
+    studio-ui dist) mounts the visual practitioner UI at ``/studio/`` under
+    the same rules.
     """
     write_lock = threading.Lock()
     from pathlib import Path
     static_root = Path(static_dir).resolve() if static_dir else None
+    studio_root = Path(studio_dir).resolve() if studio_dir else None
+    globals_static_root = static_root
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -227,7 +231,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
         def do_POST(self) -> None:  # noqa: N802
             self._handle("POST")
 
-        def _serve_static(self, path: str) -> None:
+        def _serve_static(self, path: str, root=None) -> None:
+            static_root = root or globals_static_root
             if self.headers.get("Host", "") not in self._allowed_hosts():
                 self._reply(403, {"error": "Host not allowed"})
                 return
@@ -296,6 +301,11 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
         def _handle(self, method: str) -> None:
             self._body_consumed = False
             raw_path = urlsplit(self.path).path
+            if (method == "GET" and studio_root is not None
+                    and (raw_path == "/studio"
+                         or raw_path.startswith("/studio/"))):
+                self._serve_static(raw_path[len("/studio"):], studio_root)
+                return
             if (method == "GET" and static_root is not None
                     and not raw_path.startswith("/api")):
                 self._serve_static(raw_path)
@@ -377,6 +387,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.risks(eid)
                 case ["engagements", eid, "sad"]:
                     return service.sad(eid)
+                case ["engagements", eid, "impact"]:
+                    return service.revision_impact(eid)
                 case ["engagements", eid, "readiness"]:
                     return service.readiness(eid)
                 case ["engagements", eid, "lock"]:

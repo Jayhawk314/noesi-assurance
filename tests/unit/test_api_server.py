@@ -34,7 +34,16 @@ def api(tmp_path):
         "<!doctype html><title>workbench</title>", encoding="utf-8")
     (static / "assets" / "app.js").write_text("console.log('ui')",
                                               encoding="utf-8")
-    server = build_server(service, auth, port=0, static_dir=static)
+    studio = tmp_path / "studio"
+    (studio / "assets").mkdir(parents=True)
+    (studio / "index.html").write_text(
+        '<!doctype html><title>studio</title>'
+        '<meta name="noesi-session" content="__NOESI_SESSION_TOKEN__">',
+        encoding="utf-8")
+    (studio / "assets" / "studio.js").write_text("console.log('studio')",
+                                                 encoding="utf-8")
+    server = build_server(service, auth, port=0, static_dir=static,
+                          studio_dir=studio)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield server.server_address[1], auth
@@ -122,6 +131,31 @@ def test_ui_shell_is_served_without_a_token_but_host_checked(api):
     conn.close()
 
     status, _ = _request(port, "GET", "/",
+                         headers={"Host": "evil.example.com"})
+    assert status == 403
+
+
+def test_studio_is_mounted_beside_the_workbench(api):
+    port, auth = api
+    for path in ("/studio", "/studio/", "/studio/engagement/x"):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+        conn.request("GET", path)
+        response = conn.getresponse()
+        body = response.read().decode()
+        assert response.status == 200, path
+        assert "studio" in body and auth.token in body
+        conn.close()
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("GET", "/studio/assets/studio.js")
+    response = conn.getresponse()
+    assert "studio" in response.read().decode()
+    conn.close()
+    # Traversal out of the studio root never reaches the data directory.
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("GET", "/studio/../control.db")
+    assert b"SQLite" not in conn.getresponse().read()
+    conn.close()
+    status, _ = _request(port, "GET", "/studio/",
                          headers={"Host": "evil.example.com"})
     assert status == 403
 

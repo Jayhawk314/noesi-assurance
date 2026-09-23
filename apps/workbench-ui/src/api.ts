@@ -248,6 +248,61 @@ export interface LockHistoryEntry {
   reason: string;
 }
 
+export type Significance = "none" | "below_trivial" | "above_trivial" | "above_performance";
+
+export interface RowChange {
+  key: string;
+  amount?: number | null;
+  amount_change?: number;
+  fields?: { field: string; before: unknown; after: unknown }[];
+  significance: Significance;
+}
+
+export interface FileRevision {
+  role: string;
+  versions: number;
+  before: { dataset_id: string; file: string; loaded_at: string };
+  after: { dataset_id: string; file: string; loaded_at: string };
+  diff: {
+    key_fields: string[]; rows_before: number; rows_after: number;
+    added: RowChange[]; removed: RowChange[]; changed: RowChange[];
+    duplicate_keys: string[]; net_amount_change: number;
+    significance: Significance;
+  };
+}
+
+export interface StaleRun {
+  run_id: string; procedure_id: string; status: Run["status"];
+  changed_inputs: string[]; findings_before: number; findings_after: number;
+  rerun_error: string; action: string;
+}
+
+export interface ImpactCard {
+  finding_uid: string; procedure_id: string; run_id: string;
+  domain: string; key: unknown[]; reason: string;
+  change: "amount_changed" | "resolved_by_revision" | "new_after_revision";
+  amount_before: number | null; amount_after: number | null;
+  amount_change: number; significance: Significance;
+  disposition: string; concurred: boolean;
+  action: "dispose" | "revisit_disposition" | "reassess_disposition" | "none_after_rerun";
+  what_it_means: string;
+}
+
+export interface Impact {
+  engagement_id: string;
+  thresholds: { materiality: number; clearly_trivial: number; performance: number };
+  revisions: FileRevision[];
+  stale_runs: StaleRun[];
+  cards: ImpactCard[];
+  summary: {
+    revised_files: number; stale_runs: number; affected_findings: number;
+    judgments_to_revisit: number; new_findings: number;
+    actions: Record<string, number>; significance: Significance;
+    sad_effect: { unadjusted: number; adjusted: number };
+  };
+  limits: string;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -367,6 +422,9 @@ export class Client {
     this.request<{ archived: boolean; version: number }>(
       "POST", `/api/engagements/${eid}/risks/${risk_id}/archive`,
       { expected_version });
+
+  impact = (eid: string) =>
+    this.request<Impact>("GET", `/api/engagements/${eid}/impact`);
 
   sad = (eid: string) => this.request<Sad>("GET", `/api/engagements/${eid}/sad`);
   readiness = (eid: string) =>
