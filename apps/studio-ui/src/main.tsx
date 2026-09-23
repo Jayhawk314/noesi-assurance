@@ -28,16 +28,10 @@ function useHashRoute(): string {
 function Root() {
   const route = useHashRoute();
   // The course is static teaching content: it needs no session.
+  // Without a session (a static host, an embed) only the course exists.
+  if (!client) return <Learn route={route.startsWith("/learn") ? route : "/learn"} standalone />;
   if (route.startsWith("/learn")) return <Learn route={route} />;
-  if (client) return <Studio client={client} />;
-  return (
-    <div className="studio"><main className="picker">
-      <h1>Noesi Studio</h1>
-      <p className="alert bad">This page was served without a session token. Start the
-        workbench with <code>noesi-workbench</code> and open the studio address it prints.</p>
-      <p><a href="#/learn">You can still open the course: Learn the audit →</a></p>
-    </main></div>
-  );
+  return <Studio client={client} />;
 }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><Root /></StrictMode>);

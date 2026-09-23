@@ -34,7 +34,19 @@ function Rich({ text }: { text: string }) {
 const PHASES: Lesson["phase"][] = ["Planning", "Fieldwork", "Completion"];
 const COVERAGE_LABEL = { full: "Noesi covers this step", partial: "Noesi covers part of this", none: "Not in Noesi yet" };
 
-export function Learn({ route }: { route: string }) {
+/** Follow in-app "#/…" links by setting location.hash directly. A plain
+ *  fragment link resolves against the document's base URL, which inside an
+ *  embedding frame (e.g. Streamlit's srcdoc iframe) is the host page — the
+ *  click would load the host into the frame instead of changing lessons. */
+function followHashLinks(event: React.MouseEvent) {
+  const anchor = (event.target as HTMLElement).closest("a");
+  const href = anchor?.getAttribute("href");
+  if (!href || !href.startsWith("#/") || event.metaKey || event.ctrlKey) return;
+  event.preventDefault();
+  if (window.location.hash !== href) window.location.hash = href;
+}
+
+export function Learn({ route, standalone = false }: { route: string; standalone?: boolean }) {
   const [progress, setProgress] = useState<Progress>(loadProgress);
   const update = (slug: string, change: Partial<Progress[string]>) => {
     setProgress((prev) => {
@@ -52,15 +64,15 @@ export function Learn({ route }: { route: string }) {
   useEffect(() => { window.scrollTo(0, 0); }, [route]);
 
   return (
-    <div className="studio learn">
+    <div className="studio learn" onClickCapture={followHashLinks}>
       <header className="bar">
         <a className="brand" href="#/learn">Noesi <b>Learn</b></a>
         <span className="engagement-name">The audit, from acceptance to the report</span>
         <span className="spacer" />
         <a className="to-workbench" href="#/learn/documents">The documents</a>
         <a className="to-workbench" href="#/learn/map">Course map</a>
-        <a className="to-workbench" href="#/">Studio ↗</a>
-        <a className="to-workbench" href="/">Workbench ↗</a>
+        {!standalone && <a className="to-workbench" href="#/">Studio ↗</a>}
+        {!standalone && <a className="to-workbench" href="/">Workbench ↗</a>}
       </header>
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />
