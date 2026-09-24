@@ -74,17 +74,26 @@ def test_source_to_normalized_dataset_with_review_gate(service, engagement):
                                        "check_number"]
 
 
-def test_excel_uploads_are_refused_at_mapping_with_instructions(service,
-                                                                engagement):
-    artifact = service.store_source(
+def test_unreadable_workbooks_are_refused_at_mapping_with_instructions(
+        service, engagement):
+    # .xlsx is read (tests/unit/test_xlsx_ingest.py); a damaged workbook and
+    # a legacy binary .xls are refused with what to do instead.
+    damaged = service.store_source(
         BOB, engagement, content=b"PK\x03\x04" + b"\x00" * 64,
         media_type="application/vnd.openxmlformats-officedocument"
                    ".spreadsheetml.sheet",
         original_name="payments.xlsx")
-    with pytest.raises(ValueError, match="Excel workbook"):
+    with pytest.raises(ValueError, match="damaged"):
         service.propose_source_mapping(
             BOB, engagement, role="Payments",
-            artifact_id=artifact["artifact_id"])
+            artifact_id=damaged["artifact_id"])
+    legacy = service.store_source(
+        BOB, engagement, content=b"\xd0\xcf\x11\xe0" + b"\x00" * 64,
+        media_type="application/vnd.ms-excel", original_name="payments.xls")
+    with pytest.raises(ValueError, match=r"save it as \.xlsx"):
+        service.propose_source_mapping(
+            BOB, engagement, role="Payments",
+            artifact_id=legacy["artifact_id"])
 
 
 def test_unassigned_principals_cannot_touch_sources(service, engagement):

@@ -31,9 +31,14 @@ The **Sources & Mappings** flow implements exactly those habits:
 1. **Upload** (preparer chair). The file's bytes go into a
    content-addressed vault — SHA-256 identity, never modified, never
    deleted (retirement is a tombstone). This is the original-evidence rule
-   made structural. Excel workbooks are refused at the next step with
-   instructions to export CSV — the workbook bytes still stay in the vault
-   as evidence of what was received.
+   made structural. **Excel workbooks (.xlsx) are read directly:** choose
+   the sheet and the row that holds the column headings (the tool suggests
+   one and previews the first rows). Reading stops at the first blank row,
+   so a totals block below the data is left out — and the proposal says how
+   many non-blank rows it ignored. The sheet and heading row become part of
+   the reviewed mapping, and each record's `source_row` points at the real
+   sheet row. Legacy .xls files and damaged workbooks are refused with
+   instructions; the original bytes stay in the vault either way.
 2. **Propose a mapping** (preparer). The header detector proposes the
    column mapping for the declared role (Payments, Vendors, …). Two lists
    on the proposal deserve attention: *unmapped headers* (columns the

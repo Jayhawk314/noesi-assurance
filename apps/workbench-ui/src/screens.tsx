@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
   Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification,
+  Extraction, WorkbookPreview,
 } from "./api";
 
 interface ScreenProps {
@@ -85,6 +86,21 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   const { data, reload } = useLoader<Sources>(load, onError);
   const fileInput = useRef<HTMLInputElement>(null);
   const [mapRole, setMapRole] = useState<Record<string, string>>({});
+  // Excel sources: the loaded preview and the sheet/header-row choice.
+  const [books, setBooks] = useState<Record<string, WorkbookPreview>>({});
+  const [pick, setPick] = useState<Record<string, Extraction>>({});
+  const isWorkbook = (a: Artifact) => /\.xlsx$/i.test(a.original_name)
+    || a.media_type.includes("spreadsheetml");
+  const openBook = (a: Artifact) => {
+    client.workbookPreview(eid, a.artifact_id).then((book) => {
+      setBooks({ ...books, [a.artifact_id]: book });
+      const first = book.sheets[0];
+      setPick({ ...pick, [a.artifact_id]: pick[a.artifact_id]
+        ?? { sheet: first.sheet, header_row: first.suggested_header_row } });
+    }).catch(onError);
+  };
+  const extractionFor = (a: Artifact): Extraction | undefined =>
+    isWorkbook(a) ? pick[a.artifact_id] : undefined;
 
   const act = (work: () => Promise<unknown>) => () => {
     work().then(reload).catch(onError);
@@ -160,30 +176,50 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                   <button className="action"
                           disabled={!chosenRole(artifact)}
                           onClick={act(() => client.proposeMapping(
-                            eid, chosenRole(artifact), artifact.artifact_id))}>
+                            eid, chosenRole(artifact), artifact.artifact_id,
+                            extractionFor(artifact)))}>
                     propose mapping
                   </button>
                 )}
+                {isWorkbook(artifact) && !activelyMapped.has(artifact.artifact_id) && (
+                  <button className="action" onClick={() => openBook(artifact)}>
+                    {books[artifact.artifact_id] ? "sheet ✓" : "choose sheet"}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+          {(data?.artifacts ?? []).filter((a) => books[a.artifact_id]
+            && !activelyMapped.has(a.artifact_id)).map((artifact) => (
+            <tr key={`${artifact.artifact_id}-book`}>
+              <td colSpan={6}>
+                <WorkbookChooser book={books[artifact.artifact_id]}
+                                 choice={pick[artifact.artifact_id] ?? {}}
+                                 onChange={(c) => setPick({ ...pick, [artifact.artifact_id]: c })} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void upload(); }}>
-        <input type="file" ref={fileInput} accept=".csv,.txt" multiple />
+        <input type="file" ref={fileInput} accept=".csv,.txt,.xlsx,.xls" multiple />
         <button className="action" type="submit">upload sources</button>
         {proposable.length > 0 && (
           <button className="action" type="button"
                   onClick={batch(() => client.proposeMappings(
                     eid, proposable.map((a) => ({
-                      artifact_id: a.artifact_id, role: chosenRole(a) }))))}>
+                      artifact_id: a.artifact_id, role: chosenRole(a),
+                      extraction: extractionFor(a) }))))}>
             propose all ({proposable.length})
           </button>
         )}
       </form>
       <p className="note">
-        Select several exports at once; roles are suggested from the
-        filenames, and each suggestion stays overridable above. Batching
+        Select several exports at once — CSV or Excel (.xlsx); roles are
+        suggested from the filenames, and each suggestion stays overridable
+        above. For a workbook, choose the sheet and the row that holds the
+        column headings; reading stops at the first blank row, so a totals
+        block below the data is left out, and the proposal says so. Batching
         compresses the clicks, never the review — every proposal still
         crosses the reviewer's approval before it can normalize.
       </p>
@@ -210,7 +246,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
       <table className="dense">
         <thead>
           <tr><th>Role</th><th>Status</th><th>Proposed by</th><th>Approved by</th>
-              <th>Mapped</th><th>Unmapped headers</th><th>Refused fields</th><th /></tr>
+              <th>Mapped</th><th>Unmapped headers</th><th>Refused fields</th><th>Source</th><th /></tr>
         </thead>
         <tbody>
           {(data?.mapping_specs ?? []).map((spec) => (
@@ -224,6 +260,9 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
               <td>{Object.keys(spec.column_map).length} fields</td>
               <td>{spec.unmapped_headers.join(", ") || "—"}</td>
               <td>{spec.refused_fields.join(", ") || "—"}</td>
+              <td>{spec.extraction
+                ? `sheet "${spec.extraction.sheet}", headings on row ${spec.extraction.header_row}`
+                : "CSV"}</td>
               <td>
                 {spec.status === "proposed" && (
                   <button className="action"
@@ -871,5 +910,48 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
         </>
       )}
     </>
+  );
+}
+
+/** Choose a workbook's sheet and heading row, with the first rows shown so
+ *  the choice is visible rather than guessed. The chosen row is highlighted;
+ *  rows above it are skipped, and reading stops at the first blank row. */
+function WorkbookChooser({ book, choice, onChange }: {
+  book: WorkbookPreview;
+  choice: Extraction;
+  onChange: (choice: Extraction) => void;
+}) {
+  const sheet = book.sheets.find((s) => s.sheet === choice.sheet) ?? book.sheets[0];
+  const headerRow = choice.header_row ?? sheet.suggested_header_row;
+  return (
+    <div className="workbook-chooser">
+      <label>Sheet{" "}
+        <select value={sheet.sheet}
+                onChange={(e) => {
+                  const next = book.sheets.find((s) => s.sheet === e.target.value)!;
+                  onChange({ sheet: next.sheet, header_row: next.suggested_header_row });
+                }}>
+          {book.sheets.map((s) => (
+            <option key={s.sheet} value={s.sheet}>{s.sheet} ({s.row_count} rows)</option>
+          ))}
+        </select>
+      </label>{" "}
+      <label>Headings on row{" "}
+        <input type="number" min={1} max={Math.max(1, sheet.row_count)} value={headerRow}
+               onChange={(e) => onChange({ sheet: sheet.sheet, header_row: Number(e.target.value) })} />
+      </label>{" "}
+      <span className="note">suggested: row {sheet.suggested_header_row}</span>
+      <table className="dense preview">
+        <tbody>
+          {sheet.rows.map((row, i) => (
+            <tr key={i} className={i + 1 === headerRow ? "header-pick"
+              : i + 1 < headerRow ? "skipped" : ""}>
+              <th>{i + 1}</th>
+              {row.slice(0, 8).map((cell, j) => <td key={j}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

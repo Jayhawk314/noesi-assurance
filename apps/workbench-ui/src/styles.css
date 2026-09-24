@@ -529,3 +529,10 @@ button.manual-toggle.active { background: rgba(255, 255, 255, 0.22); }
 }
 .impact-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .impact-body { margin-top: 6px; display: grid; gap: 4px; }
+
+/* Excel sources: choose the sheet and the heading row. */
+.workbook-chooser { padding: 8px 0; }
+.workbook-chooser input[type="number"] { width: 64px; }
+.workbook-chooser table.preview { margin-top: 6px; font-size: 12px; }
+.workbook-chooser tr.header-pick td { font-weight: 700; background: var(--line-soft); }
+.workbook-chooser tr.skipped td { opacity: .45; }

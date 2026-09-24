@@ -58,7 +58,17 @@ export interface MappingSpec {
   unmapped_headers: string[];
   refused_fields: string[];
   created_at: string;
+  /** For an Excel source: the sheet and header row this spec reads. */
+  extraction?: { converter: string; sheet: string; header_row: number } | null;
 }
+
+/** An uploaded workbook's sheets, first rows and suggested header rows. */
+export interface WorkbookPreview {
+  artifact_id: string;
+  sheets: { sheet: string; rows: string[][]; row_count: number; suggested_header_row: number }[];
+}
+
+export interface Extraction { sheet?: string; header_row?: number }
 
 export interface Dataset {
   dataset_id: string;
@@ -361,15 +371,17 @@ export class Client {
     this.request<{ artifact_id: string; sha256: string }>(
       "POST", `/api/engagements/${eid}/sources`, undefined,
       { data: file, headers: { "Content-Type": file.type || "text/csv", "X-Original-Name": file.name } });
-  proposeMapping = (eid: string, role: string, artifact_id: string) =>
+  proposeMapping = (eid: string, role: string, artifact_id: string, extraction?: Extraction) =>
     this.request<{ spec_id: string; column_map: Record<string, string> }>(
-      "POST", `/api/engagements/${eid}/mappings`, { role, artifact_id });
+      "POST", `/api/engagements/${eid}/mappings`, { role, artifact_id, extraction });
+  workbookPreview = (eid: string, artifact_id: string) =>
+    this.request<WorkbookPreview>("GET", `/api/engagements/${eid}/artifacts/${artifact_id}/sheets`);
   approveMapping = (eid: string, spec_id: string) =>
     this.request("POST", `/api/engagements/${eid}/mappings/${spec_id}/approve`, {});
   normalize = (eid: string, spec_id: string) =>
     this.request<{ dataset_id: string; reconciliation: Record<string, unknown> }>(
       "POST", `/api/engagements/${eid}/mappings/${spec_id}/normalize`, {});
-  proposeMappings = (eid: string, items: { artifact_id: string; role?: string }[]) =>
+  proposeMappings = (eid: string, items: { artifact_id: string; role?: string; extraction?: Extraction }[]) =>
     this.request<BatchOutcome>(
       "POST", `/api/engagements/${eid}/mappings/propose-batch`, { items });
   approveMappings = (eid: string, spec_ids: string[]) =>

@@ -374,6 +374,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return {"team": service.team(eid)}
                 case ["engagements", eid, "sources"]:
                     return service.sources(eid)
+                case ["engagements", eid, "artifacts", aid, "sheets"]:
+                    return service.workbook_preview(eid, aid)
                 case ["engagements", eid, "coverage"]:
                     return service.coverage(eid)
                 case ["engagements", eid, "workflow"]:
@@ -422,9 +424,13 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                         provenance=self.headers.get("X-Provenance", ""))
                 case ["engagements", eid, "mappings"]:
                     body = self._read_json()
+                    extraction = body.get("extraction")
+                    if extraction is not None and not isinstance(extraction, dict):
+                        raise ApiError(400, "extraction must be an object")
                     return service.propose_source_mapping(
                         actor, eid, role=str(body["role"]),
-                        artifact_id=str(body["artifact_id"]))
+                        artifact_id=str(body["artifact_id"]),
+                        extraction=extraction)
                 # Bulk loading: batch endpoints compress the round trips of a
                 # ten-file engagement into one pass per chair. The gates are
                 # unchanged — the service loops the single-item use cases.

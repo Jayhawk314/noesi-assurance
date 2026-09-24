@@ -388,7 +388,7 @@ def _jsonable_rows(records: list[dict]) -> list[dict]:
 
 
 def normalize_table(rows: list[dict], spec: MappingSpec, *,
-                    source_file: str = "") -> NormalizedTable:
+                    source_file: str = "", first_row: int = 2) -> NormalizedTable:
     """Normalize raw rows through an *approved* mapping spec.
 
     Rows whose required key fields are blank are quarantined with reasons,
@@ -416,7 +416,10 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
     control = Decimal("0")
     key_counts: dict[str, int] = {}
     null_amounts = 0
-    for source_row, raw in enumerate(rows, 2):
+    # source_row points at the row in the file as the client sent it: CSV
+    # line numbers by default (header on line 1); a workbook passes the
+    # sheet row of its first data row.
+    for source_row, raw in enumerate(rows, first_row):
         record: dict = {}
         for field_name, header in spec.column_map.items():
             value = raw.get(header)

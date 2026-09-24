@@ -12,11 +12,13 @@ those checks.
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import sqlite3
 from decimal import Decimal
 
+from assurance_artifacts import xlsx
 from assurance_artifacts.intake import store_artifact
 from assurance_artifacts.vault import ArtifactVault
 from assurance_domain.commands import Command
@@ -154,24 +156,42 @@ class WorkbenchService:
         return outcome.result
 
     def propose_source_mapping(self, actor: str, engagement_id: str, *,
-                               role: str, artifact_id: str) -> dict:
+                               role: str, artifact_id: str,
+                               extraction: dict | None = None) -> dict:
+        """Propose a column mapping for one uploaded file.
+
+        For an Excel workbook, ``extraction`` names the sheet and 1-based
+        header row (defaults: the only sheet, the suggested header row).
+        The resolved choice becomes part of the reviewed spec and of its
+        digest, so the reviewer approves *which* rows were read, and every
+        later rebuild reads exactly those rows again.
+        """
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
-        headers, _ = self._artifact_rows(artifact_id)
+        headers, _, resolved = self._artifact_table(artifact_id, extraction)
         artifact = self._conn.execute(
             "SELECT sha256 FROM artifact WHERE artifact_id = ?",
             (artifact_id,)).fetchone()
         spec = propose_mapping(role, headers, source_sha256=artifact["sha256"],
                                proposed_by=actor)
+        stored = spec.to_dict()
+        digest = spec.digest
+        if resolved is not None:
+            params = {k: resolved[k] for k in ("converter", "sheet", "header_row")}
+            stored["extraction"] = params
+            digest = hashlib.sha256(
+                (spec.digest + json.dumps(params, sort_keys=True))
+                .encode("utf-8")).hexdigest()
 
         def handler(uow):
             spec_id = uow.mappings.propose(
-                engagement_id, role=role, spec=spec.to_dict(),
-                spec_digest=spec.digest, proposed_by=actor,
+                engagement_id, role=role, spec=stored,
+                spec_digest=digest, proposed_by=actor,
                 artifact_id=artifact_id)
             return {"spec_id": spec_id, "column_map": spec.column_map,
                     "unmapped_headers": list(spec.unmapped_headers),
-                    "refused_fields": list(spec.refused_fields)}
+                    "refused_fields": list(spec.refused_fields),
+                    "extraction": resolved}
         return run_command(
             self._conn,
             self._command(actor, "mapping.propose", engagement_id),
@@ -256,9 +276,12 @@ class WorkbenchService:
                         raise ValueError(
                             "no role given and none inferable from the "
                             "filename; choose the role explicitly")
+                    extraction = item.get("extraction")
                     entry.update(self.propose_source_mapping(
                         actor, engagement_id, role=role,
-                        artifact_id=artifact_id))
+                        artifact_id=artifact_id,
+                        extraction=extraction if isinstance(extraction, dict)
+                        else None))
                     entry.update(status="proposed", role=role)
                     active.add(artifact_id)
             except (ValueError, KeyError, NotFoundError) as exc:
@@ -344,6 +367,7 @@ class WorkbenchService:
             item["column_map"] = stored.get("column_map", {})
             item["unmapped_headers"] = stored.get("unmapped_headers", [])
             item["refused_fields"] = stored.get("refused_fields", [])
+            item["extraction"] = stored.get("extraction")
             specs.append(item)
         datasets = [dict(row) for row in self._conn.execute(
             """SELECT dataset_id, role, mapping_spec_id, artifact_id, rows_in,
@@ -1447,7 +1471,7 @@ class WorkbenchService:
             raise KeyError(f"engagement {engagement_id}")
         return row
 
-    def _artifact_rows(self, artifact_id: str) -> tuple[list[str], list[dict]]:
+    def _artifact_content(self, artifact_id: str) -> bytes:
         artifact = self._conn.execute(
             "SELECT sha256, state FROM artifact WHERE artifact_id = ?",
             (artifact_id,)).fetchone()
@@ -1455,20 +1479,55 @@ class WorkbenchService:
             raise KeyError(f"artifact {artifact_id}")
         if artifact["state"] != "promoted":
             raise ValueError("artifact is retired; its content is gone")
-        content = self._vault.read_bytes(artifact["sha256"])
-        # Refuse with instructions rather than mis-parse: Excel workbooks
-        # (xlsx = zip, legacy xls = OLE) are common uploads and would
-        # otherwise decode into one garbage header row. The original bytes
-        # stay in the vault as evidence either way.
-        if content[:4] == b"PK\x03\x04" or content[:4] == b"\xd0\xcf\x11\xe0":
-            raise ValueError(
-                "this artifact is an Excel workbook, not CSV; export the "
-                "sheet as CSV and upload that (the original workbook stays "
-                "in the evidence vault)")
+        return self._vault.read_bytes(artifact["sha256"])
+
+    def _artifact_table(self, artifact_id: str, extraction: dict | None = None
+                        ) -> tuple[list[str], list[dict], dict | None]:
+        """Header-keyed rows from a CSV or an Excel workbook.
+
+        Returns the resolved workbook extraction (sheet, header row, what
+        was read and where it stopped), or None for CSV. Legacy .xls and
+        unreadable workbooks are refused with instructions; the original
+        bytes stay in the vault as evidence either way.
+        """
+        content = self._artifact_content(artifact_id)
+        if xlsx.is_xlsx(content) or xlsx.is_legacy_xls(content):
+            if extraction and extraction.get("converter") not in (None, xlsx.CONVERTER):
+                raise ValueError(
+                    f"this spec was read with {extraction.get('converter')!r}; "
+                    f"this build reads workbooks with {xlsx.CONVERTER!r}")
+            header_row = (extraction or {}).get("header_row")
+            try:
+                resolved, headers, rows = xlsx.extract(
+                    content, sheet=(extraction or {}).get("sheet"),
+                    header_row=int(header_row) if header_row else None)
+            except xlsx.WorkbookError as exc:
+                raise ValueError(str(exc)) from exc
+            return headers, rows, resolved
         text = content.decode("utf-8-sig", errors="replace")
         rows = list(csv.DictReader(text.splitlines()))
         headers = list(rows[0].keys()) if rows else []
+        return headers, rows, None
+
+    def _artifact_rows(self, artifact_id: str,
+                       extraction: dict | None = None) -> tuple[list[str], list[dict]]:
+        headers, rows, _ = self._artifact_table(artifact_id, extraction)
         return headers, rows
+
+    def workbook_preview(self, engagement_id: str, artifact_id: str) -> dict:
+        """Sheets, first rows and suggested header rows of an uploaded workbook."""
+        row = self._conn.execute(
+            "SELECT engagement_id FROM artifact WHERE artifact_id = ?",
+            (artifact_id,)).fetchone()
+        if row is None or row["engagement_id"] != engagement_id:
+            raise KeyError(f"artifact {artifact_id}")
+        content = self._artifact_content(artifact_id)
+        if not xlsx.is_xlsx(content):
+            raise ValueError("this artifact is not an .xlsx workbook")
+        try:
+            return {"artifact_id": artifact_id, "sheets": xlsx.preview(content)}
+        except xlsx.WorkbookError as exc:
+            raise ValueError(str(exc)) from exc
 
     def _rebuild_table(self, spec_id: str) -> NormalizedTable:
         """Reperform normalization from immutable inputs; verify the digest."""
@@ -1488,11 +1547,15 @@ class WorkbenchService:
             source_sha256=stored["source_sha256"], status="approved",
             proposed_by=spec_row["proposed_by"],
             approved_by=spec_row["approved_by"])
-        _, rows = self._artifact_rows(spec_row["artifact_id"])
+        _, rows = self._artifact_rows(spec_row["artifact_id"],
+                                      stored.get("extraction"))
         artifact_name = self._conn.execute(
             "SELECT original_name FROM artifact WHERE artifact_id = ?",
             (spec_row["artifact_id"],)).fetchone()["original_name"]
-        return normalize_table(rows, spec, source_file=artifact_name)
+        extraction = stored.get("extraction")
+        return normalize_table(
+            rows, spec, source_file=artifact_name,
+            first_row=int(extraction["header_row"]) + 1 if extraction else 2)
 
     def _tables(self, engagement_id: str) -> dict:
         """Latest normalized dataset per role, rebuilt and digest-verified."""
