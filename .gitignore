@@ -19,3 +19,6 @@ tests/golden/bundles/rockwood_tables.json
 
 node_modules/
 apps/workbench-ui/dist/
+
+# Local workbench runtime used for video capture (control.db, keys, vault) — never publish
+video/**/runtime/

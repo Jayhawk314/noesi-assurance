@@ -37,6 +37,7 @@ docs/
   05-revised-evidence.md    Assignment 11: the client sends a corrected file
 revision/             the corrected voucher extract and the script that builds it
 workpapers/           CSV templates that open directly in LibreOffice Calc
+learning/             generated, illustrative ledger for one purchase
 instructor/           answer key and a verified run log — do not distribute
 generate.py           rebuilds data/ and the answer key from a fixed seed
 ```
@@ -69,6 +70,22 @@ The seed is fixed, so the output is byte-identical every time and the answer key
 is rewritten from the same run that writes the data. The key therefore cannot
 drift from the population — it is a consequence of the generator, not a claim
 about it.
+
+`learning/trace-ledger.json` is a separate teaching model built from
+`VCH-2026-0009` and `PAY-2026-0009`. It shows a balanced journal, miniature
+trial balance, and statement excerpt assuming the full invoice was booked.
+Those modeled entries are **not** part of Harborline's observed GL or its
+financial statements. The $1,081.33 receipt shortfall remains unresolved.
+
+`instructor/PLANTED-EXCEPTIONS.json` is generated from the same injection notes
+as the answer key. `instructor/EXPECTED-RUN.json` separately freezes the
+reviewed finding IDs and verdicts, including cross-findings.
+`tests/unit/test_harborline_oracle.py` compares every run against that expected
+set and checks the intentionally silent bank difference. Review the expected
+set when changing the case or procedure methodology; a matching total alone
+does not establish that the right items were found. `instructor/REVISION-KEY.md`
+is the maintained Assignment 11 appendix included when the answer key is
+regenerated.
 
 ## Before you start: what actually runs today
 

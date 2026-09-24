@@ -65,6 +65,9 @@ function FindingCard({ finding, canJudge, canConcur, busy, onSave, onConcur }: {
   const [note, setNote] = useState(finding.disposition.note);
   const changed = status !== finding.disposition.status || note !== finding.disposition.note;
   const current = CHOICES.find((c) => c.status === finding.disposition.status);
+  const evidence = Object.entries(v.evidence ?? {}).filter(([name]) =>
+    !["limits", "finding_class", "cycle"].includes(name));
+  const limits = v.evidence?.limits;
   return (
     <article className={`finding ${finding.disposition.status}`}>
       <header>
@@ -74,6 +77,24 @@ function FindingCard({ finding, canJudge, canConcur, busy, onSave, onConcur }: {
         {finding.requires_concurrence && <span className="badge warn">above trivial</span>}
       </header>
       <p className="reason">{v.reason}</p>
+      <details className="finding-evidence">
+        <summary>See the recorded evidence and limits</summary>
+        <p className="muted small">These are values and references from the supplied records, not a conclusion about what happened in the business.</p>
+        {evidence.length > 0 ? (
+          <dl>
+            {evidence.map(([name, value]) => (
+              <div key={name}>
+                <dt>{name.replace(/_/g, " ")}</dt>
+                <dd>{formatEvidenceValue(name, value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : <p className="muted small">No additional input values were recorded for this finding.</p>}
+        {typeof limits === "string" && limits && (
+          <p className="finding-limit"><b>Still needs review:</b> {limits}</p>
+        )}
+        <p className="muted small">Receipt ID: <code>{v.receipt_id}</code></p>
+      </details>
       <div className="judged">
         {current
           ? <>Judged: <b>{current.label}</b>{finding.disposition.proposed_by && <> by {finding.disposition.proposed_by}</>}
@@ -105,4 +126,15 @@ function FindingCard({ finding, canJudge, canConcur, busy, onSave, onConcur }: {
       )}
     </article>
   );
+}
+
+function formatEvidenceValue(name: string, value: unknown): string {
+  if (value === null || value === undefined) return "not supplied";
+  if (typeof value === "number" && /(?:amount|balance|difference)$/.test(name)) {
+    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }

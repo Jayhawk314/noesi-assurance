@@ -1,0 +1,100 @@
+{
+  "label": "Illustrative isolated ledger, not Harborline's complete books",
+  "assumption": "The full voucher was booked as security-services expense and AP; the receipt difference remains unresolved.",
+  "source": {
+    "purchase_order": "PO-2026-0009",
+    "receipt": "GRN-2026-0009",
+    "voucher": "VCH-2026-0009",
+    "payment": "PAY-2026-0009",
+    "ordered": "4325.33",
+    "accepted": "3244.00",
+    "billed": "4325.33",
+    "paid": "4325.33",
+    "unresolved_difference": "1081.33"
+  },
+  "journal": [
+    {
+      "event": "Opening teaching balance",
+      "date": "2026-01-01",
+      "lines": [
+        {
+          "account": "1010 Cash",
+          "debit": "10000.00",
+          "credit": ""
+        },
+        {
+          "account": "3000 Opening equity",
+          "debit": "",
+          "credit": "10000.00"
+        }
+      ]
+    },
+    {
+      "event": "Model the full invoice",
+      "date": "2026-02-20",
+      "lines": [
+        {
+          "account": "6100 Security-services expense",
+          "debit": "4325.33",
+          "credit": ""
+        },
+        {
+          "account": "2000 Accounts Payable",
+          "debit": "",
+          "credit": "4325.33"
+        }
+      ]
+    },
+    {
+      "event": "Model the bill payment",
+      "date": "2026-03-16",
+      "lines": [
+        {
+          "account": "2000 Accounts Payable",
+          "debit": "4325.33",
+          "credit": ""
+        },
+        {
+          "account": "1010 Cash",
+          "debit": "",
+          "credit": "4325.33"
+        }
+      ]
+    }
+  ],
+  "trial_balance": [
+    {
+      "account": "1010 Cash",
+      "debit": "5674.67",
+      "credit": ""
+    },
+    {
+      "account": "2000 Accounts Payable",
+      "debit": "",
+      "credit": ""
+    },
+    {
+      "account": "6100 Security-services expense",
+      "debit": "4325.33",
+      "credit": ""
+    },
+    {
+      "account": "3000 Opening equity",
+      "debit": "",
+      "credit": "10000.00"
+    }
+  ],
+  "statement_excerpt": {
+    "income_statement": {
+      "security_services_expense": "4325.33",
+      "net_loss": "4325.33"
+    },
+    "balance_sheet": {
+      "cash": "5674.67",
+      "accounts_payable": "0.00",
+      "opening_equity": "10000.00",
+      "current_loss": "4325.33",
+      "ending_equity": "5674.67"
+    }
+  }
+}

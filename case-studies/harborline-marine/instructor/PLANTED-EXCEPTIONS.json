@@ -1,0 +1,242 @@
+[
+  {
+    "procedure": "ap.vendor_relational_twins",
+    "reference": "V1038 / V1039",
+    "detail": "Near-duplicate vendor identities 'Harbor Marine Supply LLC' and 'Harbour Marine Supply, L.L.C.' share remit city Norfolk and tax ID 12-8850638.",
+    "amount": null
+  },
+  {
+    "procedure": "ap.vendor_relational_twins",
+    "reference": "V1040 / V1041",
+    "detail": "Near-duplicate vendor identities 'Nautical Parts Inc' and 'Nautical Parts, Inc.' share remit city Norfolk and tax ID 49-6339233.",
+    "amount": null
+  },
+  {
+    "procedure": "ap.vendor_relational_twins",
+    "reference": "V1042 / V1043",
+    "detail": "Near-duplicate vendor identities 'Coastal Fuel & Marine Services' and 'Coastal Fuel and Marine Svcs' share remit city Norfolk and tax ID 10-5530008.",
+    "amount": null
+  },
+  {
+    "procedure": "ap.payment_voucher_reference",
+    "reference": "PAY-2026-0100",
+    "detail": "Payment cites voucher VCH-2026-9382, which is absent from the voucher population.",
+    "amount": "45464.75"
+  },
+  {
+    "procedure": "ap.payment_voucher_reference",
+    "reference": "PAY-2026-0013",
+    "detail": "Payment cites voucher VCH-2026-9338, which is absent from the voucher population.",
+    "amount": "21619.99"
+  },
+  {
+    "procedure": "ap.payment_voucher_reference",
+    "reference": "PAY-2026-0055",
+    "detail": "Payment cites voucher VCH-2026-9336, which is absent from the voucher population.",
+    "amount": "32208.42"
+  },
+  {
+    "procedure": "ap.voucher_po_reference",
+    "reference": "VCH-2026-0041",
+    "detail": "Voucher cites purchase order PO-2026-8150, which is absent from the purchase-order population.",
+    "amount": "15176.22"
+  },
+  {
+    "procedure": "ap.voucher_po_reference",
+    "reference": "VCH-2026-0046",
+    "detail": "Voucher cites purchase order PO-2026-8997, which is absent from the purchase-order population.",
+    "amount": "2279.83"
+  },
+  {
+    "procedure": "ap.voucher_po_reference",
+    "reference": "VCH-2026-0060",
+    "detail": "Voucher cites purchase order PO-2026-8769, which is absent from the purchase-order population.",
+    "amount": "10008.57"
+  },
+  {
+    "procedure": "ap.document_chain",
+    "reference": "PAY-2026-0016",
+    "detail": "Payment of 28520.05 exceeds voucher VCH-2026-0016 of 24169.53 by 4350.52.",
+    "amount": "4350.52"
+  },
+  {
+    "procedure": "ap.document_chain",
+    "reference": "PAY-2026-0093",
+    "detail": "Payment of 38664.43 exceeds voucher VCH-2026-0093 of 32766.47 by 5897.96.",
+    "amount": "5897.96"
+  },
+  {
+    "procedure": "ap.document_chain",
+    "reference": "PAY-2026-0109",
+    "detail": "Payment of 27088.43 exceeds voucher VCH-2026-0109 of 22956.3 by 4132.13.",
+    "amount": "4132.13"
+  },
+  {
+    "procedure": "ap.document_chain",
+    "reference": "PAY-2026-0018",
+    "detail": "Payment dated 2026-08-12 precedes its voucher date of 2026-08-27.",
+    "amount": null
+  },
+  {
+    "procedure": "ap.document_chain",
+    "reference": "PAY-2026-0085",
+    "detail": "Payment dated 2026-04-25 precedes its voucher date of 2026-04-30.",
+    "amount": null
+  },
+  {
+    "procedure": "ap.segregation_of_duties",
+    "reference": "PAY-2026-0064",
+    "detail": "Alice Bergeron (E227) both entered and approved this payment.",
+    "amount": "13303.71"
+  },
+  {
+    "procedure": "ap.segregation_of_duties",
+    "reference": "PAY-2026-0049",
+    "detail": "Ken Nakashima (E231) both entered and approved this payment.",
+    "amount": "26428.44"
+  },
+  {
+    "procedure": "ap.segregation_of_duties",
+    "reference": "PAY-2026-0007",
+    "detail": "Ken Nakashima (E231) both entered and approved this payment.",
+    "amount": "10049.8"
+  },
+  {
+    "procedure": "ap.segregation_of_duties",
+    "reference": "PAY-2026-0055",
+    "detail": "Alice Bergeron (E227) both entered and approved this payment.",
+    "amount": "32208.42"
+  },
+  {
+    "procedure": "ap.segregation_of_duties",
+    "reference": "PAY-2026-0013",
+    "detail": "Alice Bergeron (E227) both entered and approved this payment.",
+    "amount": "21619.99"
+  },
+  {
+    "procedure": "cash.bank_clearing",
+    "reference": "PAY-2026-0052",
+    "detail": "Recorded payment has no corresponding bank clearing.",
+    "amount": "44804.65"
+  },
+  {
+    "procedure": "cash.bank_clearing",
+    "reference": "PAY-2026-0001",
+    "detail": "Recorded payment has no corresponding bank clearing.",
+    "amount": "16607.94"
+  },
+  {
+    "procedure": "cash.bank_clearing",
+    "reference": "PAY-2026-0116",
+    "detail": "Recorded payment has no corresponding bank clearing.",
+    "amount": "44587.96"
+  },
+  {
+    "procedure": "cash.bank_clearing",
+    "reference": "PAY-2026-0038",
+    "detail": "Recorded payment has no corresponding bank clearing.",
+    "amount": "20076.43"
+  },
+  {
+    "procedure": "cash.bank_clearing",
+    "reference": "PAY-2026-0006",
+    "detail": "Bank cleared 20787.69 against a recorded payment of 20084.72 \u2014 3.5%, outside tolerance, so the engine reports it.",
+    "amount": "702.97"
+  },
+  {
+    "procedure": "cash.bank_clearing",
+    "reference": "PAY-2026-0025",
+    "detail": "Bank cleared 16774.78 against a recorded payment of 16625.15 \u2014 0.9%, INSIDE the engine's 2% tolerance, so no finding is raised. Expected silence.",
+    "amount": "149.63"
+  },
+  {
+    "procedure": "gl.payment_posting",
+    "reference": "PAY-2026-0017",
+    "detail": "Payment never posted to the general ledger.",
+    "amount": "941.12"
+  },
+  {
+    "procedure": "gl.payment_posting",
+    "reference": "PAY-2026-0008",
+    "detail": "Payment never posted to the general ledger.",
+    "amount": "27912.77"
+  },
+  {
+    "procedure": "gl.payment_posting",
+    "reference": "PAY-2026-0058",
+    "detail": "Payment never posted to the general ledger.",
+    "amount": "45533.42"
+  },
+  {
+    "procedure": "gl.payment_posting",
+    "reference": "PAY-2026-0003",
+    "detail": "General ledger posts 1506.04 for a payment of 1577.0 \u2014 4.5%, outside tolerance.",
+    "amount": "70.96"
+  },
+  {
+    "procedure": "gl.payment_posting",
+    "reference": "PAY-2026-0004",
+    "detail": "General ledger posts 38295.87 for a payment of 40827.15 \u2014 6.2%, outside tolerance.",
+    "amount": "2531.28"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0043",
+    "detail": "Voucher paid with no evidence of goods received.",
+    "amount": "14815.8"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0116",
+    "detail": "Voucher paid with no evidence of goods received.",
+    "amount": "44587.96"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0020",
+    "detail": "Voucher paid with no evidence of goods received.",
+    "amount": "42146.78"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0010",
+    "detail": "Voucher paid with no evidence of goods received.",
+    "amount": "4634.92"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0104",
+    "detail": "Goods received value 7949.31 is short of the invoiced 10599.08 by 2649.77.",
+    "amount": "2649.77"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0009",
+    "detail": "Goods received value 3244.00 is short of the invoiced 4325.33 by 1081.33.",
+    "amount": "1081.33"
+  },
+  {
+    "procedure": "ap.three_way_receipt_match",
+    "reference": "VCH-2026-0078",
+    "detail": "Goods received value 18896.00 is short of the invoiced 25194.67 by 6298.67.",
+    "amount": "6298.67"
+  },
+  {
+    "procedure": "ap.split_payment_review",
+    "reference": "V1042",
+    "detail": "Five payments totalling 48995.00 to one vendor within nine days, each just below the $10,000 approval threshold.",
+    "amount": "48995.00"
+  },
+  {
+    "procedure": "ap.subledger_gl_balance_tie",
+    "reference": "2026-12-31",
+    "detail": "AP subledger of 2731569.42 does not tie to the general ledger control account; variance 18450.00.",
+    "amount": "18450.00"
+  },
+  {
+    "procedure": "forensic.closed_value_flow",
+    "reference": "VF ring via Bayview / Meridian",
+    "detail": "48,500.00 leaves Harborline as a consulting payment and returns through Meridian Holdings LC within four days.",
+    "amount": "48500.00"
+  }
+]

@@ -8,6 +8,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Documents } from "./Documents";
+import { Trace } from "./Trace";
 import { LESSONS } from "./lessons";
 import { displayOrder } from "./shuffle";
 import { Block, Lesson, Question } from "./types";
@@ -70,12 +71,14 @@ export function Learn({ route, standalone = false }: { route: string; standalone
         <span className="engagement-name">The audit, from acceptance to the report</span>
         <span className="spacer" />
         <a className="to-workbench" href="#/learn/documents">The documents</a>
+        <a className="to-workbench" href="#/learn/trace">Follow a number</a>
         <a className="to-workbench" href="#/learn/map">Course map</a>
         {!standalone && <a className="to-workbench" href="#/">Studio ↗</a>}
         {!standalone && <a className="to-workbench" href="/">Workbench ↗</a>}
       </header>
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />
+        : target === "trace" ? <Trace />
         : lesson ? <LessonPage lesson={lesson} progress={progress[lesson.slug]}
                                onUpdate={(c) => update(lesson.slug, c)} />
         : <Home progress={progress} />}
@@ -99,6 +102,7 @@ function Home({ progress }: { progress: Progress }) {
         <div className="hero-actions">
           <a className="primary" href={`#/learn/${next.n}`}>{done ? `Continue with lesson ${next.n}` : "Start lesson 1"}</a>
           <a className="secondary" href="#/learn/documents">See the documents</a>
+          <a className="secondary" href="#/learn/trace">Follow a number</a>
           <span className="muted">{done} of {LESSONS.length} lessons complete</span>
         </div>
         <div className="progress big"><div style={{ width: `${(100 * done) / LESSONS.length}%` }} /></div>

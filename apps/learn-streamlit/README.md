@@ -1,6 +1,6 @@
 # Learn the audit — Streamlit host
 
-Hosts Noesi's ten-lesson audit course, the documents page and the course map
+Hosts Noesi's ten-lesson audit course, the number-tracing walkthrough, the documents page and the course map
 on Streamlit. The pages are static; nothing here talks to a Noesi server.
 
 **Streamlit Community Cloud settings**

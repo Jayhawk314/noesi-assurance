@@ -17,6 +17,7 @@ the answer key is a consequence of the code rather than a claim about it.
 from __future__ import annotations
 
 import csv
+import json
 import random
 from datetime import date, timedelta
 from decimal import Decimal
@@ -499,6 +500,7 @@ def main() -> None:
                "Flow Date", "Relation"])
 
     write_answer_key(chains)
+    write_learning_ledger(chains)
 
 
 def write_answer_key(chains: list[dict]) -> None:
@@ -555,8 +557,82 @@ def write_answer_key(chains: list[dict]) -> None:
         f"- GL postings: {len([c for c in chains if not c['skip_gl']])}",
         "",
     ]
-    path.write_text("\n".join(lines), encoding="utf-8")
+    appendix = (path.parent / "REVISION-KEY.md").read_text(encoding="utf-8")
+    path.write_text("\n".join(lines) + "\n" + appendix, encoding="utf-8")
+    planted = [{**item, "amount": (str(item["amount"])
+                                    if item["amount"] is not None else None)}
+               for item in FINDINGS]
+    (path.parent / "PLANTED-EXCEPTIONS.json").write_text(
+        json.dumps(planted, indent=2) + "\n", encoding="utf-8")
     print(f"\n  instructor/ANSWER-KEY.md     {len(FINDINGS)} planted exceptions")
+
+
+def write_learning_ledger(chains: list[dict]) -> None:
+    """A balanced miniature ledger for one case purchase, clearly illustrative.
+
+    Harborline's supplied GL contains payment-side AP postings only. This
+    teaching ledger therefore models what booking the full bill would do; it
+    must never be presented as observed Harborline GL or a real statement.
+    """
+    chain = next(c for c in chains if c["voucher_number"] == "VCH-2026-0009")
+    opening_cash = Decimal("10000.00")
+    billed = chain["voucher_amount"]
+    accepted = chain["received_amount"]
+    paid = chain["payment_amount"]
+    closing_cash = opening_cash - paid
+    closing_ap = billed - paid
+    assert closing_cash >= 0 and closing_ap == 0
+    fmt = lambda value: f"{value:.2f}"
+    path = Path(__file__).resolve().parent / "learning" / "trace-ledger.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    scenario = {
+        "label": "Illustrative isolated ledger, not Harborline's complete books",
+        "assumption": "The full voucher was booked as security-services expense and AP; the receipt difference remains unresolved.",
+        "source": {
+            "purchase_order": chain["po_number"],
+            "receipt": chain["receipt_number"],
+            "voucher": chain["voucher_number"],
+            "payment": chain["payment_number"],
+            "ordered": fmt(chain["po_amount"]),
+            "accepted": fmt(accepted),
+            "billed": fmt(billed),
+            "paid": fmt(paid),
+            "unresolved_difference": fmt(billed - accepted),
+        },
+        "journal": [
+            {"event": "Opening teaching balance", "date": "2026-01-01",
+             "lines": [
+                 {"account": "1010 Cash", "debit": fmt(opening_cash), "credit": ""},
+                 {"account": "3000 Opening equity", "debit": "", "credit": fmt(opening_cash)},
+             ]},
+            {"event": "Model the full invoice", "date": chain["voucher_date"].isoformat(),
+             "lines": [
+                 {"account": "6100 Security-services expense", "debit": fmt(billed), "credit": ""},
+                 {"account": "2000 Accounts Payable", "debit": "", "credit": fmt(billed)},
+             ]},
+            {"event": "Model the bill payment", "date": chain["payment_date"].isoformat(),
+             "lines": [
+                 {"account": "2000 Accounts Payable", "debit": fmt(paid), "credit": ""},
+                 {"account": "1010 Cash", "debit": "", "credit": fmt(paid)},
+             ]},
+        ],
+        "trial_balance": [
+            {"account": "1010 Cash", "debit": fmt(closing_cash), "credit": ""},
+            {"account": "2000 Accounts Payable", "debit": "", "credit": ""},
+            {"account": "6100 Security-services expense", "debit": fmt(billed), "credit": ""},
+            {"account": "3000 Opening equity", "debit": "", "credit": fmt(opening_cash)},
+        ],
+        "statement_excerpt": {
+            "income_statement": {"security_services_expense": fmt(billed),
+                                 "net_loss": fmt(billed)},
+            "balance_sheet": {"cash": fmt(closing_cash), "accounts_payable": fmt(closing_ap),
+                              "opening_equity": fmt(opening_cash),
+                              "current_loss": fmt(billed),
+                              "ending_equity": fmt(opening_cash - billed)},
+        },
+    }
+    path.write_text(json.dumps(scenario, indent=2) + "\n", encoding="utf-8")
+    print(f"  learning/trace-ledger.json   1 illustrative ledger")
 
 
 if __name__ == "__main__":

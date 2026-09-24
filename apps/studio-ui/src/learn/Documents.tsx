@@ -124,6 +124,7 @@ export function Documents() {
 
       <div className="lesson-foot">
         <a className="secondary" href="#/learn">← Course</a>
+        <a className="secondary" href="#/learn/trace">Follow $4,325.33 →</a>
         <a className="secondary" href="#/learn/6">Lesson 6: Accounts payable →</a>
       </div>
     </main>

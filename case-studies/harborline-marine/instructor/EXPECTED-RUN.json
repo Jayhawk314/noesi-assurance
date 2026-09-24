@@ -1,0 +1,76 @@
+{
+  "description": "Reviewed Harborline engine outcomes with split_threshold=10000 and split_window_days=9. Independent of the case generator and engine; update only after reviewing a methodology or case change.",
+  "findings": {
+    "ap.document_chain": {
+      "segregation_of_duties/payment_approval": "TENSION",
+      "PAY-2026-0007": "TENSION",
+      "PAY-2026-0013": "ORPHAN",
+      "PAY-2026-0016": "TENSION",
+      "PAY-2026-0018": "TENSION",
+      "PAY-2026-0041": "ORPHAN",
+      "PAY-2026-0046": "ORPHAN",
+      "PAY-2026-0049": "TENSION",
+      "PAY-2026-0055": "ORPHAN",
+      "PAY-2026-0060": "ORPHAN",
+      "PAY-2026-0064": "TENSION",
+      "PAY-2026-0085": "TENSION",
+      "PAY-2026-0093": "TENSION",
+      "PAY-2026-0100": "ORPHAN",
+      "PAY-2026-0109": "TENSION"
+    },
+    "ap.payment_voucher_reference": {
+      "PAY-2026-0013": "ORPHAN",
+      "PAY-2026-0055": "ORPHAN",
+      "PAY-2026-0100": "ORPHAN"
+    },
+    "ap.segregation_of_duties": {
+      "PAY-2026-0007": "CLASH",
+      "PAY-2026-0013": "CLASH",
+      "PAY-2026-0049": "CLASH",
+      "PAY-2026-0055": "CLASH",
+      "PAY-2026-0064": "CLASH"
+    },
+    "ap.split_payment_review": {"V1042": "TENSION"},
+    "ap.subledger_gl_balance_tie": {"2026-12-31": "CLASH"},
+    "ap.three_way_receipt_match": {
+      "VCH-2026-0009": "CLASH",
+      "VCH-2026-0010": "ORPHAN",
+      "VCH-2026-0020": "ORPHAN",
+      "VCH-2026-0041": "ORPHAN",
+      "VCH-2026-0043": "ORPHAN",
+      "VCH-2026-0046": "ORPHAN",
+      "VCH-2026-0060": "ORPHAN",
+      "VCH-2026-0078": "CLASH",
+      "VCH-2026-0104": "CLASH",
+      "VCH-2026-0116": "ORPHAN"
+    },
+    "ap.vendor_relational_twins": {
+      "V1038/V1039": "TENSION",
+      "V1040/V1041": "TENSION",
+      "V1042/V1043": "TENSION"
+    },
+    "ap.voucher_po_reference": {
+      "VCH-2026-0041": "ORPHAN",
+      "VCH-2026-0046": "ORPHAN",
+      "VCH-2026-0060": "ORPHAN"
+    },
+    "cash.bank_clearing": {
+      "PAY-2026-0001": "ORPHAN",
+      "PAY-2026-0006": "CLASH",
+      "PAY-2026-0038": "ORPHAN",
+      "PAY-2026-0052": "ORPHAN",
+      "PAY-2026-0116": "ORPHAN"
+    },
+    "forensic.closed_value_flow": {"return_to_harborline": "TENSION"},
+    "gl.payment_posting": {
+      "PAY-2026-0003": "CLASH",
+      "PAY-2026-0004": "CLASH",
+      "PAY-2026-0008": "ORPHAN",
+      "PAY-2026-0017": "ORPHAN",
+      "PAY-2026-0058": "ORPHAN"
+    }
+  },
+  "expected_silence": {
+    "cash.bank_clearing": ["PAY-2026-0025"]
+  }
+}

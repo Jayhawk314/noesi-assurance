@@ -21,5 +21,6 @@ html = html.replace(/<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g,
 html = html.replace(/<title>[^<]*<\/title>/, "<title>Learn the audit — Noesi</title>");
 
 if (/src="\/studio\/|href="\/studio\//.test(html)) throw new Error("an asset was not inlined");
-writeFileSync(out, html);
+// Vite's HTML may carry CRLF on Windows; keep the committed artifact stable.
+writeFileSync(out, html.replace(/\r\n?/g, "\n"));
 console.log(`wrote ${out} (${(html.length / 1024).toFixed(0)} KB)`);
