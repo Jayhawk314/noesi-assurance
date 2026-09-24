@@ -499,12 +499,289 @@ export const FRAUD_LESSONS: Lesson[] = [
       tryIt: "Start with --demo and run all four payment procedures. Compare Noesi's findings with your worksheet, then look for payments that appear in more than one.",
     },
   },
+
+  {
+    n: 5,
+    slug: "fraud-following-one-person",
+    title: "Following one person",
+    phase: "Fraud",
+    question: "When do separate exceptions become a case worth investigating, and what do you do next?",
+    minutes: 35,
+    objectives: [
+      "Explain predication: what is enough to open a fraud examination, and why it is not an accusation",
+      "Use the fraud theory approach: form a hypothesis from the data, test it, revise it",
+      "Build a transaction timeline for one person across orders, bills, payments, bank and ledger",
+      "Name the documentary evidence to request next, and how to keep it reliable (chain of custody)",
+    ],
+    sections: [
+      {
+        heading: "From exceptions to a pattern",
+        blocks: [
+          { p: "Lessons F3 and F4 produced a list of exceptions, each tested separately: a missing voucher here, a self-approved payment there. A list like that is sorted by **test**. An investigator sorts it again by **person**, **vendor** and **date**, because a scheme is run by someone, over time, and it leaves traces in more than one test." },
+          { p: "Sorting by person does two things. It shows whether one person's exceptions **fit together** into one way of taking money. It also shows the **comparison group**: what everyone else in the same job did. A pattern only means something against that background." },
+          { watch: "Sorting by person is not suspecting that person. You are testing whether the exceptions share a cause. The same sort can clear someone as easily as it points at them." },
+        ],
+      },
+      {
+        heading: "Predication and the fraud theory approach",
+        blocks: [
+          { terms: [
+            ["Predication", "The facts that would lead a reasonable, trained and prudent professional to believe a fraud has occurred, is occurring or will occur. It is the threshold for **opening** a fraud examination. It is not proof, and it is never announced as an accusation."],
+            ["Fraud theory approach", "Analyze the available data; form a hypothesis of what could have happened (the worst case); test it; revise or reject it as evidence comes in. The hypothesis names a scheme, not a guilty person."],
+          ] },
+          { p: "Fraud examiners work **from the general to the specific**: documents first, then neutral witnesses, then people who may be involved, and the person suspected last. Documents do not change their story when someone learns they are being looked at." },
+          { p: "The two hats from Lesson F1 matter here. A **financial-statement auditor** who finds a possible fraud does not investigate it to a conclusion. Under AU-C 240 they evaluate what it means for the audit, including whether management is involved, and **communicate** it to an appropriate level of management, generally at least one level above the people involved, and to those charged with governance when it is material or involves management. A **fraud examiner**, engaged separately, takes the case from predication to a conclusion." },
+        ],
+      },
+      {
+        heading: "Evidence that holds up",
+        blocks: [
+          { list: [
+            "**Documentary evidence** is usually the strongest in fraud cases: it was created at the time, by the process, before anyone knew it would matter.",
+            "**Third-party records** (bank statements, cleared check images, vendor statements) are stronger than the client's own records, because the client did not create them (AU-C 500).",
+            "**Originals over copies.** Get the original, or a copy whose source you can prove. For an electronic file, record where it came from and a fingerprint of its contents.",
+            "**Chain of custody**: a record of who obtained each item, when, from where, and who has held it since. A document nobody can account for can be challenged, however damning it looks.",
+            "**Do not alter anything.** Mark up copies, never the evidence itself.",
+          ] },
+        ],
+      },
+      {
+        heading: "Harborline: one clerk's trail",
+        blocks: [
+          { harborline: "AP clerk **E227 Alice Bergeron** entered 20 of the year's 123 payments, 427,089.28 in total. Seventeen were approved by someone else. Three were approved by E227 herself, and on those three she **also approved the purchase order** and both entered and approved the voucher. Apart from these three and two approved by E231, every purchase order is approved by one of the four approvers (E102, E108, E115, E119). On these three purchases one clerk controlled every step after the buyer's order." },
+          { table: {
+            head: ["Purchase", "Order (buyer / approver)", "Receipt", "Voucher (E227 / E227)", "Payment (E227 / E227)", "What does not fit"],
+            rows: [
+              ["PO-2026-0013, V1006 Gulfstream Propulsion, 21,619.99", "May 31 (E312 / **E227**)", "June 8, full amount", "VCH-2026-0013, June 14", "PAY-2026-0013, July 5; bank July 7", "The payment cites **VCH-2026-9338**, which is not in the voucher file. VCH-2026-0013 itself has **no payment**."],
+              ["PO-2026-0064, V1022 Windward Chandlery, 13,303.71", "Aug 16 (E318 / **E227**)", "Sept 3, full amount", "VCH-2026-0064, Sept 6", "PAY-2026-0064, Sept 13; bank Sept 15", "Nothing but the approvals: order, receipt, bill and payment agree."],
+              ["PO-2026-0055, V1029 Estuary Environmental Testing, 32,208.42", "Nov 9 (E318 / **E227**)", "Nov 28, full amount", "VCH-2026-0055, Dec 5", "PAY-2026-0055, **Jan 8, 2027**; bank Jan 12", "The payment cites **VCH-2026-9336**, not in the voucher file. VCH-2026-0055 has **no payment**. Paid after year end."],
+            ],
+          } },
+          { harborline: "The shape repeats. Twice, E227 paid the right vendor the right amount, but **against a voucher number that does not exist** in the file, while the real voucher for the same purchase **stayed unpaid**. In the client's corrected file (Assignment 11), 9338 appears: same order, same amount, dated June 21, a week after 0013, also entered and approved by E227. 9336 never appears. An open, already-paid voucher is a bill that could be **paid a second time**, or that overstates what is owed at year end." },
+          { harborline: "**The comparison group.** E231 Ken Nakashima has the same self-approved chains (orders, vouchers and payments on PO-2026-0007 and 0049), but his payments cite their real vouchers. And one other payment has the phantom-voucher shape: PAY-2026-0100 (45,464.75 to V1038, one of the look-alike vendors) cites VCH-2026-9382 while VCH-2026-0100 stays unpaid. It was entered by a different clerk, E218, and approved by E102. So the shape is not only about one person." },
+          { harborline: "**The rest of E227's trail**, from earlier lessons. She entered VCH-2026-0043, which was paid with no receipt, and PAY-2026-0038, which never cleared the bank. Both were approved by other people. She also entered payments to two look-alike vendors (PAY-2026-0087 to V1042, PAY-2026-0088 to V1039), again approved by others. Two of her three self-approved payments fall in the supervisor gap. PAY-2026-0055 came **after** the new supervisor started." },
+          { watch: "Is this predication? Probably enough to justify a closer look at these purchases, and enough for an auditor to communicate the matter. It is not a finding of fraud. Innocent readings exist: a system that re-numbers vouchers on edit, a clerk covering an empty approver role on instruction, a voucher-number typo. The evidence below is what separates them." },
+        ],
+      },
+      {
+        heading: "What to request next",
+        blocks: [
+          { p: "Each request tests one innocent reading against one fraudulent one. Ask in the order an examiner would: records first, people last." },
+          { list: [
+            "The **vendor's invoices and statements** for PO-2026-0013 and 0055, straight from Gulfstream and Estuary Environmental Testing: how many invoices did they send, and how many payments do they show received?",
+            "The **cleared check images** or electronic payment details for CHK-20013 and CHK-20055 from the bank: who was paid, and into which account?",
+            "The ERP **audit log** for VCH-2026-0013, 0055 and 9338: who created, edited or deleted voucher records, and when. Where did 9336 come from?",
+            "The **approval authority** in force: was E227 authorized to approve purchase orders or payments at any point, and by whom?",
+            "Whether **VCH-2026-0013 and 0055 are still open** in the year-end AP subledger, and whether either was paid in 2027.",
+          ] },
+          { p: "Keep a custody log for each item: what it is, who gave it to you, when, and where the original is. In Noesi, upload files through Sources & Mappings so each one is stored unaltered with its SHA-256 fingerprint." },
+        ],
+      },
+    ],
+    standards: [
+      ["AU-C 240", "Evaluating a possible fraud, considering management involvement, and communicating to management and those charged with governance"],
+      ["AU-C 500", "Reliability of audit evidence: external over internal, documents over oral, originals over copies"],
+      ["CFE exam 2026, section 2", "Planning and conducting a fraud examination; basic principles of evidence (7%); collecting evidence (11%)"],
+      ["ACFE", "Predication and the fraud theory approach, the examiner's starting point for any investigation"],
+    ],
+    check: [
+      { q: "What is predication?",
+        options: ["Proof that fraud occurred", "The facts that would lead a reasonable, trained professional to believe fraud may have occurred, which justify opening an examination", "A confession", "A court's finding"],
+        answer: 1,
+        why: "Predication is the threshold for starting, not the conclusion. An examination without it is a fishing expedition; one that treats it as proof has skipped the work." },
+      { q: "In what order does a fraud examiner usually gather evidence?",
+        options: ["Interview the suspect first, while memories are fresh", "Documents first, then neutral witnesses, then possible participants, and the suspect last", "Only interviews", "Whatever order the client prefers"],
+        answer: 1,
+        why: "Working from the general to the specific means the documents are secured before anyone involved knows to change or explain them." },
+      { q: "PAY-2026-0013 cites a voucher that is not in the file, while VCH-2026-0013 for the same purchase is unpaid. What is the strongest single document to request first?",
+        options: ["A statement from E227", "The vendor's own invoices and statement of payments received", "A management representation letter", "The engagement letter"],
+        answer: 1,
+        why: "The vendor's records come from outside the company and say how many invoices were sent and how many payments arrived. That separates a numbering problem from a second bill." },
+      { q: "An auditor finds these facts during a financial-statement audit. What must the auditor do?",
+        options: ["Investigate to a conclusion and name the person", "Evaluate the effect on the audit and communicate the matter to an appropriate level of management, and to governance when required", "Ignore it; fraud is not an audit matter", "Report it to the police"],
+        answer: 1,
+        why: "AU-C 240 requires evaluating and communicating possible fraud. Concluding whether fraud occurred is not the auditor's role; that is for a separate investigation." },
+      { q: "E231 also approved his own orders, vouchers and payments, but his payments cite their real vouchers. How does that help the analysis?",
+        options: ["It proves E231 is involved too", "It is a comparison group: self-approval alone happens, but the phantom-voucher shape is what sets E227's two payments apart", "It clears E227", "It is irrelevant"],
+        answer: 1,
+        why: "A pattern only means something against the background. E231 shows the control failure without the phantom voucher. PAY-2026-0100 shows the phantom voucher without E227. Both keep the hypothesis honest." },
+    ],
+    task: {
+      title: "Build E227's timeline and your evidence request",
+      intro: "Use `purchase_orders.csv`, `goods_receipts.csv`, `vouchers.csv`, `payments.csv`, `bank.csv` and `gl.csv` from `case-studies/harborline-marine/data/`, and `revision/vouchers_revised.csv`.",
+      steps: [
+        "Filter every file for rows where E227 appears as creator or approver. Put them on one sheet, sorted by date, with the file each row came from.",
+        "For each purchase E227 approved, line up order, receipt, voucher, payment, bank and ledger, and mark each step that does not fit.",
+        "Do the same for E231 and for PAY-2026-0100 as comparison cases. Write one sentence on what E227's trail has that theirs does not.",
+        "Write your hypothesis as a scheme, not a person (for example, \"payments against unrecorded voucher numbers leave real vouchers open to be paid again\"), and one innocent explanation.",
+        "List five documents you would request, who holds each one, and which explanation each would confirm or rule out.",
+      ],
+      deliver: "A one-page timeline, a hypothesis with its innocent alternative, and an evidence request list with a custody column.",
+    },
+    noesi: {
+      coverage: "partial",
+      summary: "Noesi finds each exception on this trail and keeps the evidence unaltered. It does not gather findings by person, build a timeline, or judge what the pattern means.",
+      does: [
+        "`ap.segregation_of_duties` flags the three self-approved payments; `ap.payment_voucher_reference` flags PAY-2026-0013 and 0055 as citing vouchers not in the file. Its purpose is stated as \"Determine whether every recorded payment references an observed voucher.\"",
+        "Files you upload are stored unaltered and identified by their **SHA-256** fingerprint, and every action is written to a **hash-chained journal**: who did what, and when. That is a chain of custody for the audit's own evidence.",
+        "A disposition of **follow up** with a note keeps a finding open while you wait for the vendor or the bank, and the note travels with the finding into the SAD.",
+      ],
+      where: ["Workbench → Runs & Findings", "Workbench → Sources & Mappings", "Workbench → What Changed (for VCH-2026-9338)"],
+      doesNot: [
+        "It has no view by employee. You build the person-level timeline yourself.",
+        "It does not notice that an unpaid voucher and a payment against a missing voucher share a vendor and amount. That match is yours.",
+        "It never concludes intent and never names anyone as a suspect.",
+      ],
+      tryIt: "Start with --demo, run the eleven procedures, and write down every finding reference that involves E227. Compare the list with your timeline: which of your rows did no procedure flag?",
+    },
+  },
+
+  {
+    n: 6,
+    slug: "fraud-corruption-kickbacks",
+    title: "Corruption and kickbacks in purchasing",
+    phase: "Fraud",
+    question: "How do bribes and conflicts of interest show up in payables data, and what can the data not show?",
+    minutes: 30,
+    objectives: [
+      "Describe the four kinds of corruption on the Fraud Tree: conflicts of interest, bribery, illegal gratuities and economic extortion",
+      "Explain how a kickback is funded, and why the bribe itself rarely appears in the victim's books",
+      "Recognize the red flags of corruption in purchasing",
+      "Weigh innocent and fraudulent explanations for an overpayment, and name the evidence that decides",
+    ],
+    sections: [
+      {
+        heading: "Corruption: the scheme runs through a deal",
+        blocks: [
+          { p: "In corruption an employee misuses their influence in a business deal to gain a benefit, for themselves or someone else, against their duty to the employer. The Fraud Tree lists four kinds:" },
+          { terms: [
+            ["Conflicts of interest", "An employee has an undisclosed interest in a deal, such as part ownership of a supplier, and acts on it. The purchasing version is steering orders, or approving higher prices, for a supplier the employee benefits from."],
+            ["Bribery", "Offering or accepting something of value to influence a business decision. In purchasing, the two classic forms are **kickbacks** and **bid rigging**."],
+            ["Illegal gratuities", "Something of value given **after** a decision, as a reward, with no agreement beforehand. It is still a problem, because it shapes the next decision."],
+            ["Economic extortion", "An employee demands payment from a vendor, for example \"pay me or lose the contract\"."],
+          ] },
+          { p: "Corruption was in **45%** of the cases in the ACFE's 2026 report, with a median loss of **$150,000**, so it is common as well as costly. It is also often found together with a billing scheme, because the bribe has to be paid for somehow." },
+        ],
+      },
+      {
+        heading: "How a kickback is funded",
+        blocks: [
+          { steps: [
+            "A vendor and an insider (a buyer, an approver, a clerk) agree on a scheme.",
+            "The vendor's invoices are inflated, or the company pays more than the invoice, or it buys more than it needs.",
+            "The company pays. The excess leaves the company's bank account **as an ordinary vendor payment**.",
+            "The vendor passes part of the excess to the insider, in cash, a gift, a side payment from its own account, or a job for a relative.",
+          ] },
+          { p: "Step 4 happens **outside the victim's books**. The company's records can show the overpayment in step 3, never the bribe in step 4. That is why corruption is hard to prove from payables data: the data shows the funding, and the benefit is somewhere else." },
+          { watch: "Bid rigging needs bid records: who was invited, who bid, how much, who won. Conflicts of interest need relationship data: employee addresses, bank accounts, ownership disclosures. Harborline's files have **neither**. This lesson can teach the overpayment side; the rest you would need from the client or an investigator." },
+        ],
+      },
+      {
+        heading: "Red flags in purchasing",
+        blocks: [
+          { list: [
+            "Payments **above the invoice**, or invoices above the order or the market price, with no explanation.",
+            "One buyer or approver who consistently favors one vendor, especially a new or sole-source one.",
+            "Contracts split, re-scoped or extended to avoid competitive bidding; bids that come in just under the winner, or always in the same order.",
+            "A vendor that is paid faster than the others, or whose problems are always excused.",
+            "An employee's lifestyle beyond their salary, or a refusal to take vacation or share duties.",
+            "Complaints from other vendors that they cannot win work.",
+          ] },
+          { p: "Most of these are **not in the accounting data**. They come from inquiries, bid files, tips and observation. That is one reason SAS No. 151 asks auditors to understand the entity's whistleblower program." },
+        ],
+      },
+      {
+        heading: "Harborline: three payments of 18% too much",
+        blocks: [
+          { harborline: "Three payments exceed their vouchers, and in each case the order, the receipt and the voucher all agree with each other. The payment is the only record that is higher:" },
+          { table: {
+            head: ["Payment", "Vendor", "Voucher", "Paid", "Excess", "Entered / approved (payment)", "Buyer (order)"],
+            rows: [
+              ["PAY-2026-0109, Mar 7", "V1008 Inlet Hydraulics", "22,956.30", "27,088.43", "4,132.13", "E204 / E102", "E318"],
+              ["PAY-2026-0016, Apr 24", "V1022 Windward Chandlery", "24,169.53", "28,520.05", "4,350.52", "E231 / E102", "E318"],
+              ["PAY-2026-0093, Aug 3", "V1013 Northpoint Trailer Manufacturing", "32,766.47", "38,664.43", "5,897.96", "E204 / E119", "E312"],
+            ],
+          } },
+          { harborline: "Each excess is **exactly 18.000%** of its voucher. The bank cleared the full paid amount, and the ledger posted it, so the money really left. No one person appears on all three: buyer E318 and approver E102 each appear on two, but E318 raised 43 of the year's 123 orders and E102 approved 38 of the 123 payments, so that overlap is weak on its own." },
+          { watch: "An identical percentage three times, across three vendors and two clerks, is not chance. But a **systematic** cause can be innocent as easily as fraudulent: a surcharge or tax rule applied in the payment run, or a system setting. The same 18% could also be an agreed kickback rate. The pattern tells you **where** to look, not what you will find." },
+        ],
+      },
+      {
+        heading: "Explanations and the evidence that decides",
+        blocks: [
+          { table: {
+            head: ["Explanation", "Kind", "Evidence that would confirm or rule it out"],
+            rows: [
+              ["A charge billed separately (freight, surcharge, tax) that never reached the voucher", "Innocent", "The vendor's full invoice and statement; the payment-run settings; other payments to the same vendors"],
+              ["A payment-system rule or keying template that adds 18%", "Innocent (a control failure)", "The ERP configuration and change log; whether other clerks' payments show the same uplift"],
+              ["The vendor refunded the excess, or holds it as a credit", "Innocent, but a recovery is owed", "A vendor statement showing a credit balance; a refund in the bank records"],
+              ["The vendor passes the excess to an insider", "Fraudulent (kickback)", "The vendor's records, obtained by an investigator; employee–vendor relationships; lifestyle and bank evidence, all outside the company's books"],
+            ],
+          } },
+          { p: "Notice how many of the answers come from **the vendor**. A vendor statement is cheap to request and separates the first three explanations quickly. Only if the excess is not with the vendor as a credit, and no rule explains it, does the kickback hypothesis get stronger." },
+        ],
+      },
+    ],
+    standards: [
+      ["ACFE Fraud Tree", "Corruption: conflicts of interest (purchasing and sales schemes), bribery (invoice kickbacks, bid rigging), illegal gratuities, economic extortion"],
+      ["CFE exam 2026, section 1", "Corruption (6%); procurement fraud (8%)"],
+      ["ACFE Report to the Nations 2026", "Corruption in 45% of cases, median loss $150,000"],
+      ["AU-C 240", "Fraud risk factors and the response to identified misstatements that may be the result of fraud"],
+    ],
+    check: [
+      { q: "A buyer approves a vendor's contract and, a month later, receives expensive tickets from the vendor with no agreement beforehand. Which kind of corruption?",
+        options: ["Economic extortion", "Illegal gratuity", "Bid rigging", "Conflict of interest"],
+        answer: 1,
+        why: "Something of value given after the decision, as a reward, without a prior agreement, is an illegal gratuity. With an agreement beforehand, it would be bribery." },
+      { q: "Why is a kickback hard to prove from the victim company's payables data?",
+        options: ["Kickbacks are always small", "The bribe is paid by the vendor to the insider outside the company's books; the data shows only the overpayment that funds it", "Payables data is never complete", "Kickbacks are legal"],
+        answer: 1,
+        why: "The company's records show money going to the vendor. What the vendor does with it afterwards is in the vendor's and the insider's records, which an investigator has to obtain." },
+      { q: "Three payments are each exactly 18% above their vouchers, across three vendors and two clerks. What is the best first reading?",
+        options: ["A kickback ring, proven", "A systematic cause, innocent or not; look for what the three have in common (a rule, a person, a setting) and ask the vendors", "Random keying errors", "Nothing; each is below performance materiality"],
+        answer: 1,
+        why: "Identical percentages point to a rule rather than chance. Whether that rule is a system setting or an agreed rate is exactly what the evidence has to decide." },
+      { q: "Which Harborline data would you need to test for bid rigging?",
+        options: ["The payments file", "Bid records: invitations, bids received, amounts and winners; Harborline's files have none", "The bank file", "The general ledger"],
+        answer: 1,
+        why: "Bid rigging shows in the bidding, not in the payment. Without bid records the test cannot be done from this data, and the workpaper should say so." },
+      { q: "What is the cheapest, fastest request that separates the innocent explanations for the 18% excess?",
+        options: ["Interview the buyers", "Vendor statements for the three vendors, showing invoices, payments received and any credit balance", "A forensic image of every laptop", "A new engagement letter"],
+        answer: 1,
+        why: "A vendor statement shows whether the vendor billed a separate charge, holds the excess as a credit, or refunded it. It is external evidence, and it takes one letter per vendor." },
+    ],
+    task: {
+      title: "Two innocent and two fraudulent explanations for PAY-2026-0016",
+      intro: "Use `payments.csv`, `vouchers.csv`, `purchase_orders.csv`, `goods_receipts.csv` and `bank.csv` from `case-studies/harborline-marine/data/`.",
+      steps: [
+        "For PAY-2026-0016, line up the order, receipt, voucher, payment and bank amounts. Compute the excess and its percentage of the voucher.",
+        "Find every other payment in the file where the payment exceeds its voucher. Compute the same percentage for each. What do they have in common, and what do they not?",
+        "List every payment to V1022 Windward Chandlery. Does the vendor appear elsewhere in this track (Lesson F5)? Does that change your view, and why or why not?",
+        "Write two innocent and two fraudulent explanations for PAY-2026-0016's excess.",
+        "For each explanation, name the one document that would confirm or rule it out, and who holds it: the client, the vendor, the bank, or only an investigator.",
+      ],
+      deliver: "A one-page analysis: the three overpayments side by side, four explanations, and the evidence for each.",
+    },
+    noesi: {
+      coverage: "partial",
+      summary: "Noesi finds the overpayments that could fund a kickback. It has no test for bid rigging or conflicts of interest, because it has no bid or relationship data to test.",
+      does: [
+        "`ap.document_chain` flags each payment that exceeds its voucher, with the amounts. Its stated limit: \"Document-chain coherence does not authenticate any document.\"",
+        "`cash.bank_clearing` and `gl.payment_posting` confirm the overpaid amounts actually left the bank and were posted, so the excess is real money, not a recording error.",
+      ],
+      where: ["Workbench → Runs & Findings", "Workbench → 📖 manual, chapter 5"],
+      doesNot: [
+        "It does not compute the excess as a percentage, and does not notice that three excesses share the same rate. That is your analysis.",
+        "It has **no bid-rigging, conflict-of-interest or vendor-pricing test**, and no employee–vendor relationship data.",
+        "It cannot see anything outside the company's books, which is where a bribe is paid.",
+      ],
+      tryIt: "Start with --demo, run ap.document_chain, and filter its findings to the overpayments. Add the percentage column yourself in Excel and compare.",
+    },
+  },
 ];
 
 /** Planned lessons, shown on the track page until they are written. */
 export const FRAUD_COMING: [string, string][] = [
-  ["F5", "Following one person"],
-  ["F6", "Corruption and kickbacks in purchasing"],
   ["F7", "Following the money"],
   ["F8", "Data analysis for fraud detection"],
   ["F9", "Preventing it next time"],

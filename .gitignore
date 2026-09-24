@@ -20,5 +20,9 @@ tests/golden/bundles/rockwood_tables.json
 node_modules/
 apps/workbench-ui/dist/
 
+# Licensed practice case (copyrighted): case documents, keyed-in data, answers
+# and the filled-in friction log stay local — never publish
+oceanview/
+
 # Local workbench runtime used for video capture (control.db, keys, vault) — never publish
 video/**/runtime/

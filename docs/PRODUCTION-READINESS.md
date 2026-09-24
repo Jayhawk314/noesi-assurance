@@ -88,6 +88,32 @@ completes.
   material should map them to standards vocabulary (audit evidence,
   exception, scope limitation) to survive a technical reviewer's reading.
 
+## 8. Audit coverage
+
+Sections 1–6 are about deploying what exists; this section is about what an
+audit needs that Noesi does not do at all. Today the Workbench runs eleven
+registered procedures (`procedures_ap/engines.py`, `EXECUTORS`), all in
+payables, cash disbursements and payment posting. The order below is a
+first guess; the friction log from an integrated practice case
+([learn/FRICTION-LOG-TEMPLATE.md](learn/FRICTION-LOG-TEMPLATE.md)) is meant
+to re-rank it by what a full audit actually kept needing.
+
+| # | Item | Today | Deployment requires |
+|---|---|---|---|
+| 8.1 | **[P1] Journal-entry testing** | Not modeled | The AU-C 240 response to management override, required on every audit: GL population completeness, selection criteria (unusual users, times, accounts, round amounts, post-close entries), and a documented rationale per selected entry |
+| 8.2 | **[P1] Revenue & receivables** | Not modeled | Procedures for the presumed revenue fraud risk (AU-C 240): sales cutoff, receivable aging, confirmation tracking (AU-C 505) with alternative procedures for non-responses |
+| 8.3 | **[P1] Analytical procedures** | Not modeled | Preliminary and final analytics (AU-C 315 / 520): expectations, ratios and trends against prior period, with a threshold for investigation and the explanation recorded |
+| 8.4 | **[P1] Sampling** | Every procedure tests the whole population | Sample selection and evaluation (AU-C 530) for populations that cannot be tested in full: sample size, selection method, projected misstatement |
+| 8.5 | **[P2] Inventory** | Not modeled | Count observation records, test counts, and price testing (AU-C 501) |
+| 8.6 | **[P1] Duplicate-invoice test** | `ap_checks.duplicates()` exists but only the Rockwood golden path uses it; it is not a registered Workbench procedure, so Harborline's VCH-9338 has to be found by hand | Register it as a contract + engine (vendor, invoice number, amount, date proximity) with the same receipt model as the other eleven |
+| 8.7 | **[P2] Vendor identity beyond names** | `ap.vendor_relational_twins` compares vendor names only for identity twins | Add tax ID, address and bank-account matches between vendors, and between vendors and the employee master |
+| 8.8 | **[P2] Full bank reconciliation** | `cash.bank_clearing` checks payments against the bank feed | A bank reconciliation: book balance to bank balance with outstanding items and deposits in transit, not only disbursement clearing |
+| 8.9 | **[P2] Fraud-risk documentation** | Not modeled | Records of the engagement-team fraud discussion and the management / TCWG inquiries AU-C 240 requires, linked into risk assessment |
+
+Related items tracked above, not repeated here: acceptance, independence and
+engagement letter (4.1); management letter / control deficiencies, AU-C 265
+(4.3); QuickBooks General Ledger recipe and Excel workpaper output (6.4).
+
 ---
 
 ## Already deployment-grade (keep, do not regress)

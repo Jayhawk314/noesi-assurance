@@ -1,8 +1,8 @@
 # Fraud in payables — a CFE-aligned Learn track (outline for review)
 
-*Drafted 2026-09-23 and approved with the recommendations below. F1–F4
+*Drafted 2026-09-23 and approved with the recommendations below. F1–F6
 are written (`apps/studio-ui/src/learn/lessons-fraud.ts`, route
-`/studio/#/learn/fraud`); F5–F9 are planned. The format follows
+`/studio/#/learn/fraud`); F7–F9 are planned. The format follows
 `CURRICULUM.md`: teach the concept, work it on Harborline, then say what
 Noesi does and does not do.*
 
@@ -149,3 +149,19 @@ planted schemes in version 1; lessons of 20–40 minutes.
   guards them).
 - Quote Noesi's procedure limitations from `procedures_ap/contracts.py`,
   not from memory.
+
+## Found in the data while writing F5–F6 (2026-09-24)
+
+Recomputed from `data/*.csv` and `revision/vouchers_revised.csv`; both are
+now taught in the lessons.
+
+- **Phantom-voucher shape.** PAY-2026-0013 and PAY-2026-0055 (E227,
+  self-approved) each pay the vendor and amount of a real voucher that
+  E227 entered and approved (VCH-2026-0013, 0055), but cite a voucher
+  number absent from the file (9338, 9336); the real vouchers have no
+  payment. PAY-2026-0100 (E218 / E102, vendor V1038) has the same shape.
+  On all five self-approved payments the clerk also approved the purchase
+  order (E227: PO-0013, 0055, 0064; E231: PO-0007, 0049).
+- **Identical overpayment rate.** The three payments above their vouchers
+  (PAY-2026-0016, 0093, 0109) are each exactly 18.000% over; PO, receipt
+  and voucher agree in each case, and bank and GL carry the paid amount.
