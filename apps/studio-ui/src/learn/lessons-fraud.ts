@@ -381,6 +381,12 @@ export const FRAUD_LESSONS: Lesson[] = [
         "It does not compare vendors with employee records.",
       ],
       tryIt: "Start with --demo, run ap.vendor_relational_twins, and compare its pairs with the tax-ID pairs from your spreadsheet.",
+    },    video: {
+      file: "learn-f3-one-letter.mp4",
+      poster: "learn-f3-one-letter.jpg",
+      title: "One letter",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo. Photos from Wikimedia Commons: WestLB (public domain); Jean-Pierre Bazard (CC BY-SA 3.0).",
     },
   },
 
