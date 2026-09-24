@@ -42,6 +42,8 @@ def api(tmp_path):
         encoding="utf-8")
     (studio / "assets" / "studio.js").write_text("console.log('studio')",
                                                  encoding="utf-8")
+    (studio / "videos").mkdir()
+    (studio / "videos" / "lesson.mp4").write_bytes(bytes(range(256)) * 4)  # 1024 bytes
     server = build_server(service, auth, port=0, static_dir=static,
                           studio_dir=studio)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -158,6 +160,36 @@ def test_studio_is_mounted_beside_the_workbench(api):
     status, _ = _request(port, "GET", "/studio/",
                          headers={"Host": "evil.example.com"})
     assert status == 403
+
+
+def _get_raw(port, path, headers=None):
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    conn.request("GET", path, headers=headers or {})
+    response = conn.getresponse()
+    body = response.read()
+    conn.close()
+    return response, body
+
+
+def test_lesson_videos_play_and_seek(api):
+    port, _ = api
+    response, body = _get_raw(port, "/studio/videos/lesson.mp4")
+    assert response.status == 200 and len(body) == 1024
+    assert response.getheader("Content-Type") == "video/mp4"
+    assert response.getheader("Accept-Ranges") == "bytes"
+    assert "media-src 'self'" in response.getheader("Content-Security-Policy")
+
+    # A browser seeking inside the video asks for a byte range.
+    response, body = _get_raw(port, "/studio/videos/lesson.mp4", {"Range": "bytes=100-199"})
+    assert response.status == 206
+    assert response.getheader("Content-Range") == "bytes 100-199/1024"
+    assert body == (bytes(range(256)) * 4)[100:200]
+    response, body = _get_raw(port, "/studio/videos/lesson.mp4", {"Range": "bytes=1000-"})
+    assert response.status == 206 and len(body) == 24
+    response, body = _get_raw(port, "/studio/videos/lesson.mp4", {"Range": "bytes=-10"})
+    assert response.status == 206 and len(body) == 10
+    response, _ = _get_raw(port, "/studio/videos/lesson.mp4", {"Range": "bytes=5000-"})
+    assert response.status == 416
 
 
 def test_static_assets_serve_and_traversal_is_contained(api):

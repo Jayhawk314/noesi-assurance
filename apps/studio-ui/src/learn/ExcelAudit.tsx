@@ -74,7 +74,7 @@ const EXERCISES: Exercise[] = [
       "In column J enter the second formula (Difference). Filter for not found, then for differences that are not zero.",
     ],
     formula: "=XLOOKUP(A2,bank!B:B,bank!C:C,\"not found\")    then    =IF(ISNUMBER(I2),I2-D2,\"\")",
-    answer: "4 payments never cleared: PAY-2026-0001, 0038, 0052, 0116. 2 cleared for a different amount: PAY-2026-0006 (bank 20,787.69 vs 20,084.72, +702.97) and PAY-2026-0025 (16,774.78 vs 16,625.15, +149.63).",
+    answer: "4 payments have no matching row in the bank file: PAY-2026-0001, 0038, 0052, 0116. 2 cleared for a different amount: PAY-2026-0006 (bank 20,787.69 vs 20,084.72, +702.97) and PAY-2026-0025 (16,774.78 vs 16,625.15, +149.63).",
     noesi: "cash.bank_clearing reports the four and PAY-2026-0006, but stays silent on PAY-2026-0025: 0.9% is inside its stated 2% tolerance. Your spreadsheet sees it; decide whether it matters.",
   },
   {

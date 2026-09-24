@@ -44,4 +44,6 @@ export interface Lesson {
     doesNot: string[];
     tryIt?: string;
   };
+  /** Optional teaching video, served beside the Studio build (public/videos/). */
+  video?: { file: string; poster?: string; title: string; minutes: number; credits: string };
 }

@@ -440,8 +440,8 @@ export const FRAUD_LESSONS: Lesson[] = [
         blocks: [
           { harborline: "**Self-approval:** five payments were entered and approved by the same AP clerk: E227 Alice Bergeron (PAY-2026-0013 on July 5, PAY-2026-0064 on September 13, PAY-2026-0055 on January 8, 2027) and E231 Ken Nakashima (PAY-2026-0049 in March, PAY-2026-0007 on August 1). Three of the five fall between July and mid-September, while the AP supervisor's post was empty." },
           { harborline: "**Split payments:** V1042 Coastal Fuel & Marine Services received five payments between September 14 and 22: 9,850, 9,720, 9,905, 9,640 and 9,880, each **just under the $10,000 approval limit**, totalling 48,995. V1042 is also one half of a look-alike pair from Lesson F3." },
-          { harborline: "**Bank and ledger:** PAY-2026-0006 is recorded at 20,084.72, but the bank cleared **20,787.69**, 702.97 more. Four payments (PAY-2026-0001, 0038, 0052, 0116) never cleared the bank. Three never posted to the ledger (0008, 0017, 0058), and two posted the wrong amount (0003, 0004). Three payments exceed their vouchers by 4,132 to 5,898 (PAY-2026-0016, 0093, 0109), and two are dated before their vouchers (0018, 0085)." },
-          { watch: "PAY-2026-0116 appears twice: its voucher was paid with no receipt (F3) and the payment never cleared the bank. When one transaction fails several independent tests, it moves up the list." },
+          { harborline: "**Bank and ledger:** PAY-2026-0006 is recorded at 20,084.72, but the bank cleared **20,787.69**, 702.97 more. Four payments (PAY-2026-0001, 0038, 0052, 0116) have no matching row in the bank file. Three never posted to the ledger (0008, 0017, 0058), and two posted the wrong amount (0003, 0004). Three payments exceed their vouchers by 4,132 to 5,898 (PAY-2026-0016, 0093, 0109), and two are dated before their vouchers (0018, 0085)." },
+          { watch: "PAY-2026-0116 appears twice: its voucher was paid with no receipt (F3) and the payment has no matching row in the bank file. When one transaction fails several independent tests, it moves up the list." },
         ],
       },
     ],
@@ -476,7 +476,7 @@ export const FRAUD_LESSONS: Lesson[] = [
         "Filter `payments.csv` for rows where **Created By** equals **Approved By**. Look the clerk up in `employees.csv` and note each payment's date.",
         "Mark which of those dates fall in the June to September supervisor gap.",
         "Sort payments by vendor and date. Find any vendor with three or more payments between 9,000 and 9,999 within ten days.",
-        "Match each payment to `bank.csv` by payment number. List payments that never cleared and payments where the bank amount differs from the recorded amount.",
+        "Match each payment to `bank.csv` by payment number. List payments with no bank row and payments where the bank amount differs from the recorded amount.",
         "For PAY-2026-0006, write the three explanations you would consider and the one document that would decide.",
       ],
       deliver: "A payment-controls worksheet with your exceptions, before you compare them with Noesi's findings.",
@@ -497,6 +497,13 @@ export const FRAUD_LESSONS: Lesson[] = [
         "It never concludes intent; every finding waits for your disposition.",
       ],
       tryIt: "Start with --demo and run all four payment procedures. Compare Noesi's findings with your worksheet, then look for payments that appear in more than one.",
+    },
+    video: {
+      file: "learn-f4-who-was-checking.mp4",
+      poster: "learn-f4-who-was-checking.jpg",
+      title: "Who was checking?",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo. Photos from Wikimedia Commons: Jernej Furman (CC BY 2.0); Jean-Pierre Bazard (CC BY-SA 3.0); Bruce Emmerling and Jim.henderson (CC BY-SA 4.0); WestLB (public domain).",
     },
   },
 
@@ -557,9 +564,9 @@ export const FRAUD_LESSONS: Lesson[] = [
               ["PO-2026-0055, V1029 Estuary Environmental Testing, 32,208.42", "Nov 9 (E318 / **E227**)", "Nov 28, full amount", "VCH-2026-0055, Dec 5", "PAY-2026-0055, **Jan 8, 2027**; bank Jan 12", "The payment cites **VCH-2026-9336**, not in the voucher file. VCH-2026-0055 has **no payment**. Paid after year end."],
             ],
           } },
-          { harborline: "The shape repeats. Twice, E227 paid the right vendor the right amount, but **against a voucher number that does not exist** in the file, while the real voucher for the same purchase **stayed unpaid**. In the client's corrected file (Assignment 11), 9338 appears: same order, same amount, dated June 21, a week after 0013, also entered and approved by E227. 9336 never appears. An open, already-paid voucher is a bill that could be **paid a second time**, or that overstates what is owed at year end." },
-          { harborline: "**The comparison group.** E231 Ken Nakashima has the same self-approved chains (orders, vouchers and payments on PO-2026-0007 and 0049), but his payments cite their real vouchers. And one other payment has the phantom-voucher shape: PAY-2026-0100 (45,464.75 to V1038, one of the look-alike vendors) cites VCH-2026-9382 while VCH-2026-0100 stays unpaid. It was entered by a different clerk, E218, and approved by E102. So the shape is not only about one person." },
-          { harborline: "**The rest of E227's trail**, from earlier lessons. She entered VCH-2026-0043, which was paid with no receipt, and PAY-2026-0038, which never cleared the bank. Both were approved by other people. She also entered payments to two look-alike vendors (PAY-2026-0087 to V1042, PAY-2026-0088 to V1039), again approved by others. Two of her three self-approved payments fall in the supervisor gap. PAY-2026-0055 came **after** the new supervisor started." },
+          { harborline: "The shape repeats. Twice, E227 recorded a payment to the right vendor for the right amount, but **against a voucher number that does not exist** in the file, while **no payment in the file cites** the real voucher for the same purchase. In the client's corrected file (Assignment 11), 9338 appears: same order, same amount, dated June 21, a week after 0013, also entered and approved by E227. 9336 never appears. If those real vouchers are still open, each is a bill for a purchase already paid, which could be **paid a second time** or overstate what is owed at year end. The payments file alone cannot say whether they are open; the year-end payables list can." },
+          { harborline: "**The comparison group.** E231 Ken Nakashima has the same self-approved chains (orders, vouchers and payments on PO-2026-0007 and 0049), but his payments cite their real vouchers. And one other payment has the phantom-voucher shape: PAY-2026-0100 (45,464.75 to V1038, one of the look-alike vendors) cites VCH-2026-9382, while no payment cites VCH-2026-0100. It was entered by a different clerk, E218, and approved by E102. So the shape is not only about one person." },
+          { harborline: "**The rest of E227's trail**, from earlier lessons. She entered VCH-2026-0043, which was paid with no receipt, and PAY-2026-0038, which has no matching row in the bank file. Both were approved by other people. She also entered payments to two look-alike vendors (PAY-2026-0087 to V1042, PAY-2026-0088 to V1039), again approved by others. Two of her three self-approved payments fall between July and mid-September, around the supervisor gap (the brief says only that the new supervisor started in September). PAY-2026-0055 came **after** the new supervisor started." },
           { watch: "Is this predication? Probably enough to justify a closer look at these purchases, and enough for an auditor to communicate the matter. It is not a finding of fraud. Innocent readings exist: a system that re-numbers vouchers on edit, a clerk covering an empty approver role on instruction, a voucher-number typo. The evidence below is what separates them." },
         ],
       },
@@ -691,7 +698,7 @@ export const FRAUD_LESSONS: Lesson[] = [
         ],
       },
       {
-        heading: "Harborline: three payments of 18% too much",
+        heading: "Harborline: three payments 18% too high",
         blocks: [
           { harborline: "Three payments exceed their vouchers, and in each case the order, the receipt and the voucher all agree with each other. The payment is the only record that is higher:" },
           { table: {
@@ -702,8 +709,8 @@ export const FRAUD_LESSONS: Lesson[] = [
               ["PAY-2026-0093, Aug 3", "V1013 Northpoint Trailer Manufacturing", "32,766.47", "38,664.43", "5,897.96", "E204 / E119", "E312"],
             ],
           } },
-          { harborline: "Each excess is **exactly 18.000%** of its voucher. The bank cleared the full paid amount, and the ledger posted it, so the money really left. No one person appears on all three: buyer E318 and approver E102 each appear on two, but E318 raised 43 of the year's 123 orders and E102 approved 38 of the 123 payments, so that overlap is weak on its own." },
-          { watch: "An identical percentage three times, across three vendors and two clerks, is not chance. But a **systematic** cause can be innocent as easily as fraudulent: a surcharge or tax rule applied in the payment run, or a system setting. The same 18% could also be an agreed kickback rate. The pattern tells you **where** to look, not what you will find." },
+          { harborline: "Each excess is **18% to the cent**: every payment equals its voucher × 1.18, rounded to cents. The bank file shows the full paid amount clearing, and the ledger posted it, so the records say the money left; the bank statement or check image would confirm who received it. No one person appears on all three: buyer E318 and approver E102 each appear on two, but E318 raised 43 of the year's 123 orders and E102 approved 38 of the 123 payments, so that overlap is weak on its own." },
+          { watch: "The same percentage three times, across three vendors and two clerks, is unlikely to be chance. But a **systematic** cause can be innocent as easily as fraudulent: a surcharge or tax rule applied in the payment run, or a system setting. The same 18% could also be an agreed kickback rate. The pattern tells you **where** to look, not what you will find." },
         ],
       },
       {
@@ -737,10 +744,10 @@ export const FRAUD_LESSONS: Lesson[] = [
         options: ["Kickbacks are always small", "The bribe is paid by the vendor to the insider outside the company's books; the data shows only the overpayment that funds it", "Payables data is never complete", "Kickbacks are legal"],
         answer: 1,
         why: "The company's records show money going to the vendor. What the vendor does with it afterwards is in the vendor's and the insider's records, which an investigator has to obtain." },
-      { q: "Three payments are each exactly 18% above their vouchers, across three vendors and two clerks. What is the best first reading?",
+      { q: "Three payments are each 18% above their vouchers, to the cent, across three vendors and two clerks. What is the best first reading?",
         options: ["A kickback ring, proven", "A systematic cause, innocent or not; look for what the three have in common (a rule, a person, a setting) and ask the vendors", "Random keying errors", "Nothing; each is below performance materiality"],
         answer: 1,
-        why: "Identical percentages point to a rule rather than chance. Whether that rule is a system setting or an agreed rate is exactly what the evidence has to decide." },
+        why: "Identical percentages suggest a rule rather than chance. Whether that rule is a system setting or an agreed rate is exactly what the evidence has to decide." },
       { q: "Which Harborline data would you need to test for bid rigging?",
         options: ["The payments file", "Bid records: invitations, bids received, amounts and winners; Harborline's files have none", "The bank file", "The general ledger"],
         answer: 1,
@@ -767,7 +774,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       summary: "Noesi finds the overpayments that could fund a kickback. It has no test for bid rigging or conflicts of interest, because it has no bid or relationship data to test.",
       does: [
         "`ap.document_chain` flags each payment that exceeds its voucher, with the amounts. Its stated limit: \"Document-chain coherence does not authenticate any document.\"",
-        "`cash.bank_clearing` and `gl.payment_posting` confirm the overpaid amounts actually left the bank and were posted, so the excess is real money, not a recording error.",
+        "`cash.bank_clearing` and `gl.payment_posting` show the overpaid amounts clearing in the bank file and posted in the ledger, so the excess is more than a keying error on one record. They do not show who received the money.",
       ],
       where: ["Workbench → Runs & Findings", "Workbench → 📖 manual, chapter 5"],
       doesNot: [

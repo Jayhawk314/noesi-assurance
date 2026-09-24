@@ -103,12 +103,29 @@ to re-rank it by what a full audit actually kept needing.
 | 8.1 | **[P1] Journal-entry testing** | Not modeled | The AU-C 240 response to management override, required on every audit: GL population completeness, selection criteria (unusual users, times, accounts, round amounts, post-close entries), and a documented rationale per selected entry |
 | 8.2 | **[P1] Revenue & receivables** | Not modeled | Procedures for the presumed revenue fraud risk (AU-C 240): sales cutoff, receivable aging, confirmation tracking (AU-C 505) with alternative procedures for non-responses |
 | 8.3 | **[P1] Analytical procedures** | Not modeled | Preliminary and final analytics (AU-C 315 / 520): expectations, ratios and trends against prior period, with a threshold for investigation and the explanation recorded |
-| 8.4 | **[P1] Sampling** | Every procedure tests the whole population | Sample selection and evaluation (AU-C 530) for populations that cannot be tested in full: sample size, selection method, projected misstatement |
+| 8.4 | **[P1] Sampling** | Procedures scan the whole supplied population; one known cap is in `ap.vendor_relational_twins`' activity-twin path (500 candidate pairs, `structural.py`), which reports a refusal past the cap instead of skipping pairs silently | Sample selection and evaluation (AU-C 530) for populations that cannot be tested in full: sample size, selection method, projected misstatement |
 | 8.5 | **[P2] Inventory** | Not modeled | Count observation records, test counts, and price testing (AU-C 501) |
 | 8.6 | **[P1] Duplicate-invoice test** | `ap_checks.duplicates()` exists but only the Rockwood golden path uses it; it is not a registered Workbench procedure, so Harborline's VCH-9338 has to be found by hand | Register it as a contract + engine (vendor, invoice number, amount, date proximity) with the same receipt model as the other eleven |
 | 8.7 | **[P2] Vendor identity beyond names** | `ap.vendor_relational_twins` compares vendor names only for identity twins | Add tax ID, address and bank-account matches between vendors, and between vendors and the employee master |
 | 8.8 | **[P2] Full bank reconciliation** | `cash.bank_clearing` checks payments against the bank feed | A bank reconciliation: book balance to bank balance with outstanding items and deposits in transit, not only disbursement clearing |
 | 8.9 | **[P2] Fraud-risk documentation** | Not modeled | Records of the engagement-team fraud discussion and the management / TCWG inquiries AU-C 240 requires, linked into risk assessment |
+
+**QuickBooks import: fixes to make** (from the 2026-09-24 code review; each
+checked against the code):
+
+- Refuse the AP tie when Unpaid Bills and the General Ledger name different
+  dates, or a date other than the engagement's period end. Today the
+  mismatch is only a note (`service.py`, `build_ap_control_balance`).
+- Refuse a General Ledger whose opening balance can't be read. Today it is
+  read as zero (`quickbooks.gl_account_balance`), and the running-balance
+  check only catches it when the account has activity.
+- Require a grand TOTAL row for the grouped reports that carry one
+  (`quickbooks.apply`); the Bill Payment List normally has none.
+- Check the report title, not only the column headings, when a recipe is
+  chosen explicitly.
+- Add a uniqueness guard so two simultaneous normalize calls can't both
+  succeed (needed once requests run concurrently, item 6.1).
+- Offer every sheet of a workbook for the AP tie, not only the first.
 
 Related items tracked above, not repeated here: acceptance, independence and
 engagement letter (4.1); management letter / control deficiencies, AU-C 265

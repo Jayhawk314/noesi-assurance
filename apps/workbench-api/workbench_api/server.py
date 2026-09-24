@@ -16,6 +16,7 @@ application service underneath stays unchanged.
 from __future__ import annotations
 
 import json
+import re
 import secrets
 import threading
 from dataclasses import dataclass
@@ -98,10 +99,12 @@ _STATIC_TYPES = {
     ".svg": "image/svg+xml",
     ".ico": "image/x-icon",
     ".map": "application/json",
+    ".mp4": "video/mp4",       # Learn lesson videos
+    ".jpg": "image/jpeg",      # their posters
 }
 
 _STATIC_CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; "
-               "connect-src 'self'; img-src 'self'")
+               "connect-src 'self'; img-src 'self'; media-src 'self'")
 
 # Replaced in the served index.html with the live session token. An inline
 # script would be simpler but the static CSP forbids one, so it rides a meta tag.
@@ -259,9 +262,31 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 # Host-checked loopback listener, and never cached.
                 body = body.replace(_TOKEN_PLACEHOLDER,
                                     auth.token.encode("ascii"))
-            self.send_response(200)
+            # Byte ranges let a browser seek inside a video without fetching all of it.
+            status, extra = 200, []
+            rng = re.fullmatch(r"bytes=(\d*)-(\d*)", self.headers.get("Range", "").strip())
+            if rng and candidate.suffix == ".mp4" and (rng.group(1) or rng.group(2)):
+                size = len(body)
+                if rng.group(1):
+                    first = int(rng.group(1))
+                    last = min(int(rng.group(2)), size - 1) if rng.group(2) else size - 1
+                else:  # a suffix range: the last N bytes
+                    first, last = max(0, size - int(rng.group(2))), size - 1
+                if first >= size or first > last:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                body = body[first:last + 1]
+                status, extra = 206, [("Content-Range", f"bytes {first}-{last}/{size}")]
+            self.send_response(status)
             self.send_header("Content-Type", _STATIC_TYPES.get(
                 candidate.suffix, "application/octet-stream"))
+            if candidate.suffix == ".mp4":
+                self.send_header("Accept-Ranges", "bytes")
+            for name, value in extra:
+                self.send_header(name, value)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Content-Security-Policy", _STATIC_CSP)
             for name, value in _SECURITY_HEADERS[1:]:

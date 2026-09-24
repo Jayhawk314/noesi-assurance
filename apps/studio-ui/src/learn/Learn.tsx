@@ -11,6 +11,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Documents } from "./Documents";
 import { ExcelAudit } from "./ExcelAudit";
+import { LessonVideo } from "./LessonVideo";
 import { Trace } from "./Trace";
 import { FRAUD_COMING, FRAUD_LESSONS } from "./lessons-fraud";
 import { LESSONS } from "./lessons";
@@ -88,7 +89,7 @@ export function Learn({ route, standalone = false }: { route: string; standalone
         : target === "trace" ? <Trace />
         : target === "excel" ? <ExcelAudit />
         : lesson ? <LessonPage lesson={lesson} track={track} progress={progress[lesson.slug]}
-                               onUpdate={(c) => update(lesson.slug, c)} />
+                               onUpdate={(c) => update(lesson.slug, c)} standalone={standalone} />
         : fraud ? <FraudHome progress={progress} />
         : <Home progress={progress} />}
     </div>
@@ -180,9 +181,9 @@ const FRAUD_TRACK: Track = {
   end: { href: "#/learn/fraud", label: "Fraud track →" },
 };
 
-function LessonPage({ lesson, track, progress, onUpdate }: {
+function LessonPage({ lesson, track, progress, onUpdate, standalone = false }: {
   lesson: Lesson; track: Track; progress?: Progress[string];
-  onUpdate: (c: Partial<Progress[string]>) => void;
+  onUpdate: (c: Partial<Progress[string]>) => void; standalone?: boolean;
 }) {
   const total = lesson.sections.length;
   const read = Math.min(progress?.read ?? 1, total) || 1;
@@ -213,6 +214,8 @@ function LessonPage({ lesson, track, progress, onUpdate }: {
           <span className={progress?.done ? "on noesi" : "noesi"} title="In Noesi" />
         </div>
       </header>
+
+      {lesson.video && <LessonVideo video={lesson.video} standalone={standalone} />}
 
       {lesson.sections.slice(0, read).map((section, i) => (
         <section key={section.heading} className="lesson-section">

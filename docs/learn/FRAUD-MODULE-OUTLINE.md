@@ -163,5 +163,5 @@ now taught in the lessons.
   On all five self-approved payments the clerk also approved the purchase
   order (E227: PO-0013, 0055, 0064; E231: PO-0007, 0049).
 - **Identical overpayment rate.** The three payments above their vouchers
-  (PAY-2026-0016, 0093, 0109) are each exactly 18.000% over; PO, receipt
+  (PAY-2026-0016, 0093, 0109) are each 18% over to the cent (payment = voucher × 1.18, rounded); PO, receipt
   and voucher agree in each case, and bank and GL carry the paid amount.

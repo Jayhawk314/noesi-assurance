@@ -276,3 +276,11 @@ table.map tr.done td:first-child { color: var(--ok); font-weight: 700; }
 
 /* Fraud track: planned lessons shown as quiet, unclickable tiles. */
 .lesson-tile.coming { opacity: .55; cursor: default; }
+
+/* Lesson video */
+.lesson-video { margin: 8px 0 28px; display: grid; gap: 10px; }
+.lesson-video-head { font-size: 15px; }
+.lesson-video-head b { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; margin-right: 6px; }
+.lesson-video video { width: 100%; max-width: 960px; aspect-ratio: 16 / 9; background: #0b0c0e; border-radius: 6px; }
+.lesson-video-note { margin: 0; padding: 12px 14px; border: 1px dashed currentColor; border-radius: 6px; opacity: .8; max-width: 720px; }
+.lesson-video-credits { margin: 0; font-size: 12px; opacity: .65; max-width: 960px; }
