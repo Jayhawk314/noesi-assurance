@@ -10,6 +10,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Documents } from "./Documents";
+import { ExcelAudit } from "./ExcelAudit";
 import { Trace } from "./Trace";
 import { FRAUD_COMING, FRAUD_LESSONS } from "./lessons-fraud";
 import { LESSONS } from "./lessons";
@@ -85,6 +86,7 @@ export function Learn({ route, standalone = false }: { route: string; standalone
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />
         : target === "trace" ? <Trace />
+        : target === "excel" ? <ExcelAudit />
         : lesson ? <LessonPage lesson={lesson} track={track} progress={progress[lesson.slug]}
                                onUpdate={(c) => update(lesson.slug, c)} />
         : fraud ? <FraudHome progress={progress} />
@@ -403,6 +405,7 @@ function FraudHome({ progress }: { progress: Progress }) {
           Noesi does, and does not do. A finding is always a lead, never proof of fraud.</p>
         <div className="hero-actions">
           <a className="primary" href={`#/learn/fraud/${next.n}`}>{done ? `Continue with lesson F${next.n}` : "Start lesson F1"}</a>
+          <a className="secondary" href="#/learn/excel">Excel for audit</a>
           <span className="muted">{done} of {FRAUD_LESSONS.length} lessons complete</span>
         </div>
         <div className="progress big"><div style={{ width: `${(100 * done) / FRAUD_LESSONS.length}%` }} /></div>
