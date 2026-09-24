@@ -188,7 +188,9 @@ the Harborline case. Each lesson reveals section by section, checks
 understanding with explained questions, sets a hands-on task, and ends with an
 **In Noesi** reminder: what the system does for that step, where, and what it
 does not do. The course needs no session. Its plan, research notes and sources
-are in `docs/learn/CURRICULUM.md`.
+are in `docs/learn/CURRICULUM.md`. A separate **Fraud in payables** track
+(`/studio/#/learn/fraud`) aligns with the CFE exam; its first four lessons are
+written and its plan is `docs/learn/FRAUD-MODULE-OUTLINE.md`.
 
 **The documents** (`/studio/#/learn/documents`) renders the paper trail an
 auditor reads: one real Harborline purchase (PO-2026-0009) traced from order to

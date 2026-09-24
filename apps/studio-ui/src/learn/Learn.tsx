@@ -1,14 +1,17 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
-/** "Learn the audit": ten lessons from acceptance to the report.
+/** "Learn the audit": ten lessons from acceptance to the report, plus the
+ *  "Fraud in payables" track.
  *
  *  Routes (hash): #/learn (course home), #/learn/<n> (a lesson),
- *  #/learn/map (the process-to-Noesi map). Static content; needs no
+ *  #/learn/map (the process-to-Noesi map), #/learn/fraud (the fraud track),
+ *  #/learn/fraud/<n> (a fraud lesson). Static content; needs no
  *  session. Progress is a per-browser convenience in localStorage and the
  *  page works without it. */
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Documents } from "./Documents";
 import { Trace } from "./Trace";
+import { FRAUD_COMING, FRAUD_LESSONS } from "./lessons-fraud";
 import { LESSONS } from "./lessons";
 import { displayOrder } from "./shuffle";
 import { Block, Lesson, Question } from "./types";
@@ -58,9 +61,11 @@ export function Learn({ route, standalone = false }: { route: string; standalone
     });
   };
 
-  const parts = route.split("/").filter(Boolean); // ["learn", "3"]
+  const parts = route.split("/").filter(Boolean); // ["learn", "3"] or ["learn", "fraud", "1"]
   const target = parts[1];
-  const lesson = LESSONS.find((l) => String(l.n) === target);
+  const fraud = target === "fraud";
+  const track = fraud ? FRAUD_TRACK : MAIN_TRACK;
+  const lesson = track.lessons.find((l) => String(l.n) === (fraud ? parts[2] : target));
 
   useEffect(() => { window.scrollTo(0, 0); }, [route]);
 
@@ -73,14 +78,16 @@ export function Learn({ route, standalone = false }: { route: string; standalone
         <a className="to-workbench" href="#/learn/documents">The documents</a>
         <a className="to-workbench" href="#/learn/trace">Follow a number</a>
         <a className="to-workbench" href="#/learn/map">Course map</a>
+        <a className="to-workbench" href="#/learn/fraud">Fraud track</a>
         {!standalone && <a className="to-workbench" href="#/">Studio ↗</a>}
         {!standalone && <a className="to-workbench" href="/">Workbench ↗</a>}
       </header>
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />
         : target === "trace" ? <Trace />
-        : lesson ? <LessonPage lesson={lesson} progress={progress[lesson.slug]}
+        : lesson ? <LessonPage lesson={lesson} track={track} progress={progress[lesson.slug]}
                                onUpdate={(c) => update(lesson.slug, c)} />
+        : fraud ? <FraudHome progress={progress} />
         : <Home progress={progress} />}
     </div>
   );
@@ -130,6 +137,20 @@ function Home({ progress }: { progress: Progress }) {
         </section>
       ))}
 
+      <section className="phase">
+        <h2>Fraud in payables</h2>
+        <div className="lesson-grid">
+          <a className="lesson-tile" href="#/learn/fraud">
+            <span className="tile-n">F</span>
+            <span className="tile-title">A CFE-aligned track on occupational fraud</span>
+            <span className="tile-q">Why fraud happens, fraud risk assessment, and the schemes that move
+              money out through payables, practiced on Harborline's planted schemes.</span>
+            <span className="tile-meta"><span className="muted">{FRAUD_LESSONS.length} lessons ready
+              · {FRAUD_COMING.length} planned</span></span>
+          </a>
+        </div>
+      </section>
+
       <p className="muted fine">The course is original teaching material built on the AICPA clarified
         standards (AU-C sections) and Noesi's own fictional Harborline Marine case. Standards citations
         anchor further reading; they are not a substitute for the standards. Research notes and sources:
@@ -138,25 +159,46 @@ function Home({ progress }: { progress: Progress }) {
   );
 }
 
-function LessonPage({ lesson, progress, onUpdate }: {
-  lesson: Lesson; progress?: Progress[string]; onUpdate: (c: Partial<Progress[string]>) => void;
+/** A set of lessons with its own numbering, home and labels. */
+interface Track {
+  lessons: Lesson[];
+  base: string;      // hash prefix of a lesson: `${base}/${n}`
+  home: string;
+  homeLabel: string;
+  prefix: string;    // shown before the lesson number: "" or "F"
+  end: { href: string; label: string };
+}
+const MAIN_TRACK: Track = {
+  lessons: LESSONS, base: "#/learn", home: "#/learn", homeLabel: "Course", prefix: "",
+  end: { href: "#/learn/map", label: "Course map →" },
+};
+const FRAUD_TRACK: Track = {
+  lessons: FRAUD_LESSONS, base: "#/learn/fraud", home: "#/learn/fraud",
+  homeLabel: "Fraud track", prefix: "F",
+  end: { href: "#/learn/fraud", label: "Fraud track →" },
+};
+
+function LessonPage({ lesson, track, progress, onUpdate }: {
+  lesson: Lesson; track: Track; progress?: Progress[string];
+  onUpdate: (c: Partial<Progress[string]>) => void;
 }) {
   const total = lesson.sections.length;
   const read = Math.min(progress?.read ?? 1, total) || 1;
   const answers = progress?.answers ?? {};
   const allAnswered = lesson.check.every((_, i) => answers[i] !== undefined);
   const finishedReading = read >= total;
-  const index = LESSONS.indexOf(lesson);
-  const prev = LESSONS[index - 1];
-  const next = LESSONS[index + 1];
+  const index = track.lessons.indexOf(lesson);
+  const prev = track.lessons[index - 1];
+  const next = track.lessons[index + 1];
+  const label = (l: Lesson) => `Lesson ${track.prefix}${l.n}`;
 
   return (
     <main className="lesson">
       <nav className="crumbs">
-        <a href="#/learn">Course</a> › {lesson.phase} › Lesson {lesson.n}
+        <a href={track.home}>{track.homeLabel}</a> › {lesson.phase} › {label(lesson)}
       </nav>
       <header className="lesson-head">
-        <div className="next-kicker">Lesson {lesson.n} of {LESSONS.length} · {lesson.phase} · ~{lesson.minutes} min</div>
+        <div className="next-kicker">{label(lesson)} of {track.lessons.length} · {lesson.phase} · ~{lesson.minutes} min</div>
         <h1>{lesson.title}</h1>
         <p className="big-q">{lesson.question}</p>
         <div className="objectives">
@@ -214,13 +256,13 @@ function LessonPage({ lesson, progress, onUpdate }: {
           )}
 
           <div className="lesson-foot">
-            {prev ? <a className="secondary" href={`#/learn/${prev.n}`}>← Lesson {prev.n}</a> : <span />}
+            {prev ? <a className="secondary" href={`${track.base}/${prev.n}`}>← {label(prev)}</a> : <span />}
             {allAnswered && !progress?.done && (
               <button className="primary" onClick={() => onUpdate({ done: true })}>Mark lesson complete</button>
             )}
             {progress?.done && <span className="done-flag">✓ Lesson complete</span>}
-            {next ? <a className="secondary" href={`#/learn/${next.n}`}>Lesson {next.n} →</a>
-              : <a className="secondary" href="#/learn/map">Course map →</a>}
+            {next ? <a className="secondary" href={`${track.base}/${next.n}`}>{label(next)} →</a>
+              : <a className="secondary" href={track.end.href}>{track.end.label}</a>}
           </div>
         </>
       )}
@@ -343,6 +385,62 @@ function CourseMap({ progress }: { progress: Progress }) {
           inspecting documents. The course teaches every step because the audit needs every step; the
           map shows honestly which ones the tool helps with today.</p>
       </section>
+    </main>
+  );
+}
+
+function FraudHome({ progress }: { progress: Progress }) {
+  const done = FRAUD_LESSONS.filter((l) => progress[l.slug]?.done).length;
+  const next = FRAUD_LESSONS.find((l) => !progress[l.slug]?.done) ?? FRAUD_LESSONS[0];
+  return (
+    <main className="learn-home">
+      <nav className="crumbs"><a href="#/learn">Course</a> › Fraud in payables</nav>
+      <section className="hero">
+        <div className="next-kicker">A CFE-aligned track</div>
+        <h1>Fraud in payables</h1>
+        <p>How occupational fraud works in purchasing and payables, and how it is found. Each lesson
+          teaches the idea, works it on <b>Harborline Marine</b>'s planted schemes, and ends with what
+          Noesi does, and does not do. A finding is always a lead, never proof of fraud.</p>
+        <div className="hero-actions">
+          <a className="primary" href={`#/learn/fraud/${next.n}`}>{done ? `Continue with lesson F${next.n}` : "Start lesson F1"}</a>
+          <span className="muted">{done} of {FRAUD_LESSONS.length} lessons complete</span>
+        </div>
+        <div className="progress big"><div style={{ width: `${(100 * done) / FRAUD_LESSONS.length}%` }} /></div>
+      </section>
+
+      <section className="phase">
+        <h2>Lessons</h2>
+        <div className="lesson-grid">
+          {FRAUD_LESSONS.map((l) => {
+            const p = progress[l.slug];
+            return (
+              <a key={l.slug} className={`lesson-tile ${p?.done ? "done" : ""}`} href={`#/learn/fraud/${l.n}`}>
+                <span className="tile-n">{p?.done ? "✓" : `F${l.n}`}</span>
+                <span className="tile-title">{l.title}</span>
+                <span className="tile-q">{l.question}</span>
+                <span className="tile-meta">
+                  <span className={`cov ${l.noesi.coverage}`}>{COVERAGE_LABEL[l.noesi.coverage]}</span>
+                  <span className="muted">~{l.minutes} min</span>
+                </span>
+              </a>
+            );
+          })}
+          {FRAUD_COMING.map(([n, title]) => (
+            <div key={n} className="lesson-tile coming">
+              <span className="tile-n">{n}</span>
+              <span className="tile-title">{title}</span>
+              <span className="tile-meta"><span className="muted">coming next</span></span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <p className="muted fine">What this track covers of the CFE exam: the payables-shaped parts of its
+        three sections (fraudulent disbursements, corruption and procurement, data analysis, tracing,
+        fraud risk assessment, and auditors' and management's responsibilities). Law, interviewing,
+        ethics and the industry-specific schemes are left to the ACFE's own materials. Original
+        teaching material; it does not reproduce ACFE text. Plan and sources:
+        <code> docs/learn/FRAUD-MODULE-OUTLINE.md</code>.</p>
     </main>
   );
 }

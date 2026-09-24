@@ -28,7 +28,7 @@ export interface Lesson {
   n: number;
   slug: string;
   title: string;
-  phase: "Planning" | "Fieldwork" | "Completion";
+  phase: "Planning" | "Fieldwork" | "Completion" | "Fraud";
   question: string;
   minutes: number;
   objectives: string[];

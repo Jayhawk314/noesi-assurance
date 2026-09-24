@@ -273,3 +273,6 @@ table.map tr.done td:first-child { color: var(--ok); font-weight: 700; }
   .trace-detail-grid { grid-template-columns: 1fr; gap: 0; }
   .trace-statements { grid-template-columns: 1fr; }
 }
+
+/* Fraud track: planned lessons shown as quiet, unclickable tiles. */
+.lesson-tile.coming { opacity: .55; cursor: default; }

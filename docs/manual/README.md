@@ -51,6 +51,14 @@ reconcile your answers against the tool's. Forming your own expectation
 before the tool gives you one is the better learning order — the case was
 built for it.
 
+## Companion courses
+
+The Studio's **Learn** section (`/studio/#/learn`) teaches the same audit as
+self-paced lessons with quizzes and hands-on tasks: **Learn the audit**, ten
+lessons from acceptance to the report, and **Fraud in payables**
+(`/studio/#/learn/fraud`), a CFE-aligned track on fraud schemes and fraud
+risk assessment. Plans and sources: `docs/learn/`.
+
 ## What this manual assumes
 
 Basic accounting literacy (you know what a voucher and a subledger are) and
