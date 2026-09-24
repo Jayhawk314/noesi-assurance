@@ -112,7 +112,7 @@ export const FIELDWORK: Lesson[] = [
       doesNot: [
         "It does **no sampling**: no sample-size calculator, random selection, or attribute-test workpaper.",
         "It does not inspect documents or judge authenticity. It compares records.",
-        "It accepts CSV for testing. Excel files are kept as evidence but must be exported to CSV before they can be normalized.",
+        "It reads CSV and Excel (.xlsx) files, and has ready-made readings for four standard QuickBooks Online reports (Lesson 6). Other formats, such as PDF statements, are kept as evidence but not tested.",
       ],
       tryIt: "In Studio, follow the Next step card through Run, Review and Approve, switching chairs when it asks.",
     },
@@ -126,12 +126,28 @@ export const FIELDWORK: Lesson[] = [
     question: "Is every liability at year end recorded — and only real ones?",
     minutes: 40,
     objectives: [
+      "Get payables records out of the client's accounting system and check they are complete",
       "Tie the AP subledger to the general ledger",
       "Perform a search for unrecorded liabilities",
       "Test cutoff around year end",
       "Turn exceptions into dispositions without overstating them",
     ],
     sections: [
+      {
+        heading: "Getting the records from the client's books",
+        blocks: [
+          { p: "The client's records live in its accounting system, often **QuickBooks** at a small company or an **ERP** at a larger one. The auditor asks for **reports**, not a summary: the list of open bills, the payments, the vendor list, the general ledger. Ideally you watch them being run, or run them yourself with read-only access." },
+          { p: "A report the client produces is **information produced by the entity**. Before relying on it, test that it is complete and accurate (AU-C 500): does it foot, does it cover the whole period, does it agree to the ledger? A clean-looking export can still leave things out." },
+          { terms: [
+            ["Unpaid Bills", "QuickBooks' list of open bills by vendor. This is the **AP subledger**."],
+            ["General Ledger", "Every account's activity and balance. Its **Accounts Payable** balance is the **control account** the subledger must equal."],
+            ["Bill Payment List", "The payments made against bills: the population for payment tests and the search for unrecorded liabilities."],
+            ["Vendor Contact List", "The vendor master: names, addresses and tax IDs, where look-alike vendors show up."],
+          ] },
+          { p: "Export each report to Excel and keep the file exactly as exported. Then **foot it**: recompute the totals yourself before you trust them. That is the first thing to do in a spreadsheet, and the first thing Noesi does too." },
+          { harborline: "Harborline moved from QuickBooks to a mid-market ERP in March 2024, so its records reached you as ERP exports in CSV. The steps are the same: the subledger, the ledger, the payments and the vendors, each checked for completeness before any test." },
+        ],
+      },
       {
         heading: "Start with the tie-out",
         blocks: [
@@ -215,12 +231,16 @@ export const FIELDWORK: Lesson[] = [
         "It runs the AP procedures: **payment→voucher** and **voucher→PO references**, **document chain**, **three-way match**, **segregation of duties**, **vendor twins**, **split payments**, **subledger–GL tie**, **bank clearing**, **GL posting** and **closed value flows**.",
         "Every exception needs a **disposition** with a note: cleared, unadjusted, adjusted, waived, or follow-up. Above clearly trivial, the disposition is a **proposal until a second person concurs**.",
         "**What Changed** compares a corrected client file with the one it replaced. It names the stale runs, shows which exceptions appear, disappear or move, and flags the judgments to revisit. It changes nothing by itself.",
+        "It reads **QuickBooks Online exports** directly (Excel files): Unpaid Bills, Bill Payment List, Transaction List by Vendor and Vendor Contact List. It recomputes every subtotal and refuses a report whose layout it doesn't recognize.",
+        "From an **Unpaid Bills** export and a **General Ledger** export it builds the AP control balance: both reports footed first, then saved as a source file that goes through the same propose and approve steps as any other.",
       ],
-      where: ["Studio → Exceptions (judge in plain words)", "Studio → What changed (cascade)", "Workbench → Runs & Findings, What Changed"],
+      where: ["Studio → Exceptions (judge in plain words)", "Studio → What changed (cascade)", "Workbench → Runs & Findings, What Changed", "Workbench → Sources & Mappings (QuickBooks files, AP subledger-to-ledger tie)"],
       doesNot: [
         "It has **no subsequent-disbursements search procedure**. PAY-2026-0055 surfaces as a reference exception, but the unrecorded-liability judgment is yours.",
         "It does not detect duplicate invoices. Harborline's Assignment 11 exists to show that silence.",
         "It does not check cutoff on receipts, because the receipts file has no receiving-cutoff test.",
+        "It does not connect to QuickBooks. You export the reports and upload them.",
+        "It reads only the Accounts Payable balance from a General Ledger export, not the full ledger detail. If the two reports are dated differently, it notes the mismatch but does not yet refuse the tie.",
       ],
       tryIt: "Load case-studies/harborline-marine/revision/vouchers_revised.csv after judging a few exceptions, then open What changed.",
     },
