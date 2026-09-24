@@ -26,7 +26,7 @@ names the requirement the gate implements.
 |---|---|---|
 | 1 | [The engagement and the team](01-engagement-and-team.md) | Roles, separation of duties, chairs, why the journal exists |
 | 2 | [Planning, materiality, and risk](02-planning-materiality-risk.md) | Materiality bases, performance materiality, clearly trivial, risk-to-procedure linkage |
-| 3 | [Evidence and ingestion](03-evidence-and-ingestion.md) | PBC lists, evidence reliability, mappings as reviewed transformations, refusals |
+| 3 | [Evidence and ingestion](03-evidence-and-ingestion.md) | PBC lists, evidence reliability, footing client reports, mappings as reviewed transformations, refusals; Excel and QuickBooks exports |
 | 4 | [Coverage and scoping](04-coverage-and-scoping.md) | What "the data supports this procedure" honestly means; policies; deselection with rationale |
 | 5 | [Executing procedures](05-executing-procedures.md) | The eleven procedures, assertion by assertion; tolerances; what silence means |
 | 6 | [Findings, dispositions, and the SAD](06-findings-dispositions-sad.md) | Exception ≠ misstatement; dispositions; AU-C 450 evaluation |

@@ -21,6 +21,11 @@
 | Supersession | A documented post-assembly change (AU-C 230 / AS 1215): reason, who, when — with the prior record preserved intact |
 | Chair | The role a single pilot operator is currently acting in; gates treat chairs as separate people |
 | Journal | The engagement's hash-chained decision trail: who did what, when, in what capacity |
+| Refused field | A canonical field the client's file does not contain — recorded, never filled in; a gap in the evidence obtained |
+| Set aside (quarantined row) | A row excluded from the tested population at normalization, with its reason and sheet row — a **completeness** question to resolve, not a deletion |
+| Recipe | A reviewed way of reading one known client report layout (a QuickBooks Online export); part of the mapping the reviewer approves |
+| Subtotal check | **Footing** a client-prepared report: re-adding its detail and comparing with its printed totals before relying on it |
+| Subledger tie | Agreeing the AP subledger (the unpaid-bills listing) to the Accounts Payable control account in the general ledger |
 
 ## Verdicts
 

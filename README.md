@@ -26,31 +26,42 @@ apps/
   workbench-api/          # hardened localhost HTTP boundary (token, Origin,
                           # body limits, security headers; FastAPI swap-in
                           # planned for the firm-hosted profile)
-  workbench-ui/           # dense review UI: React + TypeScript, six screens,
+  workbench-ui/           # dense review UI: React + TypeScript, nine tabs,
                           # served as static assets by workbench-api
+  studio-ui/              # visual practitioner view and the Learn course,
+                          # served at /studio/
+  learn-streamlit/        # hosts the Learn course on Streamlit (static)
 packages/
   assurance-domain/       # pure entities, state machines, money, receipts,
                           # SAD, readiness, worker protocol — no I/O
   assurance-persistence/  # SQLite adapter, migrations, transactional spine
-  assurance-artifacts/    # quarantine -> register -> promote evidence vault
-  assurance-application/  # use cases behind the six screens, authorization
+  assurance-artifacts/    # quarantine -> register -> promote evidence vault;
+                          # signing; the .xlsx reader
+  assurance-application/  # use cases behind the screens, authorization
+  assurance-workpapers/   # evidence packet sealing/verification, workpaper
   procedures-ap/          # AP methodology: contracts, coverage, engines,
-                          # structural layer, ingestion/mapping
+                          # structural layer, ingestion/mapping, QuickBooks
+                          # report recipes
   structural-adapters/    # owned ports of the KOMPOSOS-derived methods
                           # (authorship verified: docs/PROVENANCE.md)
 tests/
   unit/
+  fixtures/               # real client-style files: an Excel register and
+                          # QuickBooks Online report exports
   golden/                 # frozen bundles captured from noesi-cpa (Phase 0)
+case-studies/
+  harborline-marine/      # the complete teaching case
 docs/
-  architecture/
+  manual/                 # the textbook, served in the workbench
+  learn/                  # Learn course plan and research notes
+  architecture/           # historical prototype assessment, kept as record
 ```
 
 Boundary rule: `assurance-domain` and `procedures-ap` import no framework,
 database, or HTTP code. Adapters implement ports from the outside.
 
-Further pieces (`assurance-workpapers`, out-of-process workers, the
-TypeScript review UI) are split out only when a boundary earns it — not
-preemptively.
+Further pieces (out-of-process workers, a hosted API) are split out only
+when a boundary earns it — not preemptively.
 
 ## Development
 
@@ -90,6 +101,18 @@ signing keys).
 case (836 rows across ten record sets, loaded through the real three-chair
 review path, with the split-payment policies approved). Open it, press "run"
 on any procedure, and read what the engine found — and refused to claim.
+
+### Loading a client's files
+
+Upload CSV or Excel (.xlsx) exports in **Sources & Mappings**. For a
+workbook you choose the sheet and the heading row; the choice becomes part
+of the reviewed mapping. Standard **QuickBooks Online** report exports
+(Bill Payment List, Transaction List by Vendor, Unpaid Bills, Vendor
+Contact List) are recognized on upload and read by a recipe that flattens
+the report's groups and recomputes every subtotal before dropping it.
+With Unpaid Bills and the General Ledger uploaded, the workbench builds the
+AP subledger-to-ledger tie. What an export does not contain is refused,
+not invented. Manual chapter 3 explains each step.
 
 ### One operator, several chairs
 
@@ -138,37 +161,6 @@ every finding for reconciliation against the key.
 `../noesi-cpa` is read-only reference material: golden-bundle capture runs
 there; ported code is copied from there. No new features land there.
 
-## License, use, and professional disclaimers
-
-Copyright (c) 2026 James Hawkins. Licensed under the **PolyForm Noncommercial
-License 1.0.0** — see [LICENSE.md](LICENSE.md). In plain terms: personal
-study, teaching, research, and use by noncommercial organizations (including
-classroom use of the Harborline case) are free; **any commercial use —
-including use on client engagements — requires a separate commercial license
-from the copyright holder** (jhawk314@gmail.com).
-
-Say plainly what this software is not:
-
-- **It is not an audit.** Running its procedures does not constitute an
-  audit, a review, or any assurance engagement under any professional
-  standard.
-- **It produces no opinion.** Its outputs — findings, coverage, readiness,
-  workpapers, evidence packets — are records of mechanical checks over the
-  data supplied, not audit opinions or professional conclusions. The
-  "report implication" language describes what a practitioner would have to
-  consider; it decides nothing.
-- **It is not professional advice.** Nothing in this software, its manual,
-  or its teaching case is accounting, auditing, legal, or tax advice.
-  Professional judgments remain the responsibility of the licensed
-  practitioners who make them, exactly as the workbench's own review gates
-  assume.
-- **No warranty.** The software comes as is, without warranty or condition
-  of any kind; see the "No Liability" section of LICENSE.md.
-
-The references to AU-C, AS, and other standards in the manual and in code
-comments explain the design intent; they are not claims of compliance with,
-or endorsement by, the AICPA, PCAOB, or any other body.
-
 ## Two faces, one record
 
 `noesi-workbench` serves two UIs over the same API and the same journaled
@@ -204,3 +196,34 @@ ledger, the AP tie-out and a year-end bank reconciliation built from the case
 data, plus illustrative confirmations, a count sheet and a representation
 letter. Numbered markers point at each figure to check, with the assertion it
 evidences and the Noesi test that compares it.
+
+## License, use, and professional disclaimers
+
+Copyright (c) 2026 James Hawkins. Licensed under the **PolyForm Noncommercial
+License 1.0.0** — see [LICENSE.md](LICENSE.md). In plain terms: personal
+study, teaching, research, and use by noncommercial organizations (including
+classroom use of the Harborline case) are free; **any commercial use —
+including use on client engagements — requires a separate commercial license
+from the copyright holder** (jhawk314@gmail.com).
+
+Say plainly what this software is not:
+
+- **It is not an audit.** Running its procedures does not constitute an
+  audit, a review, or any assurance engagement under any professional
+  standard.
+- **It produces no opinion.** Its outputs — findings, coverage, readiness,
+  workpapers, evidence packets — are records of mechanical checks over the
+  data supplied, not audit opinions or professional conclusions. The
+  "report implication" language describes what a practitioner would have to
+  consider; it decides nothing.
+- **It is not professional advice.** Nothing in this software, its manual,
+  or its teaching case is accounting, auditing, legal, or tax advice.
+  Professional judgments remain the responsibility of the licensed
+  practitioners who make them, exactly as the workbench's own review gates
+  assume.
+- **No warranty.** The software comes as is, without warranty or condition
+  of any kind; see the "No Liability" section of LICENSE.md.
+
+The references to AU-C, AS, and other standards in the manual and in code
+comments explain the design intent; they are not claims of compliance with,
+or endorsement by, the AICPA, PCAOB, or any other body.

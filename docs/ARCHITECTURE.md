@@ -36,21 +36,27 @@ The organizing principle is **honesty about what the tool can prove**:
 apps/
   workbench-api/     hardened localhost HTTP boundary + demo seeding
   workbench-ui/      React/TypeScript review UI (Vite, no UI kit, no router)
+  studio-ui/         visual practitioner view + the Learn course (/studio/)
+  learn-streamlit/   static Streamlit host for the Learn course
 packages/
   assurance-domain/       pure entities: money (Decimal), receipts, SAD,
                           readiness, jobs/worker protocol — no I/O
   assurance-persistence/  SQLite spine: migrations, unit of work,
                           hash-chained journal, repositories
   assurance-artifacts/    evidence vault (quarantine → promote), ed25519
-                          signing (LocalKeyStore)
+                          signing (LocalKeyStore), standard-library .xlsx
+                          reader
   assurance-application/  WorkbenchService: the use cases behind the screens,
                           role matrix, lock lifecycle
   assurance-workpapers/   evidence packet sealing/verification, HTML workpaper
   procedures-ap/          AP methodology: contracts, coverage compiler,
-                          procedure engines, structural layer, ingestion
+                          procedure engines, structural layer, ingestion,
+                          QuickBooks Online report recipes
   structural-adapters/    owned graph/composition ports (ex-KOMPOSOS)
 tests/
-  unit/              the whole suite (140 tests)
+  unit/              the whole suite (`pytest tests/unit`)
+  fixtures/          real client-style files: an Excel register, QuickBooks
+                     Online exports
   golden/            frozen Phase 0 bundles + capture scripts
 case-studies/
   harborline-marine/ complete teaching case (see below)
@@ -181,8 +187,16 @@ The screen-by-screen use cases:
 1. **Engagement/team** — create, assign roles.
 2. **Sources & mappings** — upload artifacts → propose mapping (auto header
    detection; unmapped headers and refused fields are explicit) → reviewer
-   approves → normalize (Excel uploads are refused at mapping time with
-   instructions; the workbook bytes stay in the vault as evidence). Bulk
+   approves → normalize. CSV and .xlsx are read; for a workbook the sheet
+   and heading row (and, for a recognized QuickBooks Online report, the
+   recipe that flattens it and recomputes its subtotals) are part of the
+   reviewed spec and its digest. Legacy .xls and damaged workbooks are
+   refused with instructions; the bytes stay in the vault as evidence.
+   Rows set aside at normalization are listed with their reasons, a
+   loaded mapping cannot be loaded twice, and procedures read the latest
+   dataset per role. From an Unpaid Bills and a General Ledger export the
+   preparer can build the AP control balance schedule (both footed; source
+   hashes in its provenance), which then crosses review like any file. Bulk
    loading batches each step per chair — multi-file upload, filename role
    inference (a suggestion, never a guess), batch propose/approve/normalize
    with per-item outcomes — while every item keeps its own journaled
@@ -256,9 +270,9 @@ is stated openly as the pilot trust model: the console owner already controls
 every local identity, so the header changes convenience, not the boundary. A
 firm-hosted profile with real per-person sessions replaces it.
 
-**UI** (`workbench-ui`): seven tabs — Flow Map (purchase-to-pay diagram
-driven by live coverage), Team, Sources & Mappings, Coverage, Runs &
-Findings, SAD & Completion, Lock & Export. Dark/light theme; dense tables; no
+**UI** (`workbench-ui`): nine tabs — Flow Map (purchase-to-pay diagram
+driven by live coverage), Team, Planning & Risk, Sources & Mappings,
+Coverage, Runs & Findings, What Changed, SAD & Completion, Lock & Export. Dark/light theme; dense tables; no
 router, no component library.
 
 **Startup:** `noesi-workbench [--data DIR] [--port N] [--principal ID]

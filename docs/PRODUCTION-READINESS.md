@@ -72,7 +72,7 @@ completes.
 | 6.1 | **[P1] Concurrency** | One process, one writer, every request serialized on a lock | ASGI boundary + per-engagement write serialization; the worker protocol (frozen job manifests) was built so engine execution can move out-of-process without behavior change |
 | 6.2 | **[P1] Large populations** | Engines are in-memory over normalized lists (tested to ~10³ rows) | Chunked/columnar ingestion and engine paths for 10⁶-row GL files; the manifest digest model already supports it (digest per table) |
 | 6.3 | **[P2] Observability** | The journal is the audit log; server is silent | Separate ops telemetry (never mixed into the evidence journal), health checks, update channel with signed releases |
-| 6.4 | **[P2] Interop** | CSV in; JSON/HTML out; Excel refused with instructions | First-class XLSX ingestion (converted, with conversion recorded as provenance), AICPA Audit Data Standards mapping for GL/AP extracts, connectors (QuickBooks/NetSuite/Sage) with extraction receipts |
+| 6.4 | **[P2] Interop** | CSV and .xlsx in (standard-library reader; the sheet, heading row and converter version are part of the reviewed spec); recipes for four standard QuickBooks Online report exports; JSON/HTML out | A QuickBooks General Ledger recipe; AICPA Audit Data Standards mapping for GL/AP extracts; live connectors (QuickBooks/NetSuite/Sage) with extraction receipts; Excel workpaper output |
 
 ## 7. Professional positioning (not code)
 
