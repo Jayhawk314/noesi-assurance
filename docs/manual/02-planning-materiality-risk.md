@@ -48,6 +48,22 @@ formula the software computes for you.
 The discipline to internalize: a procedure justifies its place on the plan
 by the risk and assertion it addresses, not by being easy to run.
 
+**Fraud is part of the same risk assessment** (AU-C 240). The auditor
+keeps professional skepticism throughout, holds an engagement-team
+discussion of how and where the statements could be misstated by fraud,
+asks management and others about fraud risks, and weighs **fraud risk
+factors**: incentives or pressures, opportunities, and attitudes or
+rationalizations (the fraud triangle). Two fraud risks are built in:
+**revenue recognition** is presumed a fraud risk unless you document why
+not, and **management override of controls** is a risk in every audit,
+answered by testing journal entries, reviewing estimates for bias, and
+evaluating significant unusual transactions. A fraud risk is normally a
+significant risk. SAS No. 151, approved in August 2026, replaces AU-C 240
+for periods ending on or after December 15, 2028 (early adoption
+permitted); the definition of fraud and the auditor's objective do not
+change. The **Fraud in payables** course, lesson F2 (`/studio/#/learn/fraud/2`),
+works a full fraud risk assessment on Harborline.
+
 ## In the workbench
 
 On **SAD & Completion**:
@@ -89,6 +105,17 @@ follow from the register, and each blocks the lock:
 
 That last trio is the point: the tool will not let you lock an engagement
 that names a significant risk and then does nothing about it.
+
+**Fraud risks go in the same register.** There is no separate fraud flag,
+so start the title with "Fraud:" and name the fraud risk factor in the
+rationale, for example "Fraud: self-approved payments during the
+supervisor gap", against **authorization**, linked to
+`ap.segregation_of_duties`. The payables procedures answer fraud risks in
+this cycle (look-alike vendors, self-approval, split payments, bank and
+ledger mismatches). Two AU-C 240 responses fall outside the workbench:
+journal-entry testing for management override, and procedures for the
+revenue presumption. Record those risks here anyway, with the response you
+perform elsewhere, so the plan shows how every fraud risk was answered.
 
 Every procedure contract in the library also carries its cycle, its
 **assertions**, its stated **limitations**, and the data and policies it
