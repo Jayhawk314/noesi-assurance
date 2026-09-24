@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
   Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification,
-  Extraction, WorkbookPreview,
+  ApControlBuilt, ApControlCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
 
 interface ScreenProps {
@@ -91,16 +91,41 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   const [pick, setPick] = useState<Record<string, Extraction>>({});
   const isWorkbook = (a: Artifact) => /\.xlsx$/i.test(a.original_name)
     || a.media_type.includes("spreadsheetml");
-  const openBook = (a: Artifact) => {
+  const openBook = useCallback((a: Artifact) => {
     client.workbookPreview(eid, a.artifact_id).then((book) => {
-      setBooks({ ...books, [a.artifact_id]: book });
+      setBooks((prev) => ({ ...prev, [a.artifact_id]: book }));
       const first = book.sheets[0];
-      setPick({ ...pick, [a.artifact_id]: pick[a.artifact_id]
-        ?? { sheet: first.sheet, header_row: first.suggested_header_row } });
+      const recipes = first.recipes ?? [];
+      // A recognized QuickBooks report decides the role, not the filename:
+      // one recipe is preselected; several leave the role for you to choose.
+      const only = recipes.length === 1 ? recipes[0] : undefined;
+      setPick((prev) => ({ ...prev, [a.artifact_id]: prev[a.artifact_id]
+        ?? { sheet: first.sheet,
+             header_row: only?.header_row ?? first.suggested_header_row,
+             recipe: only?.recipe } }));
+      if (recipes.length || first.quickbooks_note) {
+        setMapRole((prev) => a.artifact_id in prev ? prev
+          : { ...prev, [a.artifact_id]: only?.role ?? "" });
+      }
     }).catch(onError);
-  };
+  }, [client, eid, onError]);
   const extractionFor = (a: Artifact): Extraction | undefined =>
     isWorkbook(a) ? pick[a.artifact_id] : undefined;
+
+  // Read every unmapped workbook once, so recognized reports are offered
+  // before anyone proposes — including "propose all".
+  const opened = useRef(new Set<string>());
+  useEffect(() => {
+    for (const a of data?.artifacts ?? []) {
+      const mapped = (data?.mapping_specs ?? []).some(
+        (s) => s.artifact_id === a.artifact_id && s.status !== "superseded");
+      if (isWorkbook(a) && a.state === "promoted" && !mapped
+          && !opened.current.has(a.artifact_id)) {
+        opened.current.add(a.artifact_id);
+        openBook(a);
+      }
+    }
+  }, [data, openBook]);
 
   const act = (work: () => Promise<unknown>) => () => {
     work().then(reload).catch(onError);
@@ -195,7 +220,8 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
               <td colSpan={6}>
                 <WorkbookChooser book={books[artifact.artifact_id]}
                                  choice={pick[artifact.artifact_id] ?? {}}
-                                 onChange={(c) => setPick({ ...pick, [artifact.artifact_id]: c })} />
+                                 onChange={(c) => setPick((prev) => ({ ...prev, [artifact.artifact_id]: c }))}
+                                 onRole={(role) => setMapRole((prev) => ({ ...prev, [artifact.artifact_id]: role }))} />
               </td>
             </tr>
           ))}
@@ -223,6 +249,9 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         compresses the clicks, never the review — every proposal still
         crosses the reviewer's approval before it can normalize.
       </p>
+
+      <ApControlPanel client={client} eid={eid} onError={onError} onBuilt={reload}
+                      artifactCount={data?.artifacts.length ?? 0} />
 
       <h3>Mapping specs (proposal → reviewer approval → normalize)</h3>
       {(proposedSpecs.length > 1 || normalizable.length > 1) && (
@@ -261,7 +290,8 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
               <td>{spec.unmapped_headers.join(", ") || "—"}</td>
               <td>{spec.refused_fields.join(", ") || "—"}</td>
               <td>{spec.extraction
-                ? `sheet "${spec.extraction.sheet}", headings on row ${spec.extraction.header_row}`
+                ? <>sheet "{spec.extraction.sheet}", headings on row {spec.extraction.header_row}
+                    {spec.recipe_report && <RecipeSummary report={spec.recipe_report} />}</>
                 : "CSV"}</td>
               <td>
                 {spec.status === "proposed" && (
@@ -270,12 +300,13 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                     approve
                   </button>
                 )}
-                {spec.status === "approved" && (
+                {spec.status === "approved" && !normalizedSpecs.has(spec.spec_id) && (
                   <button className="action"
                           onClick={act(() => client.normalize(eid, spec.spec_id))}>
                     normalize
                   </button>
                 )}
+                {normalizedSpecs.has(spec.spec_id) && <span className="status ok">loaded ✓</span>}
               </td>
             </tr>
           ))}
@@ -290,13 +321,23 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         </thead>
         <tbody>
           {(data?.datasets ?? []).map((dataset) => (
-            <tr key={dataset.dataset_id}>
-              <td>{dataset.role}</td>
+            <tr key={dataset.dataset_id} className={dataset.in_use === false ? "skipped" : ""}>
+              <td>{dataset.role}
+                {dataset.in_use === false && (
+                  <div className="note">not used: a later {dataset.role} load replaces it</div>
+                )}
+              </td>
               <td>
                 {dataset.rows_in} / {dataset.rows_loaded} /{" "}
                 <span className={dataset.rows_rejected ? "status broken" : ""}>
                   {dataset.rows_rejected}
                 </span>
+                {(dataset.rejected_reasons ?? []).map((r) => (
+                  <div key={r.reason} className="note">
+                    Set aside {r.rows}: {r.reason} (row{r.source_rows.length > 1 ? "s" : ""}{" "}
+                    {r.source_rows.join(", ")}{r.rows > r.source_rows.length ? ", …" : ""})
+                  </div>
+                ))}
               </td>
               <td>{dataset.control_total ?? "—"}</td>
               <td><code>{short(dataset.output_digest)}</code></td>
@@ -916,15 +957,38 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
 /** Choose a workbook's sheet and heading row, with the first rows shown so
  *  the choice is visible rather than guessed. The chosen row is highlighted;
  *  rows above it are skipped, and reading stops at the first blank row. */
-function WorkbookChooser({ book, choice, onChange }: {
+function WorkbookChooser({ book, choice, onChange, onRole }: {
   book: WorkbookPreview;
   choice: Extraction;
   onChange: (choice: Extraction) => void;
+  onRole: (role: string) => void;
 }) {
   const sheet = book.sheets.find((s) => s.sheet === choice.sheet) ?? book.sheets[0];
   const headerRow = choice.header_row ?? sheet.suggested_header_row;
+  const recipes = sheet.recipes ?? [];
+  const recipe = recipes.find((r) => r.recipe === choice.recipe);
   return (
     <div className="workbook-chooser">
+      {sheet.quickbooks_note && <p className="recipe-pick note">{sheet.quickbooks_note}</p>}
+      {recipes.length > 0 && (
+        <p className="recipe-pick">
+          <label>QuickBooks report recognized: <b>{recipes[0].report}</b>{" "}
+            <select value={choice.recipe ?? ""}
+                    onChange={(e) => {
+                      const next = recipes.find((r) => r.recipe === e.target.value);
+                      onChange({ sheet: sheet.sheet,
+                                 header_row: next?.header_row ?? headerRow,
+                                 recipe: next?.recipe });
+                      if (next) onRole(next.role);
+                    }}>
+              <option value="">plain mapping (no recipe)</option>
+              {recipes.map((r) => <option key={r.recipe} value={r.recipe}>read as {r.role}</option>)}
+            </select>
+          </label>
+          {recipe && <span className="note"> {recipe.note} Group headings become a
+            column, subtotal rows are dropped after each is checked against its detail rows.</span>}
+        </p>
+      )}
       <label>Sheet{" "}
         <select value={sheet.sheet}
                 onChange={(e) => {
@@ -938,6 +1002,7 @@ function WorkbookChooser({ book, choice, onChange }: {
       </label>{" "}
       <label>Headings on row{" "}
         <input type="number" min={1} max={Math.max(1, sheet.row_count)} value={headerRow}
+               disabled={!!recipe}
                onChange={(e) => onChange({ sheet: sheet.sheet, header_row: Number(e.target.value) })} />
       </label>{" "}
       <span className="note">suggested: row {sheet.suggested_header_row}</span>
@@ -952,6 +1017,100 @@ function WorkbookChooser({ book, choice, onChange }: {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** A QuickBooks recipe's checks, for the reviewer deciding on approval. */
+function RecipeSummary({ report }: { report: RecipeReport }) {
+  const totals = report.subtotals_checked + (report.grand_total?.length ?? 0);
+  const agreed = totals === 1 ? "the total agrees" : totals === 2 ? "both totals agree"
+    : `all ${totals} totals agree`;
+  const bad = report.totals_disagreeing;
+  const leftOut = Object.entries(report.transaction_types ?? {})
+    .filter(([, n]) => n.left_out > 0)
+    .map(([kind, n]) => `${n.left_out} ${kind}`);
+  const signs = Object.entries(report.amount_signs_by_account ?? {})
+    .map(([account, n]) => `${account}: ${n.negative} negative, ${n.positive} positive`);
+  return (
+    <div className="recipe-summary">
+      QuickBooks {report.report} recipe: {report.rows_kept} rows kept.{" "}
+      {totals > 0 && <span className={`status ${bad.length ? "broken" : "ok"}`}>
+        {bad.length
+          ? `${bad.length} of ${totals} totals disagree: ${bad.map((t) =>
+              `${t.group} ${t.column} (row ${t.sheet_row}) stated ${t.stated ?? "blank"}, detail sums to ${t.computed}`).join("; ")}`
+          : `${agreed} with the detail rows`}
+      </span>}
+      {(report.missing_required ?? []).map((m) => (
+        <div key={m.field} className="status broken">
+          {m.rows} of {m.of} rows have no {m.field} ({m.heading} is blank) and
+          will be set aside when loaded.
+        </div>
+      ))}
+      {leftOut.length > 0 && <div className="note">Left out: {leftOut.join(", ")}.</div>}
+      {signs.length > 0 && <div className="note">Amount signs as exported ({signs.join("; ")}); loaded as positive paid amounts.</div>}
+    </div>
+  );
+}
+
+/** The AP subledger-to-ledger tie from two QuickBooks exports: Unpaid Bills
+ *  (the subledger) and the General Ledger (the control account). Building it
+ *  stores a schedule as an ordinary source file, which is then proposed,
+ *  approved and loaded like any other. Shown only when both kinds exist. */
+function ApControlPanel({ client, eid, onError, onBuilt, artifactCount }: {
+  client: Client; eid: string; onError: (e: Error) => void;
+  onBuilt: () => void; artifactCount: number;
+}) {
+  const [found, setFound] = useState<ApControlCandidates | null>(null);
+  const [sub, setSub] = useState("");
+  const [ledger, setLedger] = useState("");
+  const [built, setBuilt] = useState<ApControlBuilt | null>(null);
+  // The parent's error handler is recreated each render; keep it out of the
+  // effect's dependencies so an error banner cannot trigger another fetch.
+  const reportError = useRef(onError);
+  reportError.current = onError;
+  useEffect(() => {
+    client.apControlCandidates(eid).then((c) => {
+      setFound(c);
+      setSub((prev) => prev || c.subledger[0]?.artifact_id || "");
+      setLedger((prev) => prev || c.ledger[0]?.artifact_id || "");
+    }).catch((e) => reportError.current(e));
+  }, [client, eid, artifactCount]);
+  if (!found || !found.subledger.length || !found.ledger.length) return null;
+  const build = () => client.buildApControl(eid, sub, ledger)
+    .then((result) => { setBuilt(result); onBuilt(); }).catch(onError);
+  return (
+    <div className="ap-control">
+      <h3>AP subledger-to-ledger tie</h3>
+      <p className="note">
+        The unpaid-bills total is the AP subledger; the ledger's Accounts
+        Payable balance is the control account. Both reports are footed first.
+        The result is saved as an "AP control balance" source file, which you
+        then propose, approve and load like any other.
+      </p>
+      <form className="inline" onSubmit={(e) => { e.preventDefault(); void build(); }}>
+        <label>Subledger{" "}
+          <select value={sub} onChange={(e) => setSub(e.target.value)}>
+            {found.subledger.map((a) => <option key={a.artifact_id} value={a.artifact_id}>{a.original_name}</option>)}
+          </select>
+        </label>{" "}
+        <label>Ledger{" "}
+          <select value={ledger} onChange={(e) => setLedger(e.target.value)}>
+            {found.ledger.map((a) => <option key={a.artifact_id} value={a.artifact_id}>{a.original_name}</option>)}
+          </select>
+        </label>{" "}
+        <button className="action" type="submit">build AP control balance</button>
+      </form>
+      {built && (
+        <div className="recipe-summary">
+          Subledger {built.subledger_balance} vs ledger {built.gl_balance} as of{" "}
+          {built.period_end}:{" "}
+          <span className={`status ${Number(built.difference) === 0 ? "ok" : "broken"}`}>
+            difference {built.difference}
+          </span>
+          {built.notes.map((n) => <div key={n} className="note">Check: {n}.</div>)}
+        </div>
+      )}
     </div>
   );
 }

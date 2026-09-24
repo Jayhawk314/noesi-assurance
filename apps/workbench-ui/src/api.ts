@@ -58,17 +58,55 @@ export interface MappingSpec {
   unmapped_headers: string[];
   refused_fields: string[];
   created_at: string;
-  /** For an Excel source: the sheet and header row this spec reads. */
-  extraction?: { converter: string; sheet: string; header_row: number } | null;
+  /** For an Excel source: the sheet and header row this spec reads, and the
+   *  QuickBooks recipe that flattened it, if any. */
+  extraction?: { converter: string; sheet: string; header_row: number;
+                 recipe?: string; recipe_version?: string } | null;
+  /** What a QuickBooks recipe checked, kept and left out. */
+  recipe_report?: RecipeReport | null;
+}
+
+/** A QuickBooks report recognized on a sheet, with the role it can feed. */
+export interface RecipeMatch {
+  recipe: string; label: string; report: string; role: string;
+  header_row: number; note: string;
+}
+
+export interface TotalCheck {
+  group: string; column: string; sheet_row: number; computed: string;
+  stated: string | null; agrees: boolean;
+}
+
+export interface RecipeReport {
+  recipe: string; report: string; role: string; rows_kept: number;
+  subtotals_checked: number; grand_total: TotalCheck[] | null;
+  totals_disagreeing: TotalCheck[]; note: string;
+  missing_required?: { field: string; heading: string; rows: number; of: number }[];
+  transaction_types?: Record<string, { kept: number; left_out: number }>;
+  amount_signs_by_account?: Record<string, { negative: number; positive: number; zero: number }>;
 }
 
 /** An uploaded workbook's sheets, first rows and suggested header rows. */
 export interface WorkbookPreview {
   artifact_id: string;
-  sheets: { sheet: string; rows: string[][]; row_count: number; suggested_header_row: number }[];
+  sheets: { sheet: string; rows: string[][]; row_count: number; suggested_header_row: number;
+            recipes?: RecipeMatch[];
+            /** A recognized QuickBooks export with no recipe, and why. */
+            quickbooks_note?: string | null }[];
 }
 
-export interface Extraction { sheet?: string; header_row?: number }
+export interface Extraction { sheet?: string; header_row?: number; recipe?: string }
+
+/** Uploaded QuickBooks exports that can serve as each side of the AP tie. */
+export interface ApControlCandidates {
+  subledger: { artifact_id: string; original_name: string }[];
+  ledger: { artifact_id: string; original_name: string }[];
+}
+
+export interface ApControlBuilt {
+  artifact_id: string; period_end: string; subledger_balance: string;
+  gl_balance: string; difference: string; notes: string[];
+}
 
 export interface Dataset {
   dataset_id: string;
@@ -81,6 +119,10 @@ export interface Dataset {
   control_total: string | null;
   output_digest: string;
   created_at: string;
+  /** Whether procedures read this dataset: only the latest per role is used. */
+  in_use?: boolean;
+  /** Why rows were set aside (quarantined), with their source row numbers. */
+  rejected_reasons?: { reason: string; rows: number; source_rows: number[] }[];
 }
 
 export interface Sources {
@@ -374,6 +416,11 @@ export class Client {
   proposeMapping = (eid: string, role: string, artifact_id: string, extraction?: Extraction) =>
     this.request<{ spec_id: string; column_map: Record<string, string> }>(
       "POST", `/api/engagements/${eid}/mappings`, { role, artifact_id, extraction });
+  apControlCandidates = (eid: string) =>
+    this.request<ApControlCandidates>("GET", `/api/engagements/${eid}/ap-control/candidates`);
+  buildApControl = (eid: string, subledger_artifact_id: string, ledger_artifact_id: string) =>
+    this.request<ApControlBuilt>("POST", `/api/engagements/${eid}/ap-control`,
+      { subledger_artifact_id, ledger_artifact_id });
   workbookPreview = (eid: string, artifact_id: string) =>
     this.request<WorkbookPreview>("GET", `/api/engagements/${eid}/artifacts/${artifact_id}/sheets`);
   approveMapping = (eid: string, spec_id: string) =>

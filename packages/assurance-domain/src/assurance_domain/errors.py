@@ -20,5 +20,16 @@ class ConflictError(DomainError):
         )
 
 
+class DuplicateError(ConflictError):
+    """The entity already exists. A conflict, but not a stale version: the
+    message says what is already there, so the operator knows what to do."""
+
+    def __init__(self, entity_type: str, entity_id: str, message: str):
+        self.entity_type = entity_type
+        self.entity_id = entity_id
+        self.expected_version = 0
+        DomainError.__init__(self, message)
+
+
 class NotFoundError(DomainError):
     """The referenced entity does not exist in the caller's engagement scope."""

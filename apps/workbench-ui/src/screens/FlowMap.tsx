@@ -7,7 +7,8 @@ import {
 import { useResource } from "../lib/useResource";
 import "../ui/flowmap.css";
 
-type RoleState = "supplied" | "mapped" | "missing";
+// "empty": normalized, but every row was quarantined — the data is not in.
+type RoleState = "supplied" | "empty" | "mapped" | "missing";
 type ProcState = "executable" | "partial" | "blocked" | "unsupported";
 
 interface Props {
@@ -47,7 +48,9 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
   const roleState = useCallback((role: string): RoleState => {
     const sources = data?.sources;
     if (!sources) return "missing";
-    if (sources.datasets.some((set) => set.role === role)) return "supplied";
+    const sets = sources.datasets.filter((set) => set.role === role);
+    if (sets.some((set) => set.rows_loaded > 0)) return "supplied";
+    if (sets.length) return "empty";
     if (sources.mapping_specs.some((spec) => spec.role === role)) return "mapped";
     return "missing";
   }, [data]);
@@ -278,6 +281,7 @@ function Diagram(
             <text className="fm-sub" x="13" y="45">
               {state === "supplied"
                 ? `${(rows ?? 0).toLocaleString()} rows`
+                : state === "empty" ? "0 rows — all set aside"
                 : state === "mapped" ? "mapped, not normalized" : "not supplied"}
             </text>
             <circle className="fm-dot" cx={NODE_W - 16} cy="20" />
@@ -343,13 +347,15 @@ function NodeDetail(
       <div className="fm-detail-head">
         <h3>{node.label}</h3>
         <span className={`pill ${state === "supplied" ? "ok"
-          : state === "mapped" ? "pending" : "idle"}`}>
+          : state === "empty" ? "bad" : state === "mapped" ? "pending" : "idle"}`}>
           {state === "supplied" ? `${(rows ?? 0).toLocaleString()} rows loaded`
+            : state === "empty" ? "every row was set aside"
             : state === "mapped" ? "mapped, not normalized" : "not supplied"}
         </span>
         {state !== "supplied" && (
           <button className="action primary" onClick={onGoToSources}>
-            {state === "mapped" ? "finish in Sources" : "upload this data"}
+            {state === "empty" ? "see why in Sources"
+              : state === "mapped" ? "finish in Sources" : "upload this data"}
           </button>
         )}
       </div>

@@ -294,13 +294,27 @@ class MappingSpec:
 
 def propose_mapping(role: str, headers: list[str], *,
                     source_sha256: str = "",
-                    proposed_by: str = "") -> MappingSpec:
-    """Detect a candidate mapping. A proposal, not an authority."""
+                    proposed_by: str = "",
+                    column_map: dict[str, str] | None = None) -> MappingSpec:
+    """Detect a candidate mapping. A proposal, not an authority.
+
+    ``column_map`` replaces synonym detection when a recipe already knows
+    the layout (a recognized QuickBooks report); it is checked against the
+    role's fields and the actual headings, and is still only a proposal.
+    """
     if role not in ROLE_SCHEMAS:
         raise ValueError(
             f"unknown role {role!r}; expected one of {list(ROLE_SCHEMAS)}")
     schema = ROLE_SCHEMAS[role]
-    column_map = detect_columns(headers, schema)
+    if column_map is None:
+        column_map = detect_columns(headers, schema)
+    else:
+        bad = [f for f in column_map if f not in schema]
+        missing = [h for h in column_map.values() if h not in headers]
+        if bad or missing:
+            raise ValueError(f"column map does not fit {role}: unknown fields "
+                             f"{bad}, headings not in the file {missing}")
+        column_map = {f: column_map[f] for f in schema if f in column_map}
     mapped = set(column_map.values())
     return MappingSpec(
         role=role,
@@ -388,7 +402,8 @@ def _jsonable_rows(records: list[dict]) -> list[dict]:
 
 
 def normalize_table(rows: list[dict], spec: MappingSpec, *,
-                    source_file: str = "", first_row: int = 2) -> NormalizedTable:
+                    source_file: str = "", first_row: int = 2,
+                    source_rows: list[int] | None = None) -> NormalizedTable:
     """Normalize raw rows through an *approved* mapping spec.
 
     Rows whose required key fields are blank are quarantined with reasons,
@@ -418,8 +433,12 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
     null_amounts = 0
     # source_row points at the row in the file as the client sent it: CSV
     # line numbers by default (header on line 1); a workbook passes the
-    # sheet row of its first data row.
-    for source_row, raw in enumerate(rows, first_row):
+    # sheet row of its first data row. A recipe that drops rows (subtotals,
+    # filtered transaction types) passes each kept row's own row number.
+    if source_rows is not None and len(source_rows) != len(rows):
+        raise ValueError("source_rows must give one row number per row")
+    numbers = source_rows if source_rows is not None else range(first_row, first_row + len(rows))
+    for source_row, raw in zip(numbers, rows):
         record: dict = {}
         for field_name, header in spec.column_map.items():
             value = raw.get(header)

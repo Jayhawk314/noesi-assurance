@@ -374,6 +374,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return {"team": service.team(eid)}
                 case ["engagements", eid, "sources"]:
                     return service.sources(eid)
+                case ["engagements", eid, "ap-control", "candidates"]:
+                    return service.ap_control_candidates(eid)
                 case ["engagements", eid, "artifacts", aid, "sheets"]:
                     return service.workbook_preview(eid, aid)
                 case ["engagements", eid, "coverage"]:
@@ -422,6 +424,12 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                         original_name=self.headers.get(
                             "X-Original-Name", "upload"),
                         provenance=self.headers.get("X-Provenance", ""))
+                case ["engagements", eid, "ap-control"]:
+                    body = self._read_json()
+                    return service.build_ap_control_balance(
+                        actor, eid,
+                        subledger_artifact_id=str(body["subledger_artifact_id"]),
+                        ledger_artifact_id=str(body["ledger_artifact_id"]))
                 case ["engagements", eid, "mappings"]:
                     body = self._read_json()
                     extraction = body.get("extraction")

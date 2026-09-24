@@ -22,7 +22,7 @@ from assurance_artifacts import xlsx
 from assurance_artifacts.intake import store_artifact
 from assurance_artifacts.vault import ArtifactVault
 from assurance_domain.commands import Command
-from assurance_domain.errors import ConflictError, NotFoundError
+from assurance_domain.errors import ConflictError, DuplicateError, NotFoundError
 from assurance_domain.identities import new_id
 from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
@@ -32,6 +32,7 @@ from assurance_domain.sad import (
 )
 from assurance_persistence.spine import run_command
 from procedures_ap.coverage import compile_coverage, inventory_from_tables
+from procedures_ap import quickbooks
 from procedures_ap.engines import ENGINE_VERSION, execute_procedure
 from procedures_ap.ingest import (
     MappingSpec, NormalizedTable, infer_role, normalize_table, propose_mapping,
@@ -168,17 +169,30 @@ class WorkbenchService:
         """
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
-        headers, _, resolved = self._artifact_table(artifact_id, extraction)
+        headers, _, resolved, _ = self._artifact_table(artifact_id, extraction)
         artifact = self._conn.execute(
             "SELECT sha256 FROM artifact WHERE artifact_id = ?",
             (artifact_id,)).fetchone()
+        recipe = (quickbooks.get(resolved["recipe"])
+                  if resolved and resolved.get("recipe") else None)
+        if recipe is not None and role != recipe.role:
+            raise ValueError(f"the {recipe.label} recipe produces {recipe.role}, "
+                             f"not {role}")
         spec = propose_mapping(role, headers, source_sha256=artifact["sha256"],
-                               proposed_by=actor)
+                               proposed_by=actor,
+                               column_map=recipe.column_map if recipe else None)
         stored = spec.to_dict()
         digest = spec.digest
         if resolved is not None:
-            params = {k: resolved[k] for k in ("converter", "sheet", "header_row")}
+            keys = ("converter", "sheet", "header_row") + (
+                ("recipe", "recipe_version") if recipe else ())
+            params = {k: resolved[k] for k in keys}
             stored["extraction"] = params
+            if recipe is not None:
+                # What the recipe checked, kept and left out, for the reviewer
+                # deciding on approval. Derived from the file, so outside the
+                # digest; normalization recomputes it from the vaulted bytes.
+                stored["recipe_report"] = resolved["recipe_report"]
             digest = hashlib.sha256(
                 (spec.digest + json.dumps(params, sort_keys=True))
                 .encode("utf-8")).hexdigest()
@@ -215,6 +229,18 @@ class WorkbenchService:
                          spec_id: str) -> dict:
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
+        # The file and the approved mapping are immutable, so a second load
+        # could only repeat the same rows as a confusing duplicate dataset.
+        existing = self._conn.execute(
+            "SELECT dataset_id FROM normalized_dataset WHERE mapping_spec_id = ?",
+            (spec_id,)).fetchone()
+        if existing is not None:
+            raise DuplicateError(
+                "normalized_dataset", spec_id,
+                f"this mapping is already loaded (dataset "
+                f"{existing['dataset_id'][:8]}); its file and approved mapping "
+                f"cannot change, so loading again would only repeat the same "
+                f"rows")
         table = self._rebuild_table(spec_id)
 
         def handler(uow):
@@ -264,6 +290,10 @@ class WorkbenchService:
                                         "exists for this artifact")
                 else:
                     role = str(item.get("role") or "")
+                    extraction = item.get("extraction")
+                    if not role and isinstance(extraction, dict) \
+                            and extraction.get("recipe"):
+                        role = quickbooks.get(str(extraction["recipe"])).role
                     if not role:
                         name = self._conn.execute(
                             "SELECT original_name FROM artifact "
@@ -276,7 +306,6 @@ class WorkbenchService:
                         raise ValueError(
                             "no role given and none inferable from the "
                             "filename; choose the role explicitly")
-                    extraction = item.get("extraction")
                     entry.update(self.propose_source_mapping(
                         actor, engagement_id, role=role,
                         artifact_id=artifact_id,
@@ -368,15 +397,40 @@ class WorkbenchService:
             item["unmapped_headers"] = stored.get("unmapped_headers", [])
             item["refused_fields"] = stored.get("refused_fields", [])
             item["extraction"] = stored.get("extraction")
+            item["recipe_report"] = stored.get("recipe_report")
             specs.append(item)
         datasets = [dict(row) for row in self._conn.execute(
             """SELECT dataset_id, role, mapping_spec_id, artifact_id, rows_in,
                rows_loaded, rows_rejected, control_total, output_digest,
                created_at FROM normalized_dataset
-               WHERE engagement_id = ? ORDER BY created_at""",
+               WHERE engagement_id = ? ORDER BY created_at, dataset_id""",
             (engagement_id,))]
+        # Procedures read one dataset per role: the latest, in exactly the
+        # order _tables uses. Say which, so an earlier load of the same role
+        # is visibly replaced rather than silently ignored.
+        latest = {d["role"]: d["dataset_id"] for d in datasets}
+        for dataset in datasets:
+            dataset["in_use"] = latest[dataset["role"]] == dataset["dataset_id"]
+            dataset["rejected_reasons"] = (
+                self._rejected_reasons(dataset["mapping_spec_id"])
+                if dataset["rows_rejected"] else [])
         return {"artifacts": artifacts, "mapping_specs": specs,
                 "datasets": datasets}
+
+    def _rejected_reasons(self, spec_id: str) -> list[dict]:
+        """Why rows were set aside, grouped by reason with their row numbers.
+        Reperformed from the vaulted file like every other read; if that
+        fails, the failure is the answer rather than a broken listing."""
+        try:
+            rejects = self._rebuild_table(spec_id).rejects
+        except Exception as exc:  # noqa: BLE001 — shown, not swallowed
+            return [{"reason": f"could not reperform: {exc}", "rows": 0,
+                     "source_rows": []}]
+        grouped: dict[str, list[int]] = {}
+        for reject in rejects:
+            grouped.setdefault(reject["reason"], []).append(reject["source_row"])
+        return [{"reason": reason, "rows": len(rows), "source_rows": rows[:10]}
+                for reason, rows in grouped.items()]
 
     # --------------------------------------------- screen 3: coverage
 
@@ -1482,13 +1536,16 @@ class WorkbenchService:
         return self._vault.read_bytes(artifact["sha256"])
 
     def _artifact_table(self, artifact_id: str, extraction: dict | None = None
-                        ) -> tuple[list[str], list[dict], dict | None]:
+                        ) -> tuple[list[str], list[dict], dict | None, list[int] | None]:
         """Header-keyed rows from a CSV or an Excel workbook.
 
         Returns the resolved workbook extraction (sheet, header row, what
-        was read and where it stopped), or None for CSV. Legacy .xls and
-        unreadable workbooks are refused with instructions; the original
-        bytes stay in the vault as evidence either way.
+        was read and where it stopped), or None for CSV, and each row's
+        sheet row number when a recipe dropped rows (None: contiguous).
+        A QuickBooks recipe named in the extraction flattens the report and
+        adds its check report. Legacy .xls and unreadable workbooks are
+        refused with instructions; the original bytes stay in the vault as
+        evidence either way.
         """
         content = self._artifact_content(artifact_id)
         if xlsx.is_xlsx(content) or xlsx.is_legacy_xls(content):
@@ -1503,16 +1560,144 @@ class WorkbenchService:
                     header_row=int(header_row) if header_row else None)
             except xlsx.WorkbookError as exc:
                 raise ValueError(str(exc)) from exc
-            return headers, rows, resolved
+            recipe_id = (extraction or {}).get("recipe")
+            if not recipe_id:
+                return headers, rows, resolved, None
+            recipe = quickbooks.get(str(recipe_id))
+            version = extraction.get("recipe_version") or quickbooks.RECIPE_VERSION
+            if version != quickbooks.RECIPE_VERSION:
+                raise ValueError(
+                    f"this spec was read with recipe version {version!r}; "
+                    f"this build has {quickbooks.RECIPE_VERSION!r}")
+            headers, rows, source_rows, report = quickbooks.apply(
+                recipe.recipe_id, headers, rows, resolved["header_row"] + 1)
+            resolved.update(recipe=recipe.recipe_id,
+                            recipe_version=quickbooks.RECIPE_VERSION,
+                            recipe_report=report)
+            return headers, rows, resolved, source_rows
+        if (extraction or {}).get("recipe"):
+            raise ValueError("QuickBooks recipes read .xlsx exports; "
+                             "this artifact is not a workbook")
         text = content.decode("utf-8-sig", errors="replace")
         rows = list(csv.DictReader(text.splitlines()))
         headers = list(rows[0].keys()) if rows else []
-        return headers, rows, None
+        return headers, rows, None, None
 
-    def _artifact_rows(self, artifact_id: str,
-                       extraction: dict | None = None) -> tuple[list[str], list[dict]]:
-        headers, rows, _ = self._artifact_table(artifact_id, extraction)
-        return headers, rows
+    # ------------------------------------------ AP control balance (QuickBooks)
+
+    def _qbo_workbooks(self, engagement_id: str) -> list[dict]:
+        """Promoted .xlsx artifacts with their raw first-sheet rows."""
+        out = []
+        for row in self._conn.execute(
+                """SELECT artifact_id, original_name, sha256 FROM artifact
+                   WHERE engagement_id = ? AND state = 'promoted'
+                   ORDER BY created_at""", (engagement_id,)):
+            content = self._vault.read_bytes(row["sha256"])
+            if not xlsx.is_xlsx(content):
+                continue
+            try:
+                [first, *_] = xlsx.preview(content, max_rows=xlsx.MAX_ROWS)
+            except (xlsx.WorkbookError, ValueError):
+                continue
+            out.append({**dict(row), "content": content, "rows": first["rows"],
+                        "sheet": first["sheet"]})
+        return out
+
+    def ap_control_candidates(self, engagement_id: str) -> dict:
+        """Uploaded files that can serve as each side of the AP tie."""
+        subledger, ledger = [], []
+        for book in self._qbo_workbooks(engagement_id):
+            entry = {"artifact_id": book["artifact_id"],
+                     "original_name": book["original_name"]}
+            if any(m["recipe"] == "qbo.unpaid_bills.vouchers"
+                   for m in quickbooks.recognize(book["rows"])):
+                subledger.append(entry)
+            elif quickbooks.is_general_ledger(book["rows"]):
+                ledger.append(entry)
+        return {"subledger": subledger, "ledger": ledger}
+
+    def build_ap_control_balance(self, actor: str, engagement_id: str, *,
+                                 subledger_artifact_id: str,
+                                 ledger_artifact_id: str) -> dict:
+        """Prepare the AP control balance schedule from two QuickBooks exports.
+
+        The subledger balance is Unpaid Bills' grand-total open balance; the
+        ledger balance is the Accounts Payable account's ending balance in
+        the General Ledger export. Both are footed first, and a report that
+        does not foot is refused. The schedule is stored as an ordinary
+        source file whose provenance names both exports by SHA-256, then goes
+        through the same propose, approve and normalize path as any other
+        file: the preparer builds it, a reviewer approves its mapping.
+        """
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer")
+        books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
+        sub, gl = books.get(subledger_artifact_id), books.get(ledger_artifact_id)
+        if sub is None or gl is None:
+            raise KeyError("both files must be .xlsx exports in this engagement")
+        if not any(m["recipe"] == "qbo.unpaid_bills.vouchers"
+                   for m in quickbooks.recognize(sub["rows"])):
+            raise ValueError(f"{sub['original_name']!r} is not QuickBooks' "
+                             f"standard Unpaid Bills export")
+        extraction, headers, rows = xlsx.extract(sub["content"], sheet=sub["sheet"])
+        _, _, _, report = quickbooks.apply(
+            "qbo.unpaid_bills.vouchers", headers, rows, extraction["header_row"] + 1)
+        if report["totals_disagreeing"]:
+            raise ValueError(f"Unpaid Bills does not foot: "
+                             f"{report['totals_disagreeing']}")
+        open_total = next((t for t in report["grand_total"] or []
+                           if t["column"] == "Open balance"), None)
+        if open_total is None:
+            raise ValueError("Unpaid Bills has no grand TOTAL of open balances")
+        ledger = quickbooks.gl_account_balance(gl["rows"])
+        if ledger["as_of"] is None:
+            raise ValueError(f"the ledger's period {ledger['period']!r} names no end date")
+
+        sub_block = quickbooks.title_block(sub["rows"])
+        sub_as_of = (quickbooks.last_date(sub_block["period"])
+                     or quickbooks.last_date(sub_block["footer"]))
+        subledger = Decimal(open_total["computed"])
+        control = Decimal(ledger["ending"])
+        period_end = self._conn.execute(
+            "SELECT period_end FROM engagement WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()["period_end"]
+        notes = []
+        if ledger["as_of"] != period_end:
+            notes.append(f"the ledger runs to {ledger['as_of']}, not the "
+                         f"engagement's period end {period_end}")
+        if sub_as_of != ledger["as_of"]:
+            notes.append(
+                f"Unpaid Bills is as of {sub_as_of or 'an undated run'} "
+                f"({sub_block['period'] or 'no period'}), the ledger to "
+                f"{ledger['as_of']}: confirm both describe the same date")
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, lineterminator="\n")
+        writer.writerow(["Period End", "Subledger Balance", "GL Balance",
+                         "Subledger Source", "Subledger As Of", "GL Source",
+                         "GL Period", "GL Basis", "Notes"])
+        writer.writerow([ledger["as_of"], str(subledger), str(control),
+                         f"{sub['original_name']} (sha256 {sub['sha256'][:12]})",
+                         sub_as_of or "", f"{gl['original_name']} "
+                         f"(sha256 {gl['sha256'][:12]})", ledger["period"],
+                         ledger["basis"] or "", "; ".join(notes)])
+        provenance = json.dumps({
+            "prepared_by": "noesi build_ap_control_balance",
+            "recipe_version": quickbooks.RECIPE_VERSION,
+            "subledger": {"artifact_id": sub["artifact_id"], "sha256": sub["sha256"],
+                          "grand_total": open_total},
+            "ledger": {"artifact_id": gl["artifact_id"], "sha256": gl["sha256"],
+                       "account": ledger["account"], "beginning": ledger["beginning"],
+                       "activity": ledger["activity"], "checks": ledger["checks"]},
+        }, sort_keys=True)
+        artifact = self.store_source(
+            actor, engagement_id, content=buffer.getvalue().encode("utf-8"),
+            media_type="text/csv",
+            original_name=f"AP control balance {ledger['as_of']} - QuickBooks.csv",
+            provenance=provenance)
+        return {**artifact, "period_end": ledger["as_of"],
+                "subledger_balance": str(subledger), "gl_balance": str(control),
+                "difference": str(subledger - control), "notes": notes}
 
     def workbook_preview(self, engagement_id: str, artifact_id: str) -> dict:
         """Sheets, first rows and suggested header rows of an uploaded workbook."""
@@ -1525,9 +1710,13 @@ class WorkbenchService:
         if not xlsx.is_xlsx(content):
             raise ValueError("this artifact is not an .xlsx workbook")
         try:
-            return {"artifact_id": artifact_id, "sheets": xlsx.preview(content)}
+            sheets = xlsx.preview(content)
         except xlsx.WorkbookError as exc:
             raise ValueError(str(exc)) from exc
+        for sheet in sheets:
+            sheet["recipes"] = quickbooks.recognize(sheet["rows"])
+            sheet["quickbooks_note"] = quickbooks.unsupported_report(sheet["rows"])
+        return {"artifact_id": artifact_id, "sheets": sheets}
 
     def _rebuild_table(self, spec_id: str) -> NormalizedTable:
         """Reperform normalization from immutable inputs; verify the digest."""
@@ -1547,15 +1736,16 @@ class WorkbenchService:
             source_sha256=stored["source_sha256"], status="approved",
             proposed_by=spec_row["proposed_by"],
             approved_by=spec_row["approved_by"])
-        _, rows = self._artifact_rows(spec_row["artifact_id"],
-                                      stored.get("extraction"))
+        _, rows, _, source_rows = self._artifact_table(
+            spec_row["artifact_id"], stored.get("extraction"))
         artifact_name = self._conn.execute(
             "SELECT original_name FROM artifact WHERE artifact_id = ?",
             (spec_row["artifact_id"],)).fetchone()["original_name"]
         extraction = stored.get("extraction")
         return normalize_table(
             rows, spec, source_file=artifact_name,
-            first_row=int(extraction["header_row"]) + 1 if extraction else 2)
+            first_row=int(extraction["header_row"]) + 1 if extraction else 2,
+            source_rows=source_rows)
 
     def _tables(self, engagement_id: str) -> dict:
         """Latest normalized dataset per role, rebuilt and digest-verified."""

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from assurance_domain.commands import Command
-from assurance_domain.errors import ConflictError, NotFoundError
+from assurance_domain.errors import ConflictError, DuplicateError, NotFoundError
 from assurance_domain.identities import new_id
 
 from assurance_persistence.database import utcnow
@@ -162,11 +162,17 @@ class EngagementRepository:
 
     def create(self, client_name: str, period_end: str) -> str:
         engagement_id = new_id()
-        self._uow.execute(
-            """INSERT INTO engagement (engagement_id, tenant_id, client_name,
-               period_end, created_at) VALUES (?, ?, ?, ?, ?)""",
-            (engagement_id, self._uow.command.tenant_id, client_name,
-             period_end, utcnow()))
+        try:
+            self._uow.execute(
+                """INSERT INTO engagement (engagement_id, tenant_id, client_name,
+                   period_end, created_at) VALUES (?, ?, ?, ?, ?)""",
+                (engagement_id, self._uow.command.tenant_id, client_name,
+                 period_end, utcnow()))
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateError(
+                "engagement", f"{client_name}/{period_end}",
+                f"an engagement for {client_name!r} with period end "
+                f"{period_end} already exists; open it instead") from exc
         self._uow.emit(
             entity_type="engagement", entity_id=engagement_id,
             event_type="engagement.created", after_version=1,
@@ -465,8 +471,15 @@ class ArtifactRepository:
                  sha256, size_bytes, media_type, original_name, provenance,
                  retention_class, utcnow()))
         except sqlite3.IntegrityError as exc:
-            raise ConflictError(
-                "artifact", f"{engagement_id}/{sha256}", 0) from exc
+            existing = self._uow.execute(
+                "SELECT original_name FROM artifact "
+                "WHERE engagement_id = ? AND sha256 = ?",
+                (engagement_id, sha256)).fetchone()
+            name = existing[0] if existing else "another upload"
+            raise DuplicateError(
+                "artifact", f"{engagement_id}/{sha256}",
+                f"this exact file is already in the engagement's evidence "
+                f"as {name!r} (same SHA-256); it is not stored twice") from exc
         self._uow.emit(
             entity_type="artifact", entity_id=artifact_id,
             event_type="artifact.registered", after_version=1,

@@ -36,6 +36,10 @@
 .fm-node.supplied .fm-dot { fill: var(--good); }
 .fm-node.supplied .fm-sub { fill: var(--good); }
 
+.fm-node.empty .fm-box { fill: var(--bad-soft); stroke: var(--bad-line); }
+.fm-node.empty .fm-dot { fill: var(--bad); }
+.fm-node.empty .fm-sub { fill: var(--bad); }
+
 .fm-node.mapped .fm-box { fill: var(--warn-soft); stroke: var(--warn-line); }
 .fm-node.mapped .fm-dot { fill: var(--warn); }
 .fm-node.mapped .fm-sub { fill: var(--warn); }

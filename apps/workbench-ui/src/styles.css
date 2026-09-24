@@ -534,5 +534,9 @@ button.manual-toggle.active { background: rgba(255, 255, 255, 0.22); }
 .workbook-chooser { padding: 8px 0; }
 .workbook-chooser input[type="number"] { width: 64px; }
 .workbook-chooser table.preview { margin-top: 6px; font-size: 12px; }
+.workbook-chooser .recipe-pick { margin: 0 0 6px; }
+.recipe-summary { margin-top: 4px; font-size: 12px; max-width: 42em; }
 .workbook-chooser tr.header-pick td { font-weight: 700; background: var(--line-soft); }
 .workbook-chooser tr.skipped td { opacity: .45; }
+table.dense tr.skipped td { opacity: .55; }
+.ap-control { margin: 12px 0 4px; }
