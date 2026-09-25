@@ -431,6 +431,13 @@ export const FIELDWORK: Lesson[] = [
         "Its 2% tolerance hides small differences. In Harborline, one 0.9% difference is correctly silent, so reconcile by hand to find it.",
       ],
     },
+    video: {
+      file: "learn-8-four-payments-the-bank-never-saw.mp4",
+      poster: "learn-8-four-payments-the-bank-never-saw.jpg",
+      title: "Four payments the bank never saw",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo. SAS No. 150 per the AICPA and the Journal of Accountancy (July 2026).",
+    },
   },
 
   {
