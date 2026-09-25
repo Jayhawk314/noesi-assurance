@@ -791,11 +791,18 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       where: ["Workbench → Runs & Findings", "Workbench → 📖 manual, chapter 5"],
       doesNot: [
-        "It does not compute the excess as a percentage, and does not notice that three excesses share the same rate. That is your analysis.",
+        "It states each excess as a percentage of its voucher, but it does not notice that three findings share the same rate. Connecting them is your analysis.",
         "It has **no bid-rigging, conflict-of-interest or vendor-pricing test**, and no employee–vendor relationship data.",
         "It cannot see anything outside the company's books, which is where a bribe is paid.",
       ],
       tryIt: "Start with --demo, run ap.document_chain, and filter its findings to the overpayments. Add the percentage column yourself in Excel and compare.",
+    },
+    video: {
+      file: "learn-f6-eighteen-percent.mp4",
+      poster: "learn-f6-eighteen-percent.jpg",
+      title: "Eighteen percent",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo; the overpayment table is computed from the case files. ACFE figures from Occupational Fraud 2026: A Report to the Nations.",
     },
   },
 ];
