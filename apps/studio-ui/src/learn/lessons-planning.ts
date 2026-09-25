@@ -435,5 +435,12 @@ export const PLANNING: Lesson[] = [
       ],
       tryIt: "Load the ten Harborline files by hand (the --demo seed pre-approves the policies), open Coverage before setting split_threshold — 10 executable, 1 partial — then set it to 10000 and watch the split review become executable.",
     },
+    video: {
+      file: "learn-4-eleven-weeks-without-an-approver.mp4",
+      poster: "learn-4-eleven-weeks-without-an-approver.jpg",
+      title: "Eleven weeks without an approver",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench, Studio and Learn on the Harborline demo; the engagement brief.",
+    },
   },
 ];
