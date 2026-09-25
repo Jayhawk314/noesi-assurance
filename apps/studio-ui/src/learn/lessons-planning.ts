@@ -259,7 +259,7 @@ export const PLANNING: Lesson[] = [
             ["Total assets", "~1%–2%", "Asset-heavy entities, some lenders' focus"],
             ["Equity", "~1%–5%", "Investment-type entities"],
           ] } },
-          { harborline: "The plan uses **1% of revenue**: 1% × $42.4m = **$420,000** — the measure the lender's covenant tracks and the most stable across Harborline's three audited years." },
+          { harborline: "The plan uses **1% of revenue**: 1% × $42.4m ≈ $424,000, rounded to **$420,000** — the measure the lender's covenant tracks and the most stable across Harborline's three audited years." },
         ],
       },
       {
