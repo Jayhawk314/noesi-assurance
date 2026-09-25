@@ -107,5 +107,12 @@ export const COMPLETION: Lesson[] = [
       ],
       tryIt: "Lock the Harborline demo, then reopen it with a reason. Rerun one procedure and watch the re-lock refuse until the rerun is reviewed and approved.",
     },
+    video: {
+      file: "learn-10-not-ready-to-sign.mp4",
+      poster: "learn-10-not-ready-to-sign.jpg",
+      title: "Not ready to sign",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench, Studio and Learn on the Harborline demo. PCAOB AS 1215 per pcaobus.org.",
+    },
   },
 ];
