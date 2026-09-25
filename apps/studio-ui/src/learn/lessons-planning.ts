@@ -226,6 +226,13 @@ export const PLANNING: Lesson[] = [
       ],
       tryIt: "Record 'Payments released without approval during the vacancy' at the authorization assertion, level significant, then try to concur with it from the same chair.",
     },
+    video: {
+      file: "learn-2-where-could-it-be-wrong.mp4",
+      poster: "learn-2-where-could-it-be-wrong.jpg",
+      title: "Where could it be wrong?",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo; the engagement brief.",
+    },
   },
 
   {
