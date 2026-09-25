@@ -244,6 +244,13 @@ export const FIELDWORK: Lesson[] = [
       ],
       tryIt: "Load case-studies/harborline-marine/revision/vouchers_revised.csv after judging a few exceptions, then open What changed.",
     },
+    video: {
+      file: "learn-6-a-bill-nobody-can-find.mp4",
+      poster: "learn-6-a-bill-nobody-can-find.jpg",
+      title: "A bill nobody can find",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: QuickBooks Online test-drive sample company (Craig's Design and Landscaping Services), recorded live; Excel for the web; Noesi Workbench and Learn on the Harborline demo.",
+    },
   },
 
   {
