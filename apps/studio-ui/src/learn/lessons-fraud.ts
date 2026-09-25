@@ -270,6 +270,13 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       tryIt: "Start with --demo, open Planning & Risk, and add \"Fraud: self-approved payments during the supervisor gap\" against authorization, linked to ap.segregation_of_duties.",
     },
+    video: {
+      file: "learn-f2-where-could-it-happen.mp4",
+      poster: "learn-f2-where-could-it-happen.jpg",
+      title: "Where could it happen?",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo. Photo: Bruce Emmerling, “A dock in Norfolk, VA” (CC BY-SA 4.0), Wikimedia Commons. SAS No. 151 per the AICPA and the Journal of Accountancy (August 2026).",
+    },
   },
   {
     n: 3,
