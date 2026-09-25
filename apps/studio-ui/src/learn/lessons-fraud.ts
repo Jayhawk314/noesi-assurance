@@ -647,6 +647,13 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       tryIt: "Start with --demo, run the eleven procedures, and write down every finding reference that involves E227. Compare the list with your timeline: which of your rows did no procedure flag?",
     },
+    video: {
+      file: "learn-f5-sort-by-person.mp4",
+      poster: "learn-f5-sort-by-person.jpg",
+      title: "Sort by person",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo; the purchase table is drawn from the case files.",
+    },
   },
 
   {
