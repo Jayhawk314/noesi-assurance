@@ -325,6 +325,13 @@ export const PLANNING: Lesson[] = [
       ],
       tryIt: "Enter 420000 and check that the ruler shows $21,000 and $315,000.",
     },
+    video: {
+      file: "learn-3-how-big-a-mistake.mp4",
+      poster: "learn-3-how-big-a-mistake.jpg",
+      title: "How big a mistake?",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Studio and Learn on the Harborline demo. Photos from Wikimedia Commons: Jernej Furman (CC BY 2.0); Jim.henderson (CC BY-SA 4.0).",
+    },
   },
 
   {
