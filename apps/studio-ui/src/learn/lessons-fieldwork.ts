@@ -116,6 +116,13 @@ export const FIELDWORK: Lesson[] = [
       ],
       tryIt: "In Studio, follow the Next step card through Run, Review and Approve, switching chairs when it asks.",
     },
+    video: {
+      file: "learn-5-twenty-five-clean-payments.mp4",
+      poster: "learn-5-twenty-five-clean-payments.jpg",
+      title: "Twenty-five clean payments",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo.",
+    },
   },
 
   {
