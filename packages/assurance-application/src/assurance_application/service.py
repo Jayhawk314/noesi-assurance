@@ -33,10 +33,21 @@ from assurance_domain.sad import (
 from assurance_persistence.spine import run_command
 from procedures_ap.coverage import compile_coverage, inventory_from_tables
 from procedures_ap import quickbooks
-from procedures_ap.engines import ENGINE_VERSION, execute_procedure
+from procedures_ap.engines import ENGINE_VERSION
+from procedures_cycles import engines as cycle_engines
+from procedures_cycles.contracts import (
+    CYCLE_CONTRACTS_BY_ID, ENGAGEMENT_POLICIES, SCOPES, contracts_for_scope,
+)
+from procedures_cycles.engines import execute_procedure
 from procedures_ap.ingest import (
     MappingSpec, NormalizedTable, infer_role, normalize_table, propose_mapping,
 )
+
+
+def _engine_version(procedure_id: str) -> str:
+    """AP runs keep their engine version (and so their job identities)."""
+    return (cycle_engines.ENGINE_VERSION if procedure_id in CYCLE_CONTRACTS_BY_ID
+            else ENGINE_VERSION)
 
 
 class AuthorizationError(PermissionError):
@@ -434,11 +445,36 @@ class WorkbenchService:
 
     # --------------------------------------------- screen 3: coverage
 
+    def _contracts(self, document: dict) -> tuple:
+        """The eleven AP contracts plus the cycle contracts in scope."""
+        from procedures_ap.contracts import PROCEDURES
+        return PROCEDURES + contracts_for_scope(document.get("scope"))
+
+    def _engagement_policies(self, engagement_id: str, document: dict) -> dict:
+        """Approved policies plus the engagement's own period end and materiality.
+
+        Cycle contracts read ``period_end`` and ``materiality`` as policies;
+        they come from the engagement record, never retyped. AP runs do not
+        receive them, so AP manifests (and job identities) are unchanged.
+        """
+        info = self._engagement(engagement_id)
+        policies = dict(document.get("policies") or {})
+        policies.setdefault("period_end", str(info["period_end"]))
+        amount = (document.get("materiality") or {}).get("amount")
+        if amount:
+            policies.setdefault("materiality", str(amount))
+        return policies
+
     def coverage(self, engagement_id: str) -> dict:
         tables = self._tables(engagement_id)
         document, _ = self.workflow_document(engagement_id)
+        contracts = self._contracts(document)
+        # An AP-only engagement (no scope) compiles exactly as it always has.
+        policies = (self._engagement_policies(engagement_id, document)
+                    if document.get("scope") else document.get("policies"))
         return compile_coverage(inventory_from_tables(tables),
-                                policies=document.get("policies") or None)
+                                policies=policies or None, contracts=contracts,
+                                executors=cycle_engines.registered_procedures())
 
     # ---------------------------------------- screen 4: runs and findings
 
@@ -454,8 +490,10 @@ class WorkbenchService:
         # against the same document, so what coverage calls executable is
         # what the run actually receives.
         document, _ = self.workflow_document(engagement_id)
-        effective_policies = {**(document.get("policies") or {}),
-                              **(policies or {})}
+        base = (self._engagement_policies(engagement_id, document)
+                if procedure_id in CYCLE_CONTRACTS_BY_ID
+                else document.get("policies") or {})
+        effective_policies = {**base, **(policies or {})}
         # Reperformance is legitimate — after a reviewer sends work back, or
         # after an unlock. Same procedure, same data, same policies must
         # still mint a distinct job, so the manifest carries a rerun
@@ -466,7 +504,7 @@ class WorkbenchService:
             (engagement_id, procedure_id)).fetchone()["c"]
         manifest = build_manifest(
             procedure_id=procedure_id, procedure_version="v1",
-            engine_version=ENGINE_VERSION, tables=tables,
+            engine_version=_engine_version(procedure_id), tables=tables,
             policies=effective_policies, rerun_sequence=rerun_sequence)
         bundle = run_job(manifest, tables, execute_procedure)
 
@@ -673,7 +711,8 @@ class WorkbenchService:
                     KEY_FIELDS.get(role, ()), limits),
             })
 
-        needs = {p.procedure_id: set(p.required_fields) for p in PROCEDURES}
+        needs = {p.procedure_id: set(p.required_fields)
+                 for p in PROCEDURES + tuple(CYCLE_CONTRACTS_BY_ID.values())}
         latest_runs: dict[str, sqlite3.Row] = {}
         for run in self._conn.execute(
                 """SELECT * FROM procedure_run WHERE engagement_id = ?
@@ -700,7 +739,8 @@ class WorkbenchService:
             rerun = run_job(
                 build_manifest(
                     procedure_id=procedure_id, procedure_version="v1",
-                    engine_version=ENGINE_VERSION, tables=current_records,
+                    engine_version=_engine_version(procedure_id),
+                    tables=current_records,
                     policies={**effective_policies,
                               **(manifest.get("policies") or {})}),
                 current_records, execute_procedure)
@@ -794,7 +834,8 @@ class WorkbenchService:
         from procedures_ap.contracts import CONTRACTS_BY_ID
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
-        unknown = [p for p in procedure_ids if p not in CONTRACTS_BY_ID]
+        unknown = [p for p in procedure_ids
+                   if p not in CONTRACTS_BY_ID and p not in CYCLE_CONTRACTS_BY_ID]
         if unknown:
             raise ValueError(f"unknown procedure(s): {unknown}")
 
@@ -921,10 +962,19 @@ class WorkbenchService:
                 "done": bool(values.get("done", False)),
                 "note": str(values.get("note", "")),
                 "evidence": list(values.get("evidence", []))}
+        elif section == "scope":
+            # Which cycles this engagement audits. The partner owns scope; it
+            # decides which cycle contracts coverage (and readiness) consider.
+            self._require(engagement_id, actor, "partner")
+            cycles = [str(c) for c in values.get("cycles", [])]
+            unknown = [c for c in cycles if c not in SCOPES]
+            if unknown:
+                raise ValueError(f"unknown scope(s) {unknown}; one of {list(SCOPES)}")
+            document["scope"] = sorted(set(cycles))
         elif section == "procedure_selection":
             from procedures_ap.contracts import CONTRACTS_BY_ID
             procedure_id = str(values["procedure_id"])
-            if procedure_id not in CONTRACTS_BY_ID:
+            if procedure_id not in CONTRACTS_BY_ID                     and procedure_id not in CYCLE_CONTRACTS_BY_ID:
                 raise ValueError(f"unknown procedure {procedure_id!r}")
             document.setdefault("procedures", {})[procedure_id] = {
                 "selected": bool(values.get("selected", True)),
@@ -951,6 +1001,16 @@ class WorkbenchService:
             known = {policy for contract in PROCEDURES
                      for policy in contract.required_policies}
             known.update(OPTIONAL_POLICIES)
+            from procedures_cycles.contracts import (
+                CYCLE_PROCEDURES, OPTIONAL_POLICIES as CYCLE_OPTIONAL,
+            )
+            known.update(policy for contract in CYCLE_PROCEDURES
+                         for policy in contract.required_policies)
+            known.update(CYCLE_OPTIONAL)
+            if name in ENGAGEMENT_POLICIES:
+                raise ValueError(
+                    f"{name!r} comes from the engagement record (period end, "
+                    "materiality section); it is not set as a policy")
             if name not in known:
                 raise ValueError(f"unknown policy {name!r}")
             document.setdefault("policies", {})[name] = str(values["value"])
@@ -1355,7 +1415,6 @@ class WorkbenchService:
         from assurance_workpapers.packet import (
             PACKET_LIMITS, PACKET_VERSION, packet_digest, seal_packet,
         )
-        from procedures_ap.contracts import PROCEDURES
 
         self._require(engagement_id, actor,
                       "preparer", "reviewer", "partner")
@@ -1435,7 +1494,7 @@ class WorkbenchService:
         document, _ = self.workflow_document(engagement_id)
         selections = document.get("procedures", {})
         not_run = []
-        for contract in PROCEDURES:
+        for contract in self._contracts(document):
             if contract.procedure_id in executed:
                 continue
             decision = selections.get(contract.procedure_id, {})
