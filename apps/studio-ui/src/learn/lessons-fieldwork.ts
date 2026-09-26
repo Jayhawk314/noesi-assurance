@@ -523,5 +523,12 @@ export const FIELDWORK: Lesson[] = [
         "It has no count, test-count, cutoff, pricing or obsolescence procedures. Coverage will never report inventory as tested.",
       ],
     },
+    video: {
+      file: "learn-9-go-and-count-it.mp4",
+      poster: "learn-9-go-and-count-it.jpg",
+      title: "Go and count it",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Opening photo: Axisadman (CC BY-SA 3.0), Wikimedia Commons. QuickBooks Online test-drive company (Craig's Design and Landscaping); Excel for the web (test counts illustrative); Noesi Workbench and Learn on the Harborline demo.",
+    },
   },
 ];
