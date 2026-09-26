@@ -89,3 +89,5 @@ What the Workbench accepts today, so a case's files can be judged before a sessi
   balance. Revenue, receivables or inventory files can be stored as evidence but not tested.
 - Keep purchased case materials and the filled-in friction log in the git-ignored `oceanview/`
   folder; they are licensed per student and must never be committed.
+
+> **2026-09-26:** see [CYCLES-ROLLOUT.md](CYCLES-ROLLOUT.md). The cycle procedures are built locally (not pushed); it lists what must change in the engine, the QuickBooks recipes, the app, the lessons and six videos before they reach learners.
