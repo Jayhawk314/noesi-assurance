@@ -981,7 +981,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       {
         heading: "Reading the results",
         blocks: [
-          { harborline: "On Harborline, Noesi's 11 procedures return **52 findings** for **40 planted exceptions**. The numbers differ because one problem can trip several tests: a payment against a missing voucher is also a broken document chain and a three-way-match gap." },
+          { harborline: "On Harborline, Noesi's 11 procedures return **52 findings** for **40 planted exceptions**. The numbers differ because one problem can trip several tests: VCH-2026-0041 is flagged three times, by the voucher-to-PO check, the three-way match and the document chain." },
           { terms: [
             ["Overlap", "Several findings, one underlying problem. Group them before counting or reporting, or you will overstate the issues and waste review time."],
             ["Tolerance", "Every comparison has one. Noesi's bank match allows 2%, so PAY-2026-0025 (paid 16,625.15, cleared the bank at 16,774.78, a 0.9% difference) is **silent by design**. Silence means \"within tolerance\", not \"nothing there\"."],
@@ -1024,7 +1024,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       { q: "Why do 52 findings correspond to only 40 planted exceptions?",
         options: ["The tool has 12 bugs", "One problem can trip several tests, so findings overlap", "12 exceptions were duplicated in the data", "Tolerances double-count"],
         answer: 1,
-        why: "A payment against a missing voucher also breaks the document chain and the three-way match. Group overlaps before counting." },
+        why: "VCH-2026-0041, for one, is flagged by three procedures for one underlying problem. Group overlaps before counting." },
       { q: "Why is a Benford test on Harborline's 123 payments weak evidence?",
         options: ["Benford only works on revenue", "Too few amounts: random variation can swamp the expected pattern", "Payments never follow Benford", "The amounts are in dollars"],
         answer: 1,
