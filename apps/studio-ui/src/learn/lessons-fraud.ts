@@ -37,7 +37,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       {
         heading: "The fraud triangle",
         blocks: [
-          { p: "In the 1950s the criminologist Donald Cressey interviewed people imprisoned for embezzlement. He found three conditions present together, now called the **fraud triangle**:" },
+          { p: "In the late 1940s the criminologist Donald Cressey interviewed people imprisoned for embezzlement (his 1950 dissertation, published in 1953 as *Other People's Money*). He found three conditions present together, now called the **fraud triangle**:" },
           { terms: [
             ["Pressure", "A financial or personal need the person feels they cannot share or solve honestly: debt, a lender covenant, a bonus target."],
             ["Opportunity", "A way to commit the fraud and hide it: a missing approval, one person controlling a whole process, nobody reviewing."],
@@ -131,6 +131,13 @@ export const FRAUD_LESSONS: Lesson[] = [
         "It does not judge intent, and it never labels a finding as fraud.",
         "It does not record fraud risk factors or the fraud triangle; you write those into the risk register (next lesson).",
       ],
+    },
+    video: {
+      file: "learn-f1-three-conditions.mp4",
+      poster: "learn-f1-three-conditions.jpg",
+      title: "Three conditions",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Opening photo: Donald Cressey, UCLA Southern Campus yearbook 1960 (public domain), Wikimedia Commons. Screens: Noesi Learn and the Workbench manual. ACFE figures from Occupational Fraud 2026: A Report to the Nations.",
     },
   },
 
