@@ -1,8 +1,8 @@
 # Fraud in payables — a CFE-aligned Learn track (outline for review)
 
-*Drafted 2026-09-23 and approved with the recommendations below. F1–F7
+*Drafted 2026-09-23 and approved with the recommendations below. F1–F9
 are written (`apps/studio-ui/src/learn/lessons-fraud.ts`, route
-`/studio/#/learn/fraud`); F8–F9 are planned. The format follows
+`/studio/#/learn/fraud`); all nine are written. The format follows
 `CURRICULUM.md`: teach the concept, work it on Harborline, then say what
 Noesi does and does not do.*
 

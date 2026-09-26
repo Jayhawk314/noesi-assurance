@@ -956,10 +956,204 @@ export const FRAUD_LESSONS: Lesson[] = [
       tryIt: "Start with --demo, run forensic.closed_value_flow, open the finding and follow its three source rows back to value_flows.csv.",
     },
   },
+
+  {
+    n: 8,
+    slug: "fraud-data-analysis",
+    title: "Data analysis for fraud detection",
+    phase: "Fraud",
+    question: "How do you test every transaction, and how do you read what the tests say, and don't say?",
+    minutes: 30,
+    objectives: [
+      "Explain why testing the whole population beats sampling for fraud detection",
+      "Read a set of findings: overlaps, tolerances, silence and refusals",
+      "Run a first-digit (Benford) test and explain when it is and isn't reliable",
+      "Say what data analysis can find and what it can never find",
+    ],
+    sections: [
+      {
+        heading: "Test everything, not a sample",
+        blocks: [
+          { p: "A sample is built to estimate an error rate. Fraud is usually rare and deliberate: one self-approved payment in a hundred, placed where a sample is unlikely to land. When the data is available, **testing the whole population** finds every instance of a pattern, and the ACFE's 2026 report associates **proactive data monitoring** with lower losses and faster detection." },
+          { p: "Each test is a rule applied to every row: creator equals approver, payment above voucher, vendor names nearly identical, amounts just under a limit. The skill is not running the rules. It is reading what comes back." },
+        ],
+      },
+      {
+        heading: "Reading the results",
+        blocks: [
+          { harborline: "On Harborline, Noesi's 11 procedures return **52 findings** for **40 planted exceptions**. The numbers differ because one problem can trip several tests: a payment against a missing voucher is also a broken document chain and a three-way-match gap." },
+          { terms: [
+            ["Overlap", "Several findings, one underlying problem. Group them before counting or reporting, or you will overstate the issues and waste review time."],
+            ["Tolerance", "Every comparison has one. Noesi's bank match allows 2%, so PAY-2026-0025 (paid 16,625.15, cleared the bank at 16,774.78, a 0.9% difference) is **silent by design**. Silence means \"within tolerance\", not \"nothing there\"."],
+            ["Refusal", "A test that cannot run on the data says so, instead of passing quietly. Harborline's purchase orders have no approval timestamps, so approval sequence cannot be tested. A refusal is a scope limit to record, not a clean result."],
+            ["False positive", "A finding with an innocent explanation. Every finding needs a disposition from a person; volume without review is noise."],
+          ] },
+          { watch: "Before you trust a clean result, ask three questions: was the population complete, what tolerance applied, and did anything refuse to run?" },
+        ],
+      },
+      {
+        heading: "Benford's law, and its limits",
+        blocks: [
+          { p: "In many naturally occurring sets of amounts, the first digit is **1** about **30%** of the time, **2** about **18%**, falling to **9** at under **5%**. Invented numbers tend to be spread too evenly, or bunch just under limits. Comparing actual first digits with that curve is **Benford analysis**." },
+          { list: [
+            "It needs **many** amounts (hundreds at least, ideally thousands) spanning several orders of magnitude.",
+            "It fails on amounts with built-in limits or fixed prices: a set of $9,800 invoices is not natural.",
+            "A deviation is a **reason to look**, never proof.",
+          ] },
+          { harborline: "Harborline has **123 payments**. That is too few for a reliable Benford result: random variation alone can move a digit's share by several points. Running it anyway, and saying why the result can't carry weight, is the exercise." },
+        ],
+      },
+      {
+        heading: "What data can't find",
+        blocks: [
+          { p: "Data analysis sees only what was recorded, in the files you were given. It cannot see a bribe paid in cash outside the books (F6), money moved through an account you don't have (F7), a forged signature, or a conversation. It also cannot tell an error from fraud: that takes documents and people." },
+          { p: "So analysis finds **leads**. Tips, still the most common way fraud is detected in the ACFE's 2026 report (43% of cases), find what data doesn't. A good program uses both." },
+        ],
+      },
+    ],
+    standards: [
+      ["AU-C 520", "Analytical procedures: expectations, thresholds for investigating differences"],
+      ["AU-C 240", "Responses to fraud risks, including unpredictability and testing of populations"],
+      ["ACFE Report to the Nations 2026", "Proactive data monitoring associated with lower losses; tips the most common detection method (43%)"],
+    ],
+    check: [
+      { q: "A procedure reports no findings. What is the right reading?",
+        options: ["The area is clean", "No differences beyond the tolerance, in the population supplied, for tests that ran", "The procedure failed", "The population was complete"],
+        answer: 1,
+        why: "Silence is bounded by the tolerance, the completeness of the data, and whether the test could run at all." },
+      { q: "Why do 52 findings correspond to only 40 planted exceptions?",
+        options: ["The tool has 12 bugs", "One problem can trip several tests, so findings overlap", "12 exceptions were duplicated in the data", "Tolerances double-count"],
+        answer: 1,
+        why: "A payment against a missing voucher also breaks the document chain and the three-way match. Group overlaps before counting." },
+      { q: "Why is a Benford test on Harborline's 123 payments weak evidence?",
+        options: ["Benford only works on revenue", "Too few amounts: random variation can swamp the expected pattern", "Payments never follow Benford", "The amounts are in dollars"],
+        answer: 1,
+        why: "Benford needs a large, natural population. With 123 amounts a few rows can shift a digit's share noticeably." },
+    ],
+    task: {
+      title: "Read the results, and run Benford by hand",
+      intro: "Use `payments.csv` and a fresh --demo run.",
+      steps: [
+        "In a spreadsheet, take the first digit of every payment amount (`=LEFT(TEXT(amount,\"0\"),1)`), count each digit, and compare with 30.1%, 17.6%, 12.5%, 9.7%, 7.9%, 6.7%, 5.8%, 5.1%, 4.6%.",
+        "Write two sentences on why the result cannot carry weight with 123 rows.",
+        "From the demo run, pick one payment that appears in three or more findings, and explain the single problem behind them.",
+        "Find PAY-2026-0025 in the bank feed, compute its difference, and explain why no procedure flagged it.",
+      ],
+      deliver: "A one-page note: the Benford table with your caveat, one overlap explained, and the silent payment explained.",
+    },
+    noesi: {
+      coverage: "partial",
+      summary: "Noesi runs every payables test on the whole population and tells you its tolerances and refusals. It has no Benford test, and it cannot see beyond the files.",
+      does: [
+        "Eleven full-population procedures, each with a stated tolerance and limitation; coverage shows what can and cannot run on the loaded data.",
+        "Refuses fields it cannot map instead of guessing, and records the refusal.",
+        "Every finding waits for a person's disposition.",
+      ],
+      where: ["Workbench → Coverage", "Workbench → Runs & Findings", "Workbench → Sources & Mappings (refusals)"],
+      doesNot: [
+        "It has no Benford or first-digit test; do it in a spreadsheet.",
+        "It does not group overlapping findings into one problem. That is your analysis.",
+        "It sees only the files you load, and never concludes intent.",
+      ],
+      tryIt: "Start with --demo, run all procedures, and open Coverage: note which procedures ran, and which fields were refused.",
+    },
+  },
+
+  {
+    n: 9,
+    slug: "fraud-prevention",
+    title: "Preventing it next time",
+    phase: "Fraud",
+    question: "Which controls would have stopped each scheme, and who has to be told?",
+    minutes: 25,
+    objectives: [
+      "Match each Harborline scheme to the control that failed or was missing",
+      "Tell preventive from detective controls",
+      "Classify control deficiencies and know who receives them in writing (AU-C 265)",
+      "Draft the points of a control-deficiency letter",
+    ],
+    sections: [
+      {
+        heading: "Every scheme passed through a gap",
+        blocks: [
+          { p: "Fraud needs opportunity (F1), and opportunity is a missing or failed control. Looking back at each scheme and naming the control that would have stopped it is how an organization turns a finding into prevention." },
+          { table: {
+            head: ["Scheme (lesson)", "What happened", "Control that would have stopped it"],
+            rows: [
+              ["Look-alike vendors (F3)", "Vendor pairs sharing a tax ID and remit city", "Vendor master review: independent set-up, tax-ID and address matching"],
+              ["Duplicate invoice (F3)", "VCH-2026-9338 re-bills PO-2026-0013", "Duplicate-invoice check before payment"],
+              ["Self-approved payments (F4, F5)", "Creator also approved, some in the supervisor gap", "Independent payment approval, enforced by the system"],
+              ["Payments just under $10,000 (F4)", "V1042, 9,640–9,905, clustered in September", "Approval-limit monitoring across payments to one vendor"],
+              ["Overpayments at 18% (F6)", "Paid 18% above agreed vouchers", "Three-way match with payment blocked on mismatch"],
+              ["Round trip via Bayview (F7)", "48,500 out and back outside AP", "All disbursements through AP; related-party register"],
+            ],
+          } },
+        ],
+      },
+      {
+        heading: "Preventive and detective",
+        blocks: [
+          { terms: [
+            ["Preventive", "Stops it before it happens: a second approver, a system block on a mismatch."],
+            ["Detective", "Finds it afterwards: a monthly review of payments under the limit, a data-monitoring report."],
+          ] },
+          { p: "Good programs combine both. Detective controls work only if someone acts on what they find, and people change their behavior when they know monitoring exists." },
+          { watch: "A control on paper that nobody performs prevents nothing. Harborline had an approval limit; during the supervisor gap it was \"handled informally\"." },
+        ],
+      },
+      {
+        heading: "Telling management and governance",
+        blocks: [
+          { p: "AU-C 265 requires the auditor to communicate **in writing** to management and those charged with governance the **significant deficiencies** and **material weaknesses** found in internal control. A material weakness is a deficiency, or combination, where there is a reasonable possibility a material misstatement won't be prevented or detected on time. A significant deficiency is less severe but still merits governance's attention." },
+          { p: "The letter describes the deficiency and its possible effects. It does not accuse anyone. Suspected fraud is a separate communication under AU-C 240." },
+          { harborline: "The eleven weeks without an approver, combined with self-approved payments that went out in that period, is a strong candidate for a significant deficiency or material weakness in payment authorization." },
+        ],
+      },
+    ],
+    standards: [
+      ["AU-C 265", "Communicating internal control related matters: significant deficiencies and material weaknesses, in writing"],
+      ["AU-C 240", "Communicating suspected fraud to management and governance"],
+      ["COSO Internal Control framework", "Control activities, monitoring, and the preventive/detective distinction"],
+    ],
+    check: [
+      { q: "Which control would most directly have stopped the self-approved payments?",
+        options: ["A monthly bank reconciliation", "System-enforced independent payment approval", "A vendor master review", "Benford analysis"],
+        answer: 1,
+        why: "Creator equals approver is prevented by a system rule requiring a different approver." },
+      { q: "A monthly report of payments just under the approval limit is…",
+        options: ["preventive", "detective", "corrective only", "not a control"],
+        answer: 1,
+        why: "It finds clusters after payment. It works only if someone reviews and acts on it." },
+      { q: "Under AU-C 265, significant deficiencies go to…",
+        options: ["only the lender", "management and those charged with governance, in writing", "the regulator", "no one unless material"],
+        answer: 1,
+        why: "Both significant deficiencies and material weaknesses are communicated in writing to management and governance." },
+    ],
+    task: {
+      title: "Draft the control-deficiency points",
+      intro: "Use lessons F3–F7 and the engagement brief.",
+      steps: [
+        "For each scheme in the table, name the failed control, and mark it preventive or detective.",
+        "Classify each as a deficiency, significant deficiency or material weakness, with one sentence of reasoning.",
+        "Write the letter points: condition, possible effect, recommendation. No names, no accusations.",
+      ],
+      deliver: "A one-page draft of control-deficiency letter points.",
+    },
+    noesi: {
+      coverage: "partial",
+      summary: "Noesi supplies the evidence behind each deficiency. Classifying deficiencies and writing the letter is yours.",
+      does: [
+        "Findings, dispositions and the summary of audit differences give each deficiency its evidence and amounts.",
+        "The signed, locked workpaper keeps what you concluded and when.",
+      ],
+      where: ["Workbench → Runs & Findings", "Workbench → SAD & Completion"],
+      doesNot: [
+        "It does not classify control deficiencies or write the management letter.",
+        "It does not design or monitor the client's controls.",
+      ],
+    },
+  },
 ];
 
 /** Planned lessons, shown on the track page until they are written. */
-export const FRAUD_COMING: [string, string][] = [
-  ["F8", "Data analysis for fraud detection"],
-  ["F9", "Preventing it next time"],
-];
+export const FRAUD_COMING: [string, string][] = [];
