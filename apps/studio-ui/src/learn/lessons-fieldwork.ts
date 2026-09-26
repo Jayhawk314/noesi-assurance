@@ -338,13 +338,12 @@ export const FIELDWORK: Lesson[] = [
       coverage: "none",
       summary: "Noesi does not audit revenue or receivables yet. Here is what it can and cannot hold.",
       does: [
-        "The **evidence vault** keeps PDFs, CSVs and Excel files unaltered with a SHA-256 fingerprint, for example confirmation replies received as PDFs.",
+        "The **evidence vault** keeps PDFs, CSVs, Excel files and scanned images (PNG, JPEG) unaltered with a SHA-256 fingerprint, for example confirmation replies received as PDFs.",
         "The engagement's review, disposition and lock disciplines apply to the whole file.",
       ],
       where: ["Workbench → Sources & Mappings (upload documents)"],
       doesNot: [
         "It has **no receivables or revenue procedures**, no confirmation tracking, and no aging or allowance tools. Coverage will not invent them, and AP engines cannot be relabeled as AR tests.",
-        "Images (photos or scans saved as images) are not accepted file types.",
       ],
     },
     video: {

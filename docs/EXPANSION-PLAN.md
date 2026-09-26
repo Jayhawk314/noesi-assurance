@@ -80,8 +80,8 @@ Each gets the usual lesson video afterwards (facts, script, captures, silent pre
 
 What the Workbench accepts today, so a case's files can be judged before a session:
 
-- **Accepted:** CSV, TXT, JSON, PDF, XLS, XLSX. Every file is kept unaltered with its SHA-256.
-- **Not accepted:** images (JPG, PNG, scans saved as pictures).
+- **Accepted:** CSV, TXT, JSON, PDF, XLS, XLSX, and PNG/JPEG images (scanned documents). Every file is kept unaltered with its SHA-256; PDFs and images are evidence only, never parsed.
+- **Not accepted:** anything else (for example TIFF scans: convert them to PDF or PNG first).
 - **Excel:** choose the sheet and the heading row; reading stops at the first blank row. Formatted
   workpapers (titles, merged cells, totals blocks) may need a clean listing sheet first.
 - **Procedures run only on payables-shaped data:** the mapping roles are vendors, employees,

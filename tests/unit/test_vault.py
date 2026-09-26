@@ -75,6 +75,12 @@ def test_undeclared_media_type_is_refused(vault):
                     original_name="evil.exe")
 
 
+def test_scanned_image_is_accepted_as_evidence(vault):
+    staged = vault.stage(io.BytesIO(b"\x89PNG\r\n\x1a\n..."), media_type="image/png",
+                         original_name="invoice_scan.png")
+    assert staged.media_type == "image/png"
+
+
 def test_promotion_is_write_once_and_content_idempotent(vault):
     first = vault.stage(io.BytesIO(CONTENT), media_type="text/csv",
                         original_name="a.csv")

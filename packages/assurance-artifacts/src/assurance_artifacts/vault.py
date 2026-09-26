@@ -32,6 +32,8 @@ DEFAULT_ALLOWED_MEDIA_TYPES = frozenset({
     "application/pdf",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/png",     # scanned or photographed documents (invoices, checks,
+    "image/jpeg",    # count sheets) kept as evidence; never parsed
 })
 
 
