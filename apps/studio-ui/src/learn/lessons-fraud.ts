@@ -955,6 +955,13 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       tryIt: "Start with --demo, run forensic.closed_value_flow, open the finding and follow its three source rows back to value_flows.csv.",
     },
+    video: {
+      file: "learn-f7-out-and-back.mp4",
+      poster: "learn-f7-out-and-back.jpg",
+      title: "Out and back",
+      minutes: 1,
+      credits: "Narration: ElevenLabs voice “Guy”. Opening image: Order for Transfer, Saving Bank of Russia, 1992 (public domain), Wikimedia Commons. Excel for the web on the Harborline case files; Noesi Workbench and Learn on the Harborline demo.",
+    },
   },
 
   {
@@ -1057,6 +1064,13 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       tryIt: "Start with --demo, run all procedures, and open Coverage: note which procedures ran, and which fields were refused.",
     },
+    video: {
+      file: "learn-f8-reading-silence.mp4",
+      poster: "learn-f8-reading-silence.jpg",
+      title: "Reading silence",
+      minutes: 1,
+      credits: "Narration: ElevenLabs voice “Guy”. Excel for the web on the Harborline case files (first-digit counts of payments.csv); Noesi Workbench and Learn on the Harborline demo.",
+    },
   },
 
   {
@@ -1151,6 +1165,13 @@ export const FRAUD_LESSONS: Lesson[] = [
         "It does not classify control deficiencies or write the management letter.",
         "It does not design or monitor the client's controls.",
       ],
+    },
+    video: {
+      file: "learn-f9-close-the-gap.mp4",
+      poster: "learn-f9-close-the-gap.jpg",
+      title: "Close the gap",
+      minutes: 1,
+      credits: "Narration: ElevenLabs voice “Guy”. Opening photo: “Old door locked”, Annatsach (CC BY-SA 4.0), Wikimedia Commons. Noesi Workbench and Learn on the Harborline demo.",
     },
   },
 ];
