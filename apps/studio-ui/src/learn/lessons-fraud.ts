@@ -819,11 +819,147 @@ export const FRAUD_LESSONS: Lesson[] = [
       credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Learn on the Harborline demo; the overpayment table is computed from the case files. ACFE figures from Occupational Fraud 2026: A Report to the Nations.",
     },
   },
+
+  {
+    n: 7,
+    slug: "fraud-following-the-money",
+    title: "Following the money",
+    phase: "Fraud",
+    question: "Money left and came back. How do you trace it, and what evidence tells a scheme from a normal transaction?",
+    minutes: 30,
+    objectives: [
+      "Explain what tracing funds means and which records it relies on",
+      "Describe a round trip, the three stages of money laundering, and why a company might send money out and back",
+      "Trace Harborline's 48,500 round trip and test whether the extract it sits in can be trusted",
+      "List the evidence that would confirm or dismiss round-tripping, and say which hat, auditor or fraud examiner, each step belongs to",
+    ],
+    sections: [
+      {
+        heading: "Tracing: follow each dollar to its next hop",
+        blocks: [
+          { p: "**Tracing** means following money from where it started to where it ended up, one transfer at a time, using records that show each hop: bank statements, wire and ACH details, cancelled checks, and the ledger entries that recorded them. Each hop answers three questions: **who sent it, who received it, and why**." },
+          { p: "The strongest records come from outside the company. A bank statement was produced by the bank, not by the people you may be looking at, so it is better evidence than a spreadsheet the client prepared (AU-C 500 ranks evidence by source for this reason)." },
+          { watch: "Keep the two hats apart. An **auditor** asks whether a transaction is recorded, presented and disclosed properly, and whether it points to a material misstatement. A **fraud examiner** follows the money to a conclusion about a specific allegation, and needs predication (Lesson F5) before starting. Most of this lesson is the auditor's work; section 4 says where the examiner would take over." },
+        ],
+      },
+      {
+        heading: "Round trips and layering",
+        blocks: [
+          { p: "A **round trip** is money that leaves an entity and comes back to it, usually through one or more intermediaries, so that it looks like something else on the way back. Money laundering is usually described in three stages, and round trips belong to the middle one:" },
+          { terms: [
+            ["Placement", "Getting money into the financial system, for example depositing cash."],
+            ["Layering", "Moving it through transfers and entities to break the link with its source. Each hop makes the trail longer."],
+            ["Integration", "Bringing it back looking legitimate: a loan, a sale, a fee, a refund."],
+          ] },
+          { p: "A company can send money out and back for several reasons, and only some of them are wrong:" },
+          { list: [
+            "**Inflating revenue**: the money comes back labeled as a customer payment, so sales look higher than they are. That is financial statement fraud.",
+            "**Disguising financing**: a loan dressed up as an operating receipt, or cash parked outside the company over a reporting date to flatter a ratio.",
+            "**Taking money out**: an insider owns an intermediary and keeps part of each trip; the full amount returns only on paper.",
+            "**Legitimate**: a refund of a prepayment, a genuine cash-management transfer between related companies, a reversal of a payment made in error.",
+          ] },
+          { p: "The pattern is identical in all four. What separates them is who the intermediaries are, what the paperwork says, and how each leg was recorded." },
+        ],
+      },
+      {
+        heading: "Harborline's 48,500",
+        blocks: [
+          { p: "The counterparty value-flow extract (`value_flows.csv`, 51 rows) holds one closed loop:" },
+          { table: {
+            head: ["Flow", "From", "To", "Amount", "Date", "Label"],
+            rows: [
+              ["VF-0049", "Harborline Marine Group", "Bayview Advisory Partners", "48,500.00", "2026-11-03", "consulting"],
+              ["VF-0050", "Bayview Advisory Partners", "Meridian Holdings LC", "48,500.00", "2026-11-05", "transfer"],
+              ["VF-0051", "Meridian Holdings LC", "Harborline Marine Group", "48,500.00", "2026-11-07", "transfer"],
+            ],
+          } },
+          { p: "Same amount, three hops, four days, and back where it started. Now look for it in the books you were given: **Bayview and Meridian are not in the vendor master, and the 48,500 is not in the payments file, the bank feed for the operating account, or the payables ledger.** Whatever paid the \"consulting\" fee did not run through accounts payable or through the account you can see." },
+          { harborline: "The brief says the controller prepared this extract last year at the lender's request, and that there is **no documentation of its completeness**. Try to tie it to the books: none of its 48 ordinary disbursements matches an amount in `payments.csv`. An extract that does not reconcile to the records it claims to summarize is **information produced by the entity** that you cannot yet rely on (AU-C 500). That is a finding in itself, before you ask what the loop means." },
+        ],
+      },
+      {
+        heading: "What evidence separates the explanations",
+        blocks: [
+          { p: "Work from records the client keeps anyway, and from sources outside it:" },
+          { steps: [
+            "**Find the account.** Ask which bank account paid Bayview and which received Meridian's transfer, and get those bank statements directly from the bank.",
+            "**Find the entries.** How was each leg recorded in Harborline's general ledger? A consulting expense going out and revenue or a customer receipt coming back points one way; a loan or a refund points another.",
+            "**Test the business purpose.** Ask for the consulting agreement, the invoice, the deliverable and the approval. A 48,500 fee for work nobody can show is a red flag on its own.",
+            "**Find out who owns Bayview and Meridian.** Public business registries, the vendor file, and management's list of related parties. If either is connected to an owner or employee, the round trip is a **related-party transaction** that must be identified and disclosed (AU-C 550).",
+            "**Weigh it as an unusual transaction.** AU-C 240 asks the auditor to evaluate whether a significant transaction outside the normal course of business has a business rationale, or suggests fraudulent reporting or theft.",
+          ] },
+          { watch: "Do not contact Bayview or Meridian, and do not accuse anyone. The auditor's route is inquiry of management, then those charged with governance if the answers do not hold up. If fraud is suspected, a fraud examiner, with counsel, takes over the tracing and the interviews." },
+        ],
+      },
+      {
+        heading: "What a detected loop does and does not prove",
+        blocks: [
+          { p: "Noesi's round-trip screen looks for value that returns to where it started through a chain of flows whose amounts agree within **2%** and whose dates fall within **30 days**, in up to four hops. On Harborline it finds this loop and only this loop." },
+          { list: [
+            "**It proves the pattern exists in the extract**, with the three rows and their fingerprints attached.",
+            "**It does not prove the extract is complete.** A loop through a flow that was left out is invisible. The absence of other loops proves nothing.",
+            "**It does not prove intent.** In the procedure's own words: \"A coherent cycle is a lead, not an allegation of fraud.\"",
+            "**Labels matter.** The screen skips loops labeled as reversals, corrections or intercompany settlements. Harborline's extract has no such label column, so nothing was skipped; in another client's data, ask who assigned the labels.",
+          ] },
+        ],
+      },
+    ],
+    standards: [
+      ["AU-C 500", "Audit evidence: reliability by source; testing information produced by the entity for accuracy and completeness"],
+      ["AU-C 550", "Related parties: identifying them, and evaluating and disclosing related-party transactions"],
+      ["AU-C 240", "Significant unusual transactions and their business rationale; fraud risk factors"],
+      ["Money laundering stages", "Placement, layering, integration (the standard description used by regulators and the CFE exam)"],
+    ],
+    check: [
+      { q: "Which record is the strongest evidence of where Harborline's 48,500 went?",
+        options: ["The value-flow extract the controller prepared", "A bank statement obtained directly from the bank", "An email from the controller explaining it", "The consulting fee's description in the extract"],
+        answer: 1,
+        why: "A bank statement comes from a third party and was obtained by the auditor, so the client could not shape it. The extract and the email are both produced by the people whose work is being tested." },
+      { q: "Money moves through two shell companies before returning to the company as a \"customer payment\". Which laundering stage is the chain of transfers?",
+        options: ["Placement", "Layering", "Integration", "Structuring"],
+        answer: 1,
+        why: "Layering is the chain of moves that separates the money from its source. The return as a customer payment is integration." },
+      { q: "Noesi finds no other round trips in Harborline's extract. What can you conclude?",
+        options: ["There are no other round trips", "Only that the extract, as given, contains no other loop within 2% and 30 days", "That the extract is complete", "That the 48,500 loop is fraud"],
+        answer: 1,
+        why: "The screen is bounded by the population it was given and its tolerances. The extract's completeness is undocumented, so silence proves nothing beyond it." },
+      { q: "You learn that a Harborline director owns Meridian Holdings LC. What does that make the round trip, at a minimum?",
+        options: ["Proof of fraud", "A related-party transaction to evaluate and disclose", "Irrelevant, since the money came back", "A cutoff error"],
+        answer: 1,
+        why: "Ownership by a director makes it a related-party transaction (AU-C 550), whatever its purpose. Whether it is also fraud depends on the rest of the evidence." },
+    ],
+    task: {
+      title: "Trace the loop and test the extract",
+      intro: "Use `value_flows.csv`, `payments.csv`, `bank.csv`, `vendors.csv` and the engagement brief.",
+      steps: [
+        "Draw the Bayview–Meridian loop: three boxes, three arrows, with amount, date and label on each arrow.",
+        "Search the vendor master, the payments, the bank feed and the payables ledger for Bayview, Meridian and 48,500. Record where each appears, and where it does not.",
+        "Try to tie the extract's 48 ordinary disbursements to `payments.csv` by amount. Write two sentences on what the result means for relying on the extract.",
+        "List the records you would request to confirm or dismiss round-tripping, and mark each as auditor's work or fraud examiner's work.",
+      ],
+      deliver: "A one-page trace: the diagram, a table of where the money appears, and your evidence request list.",
+    },
+    noesi: {
+      coverage: "partial",
+      summary: "Noesi finds the loop and keeps the proof of where it came from. Tracing it through bank records, entries and ownership is your work.",
+      does: [
+        "`forensic.closed_value_flow` screens the whole extract for money that returns to its source (amounts within 2%, dates within 30 days, up to four hops) and reports the Bayview–Meridian loop with its three rows and their SHA-256 fingerprints.",
+        "Each finding states its limit: \"A coherent cycle is a lead, not an allegation of fraud.\"",
+        "The mapping refuses the extract's missing `flow_type` field instead of guessing, so no loop is skipped as \"legitimate\" on an assumed label.",
+      ],
+      where: ["Workbench → Runs & Findings (forensic.closed_value_flow)", "Workbench → Sources & Mappings (the Value_flows refusal)"],
+      doesNot: [
+        "It does not test whether the extract is complete or reconcile it to payments, the bank or the ledger. That tie-out is yours.",
+        "It does not look up who owns a counterparty, and it has no related-party list.",
+        "It does not follow money outside the company's own records, and it never concludes intent.",
+      ],
+      tryIt: "Start with --demo, run forensic.closed_value_flow, open the finding and follow its three source rows back to value_flows.csv.",
+    },
+  },
 ];
 
 /** Planned lessons, shown on the track page until they are written. */
 export const FRAUD_COMING: [string, string][] = [
-  ["F7", "Following the money"],
   ["F8", "Data analysis for fraud detection"],
   ["F9", "Preventing it next time"],
 ];

@@ -1,8 +1,8 @@
 # Fraud in payables — a CFE-aligned Learn track (outline for review)
 
-*Drafted 2026-09-23 and approved with the recommendations below. F1–F6
+*Drafted 2026-09-23 and approved with the recommendations below. F1–F7
 are written (`apps/studio-ui/src/learn/lessons-fraud.ts`, route
-`/studio/#/learn/fraud`); F7–F9 are planned. The format follows
+`/studio/#/learn/fraud`); F8–F9 are planned. The format follows
 `CURRICULUM.md`: teach the concept, work it on Harborline, then say what
 Noesi does and does not do.*
 
@@ -165,3 +165,13 @@ now taught in the lessons.
 - **Identical overpayment rate.** The three payments above their vouchers
   (PAY-2026-0016, 0093, 0109) are each 18% over to the cent (payment = voucher × 1.18, rounded); PO, receipt
   and voucher agree in each case, and bank and GL carry the paid amount.
+
+## Found in the data while writing F7 (2026-09-25)
+
+- Bayview Advisory Partners, Meridian Holdings LC and the 48,500 appear only in
+  `value_flows.csv`: not in the vendor master, payments, bank feed or GL (account 2000).
+- None of the extract's 48 ordinary disbursements matches a payment amount in
+  `payments.csv` (the generator draws them at random). F7 teaches this as the
+  extract failing to reconcile (information produced by the entity, AU-C 500).
+- `Value_flows` has no `flow_type`, so the screen's legitimate-label suppression
+  never applies on Harborline.
