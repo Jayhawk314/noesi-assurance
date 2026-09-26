@@ -347,6 +347,13 @@ export const FIELDWORK: Lesson[] = [
         "Images (photos or scans saved as images) are not accepted file types.",
       ],
     },
+    video: {
+      file: "learn-7-which-years-sale.mp4",
+      poster: "learn-7-which-years-sale.jpg",
+      title: "Which year's sale?",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Opening photo: Jean-Pierre Bazard (CC BY-SA 3.0), Wikimedia Commons. QuickBooks Online test-drive company (Craig's Design and Landscaping); Excel for the web; Noesi Workbench and Learn on the Harborline demo. The confirmation PDF shown is illustrative.",
+    },
   },
 
   {

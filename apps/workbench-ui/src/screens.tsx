@@ -228,7 +228,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         </tbody>
       </table>
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void upload(); }}>
-        <input type="file" ref={fileInput} accept=".csv,.txt,.xlsx,.xls" multiple />
+        <input type="file" ref={fileInput} accept=".csv,.txt,.xlsx,.xls,.pdf,.json" multiple />
         <button className="action" type="submit">upload sources</button>
         {proposable.length > 0 && (
           <button className="action" type="button"
@@ -247,7 +247,9 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         column headings; reading stops at the first blank row, so a totals
         block below the data is left out, and the proposal says so. Batching
         compresses the clicks, never the review — every proposal still
-        crosses the reviewer's approval before it can normalize.
+        crosses the reviewer's approval before it can normalize. A PDF (a
+        confirmation reply, say) is kept unaltered as evidence with its
+        SHA-256 fingerprint; it is not mapped.
       </p>
 
       <ApControlPanel client={client} eid={eid} onError={onError} onBuilt={reload}
