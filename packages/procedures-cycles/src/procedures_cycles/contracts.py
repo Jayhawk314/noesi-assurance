@@ -231,3 +231,17 @@ def contracts_for_scope(scope) -> tuple[ProcedureContract, ...]:
     """The cycle contracts an engagement with this scope should see."""
     wanted = {s for s in (scope or ()) if s in SCOPES}
     return tuple(c for c in CYCLE_PROCEDURES if SCOPE_OF[c.procedure_id] in wanted)
+
+
+# Every assertion a risk may be recorded against: the AP contracts' set plus
+# the cycles'. Mirrors the risk register's CHECK constraint (migration 8).
+REGISTER_ASSERTIONS: tuple[str, ...] = (
+    "occurrence", "existence", "completeness", "accuracy", "valuation", "cutoff",
+    "classification", "presentation", "rights", "authorization")
+
+
+def procedures_for_assertion_all(assertion: str) -> list[str]:
+    """AP and cycle procedures whose contract addresses this assertion."""
+    from procedures_ap.contracts import procedures_for_assertion
+    return procedures_for_assertion(assertion) + [
+        c.procedure_id for c in CYCLE_PROCEDURES if assertion in c.assertions]

@@ -274,6 +274,10 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if review_open:
         blockers.append({"code": "SUBSTANTIVE_ITEMS_UNRESOLVED",
                          "count": review_open})
+    if sad.get("open_findings_count"):
+        blockers.append({"code": "FINDINGS_OPEN",
+                         "count": sad["open_findings_count"],
+                         "items": list(sad.get("open_findings", []))})
     if sad.get("invalid_waiver_count"):
         blockers.append({"code": "WAIVERS_ABOVE_TRIVIAL_THRESHOLD",
                          "count": sad["invalid_waiver_count"]})

@@ -806,7 +806,8 @@ class WorkbenchService:
         voids any prior concurrence on a re-assessment. It computes nothing —
         the engine never grades a risk.
         """
-        from procedures_ap.contracts import ASSERTIONS, RISK_LEVELS
+        from procedures_ap.contracts import RISK_LEVELS
+        from procedures_cycles.contracts import REGISTER_ASSERTIONS as ASSERTIONS
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         if assertion not in ASSERTIONS:
@@ -886,8 +887,10 @@ class WorkbenchService:
         """The risk register for screen 4b: each risk with its response
         linkage and concurrence state, plus the procedures that *could*
         respond to each assertion (candidates), so the UI can suggest."""
-        from procedures_ap.contracts import (
-            ASSERTIONS, RISK_LEVELS, procedures_for_assertion,
+        from procedures_ap.contracts import RISK_LEVELS
+        from procedures_cycles.contracts import (
+            REGISTER_ASSERTIONS as ASSERTIONS,
+            procedures_for_assertion_all as procedures_for_assertion,
         )
         rows = []
         for r in self._risk_records(engagement_id):
@@ -1067,6 +1070,17 @@ class WorkbenchService:
             and not row["disposition_concurred"]
             and requires_concurrence(row, summary["clearly_trivial"])})
         summary["concurrence_pending"] = pending
+        # Findings that are not dollar misstatements (leads, refusals-to-
+        # evaluate, control deviations) never reach the SAD, but they still
+        # need a decision: one left undisposed, or marked follow-up, is an
+        # open question and must not ride silently into a signed lock.
+        from assurance_domain.sad import _is_candidate
+        open_findings = sorted({
+            row["finding_uid"] for row in rows
+            if row["verdict"] != "AGREE" and not _is_candidate(row)
+            and row["disposition"] in ("undisposed", "follow_up")})
+        summary["open_findings"] = open_findings
+        summary["open_findings_count"] = len(open_findings)
         summary["concurrence_pending_count"] = len(pending)
         if pending:
             summary["conclusion"] = None

@@ -114,3 +114,65 @@ def test_materiality_section_feeds_completion(service, engagement):
     assert run["status"] == "completed", run["error"]
     keys = {tuple(f["verdict"]["key"][1:]) for f in service.findings(engagement)}
     assert ("material", "current_assets") in keys
+
+
+def test_risk_register_takes_cycle_assertions(service, engagement):
+    from assurance_persistence.database import migrate
+    assert migrate(service._conn) == []  # already at the latest version
+    risk = service.assess_risk(BOB, engagement, title="Boats may not exist",
+                               assertion="existence", level="high",
+                               rationale="high value, portable")
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["inventory"]})
+    service.link_risk_procedures(BOB, engagement, risk_id=risk["risk_id"],
+                                 procedure_ids=["inventory.count_listing_trace"],
+                                 expected_version=risk["version"])
+    row = service.risks(engagement)["risks"][0]
+    assert "inventory.count_listing_trace" in row["candidate_procedures"]
+    assert "valuation" in service.risks(engagement)["assertions"]
+
+
+def test_migration_8_keeps_existing_risks(tmp_path, monkeypatch):
+    from assurance_persistence import database as db
+    conn = db.connect(tmp_path / "v7.db")
+    monkeypatch.setattr(db, "MIGRATIONS", db.MIGRATIONS[:7])
+    assert db.migrate(conn) == [1, 2, 3, 4, 5, 6, 7]
+    conn.execute("INSERT INTO tenant VALUES ('t', 'firm', '2026-01-01')")
+    conn.execute("INSERT INTO engagement (engagement_id, tenant_id, client_name, "
+                 "period_end, created_at) VALUES ('e', 't', 'Acme', '2025-12-31', "
+                 "'2026-01-01')")
+    conn.execute("INSERT INTO risk_assessment (tenant_id, engagement_id, risk_id, title, "
+                 "assertion, level, updated_at) VALUES ('t', 'e', 'r1', 'Cutoff', "
+                 "'cutoff', 'high', '2026-01-01')")
+    monkeypatch.undo()
+    assert db.migrate(conn) == [8]
+    row = conn.execute("SELECT * FROM risk_assessment").fetchone()
+    assert (row["risk_id"], row["assertion"], row["level"]) == ("r1", "cutoff", "high")
+    conn.execute("INSERT INTO risk_assessment (tenant_id, engagement_id, risk_id, "
+                 "assertion, updated_at) VALUES ('t', 'e', 'r2', 'valuation', "
+                 "'2026-01-01')")
+    conn.close()
+
+
+def test_open_leads_block_the_lock_until_decided(service, engagement):
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["cash"]})
+    _ingest(service, engagement, REC_CSV, "bank_rec.csv", "Bank_reconciliation")
+    _ingest(service, engagement, CUTOFF_CSV, "cutoff statement.csv", "Cutoff_statement")
+    service.run_procedure(BOB, engagement, procedure_id="cash.bank_reconciliation")
+    leads = [f for f in service.findings(engagement)
+             if f["verdict"]["verdict"] in ("TENSION", "ORPHAN")]
+    assert leads
+
+    def codes():
+        return {b["code"] for b in service.readiness(engagement)["blockers"]}
+    assert "FINDINGS_OPEN" in codes()  # undisposed
+    versions = {}
+    for f in leads:
+        versions[f["finding_uid"]] = service.set_disposition(
+            BOB, engagement, finding_uid=f["finding_uid"], status="follow_up",
+            note="awaiting the January statement")["version"]
+    assert "FINDINGS_OPEN" in codes()  # follow-up is still open
+    for f in leads:
+        service.set_disposition(BOB, engagement, finding_uid=f["finding_uid"],
+                                status="cleared", note="cleared in January",
+                                expected_version=versions[f["finding_uid"]])
+    assert "FINDINGS_OPEN" not in codes()

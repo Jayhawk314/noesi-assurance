@@ -310,6 +310,39 @@ CREATE TABLE risk_assessment (
     PRIMARY KEY (engagement_id, risk_id)
 );
 """),
+    (8, "risk-register-full-assertions", """
+-- The register took only the five AP assertions, so a risk to inventory
+-- existence or receivable valuation could not be recorded. SQLite cannot
+-- alter a CHECK in place: rebuild the table with the full assertion set,
+-- copy every row, and swap. Nothing references this table, so the swap
+-- needs no foreign-key juggling.
+CREATE TABLE risk_assessment_v8 (
+    tenant_id      TEXT NOT NULL REFERENCES tenant(tenant_id),
+    engagement_id  TEXT NOT NULL REFERENCES engagement(engagement_id),
+    risk_id        TEXT NOT NULL,
+    title          TEXT NOT NULL DEFAULT '',
+    assertion      TEXT NOT NULL CHECK (assertion IN
+                   ('occurrence', 'existence', 'completeness', 'accuracy',
+                    'valuation', 'cutoff', 'classification', 'presentation',
+                    'rights', 'authorization')),
+    level          TEXT NOT NULL DEFAULT 'unassessed' CHECK (level IN
+                   ('unassessed', 'low', 'moderate', 'high', 'significant')),
+    rationale      TEXT NOT NULL DEFAULT '',
+    response       TEXT NOT NULL DEFAULT '',
+    procedure_ids  TEXT NOT NULL DEFAULT '[]',
+    proposed_by    TEXT NOT NULL DEFAULT '',
+    concurred_by   TEXT NOT NULL DEFAULT '',
+    version        INTEGER NOT NULL DEFAULT 1,
+    archived       INTEGER NOT NULL DEFAULT 0,
+    updated_at     TEXT NOT NULL,
+    PRIMARY KEY (engagement_id, risk_id)
+);
+INSERT INTO risk_assessment_v8 SELECT tenant_id, engagement_id, risk_id, title,
+    assertion, level, rationale, response, procedure_ids, proposed_by,
+    concurred_by, version, archived, updated_at FROM risk_assessment;
+DROP TABLE risk_assessment;
+ALTER TABLE risk_assessment_v8 RENAME TO risk_assessment;
+"""),
 )
 
 
