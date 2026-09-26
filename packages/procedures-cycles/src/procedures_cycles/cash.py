@@ -17,7 +17,7 @@ end and against the reconciliations (kiting, transfers in transit).
 from __future__ import annotations
 
 from procedures_cycles.common import (
-    ZERO, day, key_text, money, policy_date, receipt, records, source_ref, text,
+    ZERO, day, dec, key_text, money, policy_date, receipt, records, source_ref, text,
 )
 
 ITEM_TYPES = ("bank_balance", "book_balance", "deposit_in_transit", "outstanding_check",
@@ -138,7 +138,7 @@ def bank_reconciliation(tables: dict, policies: dict):
                 money(hit.get("amount"))))
         deposits = [c for c in cutoff.get(acct, [])
                     if _norm_type(c.get("item_type")).startswith("dep")]
-        dit_unmatched = []
+        dit_unmatched, slow = [], []
         pool = list(deposits)
         for dit in items["deposit_in_transit"]:
             amount = money(dit.get("amount"))
@@ -153,11 +153,26 @@ def bank_reconciliation(tables: dict, policies: dict):
                                                              "reference")]}))
             else:
                 pool.remove(match)
+                limit = dec(policies.get("dit_max_days"))
+                listed_on, cleared_on = day(dit.get("item_date")), day(match.get("cleared_date"))
+                if limit is not None and listed_on and cleared_on and                         (cleared_on - listed_on).days > int(limit):
+                    slow.append(str(amount))
+                    findings.append(receipt(
+                        pid, (acct, "deposit_cleared_slowly", str(amount)), "TENSION",
+                        f"account {acct}: deposit in transit {amount} dated {listed_on} "
+                        f"reached the bank only {cleared_on} "
+                        f"({(cleared_on - listed_on).days} days) — test receipts cutoff "
+                        "(were these collections received after period end?)",
+                        {"finding_class": "CONJECTURE", "kind": "risk", "cycle": "cash",
+                         "assertion": "cutoff",
+                         "source_rows": [source_ref("Bank_reconciliation", dit,
+                                                    "reference")]}))
         per_account[acct] = {
             "totals": total, "adjusted_bank": adjusted_bank, "adjusted_book": adjusted_book,
             "outstanding_checks": len(items["outstanding_check"]), **oc_results,
             "last_check_issued": last, "omitted_outstanding_checks": omitted,
-            "deposits_in_transit_not_cleared": dit_unmatched}
+            "deposits_in_transit_not_cleared": dit_unmatched,
+            "deposits_cleared_slowly": slow}
     return findings, {"population": len(records(tables, "Bank_reconciliation")),
                       "accounts": per_account, "exceptions": len(findings)}
 

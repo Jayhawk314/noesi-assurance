@@ -20,8 +20,8 @@ from decimal import Decimal
 
 from procedures_cycles import sampling
 from procedures_cycles.common import (
-    ZERO, dec, key_text, money, policy_decimal, policy_rate, receipt, records,
-    source_ref, text,
+    ZERO, PolicyError, dec, key_text, money, policy_decimal, policy_rate, receipt,
+    records, source_ref, text,
 )
 from procedures_cycles.statements import _signed
 
@@ -73,10 +73,36 @@ def listing_tie(tables: dict, policies: dict):
             findings.append(receipt(pid, ("duplicate_customer", cust), "TENSION",
                                     f"customer {cust} appears {count} times on the listing",
                                     {"finding_class": "CONJECTURE", "cycle": "receivables"}))
-    over_90 = sum((money(r.get("days_over_90")) for r in listing), ZERO)
-    return findings, {"population": len(listing), "listing_total": total, "gl_total": gl,
-                      "aged_rows": aged, "over_90_total": over_90,
-                      "exceptions": len(findings)}
+    buckets = {f: sum((money(r.get(f)) for r in listing), ZERO)
+               for f in ("current", "days_31_60", "days_61_90", "days_over_90")}
+    stats = {"population": len(listing), "listing_total": total, "gl_total": gl,
+             "aged_rows": aged, "aging_totals": buckets}
+    rates_policy = text(policies.get("ar_allowance_rates"))
+    if rates_policy:
+        # The client's allowance method, applied to the aging: an estimate
+        # the auditor recomputes, not one the engine invents.
+        rates = [dec(x) for x in rates_policy.replace(";", ",").split(",")]
+        if len(rates) != 4 or any(r is None for r in rates):
+            raise PolicyError("ar_allowance_rates needs four rates: current, 31-60, "
+                              "61-90, over 90 (e.g. '0.03,0.10,0.15,0.30')")
+        required = sum((amount * rate for amount, rate in zip(buckets.values(), rates)),
+                       ZERO).quantize(Decimal("1"))
+        recorded = -sum((_signed(r) or ZERO for r in tb
+                         if text(r.get("line")).lower() == "allowance"), ZERO)
+        stats.update({"allowance_required": required, "allowance_recorded": recorded,
+                      "allowance_rates": [str(r) for r in rates]})
+        if required != recorded.quantize(Decimal("1")):
+            findings.append(receipt(
+                pid, ("allowance_estimate",), "CLASH",
+                f"allowance recomputed from the aging is {required}; the books carry "
+                f"{recorded} — difference {required - recorded}",
+                {"finding_class": "PROVED_EXCEPTION", "cycle": "receivables",
+                 "assertion": "valuation", "required": required, "recorded": recorded,
+                 "limits": "rates are the client's method as approved by the auditor; "
+                           "their adequacy is a separate judgment"},
+                required - recorded))
+    stats["exceptions"] = len(findings)
+    return findings, stats
 
 
 def _confirmation_rows(tables: dict, pid: str, findings: list):
@@ -255,6 +281,8 @@ def confirmations_difference(tables: dict, policies: dict):
                                 "confirmations", {"finding_class": "REFUSAL",
                                                   "cycle": "receivables"}))
         return findings, {**stats, "exceptions": len(findings)}
+    # Every sampled account must be itemized, differences or not: the sample
+    # size is the number of rows, never a number typed in beside them.
     result = sampling.difference_evaluate([r["misstatement"] for r in rows], len(listing),
                                           z_a, tm)
     _misstatement_findings(pid, rows, findings)

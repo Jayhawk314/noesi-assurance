@@ -4,7 +4,7 @@
 Same ``ProcedureContract`` shape as the eleven AP contracts, so coverage,
 evidence requests, jobs and the lock treat them alike. Each belongs to a
 *scope*: an engagement sees a scope's contracts only after its partner puts
-that scope in the engagement (workflow section ``scope``). With no scope
+that cycle in the engagement (workflow section ``cycles``). With no scope
 recorded, coverage is exactly the AP-only coverage it always was.
 
 ``period_end`` and ``materiality`` are supplied by the engagement record
@@ -54,7 +54,8 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ),
     ProcedureContract(
         "ar.listing_tie", "AR listing to general ledger",
-        "Tie the aged AR listing to the trial balance and test the aging's arithmetic.",
+        "Tie the aged AR listing to the trial balance, test the aging's arithmetic, and "
+        "recompute the allowance from the aging when rates are approved.",
         "receivables", ("completeness", "accuracy", "valuation"),
         {"AR_listing": ("customer_number", "balance"),
          "Trial_balance": ("account", "balance", "line")},
@@ -217,7 +218,9 @@ CYCLE_CONTRACTS_BY_ID = {c.procedure_id: c for c in CYCLE_PROCEDURES}
 OPTIONAL_POLICIES: tuple[str, ...] = (
     "analytics_threshold_pct", "analytics_threshold_amount", "ar_confidence_factor",
     "ar_expected_misstatement", "ar_estimated_sd", "ar_risk_incorrect_rejection",
-    "search_interval", "search_start", "pricing_sample_value",
+    "search_interval", "search_start", "search_systematic_count",
+    "pricing_sample_value", "ar_allowance_rates",
+    "dit_max_days",
 )
 
 # Supplied from the engagement record rather than typed as policies.

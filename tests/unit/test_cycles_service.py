@@ -66,9 +66,9 @@ def test_no_scope_means_ap_only_coverage(service, engagement):
 
 def test_only_the_partner_sets_scope(service, engagement):
     with pytest.raises(AuthorizationError):
-        service.update_workflow(BOB, engagement, "scope", {"cycles": ["cash"]})
+        service.update_workflow(BOB, engagement, "cycles", {"cycles": ["cash"]})
     with pytest.raises(ValueError):
-        service.update_workflow(ALICE, engagement, "scope", {"cycles": ["payroll"]})
+        service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["payroll"]})
 
 
 def test_engagement_values_are_not_retyped_as_policies(service, engagement):
@@ -78,7 +78,7 @@ def test_engagement_values_are_not_retyped_as_policies(service, engagement):
 
 
 def test_cash_scope_runs_through_the_job_runner(service, engagement):
-    service.update_workflow(ALICE, engagement, "scope", {"cycles": ["cash"]})
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["cash"]})
     coverage = service.coverage(engagement)
     status = {p["procedure_id"]: p["status"] for p in coverage["procedures"]}
     assert coverage["summary"]["total"] == 13
@@ -102,7 +102,7 @@ def test_cash_scope_runs_through_the_job_runner(service, engagement):
 
 
 def test_materiality_section_feeds_completion(service, engagement):
-    service.update_workflow(ALICE, engagement, "scope", {"cycles": ["completion"]})
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["completion"]})
     service.update_workflow(BOB, engagement, "materiality",
                             {"amount": 5000, "basis": "pretax income", "rationale": "5%"})
     misstatements = ("Description,Reference,Identified,Likely,Current Assets,"

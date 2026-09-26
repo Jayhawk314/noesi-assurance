@@ -65,16 +65,18 @@ def attribute_evaluation(tables: dict, policies: dict):
         else:
             cuer = sampling.attribute_cuer(n, k, risk) / 100
             row.update({"risk": risk, "cuer": cuer})
-            if eper is not None:
-                planned = sampling.attribute_sample_size(eper, ter, risk)
-                row["table_sample_size"] = planned
-                if planned is not None and n < planned:
-                    findings.append(receipt(
-                        pid, (attribute, "sample_below_plan"), "TENSION",
-                        f"attribute {attribute}: {n} items tested, fewer than the "
-                        f"{planned} the plan (EPER {eper:.1%}, TER {ter:.1%}) calls for",
-                        {"finding_class": "CONJECTURE", "cycle": "controls",
-                         "source_rows": [source_ref("Attribute_tests", r, "attribute")]}))
+        if eper is not None and risk is not None:
+            # The attribute table sizes a sample for either method; a
+            # nonstatistical plan uses it as its guide.
+            planned = sampling.attribute_sample_size(eper, ter, risk)
+            row["table_sample_size"] = planned
+            if planned is not None and n < planned:
+                findings.append(receipt(
+                    pid, (attribute, "sample_below_plan"), "TENSION",
+                    f"attribute {attribute}: {n} items tested, fewer than the "
+                    f"{planned} the plan (EPER {eper:.1%}, TER {ter:.1%}) calls for",
+                    {"finding_class": "CONJECTURE", "cycle": "controls",
+                     "source_rows": [source_ref("Attribute_tests", r, "attribute")]}))
         reliance = cuer <= Decimal(repr(ter))
         row["reliance_supported"] = reliance
         rows_out.append(row)

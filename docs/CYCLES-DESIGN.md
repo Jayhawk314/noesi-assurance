@@ -28,7 +28,8 @@ The workbench ran eleven AP contracts. A full integrated audit also needs:
    `(tables, policies) -> (receipts, stats)` signature, so jobs, receipts, findings,
    review, dispositions and lock work unchanged.
 2. **Opt-in by scope.** A partner records the engagement's scope (`workflow` section
-   `scope`: e.g. `["receivables", "cash"]`). Coverage includes a cycle's contracts only
+   `cycles`: e.g. `["receivables", "cash"]`; kept apart from the existing `scope`
+   key, which records scope-limitation decisions). Coverage includes a cycle's contracts only
    when that cycle is in scope. With no scope set, coverage is exactly what it was, so no
    existing engagement gains blocked procedures or readiness blockers.
 3. **Auditor-obtained evidence is its own role.** Confirmation replies, inspected
@@ -57,3 +58,28 @@ The workbench ran eleven AP contracts. A full integrated audit also needs:
 - **Kiting:** a transfer whose receipt is booked in the period but whose disbursement is
   booked after it overstates cash. A transfer in transit must appear as a DIT on the
   receiving reconciliation and an outstanding check on the disbursing one.
+
+## Provenance and limits: read before relying on this
+
+- **Where it came from.** These procedures were built while working one published
+  integrated practice case written by textbook authors. The data shapes (an item-typed
+  bank reconciliation, a four-date transfer schedule, a four-bucket aging, attribute
+  data sheets) follow that textbook tradition. Real client exports rarely arrive in these
+  shapes, so each needs an adapter, and no real-client export has been run through these
+  procedures yet.
+- **What is verified.** The sampling arithmetic reproduces the AICPA *Audit Sampling*
+  tables cell for cell. Every executor has tests on invented data. The practice case's
+  own worked figures (ratios, allowance, sample sizes) were reproduced without tuning.
+  That shows the arithmetic is right. It does not show the procedures are complete or
+  that they help on a real engagement.
+- **What was kept out on purpose.** The engine never accepts a sample value or sample
+  size typed in beside the rows. Every sampled item must be itemized, so the result can
+  be recomputed. Shorthand in a source (e.g. "items 6–35: various") is the adapter's
+  problem, not the engine's.
+- **What it is not.** It is not an audit methodology, not a substitute for AU-C / PCAOB
+  compliance, quality management or professional judgment, and it issues no opinion.
+  It performs and records mechanical tests the auditor chose, with their evidence.
+- **Before any real engagement:** independent review of this package
+  (docs/INDEPENDENT-REVIEW.md); a second, independently written test case for these
+  cycles; adapters for at least one real export per role (e.g. an accounting-package
+  aging report, a bank CSV); a pilot alongside a licensed CPA doing the work by hand.

@@ -47,7 +47,8 @@ def _check_of(payment: dict) -> str:
 
 
 def select_disbursements(payments: list[dict], threshold: Decimal,
-                         interval: int | None, start: int | None) -> dict:
+                         interval: int | None, start: int | None,
+                         limit: int | None = None) -> dict:
     """Check-level selection: all above threshold, then every k-th of the rest."""
     checks: dict[str, Decimal] = {}
     order: list[str] = []
@@ -61,7 +62,7 @@ def select_disbursements(payments: list[dict], threshold: Decimal,
     rest = [c for c in order if checks[c] <= threshold]
     systematic: list[str] = []
     if interval and start and rest:
-        positions = sampling.systematic_selection(len(rest), interval, start)
+        positions = sampling.systematic_selection(len(rest), interval, start, limit=limit)
         systematic = [rest[i - 1] for i in positions]
     return {"check_totals": checks, "above_threshold": above,
             "systematic": systematic, "remaining_population": len(rest)}
@@ -73,13 +74,15 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
     threshold = policy_decimal(policies, "search_threshold")
     interval = dec(policies.get("search_interval"))
     start = dec(policies.get("search_start"))
+    limit = dec(policies.get("search_systematic_count"))
     listing = {key_text(v.get("voucher_number")): v for v in records(tables, "Vouchers")}
     payments = records(tables, "Payments")
     inspections = {key_text(i.get("payment_number")): i
                    for i in records(tables, "Disbursement_inspection")}
     selection = select_disbursements(payments, threshold,
                                      int(interval) if interval else None,
-                                     int(start) if start else None)
+                                     int(start) if start else None,
+                                     int(limit) if limit else None)
     selected = set(selection["above_threshold"]) | set(selection["systematic"])
     findings = []
     outcomes = {"properly_included": 0, "properly_excluded": 0, "unrecorded": 0,

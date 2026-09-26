@@ -448,7 +448,7 @@ class WorkbenchService:
     def _contracts(self, document: dict) -> tuple:
         """The eleven AP contracts plus the cycle contracts in scope."""
         from procedures_ap.contracts import PROCEDURES
-        return PROCEDURES + contracts_for_scope(document.get("scope"))
+        return PROCEDURES + contracts_for_scope(document.get("cycles"))
 
     def _engagement_policies(self, engagement_id: str, document: dict) -> dict:
         """Approved policies plus the engagement's own period end and materiality.
@@ -471,7 +471,7 @@ class WorkbenchService:
         contracts = self._contracts(document)
         # An AP-only engagement (no scope) compiles exactly as it always has.
         policies = (self._engagement_policies(engagement_id, document)
-                    if document.get("scope") else document.get("policies"))
+                    if document.get("cycles") else document.get("policies"))
         return compile_coverage(inventory_from_tables(tables),
                                 policies=policies or None, contracts=contracts,
                                 executors=cycle_engines.registered_procedures())
@@ -962,15 +962,17 @@ class WorkbenchService:
                 "done": bool(values.get("done", False)),
                 "note": str(values.get("note", "")),
                 "evidence": list(values.get("evidence", []))}
-        elif section == "scope":
-            # Which cycles this engagement audits. The partner owns scope; it
+        elif section == "cycles":
+            # Which cycles this engagement audits. The partner owns this; it
             # decides which cycle contracts coverage (and readiness) consider.
+            # (Kept apart from document["scope"], which holds scope-limitation
+            # decisions.)
             self._require(engagement_id, actor, "partner")
             cycles = [str(c) for c in values.get("cycles", [])]
             unknown = [c for c in cycles if c not in SCOPES]
             if unknown:
                 raise ValueError(f"unknown scope(s) {unknown}; one of {list(SCOPES)}")
-            document["scope"] = sorted(set(cycles))
+            document["cycles"] = sorted(set(cycles))
         elif section == "procedure_selection":
             from procedures_ap.contracts import CONTRACTS_BY_ID
             procedure_id = str(values["procedure_id"])

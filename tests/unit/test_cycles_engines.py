@@ -135,6 +135,18 @@ def test_ar_listing_tie():
     assert ("listing_to_gl",) in keys(findings, "CLASH")
 
 
+def test_ar_allowance_recomputed_from_aging():
+    listing = [{"customer_number": "1", "balance": D("1000"), "current": D("600"),
+                "days_31_60": D("300"), "days_61_90": D("100"), "days_over_90": D("0")}]
+    tb = [{"account": "1100", "balance": D("1000"), "side": "DR", "line": "receivables"},
+          {"account": "1110", "balance": D("40"), "side": "CR", "line": "allowance"}]
+    findings, stats = execute_procedure("ar.listing_tie",
+                                        {"AR_listing": listing, "Trial_balance": tb},
+                                        {"ar_allowance_rates": "0.03,0.10,0.15,0.30"})
+    assert stats["allowance_required"] == "63"  # 18 + 30 + 15
+    assert ("allowance_estimate",) in keys(findings, "CLASH")
+
+
 CONFIRMS = [
     {"customer_number": "1", "book_value": D("60000"), "confirmed_value": D("59000"),
      "classification": "client misstatement"},
@@ -222,7 +234,8 @@ def test_unrecorded_liabilities_search():
 REC = [
     {"account": "general", "item_type": "bank_balance", "amount": D("10000")},
     {"account": "general", "item_type": "book_balance", "amount": D("9300")},
-    {"account": "general", "item_type": "deposit_in_transit", "amount": D("500")},
+    {"account": "general", "item_type": "deposit_in_transit", "amount": D("500"),
+     "item_date": date(2026, 12, 28)},
     {"account": "general", "item_type": "outstanding_check", "reference": "101",
      "amount": D("700")},
     {"account": "general", "item_type": "outstanding_check", "reference": "104",
@@ -254,6 +267,10 @@ def test_bank_reconciliation_cutoff_tests():
     assert ("general", "outstanding_not_cleared", "104") in keys(findings, "TENSION")
     assert ("general", "omitted_outstanding_check", "103") in keys(findings, "ORPHAN")
     assert general["deposits_in_transit_not_cleared"] == []
+    findings, _ = execute_procedure("cash.bank_reconciliation",
+                                    {"Bank_reconciliation": REC, "Cutoff_statement": CUTOFF},
+                                    {"period_end": "2026-12-31", "dit_max_days": "3"})
+    assert ("general", "deposit_cleared_slowly", "500.00") in keys(findings, "TENSION")
 
 
 def test_interbank_transfers_detects_kiting_and_missing_rec_items():
