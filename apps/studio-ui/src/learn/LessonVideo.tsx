@@ -16,10 +16,15 @@ export function LessonVideo({ video, standalone }: { video: Video; standalone: b
       <div className="lesson-video-head">
         <b>Watch</b> <span>{video.title}</span> <span className="muted">· {video.minutes} min</span>
       </div>
-      <video controls preload="metadata" playsInline src={base + video.file}
+      {/* preload="none": no video request is opened until Play, so moving between lessons
+          never leaves earlier downloads holding the browser's connections. */}
+      <video controls preload="none" playsInline src={base + video.file}
              poster={video.poster ? base + video.poster : undefined}>
         Your browser can’t play this video.
       </video>
+      <p className="lesson-video-credits">
+        Not playing? <a href={base + video.file} target="_blank" rel="noreferrer">Open the video in a new tab</a>.
+      </p>
       <p className="lesson-video-credits">{video.credits}</p>
     </section>
   );
