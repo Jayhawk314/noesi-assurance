@@ -25,6 +25,7 @@ const BLOCKER_TEXT: Record<string, string> = {
   TRANSFORMATION_APPROVAL_PENDING: "data transformations await approval",
   MISSTATEMENTS_UNRESOLVED: "exceptions still need a judgment",
   SUBSTANTIVE_ITEMS_UNRESOLVED: "substantive items are unresolved",
+  FINDINGS_OPEN: "findings still need a decision (undisposed or follow-up)",
   SCOPE_ITEMS_UNRESOLVED: "scope items are unresolved",
   DISPOSITIONS_AWAITING_CONCURRENCE: "judgments above trivial await a second person",
   WAIVERS_ABOVE_TRIVIAL_THRESHOLD: "items were waived that are too large to waive",
