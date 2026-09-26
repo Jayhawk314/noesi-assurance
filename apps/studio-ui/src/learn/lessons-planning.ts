@@ -22,7 +22,7 @@ export const PLANNING: Lesson[] = [
         heading: "Why the audit starts with a decision, not a test",
         blocks: [
           { p: "An audit is a firm putting its name on someone else's numbers. Before any testing, the firm decides whether it **can** and **should** take that risk. A bad client — one whose management lacks integrity, or whose affairs the firm cannot competently audit — is a risk no amount of fieldwork repairs." },
-          { p: "U.S. firms now run this decision inside a **quality management system**. SQMS No. 1 (firm level) and SAS No. 146 (the engagement partner's responsibilities, in AU-C 220) apply to engagements for periods beginning on or after December 15, 2025. Acceptance and continuance of clients is one of the areas every firm must set quality objectives for." },
+          { p: "U.S. firms now run this decision inside a **quality management system**. SQMS No. 1 required every firm to have its system in place by December 15, 2025, and SAS No. 146 (the engagement partner's responsibilities, in AU-C 220) applies to engagements for periods beginning on or after that date. Acceptance and continuance of clients is one of the areas every firm must set quality objectives for." },
         ],
       },
       {
@@ -67,8 +67,8 @@ export const PLANNING: Lesson[] = [
     ],
     standards: [
       ["SQMS 1 / SAS 146 (AU-C 220)", "Firm quality management; the engagement partner's responsibility for quality, including acceptance and continuance"],
-      ["AU-C 210", "Terms of engagement and the preconditions for an audit"],
-      ["AU-C 510", "Opening balances in initial audits; predecessor–successor communication"],
+      ["AU-C 210", "Terms of engagement, the preconditions for an audit, and inquiries of the predecessor before accepting (amended by SAS 147)"],
+      ["AU-C 510", "Opening balances in initial audits"],
     ],
     check: [
       { q: "Management refuses to acknowledge responsibility for internal control in the engagement letter. What follows?",
@@ -108,6 +108,13 @@ export const PLANNING: Lesson[] = [
         "On one laptop, chairs are role-play: the same person sits in each. The tool says so rather than pretending otherwise.",
       ],
       tryIt: "Start with --demo, open the Workbench Team tab, and see the three chairs the case assigns.",
+    },
+    video: {
+      file: "learn-1-should-we-sign.mp4",
+      poster: "learn-1-should-we-sign.jpg",
+      title: "Should we sign?",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Opening photo: “Legal Contract & Signature - Warm Tones”, Blogtrepreneur, CC BY 2.0, via Wikimedia Commons. Screens: Noesi Workbench and Learn on the Harborline demo; the engagement brief.",
     },
   },
 
