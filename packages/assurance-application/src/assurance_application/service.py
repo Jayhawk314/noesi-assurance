@@ -36,7 +36,8 @@ from procedures_ap import quickbooks
 from procedures_ap.engines import ENGINE_VERSION
 from procedures_cycles import engines as cycle_engines
 from procedures_cycles.contracts import (
-    CYCLE_CONTRACTS_BY_ID, ENGAGEMENT_POLICIES, SCOPES, contracts_for_scope,
+    CYCLE_CONTRACTS_BY_ID, ENGAGEMENT_POLICIES, SCOPES, SCOPE_OF,
+    contracts_for_scope,
 )
 from procedures_cycles.engines import execute_procedure
 from procedures_ap.ingest import (
@@ -490,6 +491,12 @@ class WorkbenchService:
         # against the same document, so what coverage calls executable is
         # what the run actually receives.
         document, _ = self.workflow_document(engagement_id)
+        if (procedure_id in CYCLE_CONTRACTS_BY_ID
+                and procedure_id not in {
+                    c.procedure_id for c in self._contracts(document)
+                }):
+            raise ValueError(
+                f"cycle procedure {procedure_id!r} is outside the engagement scope")
         base = (self._engagement_policies(engagement_id, document)
                 if procedure_id in CYCLE_CONTRACTS_BY_ID
                 else document.get("policies") or {})
@@ -835,10 +842,15 @@ class WorkbenchService:
         from procedures_ap.contracts import CONTRACTS_BY_ID
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
-        unknown = [p for p in procedure_ids
-                   if p not in CONTRACTS_BY_ID and p not in CYCLE_CONTRACTS_BY_ID]
+        document, _ = self.workflow_document(engagement_id)
+        allowed = {contract.procedure_id for contract in self._contracts(document)}
+        known = set(CONTRACTS_BY_ID) | set(CYCLE_CONTRACTS_BY_ID)
+        unknown = [p for p in procedure_ids if p not in known]
         if unknown:
             raise ValueError(f"unknown procedure(s): {unknown}")
+        out_of_scope = [p for p in procedure_ids if p not in allowed]
+        if out_of_scope:
+            raise ValueError(f"out-of-scope procedure(s): {out_of_scope}")
 
         def handler(uow):
             version = uow.risks.link_procedures(
@@ -888,10 +900,9 @@ class WorkbenchService:
         linkage and concurrence state, plus the procedures that *could*
         respond to each assertion (candidates), so the UI can suggest."""
         from procedures_ap.contracts import RISK_LEVELS
-        from procedures_cycles.contracts import (
-            REGISTER_ASSERTIONS as ASSERTIONS,
-            procedures_for_assertion_all as procedures_for_assertion,
-        )
+        from procedures_cycles.contracts import REGISTER_ASSERTIONS as ASSERTIONS
+        document, _ = self.workflow_document(engagement_id)
+        contracts = self._contracts(document)
         rows = []
         for r in self._risk_records(engagement_id):
             requires = r["level"] in ("high", "significant")
@@ -903,7 +914,10 @@ class WorkbenchService:
                 "rationale": r["rationale"],
                 "response": r["response"],
                 "procedure_ids": r["procedure_ids"],
-                "candidate_procedures": procedures_for_assertion(r["assertion"]),
+                "candidate_procedures": [
+                    contract.procedure_id for contract in contracts
+                    if r["assertion"] in contract.assertions
+                ],
                 "proposed_by": r["proposed_by"],
                 "concurred_by": r["concurred_by"],
                 "version": r["version"],
@@ -975,6 +989,30 @@ class WorkbenchService:
             unknown = [c for c in cycles if c not in SCOPES]
             if unknown:
                 raise ValueError(f"unknown scope(s) {unknown}; one of {list(SCOPES)}")
+            proposed = set(cycles)
+            removed_procedures = {
+                pid for pid, scope in SCOPE_OF.items()
+                if scope not in proposed
+            }
+            linked = sorted({
+                pid for risk in self._risk_records(engagement_id)
+                for pid in risk["procedure_ids"] if pid in removed_procedures
+            })
+            if linked:
+                raise ValueError(
+                    "cannot remove cycles while active risks link their procedures: "
+                    f"{linked}")
+            run_rows = self._conn.execute(
+                "SELECT DISTINCT procedure_id FROM procedure_run "
+                "WHERE engagement_id = ?", (engagement_id,)).fetchall()
+            executed = sorted(
+                row["procedure_id"] for row in run_rows
+                if row["procedure_id"] in removed_procedures
+            )
+            if executed:
+                raise ValueError(
+                    "cannot remove cycles after their procedures have run: "
+                    f"{executed}")
             document["cycles"] = sorted(set(cycles))
         elif section == "procedure_selection":
             from procedures_ap.contracts import CONTRACTS_BY_ID

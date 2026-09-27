@@ -12,6 +12,7 @@ dependencies = [
     "assurance-persistence",
     "assurance-artifacts",
     "procedures-ap",
+    "procedures-cycles",
 ]
 
 [tool.setuptools.packages.find]

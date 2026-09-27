@@ -9,6 +9,7 @@ import pytest
 from procedures_cycles.common import PolicyError
 from procedures_cycles.engines import EXECUTORS, execute_procedure, registered_procedures
 from procedures_cycles.contracts import CYCLE_PROCEDURES, contracts_for_scope
+from procedures_ap.coverage import compile_coverage
 
 
 def keys(findings, verdict=None):
@@ -173,6 +174,27 @@ def test_confirmations_nonstatistical_projects_and_refuses_unclassified():
     assert ("evaluation",) in keys(findings, "AGREE")
 
 
+def test_confirmation_evaluation_aggregates_ar_detail_to_customer_balance():
+    tables = {
+        "AR_listing": [
+            {"customer_number": "C1", "balance": D("60")},
+            {"customer_number": "C1", "balance": D("40")},
+        ],
+        "Confirmations": [
+            {"customer_number": "C1", "book_value": D("100"),
+             "confirmed_value": D("100"), "classification": "no_difference"},
+        ],
+    }
+    findings, stats = execute_procedure(
+        "ar.confirmations_nonstatistical", tables,
+        {"ar_tolerable_misstatement": "200"})
+    assert stats["population"] == 1
+    assert stats["listing_rows"] == 2
+    assert stats["stratum_value"] == "100.00"
+    assert ("book_value_mismatch", "c1") not in keys(findings, "CLASH")
+    assert ("evaluation",) in keys(findings, "AGREE")
+
+
 def test_confirmations_mus_and_difference():
     tables = {"AR_listing": LISTING, "Confirmations": CONFIRMS[:4]}
     findings, stats = execute_procedure(
@@ -229,6 +251,47 @@ def test_unrecorded_liabilities_search():
     assert stats["outcomes"]["concluded_by_reference"] == 1
     assert stats["outcomes"]["properly_included"] == 1
     assert D(stats["net_misstatement"]) == D("28000.00")  # +40000 over, −12000 under
+
+
+def test_selected_multiline_disbursement_requires_every_line_inspected():
+    payments = [
+        {"payment_number": "900-1", "check_number": "900",
+         "voucher_number": "A", "payment_amount": D("6000")},
+        {"payment_number": "900-2", "check_number": "900",
+         "voucher_number": "B", "payment_amount": D("6000")},
+    ]
+    inspections = [
+        {"payment_number": "900-1", "liability_date": date(2027, 1, 2)},
+    ]
+    findings, stats = execute_procedure(
+        "ap.unrecorded_liabilities_search",
+        {"Vouchers": [{"voucher_number": "A", "voucher_amount": D("6000")}],
+         "Payments": payments, "Disbursement_inspection": inspections},
+        {"period_end": "2026-12-31", "search_threshold": "10000"})
+    assert stats["selected_above_threshold"] == ["900"]
+    assert "900" not in stats["inspected_checks"]
+    assert ("900-2", "selected_not_inspected") in keys(findings, "TENSION")
+
+
+def test_empty_cycle_population_is_blocked_and_executor_refuses_it():
+    inventory = {
+        "Inventory_listing": {"fields": ["stock_number"], "rows": 0},
+        "Inventory_count": {"fields": ["stock_number"], "rows": 0},
+    }
+    coverage = compile_coverage(
+        inventory, contracts=contracts_for_scope(["inventory"]),
+        executors=registered_procedures())
+    trace = next(row for row in coverage["procedures"]
+                 if row["procedure_id"] == "inventory.count_listing_trace")
+    assert trace["status"] == "blocked"
+    assert trace["missing_roles"] == ["Inventory_listing", "Inventory_count"]
+
+    findings, stats = execute_procedure(
+        "inventory.count_listing_trace",
+        {"Inventory_listing": [], "Inventory_count": []}, {})
+    assert stats["refused_empty_roles"] == ["Inventory_listing", "Inventory_count"]
+    assert len(findings) == 2
+    assert all(f.verdict == "AMBIGUOUS" for f in findings)
 
 
 REC = [

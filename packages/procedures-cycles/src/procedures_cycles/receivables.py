@@ -43,11 +43,11 @@ def listing_tie(tables: dict, policies: dict):
                                 f"receivables line is {gl}",
                                 {"finding_class": "PROVED_EXCEPTION", "cycle": "receivables",
                                  "listing_total": total, "gl_total": gl}, total - gl))
-    seen: dict[str, int] = {}
+    customers: set[str] = set()
     aged = 0
     for r in listing:
         cust = key_text(r.get("customer_number"))
-        seen[cust] = seen.get(cust, 0) + 1
+        customers.add(cust)
         buckets = [dec(r.get(f)) for f in ("current", "days_31_60", "days_61_90",
                                            "days_over_90")]
         if any(b is not None for b in buckets):
@@ -68,14 +68,10 @@ def listing_tie(tables: dict, policies: dict):
                 "consider reclassification to liabilities",
                 {"finding_class": "CONJECTURE", "cycle": "receivables",
                  "source_rows": [source_ref("AR_listing", r, "customer_number")]}))
-    for cust, count in seen.items():
-        if count > 1:
-            findings.append(receipt(pid, ("duplicate_customer", cust), "TENSION",
-                                    f"customer {cust} appears {count} times on the listing",
-                                    {"finding_class": "CONJECTURE", "cycle": "receivables"}))
     buckets = {f: sum((money(r.get(f)) for r in listing), ZERO)
                for f in ("current", "days_31_60", "days_61_90", "days_over_90")}
-    stats = {"population": len(listing), "listing_total": total, "gl_total": gl,
+    stats = {"population": len(listing), "customers": len(customers),
+             "listing_total": total, "gl_total": gl,
              "aged_rows": aged, "aging_totals": buckets}
     rates_policy = text(policies.get("ar_allowance_rates"))
     if rates_policy:
@@ -105,9 +101,18 @@ def listing_tie(tables: dict, policies: dict):
     return findings, stats
 
 
+def _customer_balances(tables: dict) -> dict[str, Decimal]:
+    """Aggregate summary or invoice-detail A/R rows to the confirmation unit."""
+    balances: dict[str, Decimal] = {}
+    for row in records(tables, "AR_listing"):
+        customer = key_text(row.get("customer_number"))
+        balances[customer] = balances.get(customer, ZERO) + money(row.get("balance"))
+    return balances
+
+
 def _confirmation_rows(tables: dict, pid: str, findings: list):
     """Join confirmations to the listing; refuse unclassified differences."""
-    listing = {key_text(r.get("customer_number")): r for r in records(tables, "AR_listing")}
+    listing = _customer_balances(tables)
     out = []
     for c in records(tables, "Confirmations"):
         cust = key_text(c.get("customer_number"))
@@ -120,7 +125,7 @@ def _confirmation_rows(tables: dict, pid: str, findings: list):
                                     {"finding_class": "EXPECTED_BUT_MISSING",
                                      "cycle": "receivables"}))
             continue
-        listed_balance = money(listed.get("balance"))
+        listed_balance = listed.quantize(Decimal("0.01"))
         if book is None:
             book = listed_balance
         elif book.quantize(Decimal("0.01")) != listed_balance:
@@ -177,11 +182,12 @@ def confirmations_nonstatistical(tables: dict, policies: dict):
     tm = policy_decimal(policies, "ar_tolerable_misstatement")
     findings: list = []
     listing = records(tables, "AR_listing")
+    customer_balances = _customer_balances(tables)
     rows = _confirmation_rows(tables, pid, findings)
     significant = [r for r in rows if r["book"] > tm]
     sampled = [r for r in rows if r["book"] <= tm]
-    stratum_value = sum((money(r.get("balance")) for r in listing
-                         if money(r.get("balance")) <= tm), ZERO)
+    stratum_value = sum((balance for balance in customer_balances.values()
+                         if balance <= tm), ZERO)
     sample_value = sum((r["book"] for r in sampled), ZERO)
     known = sum((r["misstatement"] for r in significant), ZERO)
     sample_misstatement = sum((r["misstatement"] for r in sampled), ZERO)
@@ -206,7 +212,8 @@ def confirmations_nonstatistical(tables: dict, policies: dict):
          "projected_total": total, "allowance_for_sampling_risk": allowance,
          "limits": "nonstatistical: sampling risk is judged, not measured"},
         total))
-    stats = {"population": len(listing), "confirmations": len(rows),
+    stats = {"population": len(customer_balances), "listing_rows": len(listing),
+             "confirmations": len(rows),
              "significant": len(significant), "sampled": len(sampled),
              "stratum_value": stratum_value, "sample_value": sample_value,
              "known_misstatement": known, "projected_sample_misstatement": projected_sample,
@@ -226,6 +233,7 @@ def confirmations_mus(tables: dict, policies: dict):
     interval = policy_decimal(policies, "mus_interval")
     findings: list = []
     listing = records(tables, "AR_listing")
+    customer_balances = _customer_balances(tables)
     rows = _confirmation_rows(tables, pid, findings)
     large = [r for r in rows if r["book"] > tm or r["book"] >= interval]
     units = [r for r in rows if r not in large]
@@ -252,9 +260,10 @@ def confirmations_mus(tables: dict, policies: dict):
          "limits": "overstatement bound only; understatement taintings are listed "
                    "and must be evaluated separately"},
         uml))
-    population = sum((money(r.get("balance")) for r in listing
-                      if money(r.get("balance")) <= tm), ZERO)
-    stats = {"population": len(listing), "confirmations": len(rows),
+    population = sum((balance for balance in customer_balances.values()
+                      if balance <= tm), ZERO)
+    stats = {"population": len(customer_balances), "listing_rows": len(listing),
+             "confirmations": len(rows),
              "large_items": len(large), "unit_items": len(units),
              "sampling_interval": interval, "mus_population_value": population,
              **result, "exceptions": sum(1 for f in findings if f.verdict != "AGREE")}
@@ -272,9 +281,11 @@ def confirmations_difference(tables: dict, policies: dict):
     aria = policy_rate(policies, "ar_risk_incorrect_acceptance")
     findings: list = []
     listing = records(tables, "AR_listing")
+    customer_balances = _customer_balances(tables)
     rows = _confirmation_rows(tables, pid, findings)
     z_a = sampling.z_coefficient(aria)
-    stats = {"population": len(listing), "confirmations": len(rows), "z_a": z_a}
+    stats = {"population": len(customer_balances), "listing_rows": len(listing),
+             "confirmations": len(rows), "z_a": z_a}
     if len(rows) < 2:
         findings.append(receipt(pid, ("too_few",), "AMBIGUOUS",
                                 "difference estimation needs at least two evaluated "
@@ -283,8 +294,8 @@ def confirmations_difference(tables: dict, policies: dict):
         return findings, {**stats, "exceptions": len(findings)}
     # Every sampled account must be itemized, differences or not: the sample
     # size is the number of rows, never a number typed in beside them.
-    result = sampling.difference_evaluate([r["misstatement"] for r in rows], len(listing),
-                                          z_a, tm)
+    result = sampling.difference_evaluate(
+        [r["misstatement"] for r in rows], len(customer_balances), z_a, tm)
     _misstatement_findings(pid, rows, findings)
     within = result["within_tolerable"]
     findings.append(receipt(
@@ -306,6 +317,6 @@ def confirmations_difference(tables: dict, policies: dict):
                                      two_sided=True)
         stats["z_r"] = z_r
         stats["planned_sample_size"] = sampling.difference_sample_size(
-            len(listing), sd, z_a, z_r, tm, expected)
+            len(customer_balances), sd, z_a, z_r, tm, expected)
     stats["exceptions"] = sum(1 for f in findings if f.verdict != "AGREE")
     return findings, stats

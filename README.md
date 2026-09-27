@@ -42,6 +42,8 @@ packages/
   procedures-ap/          # AP methodology: contracts, coverage, engines,
                           # structural layer, ingestion/mapping, QuickBooks
                           # report recipes
+  procedures-cycles/      # opt-in planning, controls, receivables, payables,
+                          # cash, inventory, and completion procedures
   structural-adapters/    # owned ports of the KOMPOSOS-derived methods
                           # (authorship verified: docs/PROVENANCE.md)
 tests/
@@ -73,6 +75,7 @@ never exercised and overstated the requirement.)
 python -m venv .venv
 .venv\Scripts\python -m pip install -e packages/assurance-domain -e packages/structural-adapters ^
     -e packages/assurance-persistence -e packages/assurance-artifacts -e packages/procedures-ap ^
+    -e packages/procedures-cycles ^
     -e packages/assurance-application -e packages/assurance-workpapers -e apps/workbench-api
 .venv\Scripts\python -m pip install pytest
 .venv\Scripts\python -m pytest tests\unit

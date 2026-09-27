@@ -15,9 +15,13 @@ from assurance_domain.receipts import Receipt
 from procedures_ap import engines as ap_engines
 
 from procedures_cycles import cash, controls, inventory, payables, receivables, statements
-from procedures_cycles.common import jsonable
+from procedures_cycles.common import jsonable, receipt, records
+from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID, SCOPE_OF
 
-ENGINE_VERSION = "cycles-v1"
+# Results changed after the independent-review fixes (empty-role refusals,
+# customer-grain A/R populations, and line-complete disbursement inspection).
+# Preserve that boundary in every sealed job manifest.
+ENGINE_VERSION = "cycles-v2"
 
 EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "fs.trial_balance_analytics": statements.trial_balance_analytics,
@@ -49,6 +53,24 @@ def execute_procedure(procedure_id: str, tables: dict,
     executor = EXECUTORS.get(procedure_id)
     if executor is None:
         raise ValueError("no incremental executor is registered for this procedure")
+    contract = CYCLE_CONTRACTS_BY_ID[procedure_id]
+    empty_roles = [role for role in contract.required_fields
+                   if not records(tables, role)]
+    if empty_roles:
+        findings = [
+            receipt(
+                procedure_id, ("empty_population", role), "AMBIGUOUS",
+                f"{role} contains no accepted records; the procedure refuses to "
+                "treat an empty or fully rejected file as a tested population",
+                {"finding_class": "REFUSAL", "cycle": SCOPE_OF[procedure_id],
+                 "role": role},
+            )
+            for role in empty_roles
+        ]
+        return findings, {
+            "population": 0, "refused_empty_roles": empty_roles,
+            "exceptions": len(findings),
+        }
     findings, stats = executor(tables, policies or {})
     # The run summary is sealed as canonical JSON: Decimals and dates as text.
     return findings, jsonable(stats)

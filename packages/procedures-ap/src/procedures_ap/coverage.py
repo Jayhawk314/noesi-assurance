@@ -56,8 +56,14 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
     supported = registered_procedures() if executors is None else executors
     rows = []
     for contract in contracts:
-        missing_roles = [role for role in contract.required_fields
-                         if role not in inventory]
+        # A header-only or fully rejected file is not a population. Treat it
+        # exactly like a missing dataset so coverage can never advertise a
+        # procedure as executable over zero records.
+        missing_roles = [
+            role for role in contract.required_fields
+            if role not in inventory
+            or int(inventory.get(role, {}).get("rows") or 0) <= 0
+        ]
         missing_fields: dict[str, list[str]] = {}
         for role, required in contract.required_fields.items():
             if role in missing_roles:

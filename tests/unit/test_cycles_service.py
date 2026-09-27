@@ -71,6 +71,34 @@ def test_only_the_partner_sets_scope(service, engagement):
         service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["payroll"]})
 
 
+def test_cycle_execution_and_risk_links_require_engagement_scope(service, engagement):
+    with pytest.raises(ValueError, match="outside the engagement scope"):
+        service.run_procedure(
+            BOB, engagement, procedure_id="inventory.count_listing_trace")
+
+    risk = service.assess_risk(
+        BOB, engagement, title="Inventory existence", assertion="existence",
+        level="high", rationale="portable assets")
+    with pytest.raises(ValueError, match="out-of-scope"):
+        service.link_risk_procedures(
+            BOB, engagement, risk_id=risk["risk_id"],
+            procedure_ids=["inventory.count_listing_trace"],
+            expected_version=risk["version"])
+    row = service.risks(engagement)["risks"][0]
+    assert "inventory.count_listing_trace" not in row["candidate_procedures"]
+
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["inventory"]})
+    linked = service.link_risk_procedures(
+        BOB, engagement, risk_id=risk["risk_id"],
+        procedure_ids=["inventory.count_listing_trace"],
+        expected_version=risk["version"])
+    assert "inventory.count_listing_trace" in \
+        service.risks(engagement)["risks"][0]["candidate_procedures"]
+    with pytest.raises(ValueError, match="active risks link"):
+        service.update_workflow(ALICE, engagement, "cycles", {"cycles": []})
+    assert linked["version"] == 2
+
+
 def test_engagement_values_are_not_retyped_as_policies(service, engagement):
     with pytest.raises(ValueError, match="engagement record"):
         service.update_workflow(ALICE, engagement, "policy",

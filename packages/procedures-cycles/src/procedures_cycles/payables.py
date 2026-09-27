@@ -88,7 +88,11 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
     outcomes = {"properly_included": 0, "properly_excluded": 0, "unrecorded": 0,
                 "improperly_included": 0, "amount_difference": 0,
                 "concluded_by_reference": 0}
-    inspected_checks: set[str] = set()
+    payment_numbers_by_check: dict[str, set[str]] = {}
+    for payment in payments:
+        payment_numbers_by_check.setdefault(_check_of(payment), set()).add(
+            key_text(payment.get("payment_number")))
+    inspected_payment_numbers: set[str] = set()
     net = ZERO  # overstatement positive
     for p in payments:
         pnum = key_text(p.get("payment_number"))
@@ -98,6 +102,15 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
         inspection = inspections.get(pnum)
         ref = [source_ref("Payments", p, "payment_number")]
         if inspection is None:
+            if _check_of(p) in selected:
+                findings.append(receipt(
+                    pid, (pnum, "selected_not_inspected"), "TENSION",
+                    f"payment line {pnum} on selected disbursement {_check_of(p)} "
+                    "has no inspection result",
+                    {"finding_class": "CONJECTURE", "cycle": "payables",
+                     "check_number": _check_of(p), "source_rows": ref,
+                     "limits": "every payment line on a selected disbursement must "
+                               "be inspected"}))
             if listed is not None and money(listed.get("voucher_amount")) != paid:
                 diff = money(listed.get("voucher_amount")) - paid
                 findings.append(receipt(
@@ -109,7 +122,7 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
                      "limits": "a discount, partial payment or listing error; inspect"},
                     diff))
             continue
-        inspected_checks.add(_check_of(p))
+        inspected_payment_numbers.add(pnum)
         arose = day(inspection.get("liability_date"))
         owed = dec(inspection.get("liability_amount"))
         owed = paid if owed is None else owed
@@ -168,13 +181,10 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
                      "direction": "overstatement"}, listed_amount))
             else:
                 outcomes["properly_excluded"] += 1
-    for check in sorted(selected - inspected_checks):
-        findings.append(receipt(
-            pid, (check, "selected_not_inspected"), "TENSION",
-            f"disbursement {check} ({selection['check_totals'][check]}) was selected for "
-            "the search but no inspection result is recorded",
-            {"finding_class": "CONJECTURE", "cycle": "payables",
-             "limits": "the search is incomplete until every selected item is inspected"}))
+    inspected_checks = {
+        check for check, payment_numbers in payment_numbers_by_check.items()
+        if payment_numbers and payment_numbers <= inspected_payment_numbers
+    }
     stats = {"population": len(payments), "checks": len(selection["check_totals"]),
              "selected_above_threshold": selection["above_threshold"],
              "selected_systematic": selection["systematic"],

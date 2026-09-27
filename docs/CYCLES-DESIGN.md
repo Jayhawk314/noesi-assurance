@@ -31,14 +31,19 @@ The workbench ran eleven AP contracts. A full integrated audit also needs:
    `cycles`: e.g. `["receivables", "cash"]`; kept apart from the existing `scope`
    key, which records scope-limitation decisions). Coverage includes a cycle's contracts only
    when that cycle is in scope. With no scope set, coverage is exactly what it was, so no
-   existing engagement gains blocked procedures or readiness blockers.
+   existing engagement gains blocked procedures or readiness blockers. The service also
+   refuses direct execution and risk-response links outside that recorded scope; a scope
+   cannot be removed while an active risk or recorded run still depends on it.
 3. **Auditor-obtained evidence is its own role.** Confirmation replies, inspected
    receiving-report dates and attribute-test exceptions are not client exports. Each has a
    role whose contract names it as auditor evidence. The engine evaluates it; it never
    invents it.
-4. **Honesty rules carried over.** Missing inputs mean `blocked`/`partial`; judgments are
-   policies (`blocked` until set); every projection states its method and its limits; a
-   result "within tolerable" is a statement about sampling risk, not a clean opinion.
+4. **Honesty rules carried over.** Missing or zero-row inputs mean `blocked`/`partial`,
+   and the cycle executor independently emits a refusal if called with an empty role;
+   judgments are policies (`blocked` until set); every projection states its method and
+   its limits; a result "within tolerable" is a statement about sampling risk, not a
+   clean opinion. A/R detail rows are aggregated to customer balance before confirmation
+   sampling so the population and sampling unit stay consistent.
 5. **Deterministic math, stdlib only.** Binomial and Poisson bounds by bisection on exact
    CDFs; normal coefficients from `statistics.NormalDist`; money in `Decimal`.
 

@@ -3,7 +3,8 @@
 *Written 2026-09-26. The plan for taking the new cycle procedures from engine code to
 something a learner can use with QuickBooks and Excel. Nothing here is pushed or live
 yet. Read with [CYCLES-DESIGN.md](CYCLES-DESIGN.md) (how the engine works, and its
-provenance and limits) and [EXPANSION-PLAN.md](EXPANSION-PLAN.md).*
+provenance and limits), [CYCLES-STATUS-SUMMARY.md](CYCLES-STATUS-SUMMARY.md) (short
+handoff), and [EXPANSION-PLAN.md](EXPANSION-PLAN.md).*
 
 ## 1. Where things stand (local, not pushed)
 
@@ -13,8 +14,9 @@ provenance and limits) and [EXPANSION-PLAN.md](EXPANSION-PLAN.md).*
 | `8e41b68` | Generic checks found by practice: allowance recompute, slow deposit-in-transit flag, conclusion-by-reference, systematic pick cap. The engine refuses typed-in sample values. Workflow key `cycles` (not `scope`). Provenance note. |
 | `22a59ff` | **Readiness fix:** a finding left undisposed or marked follow-up now blocks the lock (`FINDINGS_OPEN`); before, non-dollar findings slipped through. **Migration 8:** the risk register takes all ten assertions. |
 | `ba0d60e` | Studio label for `FINDINGS_OPEN`; Learn standalone rebuilt. |
+| Uncommitted engineering follow-up | Addressed all five findings in `docs/reviews/REVIEW-2026-09-26.md`: zero-row refusal, server-side scope enforcement, complete inspection of every selected disbursement line, declared package dependency, and customer-grain A/R confirmation evaluation. Awaiting re-review and commit. |
 
-Tests: 256 pass. The eleven AP contracts and their golden bundles are unchanged.
+Tests: 260 pass. The eleven AP contracts and their golden bundles are unchanged.
 
 **Tested so far:** one published practice case, run end to end privately (all ten
 assignments). The engine reproduced that case's own worked figures. The run also
@@ -42,7 +44,7 @@ different:
 | QuickBooks report | Its shape | Engine expects today | Change needed |
 |---|---|---|---|
 | Trial Balance | Debit and Credit columns | balance + DR/CR side | accept debit/credit columns |
-| A/R Aging Summary/Detail | 5 buckets: Current, 1–30, 31–60, 61–90, 91+ | 4 fixed buckets | any number of named buckets; allowance rates per bucket |
+| A/R Aging Summary/Detail | 5 buckets: Current, 1–30, 31–60, 61–90, 91+ | confirmation procedures now aggregate detail rows to customer balance; allowance still has 4 fixed buckets | any number of named buckets; allowance rates per bucket |
 | Inventory Valuation Summary | item, qty on hand, avg cost, asset value | one row per unique stock number | quantity-based trace; several count tags per item summed |
 | Reconciliation report | cleared / uncleared transactions | an item-typed reconciliation list | build the reconciliation items from the report |
 
@@ -107,7 +109,9 @@ As always: words approved, then cost approved, before any voicing.
 ## 7. Before anything is pushed
 
 1. A second test case written independently of the practice case, with QuickBooks-shaped data.
-2. Independent review of `procedures-cycles`, the readiness change and migration 8
-   ([INDEPENDENT-REVIEW.md](INDEPENDENT-REVIEW.md)).
+2. Re-review the engineering response to the five findings in
+   [the 2026-09-26 independent review](reviews/REVIEW-2026-09-26.md). The first review is
+   complete and the fixes are implemented locally, but the remediation has not yet had
+   an independent pass.
 3. Decide whether the stricter lock (every finding decided) ships alone first, since it
    changes the Harborline flow even with no cycles on.
