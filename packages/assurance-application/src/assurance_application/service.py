@@ -501,6 +501,27 @@ class WorkbenchService:
                 if procedure_id in CYCLE_CONTRACTS_BY_ID
                 else document.get("policies") or {})
         effective_policies = {**base, **(policies or {})}
+        # A run is a claim that a test was performed. Unless coverage,
+        # compiled on the same data and these policies, calls the procedure
+        # executable, the attempt is recorded as an error with the reason
+        # (attempts are journaled, never hidden) and never as "completed":
+        # otherwise a sealed record could say "completed, 0 findings" over a
+        # population that was never there.
+        compiled = compile_coverage(
+            inventory_from_tables(self._tables(engagement_id)),
+            policies=effective_policies or None,
+            contracts=self._contracts(document),
+            executors=cycle_engines.registered_procedures())
+        row = next((r for r in compiled["procedures"]
+                    if r["procedure_id"] == procedure_id), None)
+        if row is None:
+            raise ValueError(f"unknown procedure {procedure_id!r}")
+        not_runnable = ""
+        if row["status"] != "executable":
+            gaps = (row["missing_roles"] or row["missing_fields"]
+                    or row["missing_policies"] or row.get("unsupported_reason"))
+            not_runnable = (f"{procedure_id} is {row['status']} on this engagement's "
+                            f"data and policies: missing {gaps}")
         # Reperformance is legitimate — after a reviewer sends work back, or
         # after an unlock. Same procedure, same data, same policies must
         # still mint a distinct job, so the manifest carries a rerun
@@ -513,7 +534,12 @@ class WorkbenchService:
             procedure_id=procedure_id, procedure_version="v1",
             engine_version=_engine_version(procedure_id), tables=tables,
             policies=effective_policies, rerun_sequence=rerun_sequence)
-        bundle = run_job(manifest, tables, execute_procedure)
+        if not_runnable:
+            def refuse(*_args):
+                raise ValueError(not_runnable)
+            bundle = run_job(manifest, tables, refuse)
+        else:
+            bundle = run_job(manifest, tables, execute_procedure)
 
         def handler(uow):
             run_id = uow.runs.record(
@@ -1019,6 +1045,10 @@ class WorkbenchService:
             procedure_id = str(values["procedure_id"])
             if procedure_id not in CONTRACTS_BY_ID                     and procedure_id not in CYCLE_CONTRACTS_BY_ID:
                 raise ValueError(f"unknown procedure {procedure_id!r}")
+            if procedure_id in CYCLE_CONTRACTS_BY_ID and                     SCOPE_OF[procedure_id] not in (document.get("cycles") or []):
+                raise ValueError(
+                    f"{procedure_id} belongs to the "
+                    f"{SCOPE_OF[procedure_id]!r} cycle, which is not in scope")
             document.setdefault("procedures", {})[procedure_id] = {
                 "selected": bool(values.get("selected", True)),
                 "rationale": str(values.get("rationale", ""))}
@@ -1056,6 +1086,13 @@ class WorkbenchService:
                     "materiality section); it is not set as a policy")
             if name not in known:
                 raise ValueError(f"unknown policy {name!r}")
+            from procedures_cycles.contracts import policy_scopes
+            owners = policy_scopes(name)
+            if owners and not owners & set(document.get("cycles") or [])                     and name not in {p for c in PROCEDURES
+                                     for p in c.required_policies}                     and name not in OPTIONAL_POLICIES:
+                raise ValueError(
+                    f"{name!r} is used only by the {sorted(owners)} cycle(s), none of "
+                    "which is in scope")
             document.setdefault("policies", {})[name] = str(values["value"])
         else:
             raise ValueError(f"unknown workflow section {section!r}")

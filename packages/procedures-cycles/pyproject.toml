@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "procedures-cycles"
 version = "0.1.0"
 description = "Cycle audit methodology beyond AP: planning, controls sampling, receivables, cash, inventory, completion."
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "assurance-domain",
     "procedures-ap",

@@ -114,3 +114,24 @@ regression introduced by the remediation. R1 and R2 are the two worth fixing bef
 push: R1 because a sealed record can claim a test that never ran, R2 because it silently
 picks between contradictory audit evidence. After that, the QuickBooks-shaped second case
 can proceed.
+
+## Engineering follow-up (added after this re-review)
+
+R1–R5 were addressed locally on 2026-09-27 by the same reviewer. This is therefore **not**
+an independent check of these fixes, and someone who wrote neither the package nor the
+fixes should re-review them before any push.
+
+- **R1:** `run_procedure` compiles coverage on the same data and policies. When the
+  procedure is not executable, the attempt is recorded as an **error run** with the
+  reason, never as completed. This keeps the existing rule that attempts are journaled,
+  not hidden (`test_error_runs_are_recorded_not_hidden`).
+- **R2:** conflicting inspection rows for one payment line produce a
+  `conflicting_inspections` refusal, and the line stays uninspected. An inspection naming
+  a missing payment line produces `inspection_without_payment`.
+- **R3:** credit balances are judged on each customer's net balance.
+- **R4:** out-of-scope cycle procedure selections and cycle-only policies are refused.
+  Policies shared with the payables contracts are unaffected.
+- **R5:** `procedures-cycles` now requires Python >= 3.12.
+
+Regression tests were added for R1–R4. Full suite: **264 passed**. Harborline is still
+11 executable procedures and 52 findings.

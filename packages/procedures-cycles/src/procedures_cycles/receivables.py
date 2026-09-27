@@ -61,13 +61,17 @@ def listing_tie(tables: dict, policies: dict):
                     {"finding_class": "PROVED_EXCEPTION", "cycle": "receivables",
                      "source_rows": [source_ref("AR_listing", r, "customer_number")]},
                     bucket_sum - money(r.get("balance"))))
-        if money(r.get("balance")) < 0:
+
+    # A credit memo line on an invoice-detail export is normal; what matters
+    # is a customer whose *net* balance is a credit.
+    for cust, balance in sorted(_customer_balances(tables).items()):
+        if balance < 0:
             findings.append(receipt(
                 pid, ("credit_balance", cust), "TENSION",
-                f"customer {cust} carries a credit balance {money(r.get('balance'))}; "
+                f"customer {cust} carries a net credit balance {balance}; "
                 "consider reclassification to liabilities",
                 {"finding_class": "CONJECTURE", "cycle": "receivables",
-                 "source_rows": [source_ref("AR_listing", r, "customer_number")]}))
+                 "net_balance": balance}))
     buckets = {f: sum((money(r.get(f)) for r in listing), ZERO)
                for f in ("current", "days_31_60", "days_61_90", "days_over_90")}
     stats = {"population": len(listing), "customers": len(customers),

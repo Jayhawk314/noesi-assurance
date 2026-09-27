@@ -389,3 +389,35 @@ def test_uncorrected_misstatements_against_materiality():
     findings, stats = execute_procedure("completion.uncorrected_misstatements",
                                         {"Misstatements": rows}, {"materiality": "50000"})
     assert findings == [] and stats["remaining"]["income_before_taxes"] == "44000.00"
+
+
+def test_r2_conflicting_and_orphan_inspections_are_findings_not_row_order():
+    payments = [{"payment_number": "900-1", "check_number": "900", "voucher_number": "1",
+                 "payment_amount": D("6000")},
+                {"payment_number": "900-2", "check_number": "900", "voucher_number": "2",
+                 "payment_amount": D("6000")}]
+    vouchers = [{"voucher_number": "1", "voucher_amount": D("6000")}]
+    inspections = [{"payment_number": "900-1", "liability_date": date(2026, 12, 20)},
+                   {"payment_number": "900-1", "liability_date": date(2027, 1, 20)},
+                   {"payment_number": "900-2", "conclusion": "no misstatement"},
+                   {"payment_number": "999-9", "liability_date": date(2026, 12, 1)}]
+    findings, _ = execute_procedure(
+        "ap.unrecorded_liabilities_search",
+        {"Vouchers": vouchers, "Payments": payments, "Disbursement_inspection": inspections},
+        {"period_end": "2026-12-31", "search_threshold": "10000"})
+    found = keys(findings)
+    assert ("900-1", "conflicting_inspections") in found
+    assert ("999-9", "inspection_without_payment") in found
+    assert ("900-1", "improperly_included") not in found  # not judged on row order
+    assert ("900-1", "selected_not_inspected") in found   # so it stays uninspected
+
+
+def test_r3_credit_memo_line_on_a_debit_customer_is_not_a_credit_balance():
+    listing = [{"customer_number": "C1", "balance": D("5000")},
+               {"customer_number": "C1", "balance": D("-300")},
+               {"customer_number": "C2", "balance": D("-50")}]
+    tb = [{"account": "1100", "balance": D("4650"), "side": "DR", "line": "receivables"}]
+    findings, _ = execute_procedure("ar.listing_tie",
+                                    {"AR_listing": listing, "Trial_balance": tb}, {})
+    assert ("credit_balance", "c1") not in keys(findings)
+    assert ("credit_balance", "c2") in keys(findings, "TENSION")

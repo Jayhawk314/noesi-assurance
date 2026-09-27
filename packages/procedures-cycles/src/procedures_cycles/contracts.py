@@ -245,3 +245,22 @@ def procedures_for_assertion_all(assertion: str) -> list[str]:
     from procedures_ap.contracts import procedures_for_assertion
     return procedures_for_assertion(assertion) + [
         c.procedure_id for c in CYCLE_PROCEDURES if assertion in c.assertions]
+
+
+# Which cycle(s) each optional policy serves, so a policy for a cycle that is
+# not in scope can be refused instead of stored as an inert decision.
+_OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
+    "analytics_threshold_pct": {"planning"}, "analytics_threshold_amount": {"planning"},
+    "ar_confidence_factor": {"receivables"}, "ar_expected_misstatement": {"receivables"},
+    "ar_estimated_sd": {"receivables"}, "ar_risk_incorrect_rejection": {"receivables"},
+    "ar_allowance_rates": {"receivables"}, "search_interval": {"payables"},
+    "search_start": {"payables"}, "search_systematic_count": {"payables"},
+    "pricing_sample_value": {"inventory"}, "dit_max_days": {"cash"},
+}
+
+
+def policy_scopes(name: str) -> set[str]:
+    """The cycles whose procedures use this policy (empty: not a cycle policy)."""
+    owners = {SCOPE_OF[c.procedure_id] for c in CYCLE_PROCEDURES
+              if name in c.required_policies}
+    return owners | _OPTIONAL_POLICY_SCOPES.get(name, set())

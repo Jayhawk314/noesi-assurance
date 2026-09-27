@@ -204,3 +204,26 @@ def test_open_leads_block_the_lock_until_decided(service, engagement):
                                 status="cleared", note="cleared in January",
                                 expected_version=versions[f["finding_uid"]])
     assert "FINDINGS_OPEN" not in codes()
+
+
+def test_r1_a_run_on_missing_data_is_recorded_as_an_error_not_completed(service, engagement):
+    run = service.run_procedure(BOB, engagement, procedure_id="ap.payment_voucher_reference")
+    assert run["status"] == "error" and "blocked" in run["error"]
+    assert service.runs(engagement)[0]["status"] == "error"
+    assert service.findings(engagement) == []
+
+
+def test_r4_out_of_scope_selection_and_policy_are_refused(service, engagement):
+    with pytest.raises(ValueError, match="not in scope"):
+        service.update_workflow(ALICE, engagement, "procedure_selection",
+                                {"procedure_id": "inventory.count_listing_trace",
+                                 "selected": True, "rationale": "x"})
+    with pytest.raises(ValueError, match="none of which is in scope"):
+        service.update_workflow(ALICE, engagement, "policy",
+                                {"name": "inventory_tolerable_misstatement", "value": "10"})
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["inventory"]})
+    service.update_workflow(ALICE, engagement, "policy",
+                            {"name": "inventory_tolerable_misstatement", "value": "10"})
+    # a policy shared with the payables contracts stays settable without cycles
+    service.update_workflow(ALICE, engagement, "policy",
+                            {"name": "split_window_days", "value": "3"})

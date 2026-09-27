@@ -77,14 +77,36 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
     limit = dec(policies.get("search_systematic_count"))
     listing = {key_text(v.get("voucher_number")): v for v in records(tables, "Vouchers")}
     payments = records(tables, "Payments")
-    inspections = {key_text(i.get("payment_number")): i
-                   for i in records(tables, "Disbursement_inspection")}
+    findings = []
+    # The auditor's inspection log is evidence too: two results for one line
+    # contradict each other, and a result for a line that does not exist
+    # usually hides a keying error. Neither is resolved by row order.
+    inspections: dict[str, dict] = {}
+    conflicting: set[str] = set()
+    for row in records(tables, "Disbursement_inspection"):
+        key = key_text(row.get("payment_number"))
+        if key in inspections:
+            conflicting.add(key)
+        inspections[key] = row
+    payment_keys = {key_text(p.get("payment_number")) for p in payments}
+    for key in sorted(conflicting):
+        findings.append(receipt(
+            pid, (key, "conflicting_inspections"), "AMBIGUOUS",
+            f"payment line {key} has more than one inspection result; record one",
+            {"finding_class": "REFUSAL", "cycle": "payables"}))
+    for key in sorted(set(inspections) - payment_keys):
+        findings.append(receipt(
+            pid, (key, "inspection_without_payment"), "ORPHAN",
+            f"an inspection result names payment line {key}, which is not in the "
+            "payments supplied — a keying error can hide an uninspected line",
+            {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "payables"}))
+    for key in conflicting:
+        inspections.pop(key)
     selection = select_disbursements(payments, threshold,
                                      int(interval) if interval else None,
                                      int(start) if start else None,
                                      int(limit) if limit else None)
     selected = set(selection["above_threshold"]) | set(selection["systematic"])
-    findings = []
     outcomes = {"properly_included": 0, "properly_excluded": 0, "unrecorded": 0,
                 "improperly_included": 0, "amount_difference": 0,
                 "concluded_by_reference": 0}
