@@ -1,0 +1,4 @@
+Transfer,Amount,From Account,To Account,Disbursed per Books,Disbursed per Bank,Received per Books,Received per Bank
+T-0615,38500.00,Checking,Payroll Checking,06/15/2026,06/15/2026,06/15/2026,06/15/2026
+T-0630,40000.00,Checking,Payroll Checking,06/30/2026,07/01/2026,06/30/2026,06/30/2026
+T-0701,25000.00,Checking,Payroll Checking,07/01/2026,07/02/2026,06/30/2026,06/30/2026

@@ -1,0 +1,33 @@
+Account,Lead Schedule Line
+10100 Checking - First Prairie,Cash
+10200 Payroll Checking,Cash
+10300 Petty Cash,Cash
+10900 Transfers Clearing,Other current assets
+11000 Accounts Receivable (A/R),Accounts receivable
+11900 Allowance for Doubtful Accounts,Accounts receivable
+12100 Inventory Asset,Inventory
+13000 Prepaid Expenses,Other current assets
+15000 Furniture and Equipment,Property and equipment
+15900 Accumulated Depreciation,Property and equipment
+20000 Accounts Payable (A/P),Accounts payable
+21000 Accrued Liabilities,Accrued liabilities
+22000 Sales Tax Payable,Accrued liabilities
+23000 Line of Credit,Line of credit
+30100 Members' Capital,Members' equity
+31000 Members' Distributions,Members' equity
+32000 Retained Earnings,Members' equity
+40000 Sales,Revenue
+40500 Sales Returns and Allowances,Revenue
+50000 Cost of Goods Sold,Cost of sales
+51000 Inventory Shrinkage,Cost of sales
+60100 Wages and Salaries,Operating expenses
+60200 Payroll Taxes,Operating expenses
+61000 Rent Expense,Operating expenses
+62000 Utilities,Operating expenses
+63000 Insurance,Operating expenses
+64000 Depreciation Expense,Operating expenses
+65000 Bad Debt Expense,Operating expenses
+66000 Freight Out,Operating expenses
+67000 Office Supplies,Operating expenses
+68000 Professional Fees,Operating expenses
+69000 Interest Expense,Interest expense

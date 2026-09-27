@@ -1,0 +1,17 @@
+Customer,Stratum,Book Value,Confirmed Value,Client Misstatement,Classification,Note
+Alpine Loop Bicycles,key,24550.50,24550.50,0.00,no_difference,
+Basalt Ridge Bike Co.,key,9300.15,9300.15,0.00,no_difference,
+Big Sky Pedal Co.,key,48210.50,45960.50,2250.00,client_misstatement,"invoice 88214 billed at list, contract price lower"
+Bridger Cyclery,key,17050.80,17050.80,0.00,no_difference,
+Crazy Mountain Cycles,key,11990.60,11990.60,0.00,no_difference,
+Gallatin Gear Exchange,key,32285.40,25885.40,0.00,timing,"check mailed 06/28, received 07/02"
+Hyalite Bike Shop,key,14035.25,14035.25,0.00,no_difference,
+Madison Range Bicycle,key,20102.65,20102.65,0.00,no_difference,
+Sawtooth Spoke & Chain,key,14845.00,14845.00,0.00,no_difference,
+Spanish Peaks Pedal,key,10205.20,10205.20,0.00,no_difference,
+Yellowstone Velo,key,28445.35,27345.35,0.00,customer_error,customer omitted invoice 88390; POD inspected
+Bitterroot Wheelworks,sample,6530.40,5910.40,620.00,client_misstatement,freight charged twice on invoice 88175
+Cottonwood Spokes,sample,3180.25,3180.25,0.00,no_difference,
+Grizzly Trail Outfitters,sample,6108.40,6108.40,0.00,no_difference,
+Paradise Valley Cycles,sample,5517.80,5517.80,0.00,no_difference,
+Sourdough Bike Collective,sample,2870.45,2870.45,0.00,no_difference,

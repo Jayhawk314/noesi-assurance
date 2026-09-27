@@ -1,0 +1,28 @@
+Tag #,Item SKU,Description,Location,Qty Counted,Counted By
+1001,KV-CHN-11,11sp chain,Aisle A,150,DM
+1002,KV-CHN-11,11sp chain,Overflow,80,DM
+1003,KV-CHN-12,12sp chain,Aisle A,118,DM
+1004,KV-DER-11S,Rear derailleur,Aisle A,42,DM
+1005,KV-CAS-1134,Cassette 11-34,Aisle A,40,DM
+1006,KV-CAS-1134,Cassette 11-34,Aisle B,24,JT
+1007,KV-CRK-172,Crankset,Aisle B,21,JT
+1008,KV-BB-BSA,BB BSA,Aisle B,88,JT
+1009,KV-TIR-70032,700x32 tire,Rack 1,200,JT
+1010,KV-TIR-70032,700x32 tire,Rack 2,110,RS
+1011,KV-TIR-2924,29x2.4 tire,Rack 2,145,RS
+1012,KV-TUBE-29,29 tube,Bin 4,300,RS
+1013,KV-TUBE-29,29 tube,Bin 5,120,RS
+1014,KV-WHL-700,700c wheelset,Rack 3,16,RS
+1015,KV-SEAL-1L,Sealant 1L,Aisle C,96,DM
+1016,kv-brk-pad ,brake pads,Aisle C,250,DM
+1017,,VOID,,0,DM
+1018,KV-BRK-PAD,Brake pads,Overflow,130,JT
+1019,KV-BRK-HYD,Hyd brake set,Aisle C,26,JT
+1020,KV-GRP-LCK,Grips,Aisle D,37,JT
+1021,KV-BAR-780,Carbon bar,Aisle D,19,RS
+1022,KV-DRP-150,Dropper 150,Aisle D,23,RS
+1023,KV-SAD-CMP,Saddle,Aisle D,36,RS
+1024,KV-PED-FLT,Flat pedals,Aisle E,50,DM
+1025,KV-PED-FLT,Flat pedals,Overflow,24,DM
+1026,KV-STM-50,Stem 50,Aisle E,58,DM
+1027,KV-TUBE-29P,29 tube presta (Moraine consignment),Cage,36,JT

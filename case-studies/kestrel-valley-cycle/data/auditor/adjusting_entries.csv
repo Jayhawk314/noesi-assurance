@@ -1,0 +1,7 @@
+Entry,Account,Debit,Credit,Description
+AJE-1,10900 Transfers Clearing,25000.00,,Record 07/01 transfer disbursement at year end
+AJE-1,10100 Checking - First Prairie,,25000.00,Record 07/01 transfer disbursement at year end
+AJE-2,65000 Bad Debt Expense,1427.38,,Increase allowance to aging-based estimate
+AJE-2,11900 Allowance for Doubtful Accounts,,1427.38,Increase allowance to aging-based estimate
+AJE-3,51000 Inventory Shrinkage,171.00,,Count shortage KV-CHN-11
+AJE-3,12100 Inventory Asset,,171.00,Count shortage KV-CHN-11

@@ -1,0 +1,423 @@
+{
+  "case": "Kestrel Valley Cycle Supply, LLC",
+  "period_end": "2026-06-30",
+  "materiality": "15000",
+  "planning.performance_materiality": {
+    "allocated_total": "33000.00",
+    "cap": "30000.0",
+    "exceeds_cap_by": "3000.00",
+    "any_allocation_above_materiality": false,
+    "conclusion": "allocations total 33,000 against a 30,000 cap (2.0 x 15,000): over by 3,000; no single allocation exceeds materiality"
+  },
+  "fs.trial_balance_analytics": {
+    "tb_foots": true,
+    "definitions": {
+      "movement": "current minus prior per account; flagged when |pct| > 10 (or prior is zero and current is not) or |change| > 15,000",
+      "current_ratio": "(cash + AR net + inventory + other current assets) / (AP + accrued + line of credit)",
+      "ar_turnover_gross": "net revenue / average gross A/R (account 11000)",
+      "inventory_turnover": "cost of sales / average inventory (needs prior year)"
+    },
+    "movements_flagged": [
+      {
+        "account": "10100 Checking - First Prairie",
+        "current": "188700.95",
+        "prior": "151880.12",
+        "change": "36820.83",
+        "pct": "24.2",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "10200 Payroll Checking",
+        "current": "46500.00",
+        "prior": "8200.00",
+        "change": "38300.00",
+        "pct": "467.1",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "10900 Transfers Clearing",
+        "current": "-25000.00",
+        "prior": "0.00",
+        "change": "-25000.00",
+        "pct": null,
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "11900 Allowance for Doubtful Accounts",
+        "current": "-4200.00",
+        "prior": "-12800.00",
+        "change": "8600.00",
+        "pct": "67.2",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "12100 Inventory Asset",
+        "current": "66353.90",
+        "prior": "58910.60",
+        "change": "7443.30",
+        "pct": "12.6",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "15900 Accumulated Depreciation",
+        "current": "-96450.00",
+        "prior": "-78200.00",
+        "change": "-18250.00",
+        "pct": "23.3",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "20000 Accounts Payable (A/P)",
+        "current": "-287640.18",
+        "prior": "-241905.66",
+        "change": "-45734.52",
+        "pct": "18.9",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "23000 Line of Credit",
+        "current": "-150000.00",
+        "prior": "-200000.00",
+        "change": "50000.00",
+        "pct": "25.0",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "32000 Retained Earnings",
+        "current": "-62508.31",
+        "prior": "-20000.00",
+        "change": "-42508.31",
+        "pct": "212.5",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "40000 Sales",
+        "current": "-4286540.00",
+        "prior": "-3912300.00",
+        "change": "-374240.00",
+        "pct": "9.6",
+        "over_pct": false,
+        "over_amount": true
+      },
+      {
+        "account": "40500 Sales Returns and Allowances",
+        "current": "61220.00",
+        "prior": "52410.00",
+        "change": "8810.00",
+        "pct": "16.8",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "50000 Cost of Goods Sold",
+        "current": "3050400.00",
+        "prior": "2760150.00",
+        "change": "290250.00",
+        "pct": "10.5",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "51000 Inventory Shrinkage",
+        "current": "6240.00",
+        "prior": "4880.00",
+        "change": "1360.00",
+        "pct": "27.9",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "60100 Wages and Salaries",
+        "current": "486300.00",
+        "prior": "452800.00",
+        "change": "33500.00",
+        "pct": "7.4",
+        "over_pct": false,
+        "over_amount": true
+      },
+      {
+        "account": "64000 Depreciation Expense",
+        "current": "18250.00",
+        "prior": "16400.00",
+        "change": "1850.00",
+        "pct": "11.3",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "65000 Bad Debt Expense",
+        "current": "7920.00",
+        "prior": "6150.00",
+        "change": "1770.00",
+        "pct": "28.8",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "66000 Freight Out",
+        "current": "96480.00",
+        "prior": "71230.00",
+        "change": "25250.00",
+        "pct": "35.4",
+        "over_pct": true,
+        "over_amount": true
+      },
+      {
+        "account": "68000 Professional Fees",
+        "current": "22400.00",
+        "prior": "19800.00",
+        "change": "2600.00",
+        "pct": "13.1",
+        "over_pct": true,
+        "over_amount": false
+      },
+      {
+        "account": "69000 Interest Expense",
+        "current": "13750.00",
+        "prior": "15600.00",
+        "change": "-1850.00",
+        "pct": "11.9",
+        "over_pct": true,
+        "over_amount": false
+      }
+    ],
+    "ratios": {
+      "2026": {
+        "current_ratio": "1.13",
+        "quick_ratio": "1.01",
+        "gross_margin_pct": "27.7",
+        "net_revenue": "4225320.00",
+        "cost_of_sales": "3056640.00",
+        "pretax_income": "327827.50",
+        "ar_turnover_gross": "15.94",
+        "inventory_turnover": "48.80"
+      },
+      "2025": {
+        "current_ratio": "1.00",
+        "quick_ratio": "0.85",
+        "gross_margin_pct": "28.4",
+        "net_revenue": "3859890.00",
+        "cost_of_sales": "2765030.00",
+        "pretax_income": "326292.00"
+      }
+    }
+  },
+  "ar.listing_tie": {
+    "aging_total": "264883.70",
+    "tb_accounts_receivable": "261733.70",
+    "difference": "3150.00",
+    "difference_explained": "Ridgeback Cycles 3,150.00 written off by JE 1066, dated 06/30, entered 07/10 after the aging was exported on 07/08. Not a misstatement; obtain a re-run aging.",
+    "aging_foots": true,
+    "credit_balances": [
+      {
+        "customer": "Summit Loop Racing",
+        "amount": "-1840.00",
+        "note": "overpayment; reclassify to a liability"
+      }
+    ],
+    "allowance_required": "5627.38",
+    "allowance_basis": "approved rates on each customer's five buckets, debit-balance customers only, after the Ridgeback write-off",
+    "allowance_recorded": "4200.00",
+    "allowance_shortfall": "1427.38"
+  },
+  "ar.confirmations_nonstatistical": {
+    "key_items": [
+      "Alpine Loop Bicycles",
+      "Basalt Ridge Bike Co.",
+      "Big Sky Pedal Co.",
+      "Bridger Cyclery",
+      "Crazy Mountain Cycles",
+      "Gallatin Gear Exchange",
+      "Hyalite Bike Shop",
+      "Madison Range Bicycle",
+      "Sawtooth Spoke & Chain",
+      "Spanish Peaks Pedal",
+      "Yellowstone Velo"
+    ],
+    "sample_items": [
+      "Bitterroot Wheelworks",
+      "Cottonwood Spokes",
+      "Grizzly Trail Outfitters",
+      "Paradise Valley Cycles",
+      "Sourdough Bike Collective"
+    ],
+    "key_known_misstatement": "2250.00",
+    "sample_misstatement": "620.00",
+    "sample_book": "24207.30",
+    "remainder_book": "32552.30",
+    "projected_remainder": "833.73",
+    "total_likely": "3083.73",
+    "tolerable": "9000",
+    "conclusion": "below tolerable; timing (Gallatin) and customer error (Yellowstone) are not misstatements"
+  },
+  "inventory.count_listing_trace": {
+    "listing_total": "66353.90",
+    "tb_inventory": "66353.90",
+    "tags_total": 27,
+    "void_tags": [
+      "1017"
+    ],
+    "tag_1016_sku_written_lowercase_with_space": true,
+    "quantity_differences": [
+      {
+        "sku": "KV-CHN-11",
+        "listed_qty": 240,
+        "counted_qty": 230,
+        "difference_qty": -10,
+        "value": "-171.00"
+      }
+    ],
+    "listed_not_counted": [
+      {
+        "sku": "KV-HUB-DT",
+        "listed_qty": 4,
+        "value": "850.00"
+      }
+    ],
+    "counted_not_listed": [
+      {
+        "sku": "KV-TUBE-29P",
+        "counted_qty": 36,
+        "value_at_invoice": "261.00"
+      }
+    ],
+    "explanations": {
+      "KV-CHN-11": "10 chains short; client books shrinkage (AJE-3)",
+      "KV-HUB-DT": "4 hubs shipped and invoiced 06/29, inventory not relieved: uncorrected misstatement 850.00",
+      "KV-TUBE-29P": "Moraine consignment stock, correctly excluded"
+    }
+  },
+  "inventory.pricing_projection": {
+    "sample_recorded": "39116.50",
+    "sample_audited": "38921.50",
+    "net_overstatement_in_sample": "195.00",
+    "items_with_differences": {
+      "KV-DER-11S": "231.00 over",
+      "KV-SAD-CMP": "36.00 under"
+    },
+    "projected_to_listing": "330.78",
+    "tolerable": "9000",
+    "conclusion": "below tolerable"
+  },
+  "cash.bank_reconciliation": {
+    "checking": {
+      "statement_ending": "239107.60",
+      "register_balance": "188700.95",
+      "tb_balance": "188700.95",
+      "refoots": true
+    },
+    "payroll": {
+      "statement_ending": "51340.00",
+      "register_balance": "46500.00",
+      "tb_balance": "46500.00",
+      "refoots": true
+    },
+    "outstanding_check_not_cleared_by_07-15": [
+      {
+        "check": "4421",
+        "amount": "3100.00"
+      }
+    ],
+    "outstanding_check_amount_differs": [
+      {
+        "check": "4425",
+        "per_rec": "1780.00",
+        "per_bank": "1870.00",
+        "misstatement": "90.00"
+      }
+    ],
+    "deposits_in_transit": [
+      {
+        "amount": "12650.00",
+        "cleared": "07/07/2026",
+        "days": 7,
+        "exceeds_dit_max_days": true
+      },
+      {
+        "amount": "4318.75",
+        "cleared": "07/01/2026",
+        "days": 1,
+        "exceeds_dit_max_days": false
+      }
+    ],
+    "transfer_outstanding_40000_clears_07-01": "proper outstanding item"
+  },
+  "cash.interbank_transfers": {
+    "T-0615": "no exception",
+    "T-0630": "no exception: on the checking reconciliation as an uncleared transfer",
+    "T-0701": "EXCEPTION: received per books 06/30, disbursed per books 07/01 - cash counted twice at year end; overstated 25,000.00 (AJE-1)"
+  },
+  "fs.adjusted_trial_balance": {
+    "entries_balance": true,
+    "changed_accounts": {
+      "10100 Checking - First Prairie": {
+        "unadjusted": "188700.95",
+        "adjusted": "163700.95"
+      },
+      "10900 Transfers Clearing": {
+        "unadjusted": "-25000.00",
+        "adjusted": "0.00"
+      },
+      "11900 Allowance for Doubtful Accounts": {
+        "unadjusted": "-4200.00",
+        "adjusted": "-5627.38"
+      },
+      "12100 Inventory Asset": {
+        "unadjusted": "66353.90",
+        "adjusted": "66182.90"
+      },
+      "51000 Inventory Shrinkage": {
+        "unadjusted": "6240.00",
+        "adjusted": "6411.00"
+      },
+      "65000 Bad Debt Expense": {
+        "unadjusted": "7920.00",
+        "adjusted": "9347.38"
+      }
+    },
+    "adjusted_tb_foots": true
+  },
+  "completion.uncorrected_misstatements": {
+    "sign_convention": "effect on the reported balance if corrected: negative means the balance is overstated now (assets and income fall when corrected); liabilities positive means they rise when corrected",
+    "totals": {
+      "current_assets": "-2514.51",
+      "noncurrent_assets": "0",
+      "current_liabilities": "1840.00",
+      "noncurrent_liabilities": "0",
+      "income_before_taxes": "-4354.51"
+    },
+    "largest_absolute": "4354.51",
+    "materiality": "15000",
+    "conclusion": "every line total is below materiality; the Summit Loop reclass nets to zero in income"
+  },
+  "summary": {
+    "tb_2026_debits": "5024465.93",
+    "aging_total": "264883.70",
+    "ar_per_tb": "261733.70",
+    "inventory_total": "66353.90",
+    "checking_book": "188700.95",
+    "payroll_book": "46500.00",
+    "allowance_required": "5627.38",
+    "allowance_shortfall": "1427.38",
+    "ar_projected": "833.73",
+    "inv_projected": "330.78",
+    "sum_totals": {
+      "current_assets": "-2514.51",
+      "noncurrent_assets": "0",
+      "current_liabilities": "1840.00",
+      "noncurrent_liabilities": "0",
+      "income_before_taxes": "-4354.51"
+    },
+    "pretax_2026": "327827.50",
+    "distributions": "270764.88"
+  }
+}
