@@ -227,3 +227,27 @@ def test_r4_out_of_scope_selection_and_policy_are_refused(service, engagement):
     # a policy shared with the payables contracts stays settable without cycles
     service.update_workflow(ALICE, engagement, "policy",
                             {"name": "split_window_days", "value": "3"})
+
+
+def test_rr1_removing_a_cycle_retires_its_settings_and_selections(service, engagement):
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["inventory"]})
+    service.update_workflow(ALICE, engagement, "policy",
+                            {"name": "inventory_tolerable_misstatement", "value": "1000"})
+    service.update_workflow(ALICE, engagement, "policy",
+                            {"name": "split_window_days", "value": "3"})
+    service.update_workflow(ALICE, engagement, "procedure_selection",
+                            {"procedure_id": "inventory.count_listing_trace",
+                             "selected": False, "rationale": "not applicable"})
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": []})
+    document = service.workflow_document(engagement)[0]
+    assert "inventory_tolerable_misstatement" not in document["policies"]
+    assert document["policies"]["split_window_days"] == "3"  # payables policy stays
+    assert "inventory.count_listing_trace" not in document.get("procedures", {})
+    assert {(r["kind"], r["name"]) for r in document["retired"]} == {
+        ("policy", "inventory_tolerable_misstatement"),
+        ("procedure_selection", "inventory.count_listing_trace")}
+    # switching the cycle back on does not bring the old decisions back
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["inventory"]})
+    document = service.workflow_document(engagement)[0]
+    assert "inventory_tolerable_misstatement" not in document["policies"]
+    assert "inventory.count_listing_trace" not in document.get("procedures", {})

@@ -1039,6 +1039,30 @@ class WorkbenchService:
                 raise ValueError(
                     "cannot remove cycles after their procedures have run: "
                     f"{executed}")
+            # Settings and procedure choices owned only by a cycle leaving
+            # scope are retired, not kept: kept, they would come back into
+            # force unreviewed if the cycle were switched on again. The
+            # retired list stays in the signed record.
+            from procedures_ap.contracts import OPTIONAL_POLICIES, PROCEDURES
+            from procedures_cycles.contracts import policy_scopes
+            payables_policies = {p for c in PROCEDURES for p in c.required_policies}
+            payables_policies.update(OPTIONAL_POLICIES)
+            retired = document.setdefault("retired", [])
+            policies = document.get("policies") or {}
+            for name in sorted(policies):
+                owners = policy_scopes(name)
+                if owners and not owners & proposed and name not in payables_policies:
+                    retired.append({"kind": "policy", "name": name,
+                                    "value": policies.pop(name),
+                                    "cycles": sorted(owners), "retired_by": actor})
+            selections = document.get("procedures") or {}
+            for pid in sorted(selections):
+                if pid in CYCLE_CONTRACTS_BY_ID and pid in removed_procedures:
+                    retired.append({"kind": "procedure_selection", "name": pid,
+                                    "value": selections.pop(pid),
+                                    "cycles": [SCOPE_OF[pid]], "retired_by": actor})
+            if not retired:
+                del document["retired"]
             document["cycles"] = sorted(set(cycles))
         elif section == "procedure_selection":
             from procedures_ap.contracts import CONTRACTS_BY_ID
