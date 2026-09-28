@@ -9,7 +9,7 @@ lock treat both alike.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from assurance_domain.money import fnum
@@ -105,6 +105,14 @@ def policy_date(policies: dict, name: str) -> date:
     if value is None:
         raise PolicyError(f"policy {name!r} is not set or is not a date")
     return value
+
+
+def period_start(pe: date) -> date:
+    """The day after the same date a year earlier: a twelve-month period."""
+    try:
+        return pe.replace(year=pe.year - 1) + timedelta(days=1)
+    except ValueError:                       # 29 February
+        return pe.replace(year=pe.year - 1, day=28) + timedelta(days=1)
 
 
 def source_ref(role: str, record: dict, key: str) -> dict:

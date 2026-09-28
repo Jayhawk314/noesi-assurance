@@ -16,7 +16,7 @@ from __future__ import annotations
 from procedures_ap.contracts import ProcedureContract
 
 SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "payroll",
-          "cash", "inventory", "completion")
+          "cash", "inventory", "ppe", "completion")
 
 CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
@@ -260,6 +260,50 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "separate judgments.",
     ),
     ProcedureContract(
+        "ppe.rollforward", "Property and equipment rollforward",
+        "Roll the fixed-asset register from beginning cost through additions and "
+        "disposals to ending cost, and tie ending cost and accumulated depreciation "
+        "to the trial balance accounts the auditor names.",
+        "ppe", ("existence", "completeness", "accuracy"),
+        {"Fixed_assets": ("asset_id", "cost", "acquired_date"),
+         "Trial_balance": ("account", "balance")},
+        required_policies=("period_end", "ppe_cost_accounts"),
+        evidence_source="client fixed-asset register and trial balance",
+        denominator_role="Fixed_assets",
+        limitations="Assumes a twelve-month period. Ties the register to the ledger; "
+                    "that the assets exist is observation, and additions are vouched "
+                    "separately.",
+    ),
+    ProcedureContract(
+        "ppe.depreciation_recompute", "Depreciation recompute",
+        "Recompute each asset's straight-line depreciation for the period under the "
+        "client's convention and compare it with the register; flag assets "
+        "depreciated below salvage.",
+        "ppe", ("valuation", "accuracy"),
+        {"Fixed_assets": ("asset_id", "cost", "acquired_date", "useful_life_years",
+                          "depreciation_expense")},
+        required_policies=("period_end", "ppe_depreciation_convention"),
+        evidence_source="client fixed-asset register",
+        denominator_role="Fixed_assets",
+        limitations="Straight line only (full_month or half_year); other methods are "
+                    "listed as not recomputed. Whether lives and salvage are "
+                    "reasonable is the auditor's judgment.",
+    ),
+    ProcedureContract(
+        "ppe.additions_vouching", "Additions vouching",
+        "Compare the period's additions with the auditor's vouching: amounts that "
+        "differ from the invoice, items that should have been expensed, unvouched "
+        "additions above the threshold.",
+        "ppe", ("existence", "accuracy", "classification"),
+        {"Fixed_assets": ("asset_id", "cost", "acquired_date"),
+         "Additions_vouching": ("asset_id",)},
+        required_policies=("period_end",),
+        evidence_source="invoices and approvals inspected by the auditor",
+        denominator_role="Fixed_assets",
+        limitations="Evaluates the vouching recorded; it does not select the sample "
+                    "or project errors to the unvouched additions.",
+    ),
+    ProcedureContract(
         "fs.adjusted_trial_balance", "Adjusted trial balance",
         "Check that proposed adjusting entries balance, apply them to the trial "
         "balance, and re-foot.",
@@ -303,6 +347,9 @@ SCOPE_OF: dict[str, str] = {
     "cash.interbank_transfers": "cash",
     "inventory.count_listing_trace": "inventory",
     "inventory.pricing_projection": "inventory",
+    "ppe.rollforward": "ppe",
+    "ppe.depreciation_recompute": "ppe",
+    "ppe.additions_vouching": "ppe",
     "fs.adjusted_trial_balance": "completion",
     "completion.uncorrected_misstatements": "completion",
 }
@@ -318,7 +365,8 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "dit_max_days",
     "je_round_amount_threshold", "je_round_unit", "je_authorized_users",
     "je_seldom_used_max", "je_holidays", "rev_credit_memo_days",
-    "payroll_final_pay_days",
+    "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
+    "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -358,6 +406,8 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "je_authorized_users": {"journal_entries"}, "je_seldom_used_max": {"journal_entries"},
     "je_holidays": {"journal_entries"}, "rev_credit_memo_days": {"receivables"},
     "payroll_final_pay_days": {"payroll"},
+    "ppe_accumulated_depreciation_accounts": {"ppe"}, "ppe_rounding_tolerance": {"ppe"},
+    "ppe_depreciation_accounts": {"ppe"}, "ppe_vouch_threshold": {"ppe"},
 }
 
 

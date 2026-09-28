@@ -126,6 +126,24 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "address": ["address", "home address", "street address"],
         "pay_rate": ["pay rate", "rate", "hourly rate", "salary"],
     },
+    "Fixed_assets": {
+        "asset_id": ["asset id", "asset number", "asset no", "asset tag", "tag number",
+                     "asset"],
+        "description": ["description", "asset description", "name"],
+        "category": ["category", "class", "asset class", "asset type"],
+        "acquired_date": ["acquired date", "acquisition date", "date acquired",
+                          "in service date", "placed in service", "purchase date"],
+        "cost": ["cost", "original cost", "acquisition cost", "basis", "cost basis"],
+        "salvage_value": ["salvage value", "salvage", "residual value"],
+        "useful_life_years": ["useful life", "life", "life years", "useful life years"],
+        "method": ["method", "depreciation method"],
+        "depreciation_expense": ["depreciation expense", "current depreciation",
+                                 "current year depreciation", "period depreciation"],
+        "accumulated_depreciation": ["accumulated depreciation", "accum depreciation",
+                                     "accumulated", "ending accumulated depreciation"],
+        "disposal_date": ["disposal date", "date disposed", "retired date",
+                          "disposed on"],
+    },
     "Journal_entries": {
         "entry_id": ["entry id", "entry number", "entry no", "je number", "je id",
                      "journal number", "journal entry", "journal no", "num",
@@ -146,6 +164,13 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "source": ["source", "journal type", "transaction type", "type"],
     },
     # ------------------------------------------------ auditor evidence
+    "Additions_vouching": {
+        "asset_id": ["asset id", "asset number", "asset no", "asset tag", "asset"],
+        "vouched_amount": ["vouched amount", "invoice amount", "amount per invoice",
+                           "supported amount", "audited amount"],
+        "capitalize": ["capitalize", "capitalizable", "capital", "properly capitalized"],
+        "document": ["document", "invoice", "support", "reference"],
+    },
     "Confirmations": {
         "customer_number": ["customer number", "customer no", "customer id", "customer"],
         "book_value": ["book value", "balance per books", "balance per client",
@@ -215,13 +240,14 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
                  "noncurrent_liabilities", "income_before_taxes",
                  "performance_materiality", "unit_cost", "cost", "current",
                  "days_31_60", "days_61_90", "days_over_90", "gross", "net",
-                 "tax_withheld", "deductions", "pay_rate"}
+                 "tax_withheld", "deductions", "pay_rate", "salvage_value",
+                 "depreciation_expense", "accumulated_depreciation", "vouched_amount"}
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
                "received_books", "received_bank", "liability_date", "entry_date",
                "posted_date", "invoice_date", "ship_date", "memo_date", "pay_date",
-               "hire_date", "termination_date"}
+               "hire_date", "termination_date", "acquired_date", "disposal_date"}
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
@@ -233,6 +259,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
     "Credit_memos": ("memo_number",),
+    "Fixed_assets": ("asset_id",),
+    "Additions_vouching": ("asset_id",),
     "Payroll_register": ("employee_id",),
     "Payroll_master": ("employee_id",),
     "Journal_entries": ("entry_id", "account"),
@@ -256,6 +284,10 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",
                        "sales by invoice"],
     "Credit_memos": ["credit memos", "credit memo listing", "credits issued"],
+    "Fixed_assets": ["fixed assets", "fixed asset register", "asset register",
+                     "depreciation schedule", "fixed asset listing"],
+    "Additions_vouching": ["additions vouching", "fixed asset additions testing",
+                           "additions testing"],
     "Payroll_register": ["payroll register", "payroll journal", "payroll summary",
                          "payroll details"],
     "Payroll_master": ["payroll master", "payroll employee list", "employee payroll"],

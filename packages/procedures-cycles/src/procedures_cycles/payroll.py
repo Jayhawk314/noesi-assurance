@@ -13,20 +13,12 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from procedures_cycles.common import (
-    ZERO, PolicyError, dec, day, key_text, money, policy_date, receipt, records,
-    source_ref, text,
+    ZERO, PolicyError, dec, day, key_text, money, period_start, policy_date, receipt,
+    records, source_ref, text,
 )
 from procedures_cycles.statements import _signed
 
 REGISTER, MASTER = "Payroll_register", "Payroll_master"
-
-
-def _period_start(pe: date) -> date:
-    """The day after the same date a year earlier: a twelve-month period."""
-    try:
-        return pe.replace(year=pe.year - 1) + timedelta(days=1)
-    except ValueError:                       # 29 February
-        return pe.replace(year=pe.year - 1, day=28) + timedelta(days=1)
 
 
 def register_tests(tables: dict, policies: dict):
@@ -113,7 +105,7 @@ def register_to_ledger(tables: dict, policies: dict):
     if not accounts:
         raise PolicyError("policy 'payroll_expense_accounts' is not set; name the trial "
                           "balance accounts that carry gross wages")
-    start = _period_start(pe)
+    start = period_start(pe)
     register = ZERO
     outside = 0
     for row in records(tables, REGISTER):
