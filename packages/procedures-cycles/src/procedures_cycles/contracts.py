@@ -82,7 +82,8 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         evidence_source="the journal entry listing and the client's trial balance "
                         "with prior-year balances",
         denominator_role="Trial_balance",
-        limitations="Cannot see entries dated before the period began. An account whose "
+        limitations="Lines dated outside the period are left out and counted. An "
+                    "account whose "
                     "balance equals the period's activity is treated as an income-"
                     "statement account that closed; one equity account may take the "
                     "prior year's closing.",
@@ -205,7 +206,8 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         required_policies=("period_end", "payroll_expense_accounts"),
         evidence_source="client payroll register and trial balance",
         denominator_role="Payroll_register",
-        limitations="Assumes a twelve-month period ending at period end. Accrued "
+        limitations="Uses the engagement's period start, or twelve months ending at "
+                    "period end when none is recorded. Accrued "
                     "wages at either end are a normal difference; the auditor "
                     "explains the rest.",
     ),
@@ -271,7 +273,8 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         required_policies=("period_end", "ppe_cost_accounts"),
         evidence_source="client fixed-asset register and trial balance",
         denominator_role="Fixed_assets",
-        limitations="Assumes a twelve-month period. Ties the register to the ledger; "
+        limitations="Uses the engagement's period start, or twelve months when none "
+                    "is recorded. Ties the register to the ledger; "
                     "that the assets exist is observation, and additions are vouched "
                     "separately.",
     ),
@@ -470,7 +473,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
 )
 
 # Supplied from the engagement record rather than typed as policies.
-ENGAGEMENT_POLICIES: tuple[str, ...] = ("period_end", "materiality")
+ENGAGEMENT_POLICIES: tuple[str, ...] = ("period_end", "period_start", "materiality")
 
 
 def contracts_for_scope(scope) -> tuple[ProcedureContract, ...]:

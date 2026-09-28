@@ -493,6 +493,9 @@ class WorkbenchService:
         info = self._engagement(engagement_id)
         policies = dict(document.get("policies") or {})
         policies.setdefault("period_end", str(info["period_end"]))
+        start = (document.get("period") or {}).get("start")
+        if start:
+            policies.setdefault("period_start", str(start))
         amount = (document.get("materiality") or {}).get("amount")
         if amount:
             policies.setdefault("materiality", str(amount))
@@ -1034,6 +1037,29 @@ class WorkbenchService:
                 "done": bool(values.get("done", False)),
                 "note": str(values.get("note", "")),
                 "evidence": list(values.get("evidence", []))}
+        elif section == "period":
+            # The period's first day, when it is not the twelve months ending at
+            # period end (a first year, a changed year end). The partner owns it.
+            self._require(engagement_id, actor, "partner")
+            from datetime import date as _date
+            info = self._engagement(engagement_id)
+            end = _date.fromisoformat(str(info["period_end"])[:10])
+            raw = str(values.get("start") or "").strip()
+            if raw:
+                try:
+                    start = _date.fromisoformat(raw[:10])
+                except ValueError:
+                    raise ValueError(f"period start {raw!r} is not a date "
+                                     "(YYYY-MM-DD)") from None
+                if not start < end:
+                    raise ValueError(f"period start {start} must be before the period "
+                                     f"end {end}")
+                if (end - start).days > 731:
+                    raise ValueError(f"period start {start} is more than 24 months "
+                                     f"before the period end {end}")
+                document["period"] = {"start": start.isoformat()}
+            else:
+                document.pop("period", None)
         elif section == "cycles":
             # Which cycles this engagement audits. The partner owns this; it
             # decides which cycle contracts coverage (and readiness) consider.
@@ -1135,8 +1161,8 @@ class WorkbenchService:
             known.update(CYCLE_OPTIONAL)
             if name in ENGAGEMENT_POLICIES:
                 raise ValueError(
-                    f"{name!r} comes from the engagement record (period end, "
-                    "materiality section); it is not set as a policy")
+                    f"{name!r} comes from the engagement record (period end, period "
+                    "section, materiality section); it is not set as a policy")
             if name not in known:
                 raise ValueError(f"unknown policy {name!r}")
             from procedures_cycles.contracts import policy_scopes

@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from procedures_cycles.common import (
-    ZERO, PolicyError, dec, day, key_text, money, period_start, policy_date, receipt,
+    ZERO, PolicyError, dec, day, key_text, money, period_bounds, policy_date, receipt,
     records, source_ref, text,
 )
 from procedures_cycles.statements import _signed
@@ -105,7 +105,7 @@ def register_to_ledger(tables: dict, policies: dict):
     if not accounts:
         raise PolicyError("policy 'payroll_expense_accounts' is not set; name the trial "
                           "balance accounts that carry gross wages")
-    start = period_start(pe)
+    start, _ = period_bounds(policies)
     register = ZERO
     outside = 0
     for row in records(tables, REGISTER):

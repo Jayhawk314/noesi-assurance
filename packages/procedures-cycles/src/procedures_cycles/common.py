@@ -115,6 +115,14 @@ def period_start(pe: date) -> date:
         return pe.replace(year=pe.year - 1, day=28) + timedelta(days=1)
 
 
+def period_bounds(policies: dict) -> tuple[date, date]:
+    """The engagement's period: its recorded start (workflow section 'period'),
+    or twelve months ending at period end when no start is recorded."""
+    pe = policy_date(policies, "period_end")
+    start = day(policies.get("period_start"))
+    return (start or period_start(pe)), pe
+
+
 def source_ref(role: str, record: dict, key: str) -> dict:
     return {"table": role, "row": record.get("source_row"),
             "record_id": text(record.get(key)) or f"row-{record.get('source_row')}",

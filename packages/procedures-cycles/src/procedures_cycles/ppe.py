@@ -10,12 +10,12 @@ methods other than straight line are listed as not recomputed.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from procedures_cycles.common import (
-    ZERO, PolicyError, dec, day, key_text, money, period_start, policy_date, receipt,
-    records, source_ref, text,
+    ZERO, PolicyError, dec, day, key_text, money, period_bounds, period_start,
+    policy_date, receipt, records, source_ref, text,
 )
 from procedures_cycles.statements import _signed
 
@@ -33,8 +33,7 @@ def _tb(tables: dict) -> dict[str, dict]:
 
 def rollforward(tables: dict, policies: dict):
     pid = "ppe.rollforward"
-    pe = policy_date(policies, "period_end")
-    start = period_start(pe)
+    start, pe = period_bounds(policies)
     cost_accounts = _accounts(policies, "ppe_cost_accounts")
     if cost_accounts is None:
         raise PolicyError("policy 'ppe_cost_accounts' is not set; name the trial "
@@ -111,10 +110,13 @@ def _years_back(pe: date, years: int) -> date:
         return pe.replace(year=pe.year - years, day=28)
 
 
-def _fiscal_index(d: date, pe: date) -> int:
-    """0 for the period ending pe, 1 for the one before, and so on."""
-    i = 0
-    while d < period_start(_years_back(pe, i)):
+def _fiscal_index(d: date, start: date) -> int:
+    """0 for the current period (from start), 1 for the twelve months before
+    it, and so on."""
+    if d >= start:
+        return 0
+    prior_end, i = start - timedelta(days=1), 1
+    while d < period_start(_years_back(prior_end, i - 1)):
         i += 1
     return i
 
@@ -123,7 +125,8 @@ def _months(d: date) -> int:
     return d.year * 12 + d.month
 
 
-def _period_depreciation(asset: dict, pe: date, convention: str) -> Decimal | None:
+def _period_depreciation(asset: dict, start: date, pe: date,
+                         convention: str) -> Decimal | None:
     cost = money(asset.get("cost"))
     salvage = money(asset.get("salvage_value"))
     life = dec(asset.get("useful_life_years"))
@@ -131,7 +134,6 @@ def _period_depreciation(asset: dict, pe: date, convention: str) -> Decimal | No
     if life is None or life <= 0 or acquired is None or acquired > pe:
         return None
     annual = (cost - salvage) / life
-    start = period_start(pe)
     if convention == "full_month":
         first = _months(acquired)                          # month acquired counts
         last = first + int(life * 12) - 1                   # final month of life
@@ -141,7 +143,7 @@ def _period_depreciation(asset: dict, pe: date, convention: str) -> Decimal | No
         months = max(0, hi - lo + 1)
         return money(annual * months / 12)
     if convention == "half_year":
-        k = _fiscal_index(acquired, pe)                     # periods since acquisition
+        k = _fiscal_index(acquired, start)                  # periods since acquisition
         if disposed is not None and disposed < start:
             return ZERO
         if k > life:
@@ -156,7 +158,7 @@ def _period_depreciation(asset: dict, pe: date, convention: str) -> Decimal | No
 
 def depreciation_recompute(tables: dict, policies: dict):
     pid = "ppe.depreciation_recompute"
-    pe = policy_date(policies, "period_end")
+    start, pe = period_bounds(policies)
     convention = text(policies.get("ppe_depreciation_convention")).lower()
     if not convention:
         raise PolicyError("policy 'ppe_depreciation_convention' is not set "
@@ -182,7 +184,7 @@ def depreciation_recompute(tables: dict, policies: dict):
         if method and method not in ("sl", "straight line", "straightline"):
             not_recomputed.append(aid)
             continue
-        expected = _period_depreciation(asset, pe, convention)
+        expected = _period_depreciation(asset, start, pe, convention)
         recorded = dec(asset.get("depreciation_expense"))
         if expected is None or recorded is None:
             not_recomputed.append(aid)
@@ -220,8 +222,7 @@ def depreciation_recompute(tables: dict, policies: dict):
 
 def additions_vouching(tables: dict, policies: dict):
     pid = "ppe.additions_vouching"
-    pe = policy_date(policies, "period_end")
-    start = period_start(pe)
+    start, pe = period_bounds(policies)
     threshold = dec(policies.get("ppe_vouch_threshold"))
     additions = {key_text(a.get("asset_id")): a for a in records(tables, REGISTER)
                  if (d := day(a.get("acquired_date"))) is not None and start <= d <= pe}

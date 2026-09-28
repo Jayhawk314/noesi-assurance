@@ -14,7 +14,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from procedures_cycles.common import (
-    ZERO, dec, day, key_text, money, policy_date, receipt, records, source_ref, text,
+    ZERO, dec, day, key_text, money, period_bounds, receipt, records, source_ref, text,
 )
 from procedures_cycles.statements import _signed
 
@@ -48,7 +48,7 @@ def _csv_policy(policies: dict, name: str) -> list[str] | None:
 
 def journal_entry_testing(tables: dict, policies: dict):
     pid = "je.journal_entry_testing"
-    pe = policy_date(policies, "period_end")
+    start, pe = period_bounds(policies)
     rows = records(tables, ROLE)
     entries = _entries(rows)
     findings: list = []
@@ -91,7 +91,7 @@ def journal_entry_testing(tables: dict, policies: dict):
         for line in lines:
             account_use.setdefault(key_text(line.get("account")), set()).add(entry_id)
 
-    tested = after_period = 0
+    tested = after_period = before_period = 0
     for entry_id, lines in sorted(entries.items()):
         src = [source_ref(ROLE, line, "entry_id") for line in lines]
         amounts = [_line_amount(line) for line in lines]
@@ -99,6 +99,9 @@ def journal_entry_testing(tables: dict, policies: dict):
                     default=None)
         if dated is not None and dated > pe:
             after_period += 1                # next period's entry: not in this population
+            continue
+        if dated is not None and dated < start:
+            before_period += 1               # an earlier period's entry
             continue
         tested += 1
         base = {"entry_date": dated, "lines": len(lines), "source_rows": src}
@@ -160,6 +163,7 @@ def journal_entry_testing(tables: dict, policies: dict):
                  "seldom_used_account", "no_description")
     stats = {"population": tested, "entries": len(entries), "lines": len(rows),
              "dated_after_period_end": after_period, "period_end": pe,
+             "dated_before_period_start": before_period, "period_start": start,
              "tests_performed": [t for t in all_tests if t not in not_performed],
              "not_performed": not_performed, "selected_by_test": counts,
              "round_unit": unit, "exceptions": len(findings)}
@@ -168,12 +172,13 @@ def journal_entry_testing(tables: dict, policies: dict):
 
 def population_completeness(tables: dict, policies: dict):
     pid = "je.population_completeness"
-    pe = policy_date(policies, "period_end")
+    start, pe = period_bounds(policies)
     activity: dict[str, Decimal] = {}
-    missing_amount = 0
+    missing_amount = outside = 0
     for line in records(tables, ROLE):
         dated = day(line.get("entry_date"))
-        if dated is not None and dated > pe:
+        if dated is not None and not start <= dated <= pe:
+            outside += 1
             continue
         amount = _line_amount(line)
         if amount is None:
@@ -229,5 +234,6 @@ def population_completeness(tables: dict, policies: dict):
              "income_statement_accounts_closed": closed, "closed_to": closed_to,
              "prior_year_closing_amount": money(closing),
              "lines_without_amount": missing_amount,
+             "lines_outside_period": outside, "period_start": start,
              "exceptions": len(findings)}
     return findings, stats
