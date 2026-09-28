@@ -328,3 +328,21 @@ def test_k3_adding_a_file_with_different_fields_is_refused(service, engagement):
                          "Bank_reconciliation", mode="add")
     with pytest.raises(ValueError, match="cannot add this file"):
         load()
+
+
+def test_loads_in_the_same_clock_tick_keep_their_load_order(service, engagement):
+    """Two loads can share a timestamp; the later one must still be the later
+    one. Ordering fell back to the random dataset id and sometimes put the
+    replacement first (an intermittent failure of the replace test above)."""
+    _ingest(service, engagement, REC_CSV, "rec_v1.csv", "Bank_reconciliation")
+    _, load = _ingest_as(service, engagement, PAYROLL_REC_CSV, "rec_v2.csv",
+                         "Bank_reconciliation", mode="replace")
+    second = load()["dataset_id"]
+    conn = service._conn
+    conn.execute("UPDATE normalized_dataset SET created_at = '2026-01-01T00:00:00+00:00'")
+    conn.execute("UPDATE normalized_dataset SET dataset_id = '0' WHERE dataset_id = ?",
+                 (second,))
+    datasets = service.sources(engagement)["datasets"]
+    assert [(d["load_mode"], d["in_use"]) for d in datasets] == [
+        ("first", False), ("replace", True)]
+    assert service._tables(engagement)["Bank_reconciliation"].source_file == "rec_v2.csv"

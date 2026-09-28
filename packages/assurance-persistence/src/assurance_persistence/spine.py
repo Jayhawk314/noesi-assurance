@@ -600,7 +600,7 @@ class DatasetRepository:
     def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
         return self._uow.execute(
             """SELECT * FROM normalized_dataset WHERE engagement_id = ?
-               ORDER BY created_at, dataset_id""",
+               ORDER BY created_at, rowid""",
             (engagement_id,)).fetchall()
 
 
@@ -701,7 +701,7 @@ class ProcedureRunRepository:
     def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
         return self._uow.execute(
             """SELECT * FROM procedure_run WHERE engagement_id = ?
-               ORDER BY created_at, run_id""",
+               ORDER BY created_at, rowid""",
             (engagement_id,)).fetchall()
 
     def advance_review(self, run_id: str, target: str, *,

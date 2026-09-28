@@ -423,7 +423,7 @@ class WorkbenchService:
         for row in self._conn.execute(
                 """SELECT artifact_id, sha256, size_bytes, media_type,
                    original_name, provenance, state, created_at FROM artifact
-                   WHERE engagement_id = ? ORDER BY created_at""",
+                   WHERE engagement_id = ? ORDER BY created_at, rowid""",
                 (engagement_id,)):
             item = dict(row)
             item["inferred_role"] = infer_role(item["original_name"])
@@ -432,7 +432,7 @@ class WorkbenchService:
         for row in self._conn.execute(
                 """SELECT spec_id, role, artifact_id, spec, status,
                    proposed_by, approved_by, created_at FROM mapping_spec
-                   WHERE engagement_id = ? ORDER BY created_at""",
+                   WHERE engagement_id = ? ORDER BY created_at, rowid""",
                 (engagement_id,)):
             item = dict(row)
             stored = json.loads(item.pop("spec"))
@@ -446,7 +446,7 @@ class WorkbenchService:
             """SELECT dataset_id, role, mapping_spec_id, artifact_id, rows_in,
                rows_loaded, rows_rejected, control_total, output_digest,
                load_mode, created_at FROM normalized_dataset
-               WHERE engagement_id = ? ORDER BY created_at, dataset_id""",
+               WHERE engagement_id = ? ORDER BY created_at, rowid""",
             (engagement_id,))]
         # The datasets procedures read, from the same derivation _tables
         # uses: a replaced file is visibly out of use, an added one in use.
@@ -615,7 +615,7 @@ class WorkbenchService:
             """SELECT run_id, procedure_id, job_id, status, summary, error,
                executed_by, reviewed_by, approved_by, version, created_at
                FROM procedure_run WHERE engagement_id = ?
-               ORDER BY created_at, run_id""", (engagement_id,)).fetchall()
+               ORDER BY created_at, rowid""", (engagement_id,)).fetchall()
         out = []
         for row in rows:
             item = dict(row)
@@ -639,7 +639,7 @@ class WorkbenchService:
         for run in self._conn.execute(
                 """SELECT run_id, procedure_id, status, findings
                    FROM procedure_run WHERE engagement_id = ?
-                   ORDER BY created_at, run_id""", (engagement_id,)):
+                   ORDER BY created_at, rowid""", (engagement_id,)):
             if run["status"] == "error":
                 continue
             for verdict in json.loads(run["findings"]):
@@ -778,7 +778,7 @@ class WorkbenchService:
         latest_runs: dict[str, sqlite3.Row] = {}
         for run in self._conn.execute(
                 """SELECT * FROM procedure_run WHERE engagement_id = ?
-                   ORDER BY created_at, run_id""", (engagement_id,)):
+                   ORDER BY created_at, rowid""", (engagement_id,)):
             latest_runs[run["procedure_id"]] = run
         dispositions = {
             row["finding_uid"]: {"status": row["status"],
@@ -1616,7 +1616,7 @@ class WorkbenchService:
         executed = set()
         for row in self._conn.execute(
                 """SELECT * FROM procedure_run WHERE engagement_id = ?
-                   ORDER BY created_at, run_id""", (engagement_id,)):
+                   ORDER BY created_at, rowid""", (engagement_id,)):
             executed.add(row["procedure_id"])
             runs.append({
                 "run_id": row["run_id"],
@@ -1794,7 +1794,7 @@ class WorkbenchService:
         for row in self._conn.execute(
                 """SELECT artifact_id, original_name, sha256 FROM artifact
                    WHERE engagement_id = ? AND state = 'promoted'
-                   ORDER BY created_at""", (engagement_id,)):
+                   ORDER BY created_at, rowid""", (engagement_id,)):
             content = self._vault.read_bytes(row["sha256"])
             if not xlsx.is_xlsx(content):
                 continue
@@ -1959,7 +1959,7 @@ class WorkbenchService:
         states: dict[str, list] = {}
         for dataset in self._conn.execute(
                 """SELECT * FROM normalized_dataset WHERE engagement_id = ?
-                   ORDER BY created_at, dataset_id""", (engagement_id,)):
+                   ORDER BY created_at, rowid""", (engagement_id,)):
             history = states.setdefault(dataset["role"], [])
             in_use = (history[-1][1] + [dataset]
                       if history and dataset["load_mode"] == "add" else [dataset])
