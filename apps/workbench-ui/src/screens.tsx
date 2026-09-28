@@ -169,8 +169,12 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
     .filter((s) => s.status === "proposed");
   const normalizedSpecs = new Set(
     (data?.datasets ?? []).map((d) => d.mapping_spec_id));
+  // A role that already has data needs the preparer's replace/add choice
+  // (K3), so those specs are loaded one at a time, never in the batch.
+  const rolesWithData = new Set((data?.datasets ?? []).map((d) => d.role));
   const normalizable = (data?.mapping_specs ?? []).filter(
-    (s) => s.status === "approved" && !normalizedSpecs.has(s.spec_id));
+    (s) => s.status === "approved" && !normalizedSpecs.has(s.spec_id)
+           && !rolesWithData.has(s.role));
 
   return (
     <>
@@ -302,11 +306,26 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                     approve
                   </button>
                 )}
-                {spec.status === "approved" && !normalizedSpecs.has(spec.spec_id) && (
+                {spec.status === "approved" && !normalizedSpecs.has(spec.spec_id)
+                  && !rolesWithData.has(spec.role) && (
                   <button className="action"
                           onClick={act(() => client.normalize(eid, spec.spec_id))}>
                     normalize
                   </button>
+                )}
+                {spec.status === "approved" && !normalizedSpecs.has(spec.spec_id)
+                  && rolesWithData.has(spec.role) && (
+                  <>
+                    <div className="note">{spec.role} already has data. This file:</div>
+                    <button className="action" title="a revised file: the current data stops being used"
+                            onClick={act(() => client.normalize(eid, spec.spec_id, "replace"))}>
+                      replaces it
+                    </button>{" "}
+                    <button className="action" title="more rows of the same kind, e.g. another bank account"
+                            onClick={act(() => client.normalize(eid, spec.spec_id, "add"))}>
+                      adds to it
+                    </button>
+                  </>
                 )}
                 {normalizedSpecs.has(spec.spec_id) && <span className="status ok">loaded ✓</span>}
               </td>
@@ -327,6 +346,9 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
               <td>{dataset.role}
                 {dataset.in_use === false && (
                   <div className="note">not used: a later {dataset.role} load replaces it</div>
+                )}
+                {dataset.load_mode === "add" && (
+                  <div className="note">added: read together with the earlier {dataset.role} file(s)</div>
                 )}
               </td>
               <td>

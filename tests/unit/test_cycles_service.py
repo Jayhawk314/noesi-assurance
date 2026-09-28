@@ -1,6 +1,8 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Cycle procedures through the workbench: scope, ingestion, coverage, runs."""
 
+import json
+
 import pytest
 
 from assurance_application.service import AuthorizationError, WorkbenchService
@@ -172,7 +174,7 @@ def test_migration_8_keeps_existing_risks(tmp_path, monkeypatch):
                  "assertion, level, updated_at) VALUES ('t', 'e', 'r1', 'Cutoff', "
                  "'cutoff', 'high', '2026-01-01')")
     monkeypatch.undo()
-    assert db.migrate(conn) == [8]
+    assert db.migrate(conn) == [8, 9]
     row = conn.execute("SELECT * FROM risk_assessment").fetchone()
     assert (row["risk_id"], row["assertion"], row["level"]) == ("r1", "cutoff", "high")
     conn.execute("INSERT INTO risk_assessment (tenant_id, engagement_id, risk_id, "
@@ -251,3 +253,78 @@ def test_rr1_removing_a_cycle_retires_its_settings_and_selections(service, engag
     document = service.workflow_document(engagement)[0]
     assert "inventory_tolerable_misstatement" not in document["policies"]
     assert "inventory.count_listing_trace" not in document.get("procedures", {})
+
+
+PAYROLL_REC_CSV = (
+    "Account,Item Type,Reference,Amount,Date\n"
+    "payroll,bank balance,,5000.00,2025-12-31\n"
+    "payroll,book balance,,4600.00,2025-12-31\n"
+    "payroll,outstanding check,P9,400.00,2025-12-30\n"
+).encode("utf-8")
+
+
+def _ingest_as(service, eid, content, name, role, mode=None):
+    artifact = service.store_source(BOB, eid, content=content, media_type="text/csv",
+                                    original_name=name)
+    proposal = service.propose_source_mapping(BOB, eid, role=role,
+                                              artifact_id=artifact["artifact_id"])
+    service.approve_source_mapping(CAROL, eid, proposal["spec_id"])
+    return proposal["spec_id"], lambda m=mode: service.normalize_source(
+        BOB, eid, proposal["spec_id"], mode=m)
+
+
+def test_k3_a_second_file_for_a_role_must_say_replace_or_add(service, engagement):
+    _ingest(service, engagement, REC_CSV, "checking_rec.csv", "Bank_reconciliation")
+    _, load = _ingest_as(service, engagement, PAYROLL_REC_CSV, "payroll_rec.csv",
+                         "Bank_reconciliation")
+    with pytest.raises(ValueError, match=r"already has data in use \(checking_rec.csv\)"):
+        load()
+    # Nothing changed: the first file is still the only one in use.
+    assert [d["in_use"] for d in service.sources(engagement)["datasets"]] == [True]
+
+
+def test_k3_added_files_are_all_read_and_the_run_records_them(service, engagement):
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["cash"]})
+    first = _ingest(service, engagement, REC_CSV, "checking_rec.csv",
+                    "Bank_reconciliation")
+    _, load = _ingest_as(service, engagement, PAYROLL_REC_CSV, "payroll_rec.csv",
+                         "Bank_reconciliation", mode="add")
+    second = load()
+    assert second["load_mode"] == "add"
+    _ingest(service, engagement, CUTOFF_CSV, "cutoff.csv", "Cutoff_statement")
+    datasets = service.sources(engagement)["datasets"]
+    assert [d["in_use"] for d in datasets if d["role"] == "Bank_reconciliation"] \
+        == [True, True]
+    run = service.run_procedure(BOB, engagement, procedure_id="cash.bank_reconciliation")
+    assert run["status"] == "completed"
+    # Both accounts were tested, not just the file loaded last.
+    assert set(run["summary"]["accounts"]) == {"general", "payroll"}
+    manifest = json.loads(service._conn.execute(
+        "SELECT manifest FROM procedure_run WHERE run_id = ?",
+        (run["run_id"],)).fetchone()["manifest"])
+    assert manifest["datasets"]["Bank_reconciliation"] == [
+        first["dataset_id"], second["dataset_id"]]
+
+
+def test_k3_replace_keeps_only_the_new_file_in_use(service, engagement):
+    _ingest(service, engagement, REC_CSV, "rec_v1.csv", "Bank_reconciliation")
+    _, load = _ingest_as(service, engagement, PAYROLL_REC_CSV, "rec_v2.csv",
+                         "Bank_reconciliation", mode="replace")
+    load()
+    datasets = service.sources(engagement)["datasets"]
+    assert [(d["load_mode"], d["in_use"]) for d in datasets] == [
+        ("first", False), ("replace", True)]
+    impact = service.revision_impact(engagement)
+    [revision] = impact["revisions"]
+    assert revision["load_mode"] == "replace"
+    assert revision["before"]["files"] == ["rec_v1.csv"]
+    assert revision["after"]["files"] == ["rec_v2.csv"]
+
+
+def test_k3_adding_a_file_with_different_fields_is_refused(service, engagement):
+    _ingest(service, engagement, REC_CSV, "checking_rec.csv", "Bank_reconciliation")
+    narrow = b"Account,Item Type,Amount\npayroll,bank balance,5000.00\n"
+    _, load = _ingest_as(service, engagement, narrow, "payroll_rec.csv",
+                         "Bank_reconciliation", mode="add")
+    with pytest.raises(ValueError, match="cannot add this file"):
+        load()

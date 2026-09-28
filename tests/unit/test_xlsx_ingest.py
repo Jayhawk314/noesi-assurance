@@ -77,14 +77,15 @@ def service(tmp_path):
     conn.close()
 
 
-def _load(service, eid, content, name, media, extraction=None):
+def _load(service, eid, content, name, media, extraction=None, mode=None):
     artifact = service.store_source(PREPARER, eid, content=content,
                                     media_type=media, original_name=name)
     proposal = service.propose_source_mapping(
         PREPARER, eid, role="Payments", artifact_id=artifact["artifact_id"],
         extraction=extraction)
     service.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
-    normalized = service.normalize_source(PREPARER, eid, proposal["spec_id"])
+    normalized = service.normalize_source(PREPARER, eid, proposal["spec_id"],
+                                          mode=mode)
     return artifact, proposal, normalized
 
 
@@ -97,7 +98,7 @@ def test_workbook_and_csv_normalize_to_the_same_dataset(service):
                                   "payments.csv", "text/csv")
     artifact, xl_prop, xl_norm = _load(
         service, eid, WORKBOOK.read_bytes(), "payments.xlsx", XLSX_TYPE,
-        extraction={"sheet": "Check register"})
+        extraction={"sheet": "Check register"}, mode="replace")
 
     # The reviewer sees which rows were read, and where reading stopped.
     assert xl_prop["extraction"]["header_row"] == 4

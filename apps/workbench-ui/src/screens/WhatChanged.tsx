@@ -87,7 +87,9 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
 
       {revisions.map((rev) => (
         <div className="panel" key={rev.role}>
-          <h3>{rev.role}: {rev.before.file} → {rev.after.file}</h3>
+          <h3>{rev.role}: {rev.load_mode === "add"
+            ? <>added {rev.after.file} to {(rev.before.files ?? [rev.before.file]).join(", ")}</>
+            : <>{rev.before.file} → {rev.after.file}</>}</h3>
           <p className="note">
             {rev.diff.rows_before} → {rev.diff.rows_after} rows, matched on{" "}
             {rev.diff.key_fields.join(" + ")} · net {money(rev.diff.net_amount_change)}{" "}

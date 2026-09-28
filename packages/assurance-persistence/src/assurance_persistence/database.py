@@ -343,6 +343,15 @@ INSERT INTO risk_assessment_v8 SELECT tenant_id, engagement_id, risk_id, title,
 DROP TABLE risk_assessment;
 ALTER TABLE risk_assessment_v8 RENAME TO risk_assessment;
 """),
+    (9, "dataset-load-mode", """
+-- A second file for a role used to replace the first silently (review of
+-- the Kestrel Valley run, K3). Each load now says what it does: 'first',
+-- 'replace' (a revised file) or 'add' (more rows of the same kind, e.g. a
+-- second bank account). Rows written before this migration were read as
+-- latest-wins, which is exactly 'replace'.
+ALTER TABLE normalized_dataset ADD COLUMN load_mode TEXT NOT NULL DEFAULT 'replace'
+    CHECK (load_mode IN ('first', 'replace', 'add'));
+"""),
 )
 
 

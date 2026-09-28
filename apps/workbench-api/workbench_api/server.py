@@ -478,12 +478,24 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.approve_source_mappings(
                         actor, eid, self._spec_ids())
                 case ["engagements", eid, "mappings", "normalize-batch"]:
-                    return service.normalize_sources(
-                        actor, eid, self._spec_ids())
+                    body = self._read_json()
+                    spec_ids = body.get("spec_ids")
+                    if (not isinstance(spec_ids, list)
+                            or not all(isinstance(s, str) for s in spec_ids)):
+                        raise ApiError(400, "spec_ids must be a list of strings")
+                    modes = body.get("modes") or {}
+                    if not isinstance(modes, dict):
+                        raise ApiError(400, "modes must map spec ids to "
+                                            "'replace' or 'add'")
+                    return service.normalize_sources(actor, eid, spec_ids,
+                                                     modes=modes)
                 case ["engagements", eid, "mappings", spec_id, "approve"]:
                     return service.approve_source_mapping(actor, eid, spec_id)
                 case ["engagements", eid, "mappings", spec_id, "normalize"]:
-                    return service.normalize_source(actor, eid, spec_id)
+                    mode = self._read_json().get("mode")
+                    return service.normalize_source(
+                        actor, eid, spec_id,
+                        mode=str(mode) if mode is not None else None)
                 case ["engagements", eid, "runs"]:
                     body = self._read_json()
                     return service.run_procedure(

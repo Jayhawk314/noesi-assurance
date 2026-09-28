@@ -137,14 +137,15 @@ def service(tmp_path):
     conn.close()
 
 
-def _load(svc, eid, content, name, role, recipe):
+def _load(svc, eid, content, name, role, recipe, mode=None):
     artifact = svc.store_source(PREPARER, eid, content=content,
                                 media_type=XLSX_TYPE, original_name=name)
     proposal = svc.propose_source_mapping(
         PREPARER, eid, role=role, artifact_id=artifact["artifact_id"],
         extraction={"recipe": recipe})
     svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
-    return artifact, proposal, svc.normalize_source(PREPARER, eid, proposal["spec_id"])
+    return artifact, proposal, svc.normalize_source(PREPARER, eid, proposal["spec_id"],
+                                                    mode=mode)
 
 
 def test_bill_payment_list_loads_as_reviewed_payments(service):
@@ -236,8 +237,12 @@ def test_a_second_load_of_a_role_is_marked_as_replacing_the_first(service):
     svc, eid = service
     _load(svc, eid, BILL_PAYMENTS, "Bill Payment List.xlsx", "Payments",
           "qbo.bill_payment_list.payments")
-    _load(svc, eid, BY_VENDOR, "Transaction List by Vendor.xlsx", "Payments",
-          "qbo.transaction_list_by_vendor.payments")
+    # K3: a second file for a role must say whether it replaces or adds.
+    with pytest.raises(ValueError, match="replaces it .* or adds to it"):
+        _load(svc, eid, BY_VENDOR, "Transaction List by Vendor.xlsx", "Payments",
+              "qbo.transaction_list_by_vendor.payments")
+    spec_id = svc.sources(eid)["mapping_specs"][-1]["spec_id"]
+    svc.normalize_source(PREPARER, eid, spec_id, mode="replace")
     datasets = svc.sources(eid)["datasets"]
     assert [d["in_use"] for d in datasets] == [False, True]
     # Exactly the one the procedures read.

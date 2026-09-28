@@ -108,6 +108,8 @@ export interface ApControlBuilt {
   gl_balance: string; difference: string; notes: string[];
 }
 
+export type LoadMode = "replace" | "add";
+
 export interface Dataset {
   dataset_id: string;
   role: string;
@@ -121,6 +123,8 @@ export interface Dataset {
   created_at: string;
   /** Whether procedures read this dataset: only the latest per role is used. */
   in_use?: boolean;
+  /** first load, a replacement (revised file), or added rows (e.g. another account). */
+  load_mode?: "first" | "replace" | LoadMode;
   /** Why rows were set aside (quarantined), with their source row numbers. */
   rejected_reasons?: { reason: string; rows: number; source_rows: number[] }[];
 }
@@ -313,8 +317,10 @@ export interface RowChange {
 export interface FileRevision {
   role: string;
   versions: number;
-  before: { dataset_id: string; file: string; loaded_at: string };
-  after: { dataset_id: string; file: string; loaded_at: string };
+  /** how the latest file was loaded: a replacement or added rows */
+  load_mode?: "first" | "replace" | "add";
+  before: { dataset_id: string; file: string; files?: string[]; loaded_at: string };
+  after: { dataset_id: string; file: string; files?: string[]; loaded_at: string };
   diff: {
     key_fields: string[]; rows_before: number; rows_after: number;
     added: RowChange[]; removed: RowChange[]; changed: RowChange[];
@@ -425,9 +431,10 @@ export class Client {
     this.request<WorkbookPreview>("GET", `/api/engagements/${eid}/artifacts/${artifact_id}/sheets`);
   approveMapping = (eid: string, spec_id: string) =>
     this.request("POST", `/api/engagements/${eid}/mappings/${spec_id}/approve`, {});
-  normalize = (eid: string, spec_id: string) =>
-    this.request<{ dataset_id: string; reconciliation: Record<string, unknown> }>(
-      "POST", `/api/engagements/${eid}/mappings/${spec_id}/normalize`, {});
+  /** mode: required when the role already has data — "replace" or "add". */
+  normalize = (eid: string, spec_id: string, mode?: LoadMode) =>
+    this.request<{ dataset_id: string; load_mode: string; reconciliation: Record<string, unknown> }>(
+      "POST", `/api/engagements/${eid}/mappings/${spec_id}/normalize`, mode ? { mode } : {});
   proposeMappings = (eid: string, items: { artifact_id: string; role?: string; extraction?: Extraction }[]) =>
     this.request<BatchOutcome>(
       "POST", `/api/engagements/${eid}/mappings/propose-batch`, { items });

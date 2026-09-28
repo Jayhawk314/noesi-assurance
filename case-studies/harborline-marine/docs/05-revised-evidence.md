@@ -33,9 +33,11 @@ effect, threshold class, findings touched) and a short prediction memo.
 ## Part B — load it and read the impact report
 
 1. As the preparer, upload `vouchers_revised.csv` on **Sources &
-   Mappings**, propose its mapping, approve it as the reviewer, and
-   normalize it. The workbench now uses the newest Vouchers file for
-   everything that follows.
+   Mappings**, propose its mapping, and approve it as the reviewer.
+   Vouchers already has data, so the workbench asks what this file does:
+   choose **replaces it** (a corrected file supersedes the original). The
+   workbench now uses the revised Vouchers file for everything that
+   follows.
 2. Open **What Changed**. It shows three things, and changes nothing:
    - the file comparison (what moved, and how much it matters),
    - which runs are now stale (only procedures that read Vouchers),

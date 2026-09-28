@@ -574,16 +574,17 @@ class DatasetRepository:
     def record(self, engagement_id: str, *, role: str, mapping_spec_id: str,
                artifact_id: str, rows_in: int, rows_loaded: int,
                rows_rejected: int, control_total: str | None,
-               output_digest: str) -> str:
+               output_digest: str, load_mode: str = "first") -> str:
         dataset_id = new_id()
         self._uow.execute(
             """INSERT INTO normalized_dataset (dataset_id, tenant_id,
                engagement_id, role, mapping_spec_id, artifact_id, rows_in,
                rows_loaded, rows_rejected, control_total, output_digest,
-               created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               load_mode, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (dataset_id, self._uow.command.tenant_id, engagement_id, role,
              mapping_spec_id, artifact_id, rows_in, rows_loaded,
-             rows_rejected, control_total, output_digest, utcnow()))
+             rows_rejected, control_total, output_digest, load_mode, utcnow()))
         self._uow.emit(
             entity_type="normalized_dataset", entity_id=dataset_id,
             event_type="dataset.normalized", after_version=1,
@@ -591,7 +592,8 @@ class DatasetRepository:
                      "rows_loaded": rows_loaded,
                      "rows_rejected": rows_rejected,
                      "control_total": control_total,
-                     "output_digest": output_digest},
+                     "output_digest": output_digest,
+                     "load_mode": load_mode},
             engagement_id=engagement_id)
         return dataset_id
 

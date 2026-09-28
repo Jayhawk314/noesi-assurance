@@ -238,7 +238,15 @@ class WorkbenchService:
             handler).result
 
     def normalize_source(self, actor: str, engagement_id: str,
-                         spec_id: str) -> dict:
+                         spec_id: str, *, mode: str | None = None) -> dict:
+        """Load an approved mapping as a dataset.
+
+        When the role already has data, ``mode`` must say what this file
+        does: ``"replace"`` (a revised file supersedes what is in use) or
+        ``"add"`` (more rows of the same kind, such as a second bank
+        account's reconciliation). Guessing either way silently changes
+        what every procedure reads, so a load without one is refused.
+        """
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
         # The file and the approved mapping are immutable, so a second load
@@ -254,6 +262,26 @@ class WorkbenchService:
                 f"cannot change, so loading again would only repeat the same "
                 f"rows")
         table = self._rebuild_table(spec_id)
+        in_use = self._role_states(engagement_id).get(table.role, [])
+        if not in_use:
+            load_mode = "first"
+        elif mode not in ("replace", "add"):
+            names = ", ".join(self._dataset_file(d) for d in in_use[-1][1])
+            raise ValueError(
+                f"{table.role} already has data in use ({names}). Say whether "
+                f"this file replaces it (a revised file) or adds to it (more "
+                f"rows of the same kind, e.g. another bank account)")
+        else:
+            load_mode = mode
+        if load_mode == "add":
+            current = self._verified_table(in_use[-1][1][0])
+            if set(table.column_map) != set(current.column_map):
+                raise ValueError(
+                    f"cannot add this file to {table.role}: it maps "
+                    f"{sorted(table.column_map)} but the data in use maps "
+                    f"{sorted(current.column_map)}; rows combined across "
+                    f"different fields would leave blanks a procedure would "
+                    f"misread")
 
         def handler(uow):
             spec_row = uow.mappings.get(spec_id)
@@ -265,8 +293,8 @@ class WorkbenchService:
                 rows_rejected=len(table.rejects),
                 control_total=str(table.control_total)
                 if table.control_total is not None else None,
-                output_digest=table.output_digest)
-            return {"dataset_id": dataset_id,
+                output_digest=table.output_digest, load_mode=load_mode)
+            return {"dataset_id": dataset_id, "load_mode": load_mode,
                     "reconciliation": table.reconciliation()}
         return run_command(
             self._conn,
@@ -361,9 +389,11 @@ class WorkbenchService:
         return _batch_report(results, done="approved")
 
     def normalize_sources(self, actor: str, engagement_id: str,
-                          spec_ids: list[str]) -> dict:
+                          spec_ids: list[str],
+                          modes: dict[str, str] | None = None) -> dict:
         """Batch normalize approved specs. Specs that already produced a
-        dataset are skipped rather than re-recorded."""
+        dataset are skipped rather than re-recorded. ``modes`` gives the
+        replace/add choice per spec where its role already has data."""
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
         normalized = {row["mapping_spec_id"] for row in self._conn.execute(
@@ -379,7 +409,8 @@ class WorkbenchService:
                                         "dataset")
                 else:
                     entry.update(self.normalize_source(
-                        actor, engagement_id, str(spec_id)))
+                        actor, engagement_id, str(spec_id),
+                        mode=(modes or {}).get(str(spec_id))))
                     entry.update(status="normalized")
             except (ValueError, KeyError, NotFoundError) as exc:
                 entry.update(status="error", error=str(exc))
@@ -414,15 +445,16 @@ class WorkbenchService:
         datasets = [dict(row) for row in self._conn.execute(
             """SELECT dataset_id, role, mapping_spec_id, artifact_id, rows_in,
                rows_loaded, rows_rejected, control_total, output_digest,
-               created_at FROM normalized_dataset
+               load_mode, created_at FROM normalized_dataset
                WHERE engagement_id = ? ORDER BY created_at, dataset_id""",
             (engagement_id,))]
-        # Procedures read one dataset per role: the latest, in exactly the
-        # order _tables uses. Say which, so an earlier load of the same role
-        # is visibly replaced rather than silently ignored.
-        latest = {d["role"]: d["dataset_id"] for d in datasets}
+        # The datasets procedures read, from the same derivation _tables
+        # uses: a replaced file is visibly out of use, an added one in use.
+        in_use = {d["dataset_id"] for states in
+                  self._role_states(engagement_id).values()
+                  for d in states[-1][1]}
         for dataset in datasets:
-            dataset["in_use"] = latest[dataset["role"]] == dataset["dataset_id"]
+            dataset["in_use"] = dataset["dataset_id"] in in_use
             dataset["rejected_reasons"] = (
                 self._rejected_reasons(dataset["mapping_spec_id"])
                 if dataset["rows_rejected"] else [])
@@ -486,6 +518,10 @@ class WorkbenchService:
         self._require(engagement_id, actor, "preparer")
         tables = {role: list(t.engine_view().records)
                   for role, t in self._tables(engagement_id).items()}
+        # Which loaded files the run read, so a combined input is on record.
+        datasets_read = {
+            role: [d["dataset_id"] for d in states[-1][1]]
+            for role, states in self._role_states(engagement_id).items()}
         # Approved engagement policies (workflow document) apply to every
         # run; explicit per-run values override them. Coverage compiles
         # against the same document, so what coverage calls executable is
@@ -547,7 +583,8 @@ class WorkbenchService:
                 job_id=manifest.job_id,
                 manifest={"input_tables": manifest.input_tables,
                           "policies": manifest.policies,
-                          "engine_version": manifest.engine_version},
+                          "engine_version": manifest.engine_version,
+                          "datasets": datasets_read},
                 status=bundle.status, summary=bundle.summary,
                 findings=list(bundle.findings), error=bundle.error,
                 result_digest=bundle.result_digest)
@@ -709,34 +746,26 @@ class WorkbenchService:
         current_digest = {role: table_digest(records)
                           for role, records in current_records.items()}
 
-        history: dict[str, list[sqlite3.Row]] = {}
-        for dataset in self._conn.execute(
-                """SELECT * FROM normalized_dataset WHERE engagement_id = ?
-                   ORDER BY created_at, dataset_id""", (engagement_id,)):
-            history.setdefault(dataset["role"], []).append(dataset)
         revisions = []
-        for role, versions in sorted(history.items()):
-            if len(versions) < 2:
+        for role, states in sorted(self._role_states(engagement_id).items()):
+            if len(states) < 2:
                 continue
-            previous, latest = versions[-2], versions[-1]
-            old_table = self._rebuild_table(previous["mapping_spec_id"])
-            if old_table.output_digest != previous["output_digest"]:
-                raise EvidenceIntegrityError(
-                    f"dataset {previous['dataset_id']} no longer reproduces "
-                    "its recorded digest; refusing to compare against it")
-            names = {row["artifact_id"]: row["original_name"]
-                     for row in self._conn.execute(
-                         "SELECT artifact_id, original_name FROM artifact "
-                         "WHERE artifact_id IN (?, ?)",
-                         (previous["artifact_id"], latest["artifact_id"]))}
+            # What the procedures read before the latest load, against what
+            # they read now: a replacement and an addition both change it.
+            (_, before_set), (latest, after_set) = states[-2], states[-1]
+            previous = before_set[-1]
+            old_table = _combine([self._verified_table(d) for d in before_set])
             revisions.append({
                 "role": role,
-                "versions": len(versions),
+                "versions": len(states),
+                "load_mode": latest["load_mode"],
                 "before": {"dataset_id": previous["dataset_id"],
-                           "file": names.get(previous["artifact_id"], ""),
+                           "file": self._dataset_file(previous),
+                           "files": [self._dataset_file(d) for d in before_set],
                            "loaded_at": previous["created_at"]},
                 "after": {"dataset_id": latest["dataset_id"],
-                          "file": names.get(latest["artifact_id"], ""),
+                          "file": self._dataset_file(latest),
+                          "files": [self._dataset_file(d) for d in after_set],
                           "loaded_at": latest["created_at"]},
                 "diff": diff_records(
                     list(old_table.engine_view().records),
@@ -1921,19 +1950,57 @@ class WorkbenchService:
             first_row=int(extraction["header_row"]) + 1 if extraction else 2,
             source_rows=source_rows)
 
-    def _tables(self, engagement_id: str) -> dict:
-        """Latest normalized dataset per role, rebuilt and digest-verified."""
-        tables: dict[str, NormalizedTable] = {}
+    def _role_states(self, engagement_id: str) -> dict[str, list]:
+        """Per role, after each load: (that load, the datasets then in use).
+
+        A first load or a replacement starts the in-use set over; an
+        addition extends it. The last state is what procedures read.
+        """
+        states: dict[str, list] = {}
         for dataset in self._conn.execute(
                 """SELECT * FROM normalized_dataset WHERE engagement_id = ?
                    ORDER BY created_at, dataset_id""", (engagement_id,)):
-            table = self._rebuild_table(dataset["mapping_spec_id"])
-            if table.output_digest != dataset["output_digest"]:
-                raise EvidenceIntegrityError(
-                    f"dataset {dataset['dataset_id']} no longer reproduces its "
-                    "recorded digest; refusing to serve unverifiable data")
-            tables[dataset["role"]] = table
-        return tables
+            history = states.setdefault(dataset["role"], [])
+            in_use = (history[-1][1] + [dataset]
+                      if history and dataset["load_mode"] == "add" else [dataset])
+            history.append((dataset, in_use))
+        return states
+
+    def _verified_table(self, dataset) -> NormalizedTable:
+        table = self._rebuild_table(dataset["mapping_spec_id"])
+        if table.output_digest != dataset["output_digest"]:
+            raise EvidenceIntegrityError(
+                f"dataset {dataset['dataset_id']} no longer reproduces its "
+                "recorded digest; refusing to serve unverifiable data")
+        return table
+
+    def _dataset_file(self, dataset) -> str:
+        row = self._conn.execute(
+            "SELECT original_name FROM artifact WHERE artifact_id = ?",
+            (dataset["artifact_id"],)).fetchone()
+        return row["original_name"] if row else ""
+
+    def _tables(self, engagement_id: str) -> dict:
+        """The in-use datasets per role, rebuilt, digest-verified, combined."""
+        return {role: _combine([self._verified_table(d) for d in states[-1][1]])
+                for role, states in self._role_states(engagement_id).items()}
+
+
+def _combine(tables: list[NormalizedTable]) -> NormalizedTable:
+    """One table from same-role files loaded with mode 'add'."""
+    if len(tables) == 1:
+        return tables[0]
+    from dataclasses import replace as _replace
+    totals = [t.control_total for t in tables]
+    return _replace(
+        tables[0],
+        records=[r for t in tables for r in t.records],
+        rejects=[r for t in tables for r in t.rejects],
+        control_total=(sum(totals) if all(v is not None for v in totals)
+                       else None),
+        source_file=" + ".join(t.source_file for t in tables),
+        source_sha256="",
+        diagnostics={"combined_from": [t.source_file for t in tables]})
 
 
 def _batch_report(results: list[dict], *, done: str) -> dict:

@@ -81,7 +81,10 @@ def _load_revision(service, eid):
         DEMO_PREPARER, eid,
         [{"artifact_id": artifact["artifact_id"]}])["results"][0]["spec_id"]
     service.approve_source_mappings(DEMO_REVIEWER, eid, [spec_id])
-    service.normalize_sources(DEMO_PREPARER, eid, [spec_id])
+    # A corrected client file supersedes the original: an explicit replace.
+    result = service.normalize_sources(DEMO_PREPARER, eid, [spec_id],
+                                       modes={spec_id: "replace"})
+    assert result["normalized"] == 1, result
 
 
 @pytest.mark.skipif(not (CASE / "revision" / "vouchers_revised.csv").is_file(),
