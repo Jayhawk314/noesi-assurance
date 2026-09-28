@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from procedures_ap.contracts import ProcedureContract
 
-SCOPES = ("planning", "controls", "receivables", "payables", "cash", "inventory",
-          "completion")
+SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "cash",
+          "inventory", "completion")
 
 CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
@@ -51,6 +51,40 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         denominator_role="Attribute_tests",
         limitations="The deviations counted are the auditor's findings; each deviation "
                     "needs qualitative evaluation the rate cannot give.",
+    ),
+    ProcedureContract(
+        "je.journal_entry_testing", "Journal entry testing",
+        "Select journal entries with fraud-risk characteristics — unbalanced, posted "
+        "after period end, weekend or holiday, round amounts, unauthorized or self-"
+        "approving users, seldom-used accounts, no description — for inquiry and "
+        "vouching.",
+        "journal_entries", ("occurrence", "completeness", "accuracy", "cutoff",
+                            "authorization"),
+        {"Journal_entries": ("entry_id", "account", "entry_date")},
+        required_policies=("period_end",),
+        evidence_source="the client's complete journal entry listing for the period, "
+                        "extracted from the accounting system",
+        denominator_role="Journal_entries",
+        limitations="A selected entry is a lead for inquiry and vouching, not a "
+                    "misstatement. Tests whose data or policy is missing are reported "
+                    "as not performed. Pair with population completeness.",
+    ),
+    ProcedureContract(
+        "je.population_completeness", "Journal entry population completeness",
+        "Roll each account's prior-year balance forward with the period's journal "
+        "activity to the current trial balance, so the entries tested are the whole "
+        "population.",
+        "journal_entries", ("completeness",),
+        {"Journal_entries": ("entry_id", "account", "entry_date"),
+         "Trial_balance": ("account", "balance", "prior_balance")},
+        required_policies=("period_end",),
+        evidence_source="the journal entry listing and the client's trial balance "
+                        "with prior-year balances",
+        denominator_role="Trial_balance",
+        limitations="Cannot see entries dated before the period began. An account whose "
+                    "balance equals the period's activity is treated as an income-"
+                    "statement account that closed; one equity account may take the "
+                    "prior year's closing.",
     ),
     ProcedureContract(
         "ar.listing_tie", "AR listing to general ledger",
@@ -199,6 +233,8 @@ SCOPE_OF: dict[str, str] = {
     "fs.trial_balance_analytics": "planning",
     "planning.performance_materiality": "planning",
     "controls.attribute_evaluation": "controls",
+    "je.journal_entry_testing": "journal_entries",
+    "je.population_completeness": "journal_entries",
     "ar.listing_tie": "receivables",
     "ar.confirmations_nonstatistical": "receivables",
     "ar.confirmations_mus": "receivables",
@@ -221,6 +257,8 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "search_interval", "search_start", "search_systematic_count",
     "pricing_sample_value", "ar_allowance_rates",
     "dit_max_days",
+    "je_round_amount_threshold", "je_round_unit", "je_authorized_users",
+    "je_seldom_used_max", "je_holidays",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -256,6 +294,9 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "ar_allowance_rates": {"receivables"}, "search_interval": {"payables"},
     "search_start": {"payables"}, "search_systematic_count": {"payables"},
     "pricing_sample_value": {"inventory"}, "dit_max_days": {"cash"},
+    "je_round_amount_threshold": {"journal_entries"}, "je_round_unit": {"journal_entries"},
+    "je_authorized_users": {"journal_entries"}, "je_seldom_used_max": {"journal_entries"},
+    "je_holidays": {"journal_entries"},
 }
 
 

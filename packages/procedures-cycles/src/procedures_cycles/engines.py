@@ -14,7 +14,9 @@ from typing import Callable
 from assurance_domain.receipts import Receipt
 from procedures_ap import engines as ap_engines
 
-from procedures_cycles import cash, controls, inventory, payables, receivables, statements
+from procedures_cycles import (
+    cash, controls, inventory, journal, payables, receivables, statements,
+)
 from procedures_cycles.common import jsonable, receipt, records
 from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID, SCOPE_OF
 
@@ -27,6 +29,8 @@ EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "fs.trial_balance_analytics": statements.trial_balance_analytics,
     "planning.performance_materiality": statements.performance_materiality,
     "controls.attribute_evaluation": controls.attribute_evaluation,
+    "je.journal_entry_testing": journal.journal_entry_testing,
+    "je.population_completeness": journal.population_completeness,
     "ar.listing_tie": receivables.listing_tie,
     "ar.confirmations_nonstatistical": receivables.confirmations_nonstatistical,
     "ar.confirmations_mus": receivables.confirmations_mus,

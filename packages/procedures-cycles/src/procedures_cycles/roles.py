@@ -81,6 +81,25 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "model": ["model", "model number"],
         "quantity": ["quantity", "qty", "count"],
     },
+    "Journal_entries": {
+        "entry_id": ["entry id", "entry number", "entry no", "je number", "je id",
+                     "journal number", "journal entry", "journal no", "num",
+                     "transaction id"],
+        "line": ["line", "line number", "line no"],
+        "entry_date": ["entry date", "effective date", "transaction date", "je date",
+                       "date"],
+        "posted_date": ["posted date", "entered date", "created date", "date created",
+                        "date entered", "entered on", "created on"],
+        "account": ["account", "account number", "account no", "gl account", "acct",
+                    "distribution account"],
+        "debit": ["debit", "dr"],
+        "credit": ["credit", "cr"],
+        "amount": ["amount", "signed amount", "net amount"],
+        "posted_by": ["posted by", "entered by", "created by", "user", "prepared by"],
+        "approved_by": ["approved by", "approver"],
+        "description": ["description", "memo", "memo description", "explanation"],
+        "source": ["source", "journal type", "transaction type", "type"],
+    },
     # ------------------------------------------------ auditor evidence
     "Confirmations": {
         "customer_number": ["customer number", "customer no", "customer id", "customer"],
@@ -154,7 +173,8 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
-               "received_books", "received_bank", "liability_date"}
+               "received_books", "received_bank", "liability_date", "entry_date",
+               "posted_date"}
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
@@ -164,6 +184,7 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Transfers": ("transfer_id",),
     "Inventory_listing": ("stock_number",),
     "Inventory_count": ("stock_number",),
+    "Journal_entries": ("entry_id", "account"),
     "Confirmations": ("customer_number",),
     "Disbursement_inspection": ("payment_number",),
     "Attribute_tests": ("attribute",),
@@ -181,6 +202,8 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Transfers": ["transfers", "interbank transfers", "transfer schedule"],
     "Inventory_listing": ["inventory listing", "final inventory", "inventory"],
     "Inventory_count": ["inventory count", "count sheet", "count sheets", "counts"],
+    "Journal_entries": ["journal entries", "journal entry listing", "je listing",
+                        "general journal", "journal report"],
     "Confirmations": ["confirmations", "confirmation results", "confirms"],
     "Disbursement_inspection": ["disbursement inspection", "subsequent disbursements inspection",
                                 "unrecorded liabilities"],
