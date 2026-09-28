@@ -100,6 +100,32 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "amount": ["amount", "credit amount", "total"],
         "reason": ["reason", "memo", "description"],
     },
+    "Payroll_register": {
+        "employee_id": ["employee id", "employee number", "employee no", "emp id",
+                        "employee"],
+        "pay_date": ["pay date", "check date", "payment date", "date"],
+        "gross": ["gross", "gross pay", "gross wages", "total gross"],
+        "tax_withheld": ["tax withheld", "taxes", "total taxes", "withholding",
+                         "employee taxes"],
+        "deductions": ["deductions", "other deductions", "total deductions"],
+        "net": ["net", "net pay", "net amount", "check amount"],
+        "hours": ["hours", "total hours", "hours worked"],
+        "pay_rate": ["pay rate", "rate", "hourly rate"],
+        "check_number": ["check number", "check no", "num", "payment number"],
+    },
+    "Payroll_master": {
+        "employee_id": ["employee id", "employee number", "employee no", "emp id",
+                        "employee"],
+        "name": ["name", "employee name", "full name"],
+        "status": ["status", "employment status"],
+        "hire_date": ["hire date", "date hired", "start date"],
+        "termination_date": ["termination date", "release date", "date terminated",
+                             "end date"],
+        "bank_account": ["bank account", "account number", "direct deposit account",
+                         "deposit account"],
+        "address": ["address", "home address", "street address"],
+        "pay_rate": ["pay rate", "rate", "hourly rate", "salary"],
+    },
     "Journal_entries": {
         "entry_id": ["entry id", "entry number", "entry no", "je number", "je id",
                      "journal number", "journal entry", "journal no", "num",
@@ -188,12 +214,14 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
                  "current_assets", "noncurrent_assets", "current_liabilities",
                  "noncurrent_liabilities", "income_before_taxes",
                  "performance_materiality", "unit_cost", "cost", "current",
-                 "days_31_60", "days_61_90", "days_over_90"}
+                 "days_31_60", "days_61_90", "days_over_90", "gross", "net",
+                 "tax_withheld", "deductions", "pay_rate"}
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
                "received_books", "received_bank", "liability_date", "entry_date",
-               "posted_date", "invoice_date", "ship_date", "memo_date"}
+               "posted_date", "invoice_date", "ship_date", "memo_date", "pay_date",
+               "hire_date", "termination_date"}
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
@@ -205,6 +233,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
     "Credit_memos": ("memo_number",),
+    "Payroll_register": ("employee_id",),
+    "Payroll_master": ("employee_id",),
     "Journal_entries": ("entry_id", "account"),
     "Confirmations": ("customer_number",),
     "Disbursement_inspection": ("payment_number",),
@@ -226,6 +256,9 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",
                        "sales by invoice"],
     "Credit_memos": ["credit memos", "credit memo listing", "credits issued"],
+    "Payroll_register": ["payroll register", "payroll journal", "payroll summary",
+                         "payroll details"],
+    "Payroll_master": ["payroll master", "payroll employee list", "employee payroll"],
     # "journal entries" alone stays the GL's hint (payables GL detail).
     "Journal_entries": ["journal entry listing", "je listing", "general journal",
                         "journal report"],

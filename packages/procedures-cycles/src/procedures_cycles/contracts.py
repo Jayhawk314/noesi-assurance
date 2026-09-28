@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from procedures_ap.contracts import ProcedureContract
 
-SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "cash",
-          "inventory", "completion")
+SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "payroll",
+          "cash", "inventory", "completion")
 
 CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
@@ -181,6 +181,34 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "vendor statements and receiving records are separate searches.",
     ),
     ProcedureContract(
+        "payroll.register_tests", "Payroll register tests",
+        "Re-perform gross and net pay, and list people paid who are not on the "
+        "employee master, paid after termination, paid twice on one date, or sharing "
+        "a bank account or address.",
+        "payroll", ("occurrence", "accuracy", "existence"),
+        {"Payroll_register": ("employee_id", "pay_date", "gross", "net"),
+         "Payroll_master": ("employee_id",)},
+        evidence_source="client payroll register and HR employee master",
+        denominator_role="Payroll_register",
+        limitations="A lead is not a finding: a payment after termination may be a "
+                    "final check (payroll_final_pay_days sets the grace). Payroll tax "
+                    "rates are not recomputed.",
+    ),
+    ProcedureContract(
+        "payroll.register_to_ledger", "Payroll register to ledger",
+        "Compare the period's gross pay in the register with the trial balance "
+        "accounts the auditor names as wage expense.",
+        "payroll", ("completeness", "accuracy"),
+        {"Payroll_register": ("employee_id", "pay_date", "gross"),
+         "Trial_balance": ("account", "balance")},
+        required_policies=("period_end", "payroll_expense_accounts"),
+        evidence_source="client payroll register and trial balance",
+        denominator_role="Payroll_register",
+        limitations="Assumes a twelve-month period ending at period end. Accrued "
+                    "wages at either end are a normal difference; the auditor "
+                    "explains the rest.",
+    ),
+    ProcedureContract(
         "cash.bank_reconciliation", "Bank reconciliation re-performance",
         "Re-foot each bank reconciliation and test outstanding checks and deposits in "
         "transit against the cutoff bank statement.",
@@ -269,6 +297,8 @@ SCOPE_OF: dict[str, str] = {
     "ar.confirmations_mus": "receivables",
     "ar.confirmations_difference": "receivables",
     "ap.unrecorded_liabilities_search": "payables",
+    "payroll.register_tests": "payroll",
+    "payroll.register_to_ledger": "payroll",
     "cash.bank_reconciliation": "cash",
     "cash.interbank_transfers": "cash",
     "inventory.count_listing_trace": "inventory",
@@ -288,6 +318,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "dit_max_days",
     "je_round_amount_threshold", "je_round_unit", "je_authorized_users",
     "je_seldom_used_max", "je_holidays", "rev_credit_memo_days",
+    "payroll_final_pay_days",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -326,6 +357,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "je_round_amount_threshold": {"journal_entries"}, "je_round_unit": {"journal_entries"},
     "je_authorized_users": {"journal_entries"}, "je_seldom_used_max": {"journal_entries"},
     "je_holidays": {"journal_entries"}, "rev_credit_memo_days": {"receivables"},
+    "payroll_final_pay_days": {"payroll"},
 }
 
 

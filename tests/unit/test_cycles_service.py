@@ -70,7 +70,7 @@ def test_only_the_partner_sets_scope(service, engagement):
     with pytest.raises(AuthorizationError):
         service.update_workflow(BOB, engagement, "cycles", {"cycles": ["cash"]})
     with pytest.raises(ValueError):
-        service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["payroll"]})
+        service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["not-a-cycle"]})
 
 
 def test_cycle_execution_and_risk_links_require_engagement_scope(service, engagement):
