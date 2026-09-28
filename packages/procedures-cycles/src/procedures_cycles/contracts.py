@@ -409,6 +409,45 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         limitations="Income tax is not recomputed.",
     ),
     ProcedureContract(
+        "completion.subsequent_events", "Subsequent events review",
+        "Examine journal entries and payments after period end, up to the report "
+        "date, at or above the threshold, for conditions that require adjustment or "
+        "disclosure.",
+        "completion", ("completeness", "presentation", "cutoff"),
+        {"Journal_entries": ("entry_id", "account", "entry_date")},
+        required_policies=("period_end", "se_threshold"),
+        evidence_source="the client's journal entries and payments after period end",
+        denominator_role="Journal_entries",
+        limitations="Examines recorded transactions only. Minutes, legal letters and "
+                    "inquiry of management are separate; whether an event adjusts or "
+                    "is disclosed is the auditor's evaluation (AU-C 560).",
+    ),
+    ProcedureContract(
+        "completion.going_concern_indicators", "Going-concern indicators",
+        "Compute working capital, equity, and this year's and last year's result from "
+        "the classified trial balance, and list the conditions that call for a "
+        "going-concern evaluation.",
+        "completion", ("valuation", "presentation"),
+        {"Trial_balance": ("account", "balance", "line")},
+        evidence_source="client trial balance with the auditor's line classification",
+        denominator_role="Trial_balance",
+        limitations="Financial indicators only; cash-flow forecasts, covenant breaches "
+                    "(debt.covenants), lost customers and management's plans are "
+                    "evaluated separately (AU-C 570). Unclassified accounts are named.",
+    ),
+    ProcedureContract(
+        "completion.representation_letter", "Management representation letter",
+        "Check that the letter contains every representation AU-C 580 requires, "
+        "obtained, signed, and dated as of the report date.",
+        "completion", ("presentation", "completeness"),
+        {"Representations": ("representation",)},
+        evidence_source="the signed management representation letter",
+        denominator_role="Representations",
+        limitations="Checks presence, dating and signature; whether the signers have "
+                    "the appropriate responsibilities, and any specific "
+                    "representations the engagement needs, are the auditor's.",
+    ),
+    ProcedureContract(
         "completion.uncorrected_misstatements", "Summary of uncorrected misstatements",
         "Total uncorrected misstatements by statement line and compare each total with "
         "materiality.",
@@ -453,6 +492,9 @@ SCOPE_OF: dict[str, str] = {
     "related_parties.matching": "estimates",
     "fs.adjusted_trial_balance": "completion",
     "completion.uncorrected_misstatements": "completion",
+    "completion.subsequent_events": "completion",
+    "completion.going_concern_indicators": "completion",
+    "completion.representation_letter": "completion",
 }
 
 CYCLE_CONTRACTS_BY_ID = {c.procedure_id: c for c in CYCLE_PROCEDURES}
@@ -470,6 +512,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
     "accruals_rounding_tolerance", "estimates_bias_min_count",
+    "report_date", "gc_current_ratio_floor",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -515,6 +558,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "debt_interest_accounts": {"debt_equity"},
     "accruals_rounding_tolerance": {"accruals"},
     "estimates_bias_min_count": {"estimates"},
+    "report_date": {"completion"}, "gc_current_ratio_floor": {"completion"},
 }
 
 

@@ -231,6 +231,13 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "address": ["address", "street address"],
         "bank_account": ["bank account", "account number"],
     },
+    "Representations": {
+        "code": ["code", "representation code", "ref"],
+        "representation": ["representation", "text", "wording", "item", "description"],
+        "obtained": ["obtained", "received", "status", "provided"],
+        "dated": ["dated", "letter date", "date"],
+        "signed_by": ["signed by", "signatory", "signer", "signed"],
+    },
     "Confirmations": {
         "customer_number": ["customer number", "customer no", "customer id", "customer"],
         "book_value": ["book value", "balance per books", "balance per client",
@@ -312,7 +319,7 @@ DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
                "received_books", "received_bank", "liability_date", "entry_date",
                "posted_date", "invoice_date", "ship_date", "memo_date", "pay_date",
                "hire_date", "termination_date", "acquired_date", "disposal_date",
-               "service_start", "service_end"}
+               "service_start", "service_end", "dated"}
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
@@ -324,6 +331,7 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
     "Credit_memos": ("memo_number",),
+    "Representations": ("representation",),
     "Estimates": ("estimate",),
     "Related_parties": ("party_name",),
     "Accrual_schedule": ("item",),
@@ -355,6 +363,8 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",
                        "sales by invoice"],
     "Credit_memos": ["credit memos", "credit memo listing", "credits issued"],
+    "Representations": ["representation letter", "management representations",
+                        "representations"],
     "Estimates": ["estimates", "retrospective review", "estimate review",
                   "prior year estimates"],
     "Related_parties": ["related parties", "related party list", "related party"],
