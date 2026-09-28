@@ -97,6 +97,33 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         denominator_role="AR_listing",
     ),
     ProcedureContract(
+        "rev.sales_cutoff", "Sales cutoff and shipping evidence",
+        "Compare each invoice's date with its shipping date around period end, and "
+        "list invoices with no shipping evidence.",
+        "receivables", ("cutoff", "occurrence"),
+        {"Sales_invoices": ("invoice_number", "invoice_date", "amount", "ship_date")},
+        required_policies=("period_end",),
+        evidence_source="client sales invoice listing with shipping dates and "
+                        "documents from the shipping records",
+        denominator_role="Sales_invoices",
+        limitations="Assumes title passes at shipment; FOB destination, bill-and-hold "
+                    "and consignment terms are the auditor's contract reading.",
+    ),
+    ProcedureContract(
+        "rev.credit_memos_after_period_end", "Credit memos after period end",
+        "List credit memos issued after period end that reverse invoices from the "
+        "period, and credit memos that match no invoice.",
+        "receivables", ("occurrence", "cutoff", "valuation"),
+        {"Credit_memos": ("memo_number", "memo_date", "amount"),
+         "Sales_invoices": ("invoice_number", "invoice_date")},
+        required_policies=("period_end",),
+        evidence_source="client credit memo register after period end and the sales "
+                        "invoice listing",
+        denominator_role="Credit_memos",
+        limitations="Sees only memos issued by the date of the register; the window "
+                    "(rev_credit_memo_days) is the auditor's choice.",
+    ),
+    ProcedureContract(
         "ar.confirmations_nonstatistical", "AR confirmations: nonstatistical evaluation",
         "Project client misstatements found in confirmations to the untested stratum "
         "and compare with tolerable misstatement.",
@@ -236,6 +263,8 @@ SCOPE_OF: dict[str, str] = {
     "je.journal_entry_testing": "journal_entries",
     "je.population_completeness": "journal_entries",
     "ar.listing_tie": "receivables",
+    "rev.sales_cutoff": "receivables",
+    "rev.credit_memos_after_period_end": "receivables",
     "ar.confirmations_nonstatistical": "receivables",
     "ar.confirmations_mus": "receivables",
     "ar.confirmations_difference": "receivables",
@@ -258,7 +287,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "pricing_sample_value", "ar_allowance_rates",
     "dit_max_days",
     "je_round_amount_threshold", "je_round_unit", "je_authorized_users",
-    "je_seldom_used_max", "je_holidays",
+    "je_seldom_used_max", "je_holidays", "rev_credit_memo_days",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -296,7 +325,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "pricing_sample_value": {"inventory"}, "dit_max_days": {"cash"},
     "je_round_amount_threshold": {"journal_entries"}, "je_round_unit": {"journal_entries"},
     "je_authorized_users": {"journal_entries"}, "je_seldom_used_max": {"journal_entries"},
-    "je_holidays": {"journal_entries"},
+    "je_holidays": {"journal_entries"}, "rev_credit_memo_days": {"receivables"},
 }
 
 

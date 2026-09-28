@@ -81,6 +81,25 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "model": ["model", "model number"],
         "quantity": ["quantity", "qty", "count"],
     },
+    "Sales_invoices": {
+        "invoice_number": ["invoice number", "invoice no", "invoice", "num", "number"],
+        "invoice_date": ["invoice date", "date", "transaction date"],
+        "customer": ["customer", "customer name", "customer number", "name"],
+        "amount": ["amount", "invoice amount", "total", "sales amount"],
+        "ship_date": ["ship date", "shipping date", "date shipped", "shipped"],
+        "shipping_document": ["shipping document", "bill of lading", "bol",
+                              "packing slip", "shipper", "shipping number"],
+    },
+    "Credit_memos": {
+        "memo_number": ["memo number", "credit memo number", "credit memo", "num",
+                        "number"],
+        "memo_date": ["memo date", "credit memo date", "date"],
+        "invoice_number": ["invoice number", "invoice no", "invoice", "applied to",
+                           "original invoice"],
+        "customer": ["customer", "customer name", "name"],
+        "amount": ["amount", "credit amount", "total"],
+        "reason": ["reason", "memo", "description"],
+    },
     "Journal_entries": {
         "entry_id": ["entry id", "entry number", "entry no", "je number", "je id",
                      "journal number", "journal entry", "journal no", "num",
@@ -174,7 +193,7 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
                "received_books", "received_bank", "liability_date", "entry_date",
-               "posted_date"}
+               "posted_date", "invoice_date", "ship_date", "memo_date"}
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
@@ -184,6 +203,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Transfers": ("transfer_id",),
     "Inventory_listing": ("stock_number",),
     "Inventory_count": ("stock_number",),
+    "Sales_invoices": ("invoice_number",),
+    "Credit_memos": ("memo_number",),
     "Journal_entries": ("entry_id", "account"),
     "Confirmations": ("customer_number",),
     "Disbursement_inspection": ("payment_number",),
@@ -202,8 +223,12 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Transfers": ["transfers", "interbank transfers", "transfer schedule"],
     "Inventory_listing": ["inventory listing", "final inventory", "inventory"],
     "Inventory_count": ["inventory count", "count sheet", "count sheets", "counts"],
-    "Journal_entries": ["journal entries", "journal entry listing", "je listing",
-                        "general journal", "journal report"],
+    "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",
+                       "sales by invoice"],
+    "Credit_memos": ["credit memos", "credit memo listing", "credits issued"],
+    # "journal entries" alone stays the GL's hint (payables GL detail).
+    "Journal_entries": ["journal entry listing", "je listing", "general journal",
+                        "journal report"],
     "Confirmations": ["confirmations", "confirmation results", "confirms"],
     "Disbursement_inspection": ["disbursement inspection", "subsequent disbursements inspection",
                                 "unrecorded liabilities"],
