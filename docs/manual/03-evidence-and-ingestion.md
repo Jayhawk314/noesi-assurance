@@ -56,7 +56,10 @@ The **Sources & Mappings** flow implements exactly those habits:
    reconciliation: rows in = rows loaded + rows rejected, always. The
    datasets table says why rows were set aside and which sheet rows they
    are, and the Flow Map shows a record set whose every row was set aside
-   in red, not as data supplied. When a role already has data, a second
+   in red, not as data supplied. A report's total line ("TOTAL", "Total
+   for …") whose amount equals the sum of the rows above it is set aside as
+   a total, so it cannot double the population; a total line that does not
+   tie is kept and named for the reviewer. When a role already has data, a second
    file must say what it does: **replaces it** (a corrected file; the
    earlier load is marked "not used") or **adds to it** (more rows of the
    same kind, such as a second bank account's reconciliation; both are

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -401,6 +402,16 @@ def _jsonable_rows(records: list[dict]) -> list[dict]:
     return out
 
 
+_TOTAL_LABEL = re.compile(r"^\s*(grand\s+)?totals?(\s|:|$)", re.IGNORECASE)
+
+
+def _looks_like_total(raw: dict) -> bool:
+    """A report's total or subtotal line: a cell reading "TOTAL",
+    "Total for ...", "Grand total", ... (whether it *is* one is decided by
+    whether its amount ties to the rows above it)."""
+    return any(isinstance(v, str) and _TOTAL_LABEL.match(v) for v in raw.values())
+
+
 def normalize_table(rows: list[dict], spec: MappingSpec, *,
                     source_file: str = "", first_row: int = 2,
                     source_rows: list[int] | None = None) -> NormalizedTable:
@@ -408,7 +419,11 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
 
     Rows whose required key fields are blank are quarantined with reasons,
     not silently loaded; duplicate keys and null amounts are reported as
-    diagnostics; the control total accumulates in Decimal.
+    diagnostics; the control total accumulates in Decimal. A row labelled
+    as a total whose amount equals the sum of the rows above it is set
+    aside as a total, not loaded as a record (a report's TOTAL line would
+    otherwise double the population); a total-labelled row that does not
+    tie is kept and named in the diagnostics for the reviewer.
     """
     if spec.status != "approved":
         raise ValueError(
@@ -431,6 +446,10 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
     control = Decimal("0")
     key_counts: dict[str, int] = {}
     null_amounts = 0
+    since_total = Decimal("0")      # loaded amounts since the last total row
+    all_loaded = Decimal("0")       # every loaded amount (a grand total)
+    totals_set_aside = 0
+    total_labels_kept: list[int] = []
     # source_row points at the row in the file as the client sent it: CSV
     # line numbers by default (header on line 1); a workbook passes the
     # sheet row of its first data row. A recipe that drops rows (subtotals,
@@ -451,6 +470,20 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         record["source_row"] = source_row
         record["source_hash"] = content_hash(raw)
 
+        if _looks_like_total(raw):
+            amount = record.get(amount_field) if have_amount else None
+            if amount is not None and amount in (since_total, all_loaded):
+                table.rejects.append({
+                    "source_row": source_row,
+                    "reason": f"a total row: its {amount_field} equals the "
+                              "sum of the rows above it, so it is not a record",
+                    "raw": dict(raw),
+                })
+                totals_set_aside += 1
+                since_total = Decimal("0")
+                continue
+            total_labels_kept.append(source_row)
+
         blank = [f for f in required
                  if record.get(f) in (None, "")]
         if blank:
@@ -470,6 +503,8 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
                 null_amounts += 1
             else:
                 control += amount
+                since_total += amount
+                all_loaded += amount
         table.records.append(record)
 
     duplicate_keys = sorted(k for k, n in key_counts.items() if n > 1)
@@ -478,6 +513,8 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         "duplicate_key_rows": sum(n for n in key_counts.values() if n > 1),
         "null_amount_rows": null_amounts,
         "required_fields_checked": required,
+        "total_rows_set_aside": totals_set_aside,
+        "total_labelled_rows_kept": total_labels_kept,
     }
     table.control_total = (control.quantize(Decimal("0.01"))
                            if have_amount else None)
