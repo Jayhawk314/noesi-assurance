@@ -314,3 +314,24 @@ def test_rrrr1_a_compact_date_is_not_a_total_measure():
                        [("Acme", "100.00", "2025-01-01"),
                         ("Total Cycling", "100.00", "20250102")])
     assert len(table.records) == 2 and table.rejects == []
+
+
+# ================================================ fourth re-review (RRRRR1-2)
+def test_rrrrr1_a_payroll_total_with_hours_is_a_total_not_an_employee():
+    table = _normalize("Payroll_register",
+                       ["Employee ID", "Pay Date", "Hours", "Gross", "Net"],
+                       [("E1", "2025-06-15", "80", "2000.00", "1600.00"),
+                        ("E2", "2025-06-15", "80", "1800.00", "1440.00"),
+                        ("TOTAL", "", "160", "3800.00", "3040.00")])
+    assert [r["employee_id"] for r in table.records] == ["E1", "E2"]
+    assert table.control_total == D("3800.00")          # gross, not doubled
+
+
+def test_rrrrr2_an_inventory_total_ties_on_extended_cost_not_unit_cost():
+    table = _normalize("Inventory_listing",
+                       ["Stock Number", "Quantity", "Unit Cost", "Cost"],
+                       [("KV-1", "10", "5.00", "50.00"),
+                        ("KV-2", "4", "25.00", "100.00"),
+                        ("TOTAL", "14", "", "150.00")])
+    assert [r["stock_number"] for r in table.records] == ["KV-1", "KV-2"]
+    assert table.control_total == D("150.00")           # extended cost, not unit cost

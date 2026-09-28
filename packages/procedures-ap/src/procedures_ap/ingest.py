@@ -420,11 +420,21 @@ def _looks_like_total(raw: dict, key_header: str | None) -> bool:
 
 
 # Fields a report's total line may carry: amounts and quantities.
-_QUANTITY_FIELDS = {"quantity"}
+_QUANTITY_FIELDS = {"quantity", "hours"}
+# Per-unit rates: never summed, so never a file's control total.
+_RATE_FIELDS = {"unit_cost", "pay_rate", "interest_rate"}
 
 
 def _measure_fields() -> set[str]:
     return _AMOUNT_FIELDS | _QUANTITY_FIELDS
+
+
+def _measure(record: dict, raw: dict, spec, field_name: str) -> Decimal | None:
+    """A measure column's value as a number (quantities are kept as text)."""
+    value = record.get(field_name)
+    if isinstance(value, Decimal):
+        return value
+    return parse_decimal(raw.get(spec.column_map[field_name]))
 
 
 def _only_label_and_amounts(raw: dict, column_map: dict, label_header) -> bool:
@@ -466,7 +476,8 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
     schema = ROLE_SCHEMAS[spec.role]
     required = [f for f in _REQUIRED.get(spec.role, ())
                 if f in spec.column_map]
-    amount_field = next((f for f in schema if f in _AMOUNT_FIELDS), None)
+    amount_field = next((f for f in schema
+                         if f in _AMOUNT_FIELDS and f not in _RATE_FIELDS), None)
     have_amount = amount_field in spec.column_map if amount_field else False
 
     table = NormalizedTable(
@@ -480,8 +491,13 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
     control = Decimal("0")
     key_counts: dict[str, int] = {}
     null_amounts = 0
-    since_total = Decimal("0")      # loaded amounts since the last total row
-    all_loaded = Decimal("0")       # every loaded amount (a grand total)
+    # Running sums of every mapped measure column since the last total row,
+    # and over all loaded rows (a grand total): a report total may tie on
+    # any of them, e.g. extended cost rather than unit cost (re-review RRRRR2).
+    measures = [f for f in schema if f in spec.column_map
+                and f in _measure_fields() and f not in _RATE_FIELDS]
+    since_total = {f: Decimal("0") for f in measures}
+    all_loaded = {f: Decimal("0") for f in measures}
     totals_set_aside = 0
     total_labels_kept: list[int] = []
     # source_row points at the row in the file as the client sent it: CSV
@@ -507,16 +523,18 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         label_header = spec.column_map.get(required[0]) if required else None
         if _looks_like_total(raw, label_header) and _only_label_and_amounts(
                 raw, spec.column_map, label_header):
-            amount = record.get(amount_field) if have_amount else None
-            if amount is not None and amount in (since_total, all_loaded):
+            tied = next((f for f in measures
+                         if (v := _measure(record, raw, spec, f)) is not None
+                         and v in (since_total[f], all_loaded[f])), None)
+            if tied is not None:
                 table.rejects.append({
                     "source_row": source_row,
-                    "reason": f"a total row: its {amount_field} equals the "
-                              "sum of the rows above it, so it is not a record",
+                    "reason": f"a total row: its {tied} equals the sum of the "
+                              "rows above it, so it is not a record",
                     "raw": dict(raw),
                 })
                 totals_set_aside += 1
-                since_total = Decimal("0")
+                since_total = {f: Decimal("0") for f in measures}
                 continue
             total_labels_kept.append(source_row)
 
@@ -539,8 +557,11 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
                 null_amounts += 1
             else:
                 control += amount
-                since_total += amount
-                all_loaded += amount
+        for f in measures:
+            value = _measure(record, raw, spec, f)
+            if value is not None:
+                since_total[f] += value
+                all_loaded[f] += value
         table.records.append(record)
 
     duplicate_keys = sorted(k for k, n in key_counts.items() if n > 1)
