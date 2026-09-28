@@ -123,6 +123,21 @@ def period_bounds(policies: dict) -> tuple[date, date]:
     return (start or period_start(pe)), pe
 
 
+def report_window(policies: dict) -> tuple[date, date]:
+    """Period end and report date, the subsequent period's bounds. The report
+    date is required and must follow period end: without it the window is
+    undefined, and an earlier one is impossible."""
+    pe = policy_date(policies, "period_end")
+    rd = day(policies.get("report_date"))
+    if rd is None:
+        raise PolicyError("policy 'report_date' is not set (the date of the auditor's "
+                          "report; it bounds the subsequent period and dates the "
+                          "representation letter)")
+    if rd <= pe:
+        raise PolicyError(f"report date {rd} must follow the period end {pe}")
+    return pe, rd
+
+
 def source_ref(role: str, record: dict, key: str) -> dict:
     return {"table": role, "row": record.get("source_row"),
             "record_id": text(record.get(key)) or f"row-{record.get('source_row')}",

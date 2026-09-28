@@ -6,6 +6,10 @@ each reproducing the reviewer's example."""
 from datetime import date
 from decimal import Decimal as D
 
+import pytest
+
+from procedures_cycles.common import PolicyError
+from procedures_cycles.completion import REQUIRED_REPRESENTATIONS
 from procedures_cycles.engines import execute_procedure
 
 
@@ -45,3 +49,47 @@ def test_f2_complete_rows_still_run_beside_the_named_gap():
                                     {"Trial_balance": tb}, {})
     assert {("incomplete_rows", "Trial_balance"),
             ("negative_working_capital",)} <= keys(findings)
+
+
+# ------------------------------------------------ F1: representation letter
+LETTER = {"period_end": "2025-12-31", "report_date": "2026-02-15"}
+
+
+def letter(obtained="yes", signed="CEO", dated=date(2026, 2, 15)):
+    return [{"code": code, "representation": code, "obtained": obtained,
+             "dated": dated, "signed_by": signed} for code in REQUIRED_REPRESENTATIONS]
+
+
+@pytest.mark.parametrize("value", ["", "pending", "unknown"])
+def test_f1_blank_or_pending_is_not_obtained(value):
+    findings, stats = execute_procedure("completion.representation_letter",
+                                        {"Representations": letter(obtained=value)},
+                                        LETTER)
+    assert stats["obtained"] == 0
+    assert len([f for f in findings if f.key[2] == "not_obtained"]) == 12
+
+
+@pytest.mark.parametrize("signer", ["no", "unsigned", "n/a", "TBD"])
+def test_f1_a_placeholder_is_not_a_signature(signer):
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": letter(signed=signer)}, LETTER)
+    assert keys(findings) == {("letter", "unsigned")}
+
+
+def test_f1_the_report_date_is_required_and_must_follow_period_end():
+    with pytest.raises(PolicyError, match="report_date"):
+        execute_procedure("completion.representation_letter",
+                          {"Representations": letter()}, {"period_end": "2025-12-31"})
+    with pytest.raises(PolicyError, match="must follow the period end"):
+        execute_procedure("completion.representation_letter",
+                          {"Representations": letter()},
+                          {"period_end": "2025-12-31", "report_date": "2025-12-15"})
+
+
+def test_f1_mentioning_the_subject_is_not_making_the_representation():
+    rows = [{"representation": "The financial statements were delivered",
+             "obtained": "yes", "dated": date(2026, 2, 15), "signed_by": "CEO"}]
+    findings, stats = execute_procedure("completion.representation_letter",
+                                        {"Representations": rows}, LETTER)
+    assert ("fs_responsibility", "not_obtained") in keys(findings)
+    assert stats["unrecognized_rows"] == ["The financial statements were delivered"]

@@ -441,6 +441,7 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "obtained, signed, and dated as of the report date.",
         "completion", ("presentation", "completeness"),
         {"Representations": ("representation",)},
+        required_policies=("period_end", "report_date"),
         evidence_source="the signed management representation letter",
         denominator_role="Representations",
         limitations="Checks presence, dating and signature; whether the signers have "

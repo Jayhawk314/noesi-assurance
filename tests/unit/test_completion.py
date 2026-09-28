@@ -107,6 +107,9 @@ def test_a_healthy_trial_balance_raises_no_indicator():
 
 
 # ------------------------------------------------ representation letter
+LETTER = {"period_end": "2025-12-31", "report_date": "2026-02-15"}
+
+
 def rep(code=None, wording="", obtained="yes", dated=date(2026, 2, 15), signed="CEO, CFO"):
     return {"code": code, "representation": wording or (code or ""), "obtained": obtained,
             "dated": dated, "signed_by": signed}
@@ -118,7 +121,7 @@ def test_a_letter_missing_or_refusing_required_representations():
     letter.append(rep("fraud_allegations", obtained="refused"))
     findings, stats = execute_procedure(
         "completion.representation_letter", {"Representations": letter},
-        {"report_date": "2026-02-15"})
+        LETTER)
     assert keys(findings) == {("related_parties", "not_obtained"),
                               ("fraud_allegations", "not_obtained")}
     assert stats["obtained"] == len(REQUIRED_REPRESENTATIONS) - 2
@@ -143,9 +146,9 @@ WORDED = [
 def test_a_worded_letter_is_recognized_and_its_date_and_signature_checked():
     good = [rep(wording=w) for w in WORDED]
     findings, _ = execute_procedure("completion.representation_letter",
-                                    {"Representations": good}, {"report_date": "2026-02-15"})
+                                    {"Representations": good}, LETTER)
     assert findings == []
     late = [rep(wording=w, dated=date(2026, 2, 10), signed="") for w in WORDED]
     findings, _ = execute_procedure("completion.representation_letter",
-                                    {"Representations": late}, {"report_date": "2026-02-15"})
+                                    {"Representations": late}, LETTER)
     assert keys(findings) == {("letter", "not_dated_report_date"), ("letter", "unsigned")}
