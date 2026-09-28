@@ -52,7 +52,8 @@ def test_f2_complete_rows_still_run_beside_the_named_gap():
 
 
 # ------------------------------------------------ F1: representation letter
-LETTER = {"period_end": "2025-12-31", "report_date": "2026-02-15"}
+LETTER = {"period_end": "2025-12-31", "report_date": "2026-02-15",
+          "rep_signers": "CEO"}
 
 
 def letter(obtained="yes", signed="CEO", dated=date(2026, 2, 15)):
@@ -233,3 +234,68 @@ def test_rr4_a_malformed_report_date_is_refused_not_truncated(value):
         execute_procedure("completion.subsequent_events", {"Journal_entries": LATE},
                           {"period_end": "2025-12-31", "se_threshold": "1",
                            "report_date": value})
+
+
+# ================================================ second re-review (RRR1-RRR3)
+@pytest.mark.parametrize("signer", ["refused", "not signed by management",
+                                    "signature pending", "CEO (unsigned)",
+                                    "not applicable"])
+def test_rrr1_a_phrase_about_signing_is_not_the_named_signer(signer):
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": letter(signed=signer)}, LETTER)
+    assert keys(findings) == {("letter", "unsigned")}
+
+
+def test_rrr1_every_named_signer_must_sign_and_who_is_the_auditors_call():
+    both = {**LETTER, "rep_signers": "CEO, CFO"}
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": letter(signed="CEO")}, both)
+    [unsigned] = findings
+    assert "not signed by cfo" in unsigned.reason
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": letter(signed="CEO and CFO")},
+                                    both)
+    assert findings == []
+    with pytest.raises(PolicyError, match="rep_signers"):
+        execute_procedure("completion.representation_letter",
+                          {"Representations": letter()},
+                          {"period_end": "2025-12-31", "report_date": "2026-02-15"})
+
+
+def test_rrr2_a_post_period_invoice_without_a_ship_date_is_not_clean():
+    invoices = [{"invoice_number": "I1", "invoice_date": date(2026, 1, 2),
+                 "amount": D("4000"), "ship_date": None, "shipping_document": "BOL-9"}]
+    findings, stats = execute_procedure("rev.sales_cutoff", {"Sales_invoices": invoices},
+                                        {"period_end": "2025-12-31"})
+    assert keys(findings) == {("i1", "no_ship_date")} and stats["exceptions"] == 1
+
+
+def _normalize(role, headers, lines):
+    from procedures_ap.ingest import approve_mapping, normalize_table, propose_mapping
+    spec = approve_mapping(propose_mapping(role, headers, proposed_by="p"),
+                           approved_by="r")
+    return normalize_table([dict(zip(headers, line)) for line in lines], spec)
+
+
+def test_rrr3_an_entity_named_total_in_a_name_key_is_still_a_record():
+    table = _normalize("Value_flows", ["Source Entity", "Target Entity", "Amount", "Date"],
+                       [("Acme", "Bank", "100.00", "2025-01-01"),
+                        ("Total Cycling", "Bank", "100.00", "2025-01-02")])
+    assert [r["source_entity"] for r in table.records] == ["Acme", "Total Cycling"]
+    assert table.diagnostics["total_rows_set_aside"] == 0
+
+
+def test_rrr3_a_vendor_keyed_purchase_order_named_total_is_still_a_record():
+    table = _normalize("Purchase_orders", ["Vendor", "PO Amount", "PO Date"],
+                       [("Acme", "100.00", "2025-01-01"),
+                        ("Total Cycling", "100.00", "2025-01-02")])
+    assert len(table.records) == 2 and table.rejects == []
+
+
+def test_rrr3_a_real_report_total_is_still_set_aside():
+    table = _normalize("Value_flows", ["Source Entity", "Target Entity", "Amount", "Date"],
+                       [("Acme", "Bank", "100.00", "2025-01-01"),
+                        ("Birch", "Bank", "50.00", "2025-01-02"),
+                        ("TOTAL", "", "150.00", "")])
+    assert len(table.records) == 2
+    assert table.diagnostics["total_rows_set_aside"] == 1

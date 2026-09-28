@@ -107,7 +107,8 @@ def test_a_healthy_trial_balance_raises_no_indicator():
 
 
 # ------------------------------------------------ representation letter
-LETTER = {"period_end": "2025-12-31", "report_date": "2026-02-15"}
+LETTER = {"period_end": "2025-12-31", "report_date": "2026-02-15",
+          "rep_signers": "CEO, CFO"}
 
 
 def rep(code=None, wording="", obtained="yes", dated=date(2026, 2, 15), signed="CEO, CFO"):

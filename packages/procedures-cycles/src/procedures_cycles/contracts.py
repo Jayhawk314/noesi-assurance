@@ -441,7 +441,7 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "coded, obtained, signed, and dated as of the report date.",
         "completion", ("presentation", "completeness"),
         {"Representations": ("representation",)},
-        required_policies=("period_end", "report_date"),
+        required_policies=("period_end", "report_date", "rep_signers"),
         evidence_source="the signed management representation letter",
         denominator_role="Representations",
         limitations="Counts only representations coded by the auditor; uncoded "
@@ -515,7 +515,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
     "accruals_rounding_tolerance", "estimates_bias_min_count",
-    "report_date", "gc_current_ratio_floor",
+    "report_date", "gc_current_ratio_floor", "rep_signers",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -562,6 +562,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "accruals_rounding_tolerance": {"accruals"},
     "estimates_bias_min_count": {"estimates"},
     "report_date": {"completion"}, "gc_current_ratio_floor": {"completion"},
+    "rep_signers": {"completion"},
 }
 
 

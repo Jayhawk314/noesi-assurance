@@ -419,6 +419,23 @@ def _looks_like_total(raw: dict, key_header: str | None) -> bool:
     return isinstance(label, str) and bool(_TOTAL_LABEL.match(label))
 
 
+def _only_label_and_amounts(raw: dict, column_map: dict, label_header) -> bool:
+    """A report's total line carries its label and numbers, nothing else: no
+    date, no counterparty, no second identifier. A real record always does,
+    so a payee or entity named "Total ..." is never taken for a total
+    (re-review RRR3)."""
+    for field_name, header in column_map.items():
+        if header == label_header:
+            continue
+        value = raw.get(header)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        if field_name in _AMOUNT_FIELDS or parse_decimal(value) is not None:
+            continue
+        return False
+    return True
+
+
 def normalize_table(rows: list[dict], spec: MappingSpec, *,
                     source_file: str = "", first_row: int = 2,
                     source_rows: list[int] | None = None) -> NormalizedTable:
@@ -477,7 +494,9 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         record["source_row"] = source_row
         record["source_hash"] = content_hash(raw)
 
-        if _looks_like_total(raw, spec.column_map.get(required[0]) if required else None):
+        label_header = spec.column_map.get(required[0]) if required else None
+        if _looks_like_total(raw, label_header) and _only_label_and_amounts(
+                raw, spec.column_map, label_header):
             amount = record.get(amount_field) if have_amount else None
             if amount is not None and amount in (since_total, all_loaded):
                 table.rejects.append({

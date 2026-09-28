@@ -174,17 +174,12 @@ _ORDER = ("fraud_allegations", "uncorrected_misstatements", "related_parties",
           "laws_regulations", "all_transactions_recorded", "all_information",
           "estimates", "fraud", "fs_responsibility")
 _AFFIRMATIVE = {"yes", "y", "true", "obtained", "received", "provided", "signed", "x"}
-# A signer is a person or title: it has letters, and is not a yes/no, a
-# boolean or a placeholder.
-_NOT_A_SIGNER = {"no", "none", "unsigned", "not signed", "n/a", "na", "-", "pending",
-                 "tbd", "unknown", "to follow", "false", "true", "yes", "y", "n",
-                 "null", "nil", "blank", "signed", "x"}
 
 
-def _signer(value) -> str | None:
-    name = text(value)
-    letters = sum(ch.isalpha() for ch in name)
-    return name if letters >= 2 and name.lower() not in _NOT_A_SIGNER else None
+def _names(value) -> list[str]:
+    """Signer entries, split on commas, semicolons and 'and'."""
+    raw = text(value).replace(";", ",").replace(" and ", ",").replace(" & ", ",")
+    return [" ".join(part.split()).lower() for part in raw.split(",") if part.strip()]
 
 
 def _coded(row: dict) -> str | None:
@@ -204,6 +199,14 @@ def _suggested_code(row: dict) -> str | None:
 def representation_letter(tables: dict, policies: dict):
     pid = "completion.representation_letter"
     _, report_date = report_window(policies)
+    # Who must sign is the auditor's decision (management with the
+    # appropriate responsibilities). A letter is signed only when each of
+    # them appears as a signer entry, exactly; free text such as "signature
+    # pending" or "CEO (unsigned)" can never satisfy it (re-review RRR1).
+    required_signers = _names(policies.get("rep_signers"))
+    if not required_signers:
+        raise PolicyError("policy 'rep_signers' is not set; name who must sign the "
+                          "letter (e.g. 'CEO, CFO')")
     rows = records(tables, "Representations")
     findings, values, unrecognized = [], {}, []
     suggestions: dict[str, list[str]] = {}
@@ -256,12 +259,15 @@ def representation_letter(tables: dict, policies: dict):
             f"as of the report date {report_date}",
             {"finding_class": "PROVED_EXCEPTION", "cycle": "completion",
              "dates": dates, "report_date": report_date}))
-    signers = sorted({s for s in (_signer(r.get("signed_by")) for r in rows) if s})
-    if not signers:
-        findings.append(receipt(pid, ("letter", "unsigned"), "CLASH",
-                                "no one is recorded as signing the representation letter",
-                                {"finding_class": "PROVED_EXCEPTION",
-                                 "cycle": "completion"}))
+    signers = sorted({n for r in rows for n in _names(r.get("signed_by"))})
+    missing = [s for s in required_signers if s not in signers]
+    if missing:
+        findings.append(receipt(
+            pid, ("letter", "unsigned"), "CLASH",
+            f"the letter is not signed by {', '.join(missing)} (recorded signers: "
+            f"{', '.join(signers) or 'none'})",
+            {"finding_class": "PROVED_EXCEPTION", "cycle": "completion",
+             "required_signers": required_signers, "signers": signers}))
     stats = {"population": len(rows), "required": len(REQUIRED_REPRESENTATIONS),
              "obtained": sum(1 for v in values.values()
                              if v and all(x == "obtained" for x in v)),
