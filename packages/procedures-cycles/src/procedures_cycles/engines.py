@@ -15,8 +15,8 @@ from assurance_domain.receipts import Receipt
 from procedures_ap import engines as ap_engines
 
 from procedures_cycles import (
-    cash, controls, inventory, journal, payables, payroll, ppe, receivables, revenue,
-    statements,
+    cash, controls, debt_equity, inventory, journal, payables, payroll, ppe, receivables,
+    revenue, statements,
 )
 from procedures_cycles.common import jsonable, receipt, records
 from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID, SCOPE_OF
@@ -48,6 +48,9 @@ EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "ppe.rollforward": ppe.rollforward,
     "ppe.depreciation_recompute": ppe.depreciation_recompute,
     "ppe.additions_vouching": ppe.additions_vouching,
+    "debt.rollforward_and_interest": debt_equity.rollforward_and_interest,
+    "debt.covenants": debt_equity.covenants,
+    "equity.rollforward": debt_equity.equity_rollforward,
     "fs.adjusted_trial_balance": statements.adjusted_trial_balance,
     "completion.uncorrected_misstatements": statements.uncorrected_misstatements,
 }

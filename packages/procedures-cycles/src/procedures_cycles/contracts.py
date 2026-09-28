@@ -16,7 +16,7 @@ from __future__ import annotations
 from procedures_ap.contracts import ProcedureContract
 
 SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "payroll",
-          "cash", "inventory", "ppe", "completion")
+          "cash", "inventory", "ppe", "debt_equity", "completion")
 
 CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
@@ -304,6 +304,45 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "or project errors to the unvouched additions.",
     ),
     ProcedureContract(
+        "debt.rollforward_and_interest", "Debt rollforward and interest",
+        "Foot each loan from beginning balance through borrowings and repayments to "
+        "ending balance, tie the schedule to the trial balance, and test interest "
+        "against average balance times rate.",
+        "debt_equity", ("completeness", "accuracy", "existence"),
+        {"Debt_schedule": ("loan_id", "beginning_balance", "ending_balance"),
+         "Trial_balance": ("account", "balance")},
+        required_policies=("period_end", "debt_accounts"),
+        evidence_source="client debt schedule, loan statements and trial balance",
+        denominator_role="Debt_schedule",
+        limitations="Interest is a reasonableness test (average balance x rate), run "
+                    "only with debt_interest_tolerance_pct set. Confirming balances "
+                    "with lenders is separate.",
+    ),
+    ProcedureContract(
+        "debt.covenants", "Loan covenant compliance",
+        "Measure each covenant from the trial balance accounts the auditor names and "
+        "compare it with the limit in the loan agreement.",
+        "debt_equity", ("classification", "presentation"),
+        {"Covenants": ("covenant", "numerator_accounts", "operator", "threshold"),
+         "Trial_balance": ("account", "balance")},
+        evidence_source="the auditor's reading of the loan agreements",
+        denominator_role="Covenants",
+        limitations="Ratios are magnitudes of account sums; covenants defined on "
+                    "adjusted or trailing figures need the auditor's own measure. A "
+                    "breach may be waived: inspect the waiver.",
+    ),
+    ProcedureContract(
+        "equity.rollforward", "Equity rollforward",
+        "Foot each equity component from beginning through additions and reductions to "
+        "ending, and tie both ends to the trial balance.",
+        "debt_equity", ("completeness", "accuracy", "presentation"),
+        {"Equity_rollforward": ("component", "beginning", "ending")},
+        evidence_source="client statement of changes in equity and trial balance",
+        denominator_role="Equity_rollforward",
+        limitations="Ties need the component's account column and a trial balance; "
+                    "board minutes and share registers are inspected separately.",
+    ),
+    ProcedureContract(
         "fs.adjusted_trial_balance", "Adjusted trial balance",
         "Check that proposed adjusting entries balance, apply them to the trial "
         "balance, and re-foot.",
@@ -350,6 +389,9 @@ SCOPE_OF: dict[str, str] = {
     "ppe.rollforward": "ppe",
     "ppe.depreciation_recompute": "ppe",
     "ppe.additions_vouching": "ppe",
+    "debt.rollforward_and_interest": "debt_equity",
+    "debt.covenants": "debt_equity",
+    "equity.rollforward": "debt_equity",
     "fs.adjusted_trial_balance": "completion",
     "completion.uncorrected_misstatements": "completion",
 }
@@ -367,6 +409,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "je_seldom_used_max", "je_holidays", "rev_credit_memo_days",
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
+    "debt_interest_tolerance_pct", "debt_interest_accounts",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -408,6 +451,8 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "payroll_final_pay_days": {"payroll"},
     "ppe_accumulated_depreciation_accounts": {"ppe"}, "ppe_rounding_tolerance": {"ppe"},
     "ppe_depreciation_accounts": {"ppe"}, "ppe_vouch_threshold": {"ppe"},
+    "debt_interest_tolerance_pct": {"debt_equity"},
+    "debt_interest_accounts": {"debt_equity"},
 }
 
 
