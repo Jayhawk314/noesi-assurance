@@ -216,6 +216,21 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "operator": ["operator", "direction", "test"],
         "threshold": ["threshold", "limit", "required", "minimum or maximum"],
     },
+    "Estimates": {
+        "estimate": ["estimate", "estimate name", "description", "item"],
+        "account": ["account", "account number"],
+        "prior_estimate": ["prior estimate", "prior year estimate", "estimated",
+                           "recorded estimate", "estimate amount"],
+        "outcome": ["outcome", "actual", "actual outcome", "settled", "realized"],
+        "current_estimate": ["current estimate", "current year estimate"],
+        "method": ["method", "basis"],
+    },
+    "Related_parties": {
+        "party_name": ["party name", "related party", "name", "party"],
+        "relationship": ["relationship", "nature of relationship", "relation"],
+        "address": ["address", "street address"],
+        "bank_account": ["bank account", "account number"],
+    },
     "Confirmations": {
         "customer_number": ["customer number", "customer no", "customer id", "customer"],
         "book_value": ["book value", "balance per books", "balance per client",
@@ -289,7 +304,8 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
                  "depreciation_expense", "accumulated_depreciation", "vouched_amount",
                  "beginning_balance", "borrowings", "repayments", "ending_balance",
                  "interest_expense", "current_portion", "beginning", "additions",
-                 "reductions", "ending", "total_amount", "billed_to_date"}
+                 "reductions", "ending", "total_amount", "billed_to_date",
+                 "prior_estimate", "outcome", "current_estimate"}
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
@@ -308,6 +324,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
     "Credit_memos": ("memo_number",),
+    "Estimates": ("estimate",),
+    "Related_parties": ("party_name",),
     "Accrual_schedule": ("item",),
     "Debt_schedule": ("loan_id",),
     "Equity_rollforward": ("component",),
@@ -337,6 +355,9 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",
                        "sales by invoice"],
     "Credit_memos": ["credit memos", "credit memo listing", "credits issued"],
+    "Estimates": ["estimates", "retrospective review", "estimate review",
+                  "prior year estimates"],
+    "Related_parties": ["related parties", "related party list", "related party"],
     "Accrual_schedule": ["accruals schedule", "accrual schedule", "prepaids schedule",
                          "prepaid schedule", "accruals and prepaids"],
     "Debt_schedule": ["debt schedule", "notes payable schedule", "loan schedule",

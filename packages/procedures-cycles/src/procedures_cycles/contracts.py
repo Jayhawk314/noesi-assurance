@@ -16,7 +16,8 @@ from __future__ import annotations
 from procedures_ap.contracts import ProcedureContract
 
 SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "payroll",
-          "cash", "inventory", "ppe", "debt_equity", "accruals", "completion")
+          "cash", "inventory", "ppe", "debt_equity", "accruals", "estimates",
+          "completion")
 
 CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
@@ -368,6 +369,32 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "are listed as not recomputed.",
     ),
     ProcedureContract(
+        "estimates.retrospective_review", "Retrospective review of estimates",
+        "Compare last year's accounting estimates with how they turned out, and flag "
+        "misses beyond the threshold and misses that all lean one way.",
+        "estimates", ("valuation",),
+        {"Estimates": ("estimate", "prior_estimate", "outcome")},
+        required_policies=("estimates_hindsight_pct",),
+        evidence_source="prior-year estimates and their subsequent outcomes",
+        denominator_role="Estimates",
+        limitations="A miss is not an error in last year's statements. The bias "
+                    "indicator needs estimates_bias_min_count misses (default 3); "
+                    "this year's estimates still need their own testing.",
+    ),
+    ProcedureContract(
+        "related_parties.matching", "Related-party matching",
+        "Match management's related-party list against vendors, customers, sales and "
+        "employees in the engagement's data.",
+        "estimates", ("presentation", "occurrence"),
+        {"Related_parties": ("party_name",)},
+        evidence_source="management's related-party list and the engagement's "
+                        "counterparty data",
+        denominator_role="Related_parties",
+        limitations="Finds coinciding names (legal suffixes ignored), addresses and "
+                    "bank accounts only. A related party management did not list is "
+                    "invisible to it; inquiry and public records are separate.",
+    ),
+    ProcedureContract(
         "fs.adjusted_trial_balance", "Adjusted trial balance",
         "Check that proposed adjusting entries balance, apply them to the trial "
         "balance, and re-foot.",
@@ -419,6 +446,8 @@ SCOPE_OF: dict[str, str] = {
     "equity.rollforward": "debt_equity",
     "accruals.rollforward": "accruals",
     "accruals.recompute": "accruals",
+    "estimates.retrospective_review": "estimates",
+    "related_parties.matching": "estimates",
     "fs.adjusted_trial_balance": "completion",
     "completion.uncorrected_misstatements": "completion",
 }
@@ -437,7 +466,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
-    "accruals_rounding_tolerance",
+    "accruals_rounding_tolerance", "estimates_bias_min_count",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -482,6 +511,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "debt_interest_tolerance_pct": {"debt_equity"},
     "debt_interest_accounts": {"debt_equity"},
     "accruals_rounding_tolerance": {"accruals"},
+    "estimates_bias_min_count": {"estimates"},
 }
 
 
