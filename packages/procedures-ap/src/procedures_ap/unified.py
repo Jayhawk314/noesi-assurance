@@ -45,7 +45,9 @@ def _cycle_of(v: Receipt) -> str:
         "rockwood", "rockwood_structural", "ap_forensics", "rockwood_acl_baseline"
     ):
         return "payables"
-    return "unassigned"
+    # Procedures that tag their own area (the cycle procedures) are placed by
+    # that tag; everything the rules above place keeps its place.
+    return str(v.evidence.get("cycle") or "unassigned")
 
 
 def _class_of(v: Receipt) -> str:
