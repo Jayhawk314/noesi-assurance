@@ -419,6 +419,14 @@ def _looks_like_total(raw: dict, key_header: str | None) -> bool:
     return isinstance(label, str) and bool(_TOTAL_LABEL.match(label))
 
 
+# Fields a report's total line may carry: amounts and quantities.
+_QUANTITY_FIELDS = {"quantity"}
+
+
+def _measure_fields() -> set[str]:
+    return _AMOUNT_FIELDS | _QUANTITY_FIELDS
+
+
 def _only_label_and_amounts(raw: dict, column_map: dict, label_header) -> bool:
     """A report's total line carries its label and numbers, nothing else: no
     date, no counterparty, no second identifier. A real record always does,
@@ -430,7 +438,9 @@ def _only_label_and_amounts(raw: dict, column_map: dict, label_header) -> bool:
         value = raw.get(header)
         if value is None or (isinstance(value, str) and not value.strip()):
             continue
-        if field_name in _AMOUNT_FIELDS or parse_decimal(value) is not None:
+        # By the field's type, not the text's look: an identifier "12345" or
+        # a date "20250102" is not a total measure (re-review RRRR1).
+        if field_name in _measure_fields():
             continue
         return False
     return True

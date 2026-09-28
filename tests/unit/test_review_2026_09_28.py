@@ -299,3 +299,18 @@ def test_rrr3_a_real_report_total_is_still_set_aside():
                         ("TOTAL", "", "150.00", "")])
     assert len(table.records) == 2
     assert table.diagnostics["total_rows_set_aside"] == 1
+
+
+# ================================================ third re-review (RRRR1)
+def test_rrrr1_a_numeric_looking_identifier_is_not_a_total_measure():
+    table = _normalize("Value_flows", ["Source Entity", "Target Entity", "Amount", "Date"],
+                       [("Acme", "Bank", "100.00", "2025-01-01"),
+                        ("Total Cycling", "12345", "100.00", "")])
+    assert [r["source_entity"] for r in table.records] == ["Acme", "Total Cycling"]
+
+
+def test_rrrr1_a_compact_date_is_not_a_total_measure():
+    table = _normalize("Purchase_orders", ["Vendor", "PO Amount", "PO Date"],
+                       [("Acme", "100.00", "2025-01-01"),
+                        ("Total Cycling", "100.00", "20250102")])
+    assert len(table.records) == 2 and table.rejects == []
