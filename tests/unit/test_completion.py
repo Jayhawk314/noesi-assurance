@@ -60,7 +60,7 @@ def test_no_subsequent_records_is_a_refusal_not_a_clean_review():
 def test_the_subsequent_events_threshold_is_the_auditors():
     with pytest.raises(PolicyError, match="se_threshold"):
         execute_procedure("completion.subsequent_events", {"Journal_entries": JOURNAL},
-                          {"period_end": "2025-12-31"})
+                          {"period_end": "2025-12-31", "report_date": "2026-02-15"})
 
 
 # ------------------------------------------------ going concern

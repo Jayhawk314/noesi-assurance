@@ -93,3 +93,46 @@ def test_f1_mentioning_the_subject_is_not_making_the_representation():
                                         {"Representations": rows}, LETTER)
     assert ("fs_responsibility", "not_obtained") in keys(findings)
     assert stats["unrecognized_rows"] == ["The financial statements were delivered"]
+
+
+# ------------------------------------------------ F4: subsequent-events window
+LATE = [{"entry_id": "S9", "entry_date": date(2035, 1, 10), "account": "6000",
+         "debit": D("500"), "credit": None},
+        {"entry_id": "S9", "entry_date": date(2035, 1, 10), "account": "2000",
+         "debit": None, "credit": D("500")}]
+
+
+def test_f4_no_report_date_is_refused_not_an_unbounded_review():
+    with pytest.raises(PolicyError, match="report_date"):
+        execute_procedure("completion.subsequent_events", {"Journal_entries": LATE},
+                          {"period_end": "2025-12-31", "se_threshold": "10000"})
+
+
+def test_f4_a_report_date_before_period_end_is_refused():
+    with pytest.raises(PolicyError, match="must follow the period end"):
+        execute_procedure("completion.subsequent_events", {"Journal_entries": LATE},
+                          {"period_end": "2025-12-31", "se_threshold": "10000",
+                           "report_date": "2025-12-15"})
+
+
+def test_f4_entries_after_the_report_date_are_outside_the_window():
+    findings, stats = execute_procedure(
+        "completion.subsequent_events", {"Journal_entries": LATE},
+        {"period_end": "2025-12-31", "se_threshold": "10000",
+         "report_date": "2026-02-15"})
+    assert keys(findings) == {("no_subsequent_records",)}
+    assert stats["reviewed"]["journal_entries"] == 0
+
+
+def test_f4_coverage_needs_the_report_date():
+    from procedures_ap.coverage import compile_coverage
+    from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID
+    from procedures_cycles.engines import registered_procedures
+    contract = CYCLE_CONTRACTS_BY_ID["completion.subsequent_events"]
+    inventory = {"Journal_entries": {"fields": ["entry_id", "account", "entry_date"],
+                                     "rows": 2}}
+    row = compile_coverage(inventory, policies={"period_end": "2025-12-31",
+                                                "se_threshold": "1"},
+                           contracts=(contract,),
+                           executors=registered_procedures())["procedures"][0]
+    assert row["status"] == "partial" and "report_date" in row["missing_policies"]

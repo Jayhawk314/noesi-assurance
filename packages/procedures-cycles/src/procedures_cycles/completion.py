@@ -23,13 +23,12 @@ from procedures_cycles.statements import LINES, _totals, ratios
 
 def subsequent_events(tables: dict, policies: dict):
     pid = "completion.subsequent_events"
-    pe = policy_date(policies, "period_end")
+    pe, until = report_window(policies)
     threshold = dec(policies.get("se_threshold"))
     if threshold is None:
         raise PolicyError("policy 'se_threshold' is not set; the size of a subsequent "
                           "transaction worth examining is the auditor's call")
-    until = day(policies.get("report_date"))
-    inside = lambda d: d is not None and d > pe and (until is None or d <= until)
+    inside = lambda d: d is not None and pe < d <= until
     findings = []
     reviewed = {"journal_entries": 0, "payments": 0}
     for entry_id, lines in sorted(_entries(records(tables, "Journal_entries")).items()):
@@ -73,9 +72,8 @@ def subsequent_events(tables: dict, policies: dict):
     if not any(reviewed.values()):
         findings.append(receipt(
             pid, ("no_subsequent_records",), "AMBIGUOUS",
-            f"no journal entries or payments dated after {pe}"
-            + (f" and on or before {until}" if until else "")
-            + " are loaded; the subsequent period has not been examined",
+            f"no journal entries or payments dated after {pe} and on or before "
+            f"{until} are loaded; the subsequent period has not been examined",
             {"finding_class": "REFUSAL", "cycle": "completion"}))
     stats = {"population": sum(reviewed.values()), "reviewed": reviewed,
              "period_end": pe, "report_date": until, "threshold": threshold,

@@ -415,7 +415,7 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "disclosure.",
         "completion", ("completeness", "presentation", "cutoff"),
         {"Journal_entries": ("entry_id", "account", "entry_date")},
-        required_policies=("period_end", "se_threshold"),
+        required_policies=("period_end", "report_date", "se_threshold"),
         evidence_source="the client's journal entries and payments after period end",
         denominator_role="Journal_entries",
         limitations="Examines recorded transactions only. Minutes, legal letters and "
