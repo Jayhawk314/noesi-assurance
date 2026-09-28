@@ -406,10 +406,13 @@ _TOTAL_LABEL = re.compile(r"^\s*(grand\s+)?totals?(\s|:|$)", re.IGNORECASE)
 
 
 def _looks_like_total(raw: dict) -> bool:
-    """A report's total or subtotal line: a cell reading "TOTAL",
-    "Total for ...", "Grand total", ... (whether it *is* one is decided by
-    whether its amount ties to the rows above it)."""
-    return any(isinstance(v, str) and _TOTAL_LABEL.match(v) for v in raw.values())
+    """A report's total or subtotal line: its label — the first non-blank
+    cell, where reports print "TOTAL", "Total for ...", "Grand total" —
+    reads as a total. Only the label counts: a payee named "Total Cycling"
+    in a later column never makes a transaction a total (review 2026-09-28,
+    F3). Whether it *is* one is then decided by whether its amount ties."""
+    label = next((v for v in raw.values() if isinstance(v, str) and v.strip()), "")
+    return bool(_TOTAL_LABEL.match(label))
 
 
 def normalize_table(rows: list[dict], spec: MappingSpec, *,

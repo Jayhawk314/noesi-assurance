@@ -136,3 +136,16 @@ def test_f4_coverage_needs_the_report_date():
                            contracts=(contract,),
                            executors=registered_procedures())["procedures"][0]
     assert row["status"] == "partial" and "report_date" in row["missing_policies"]
+
+
+# ------------------------------------------------ F3: total-row label
+def test_f3_a_payee_named_total_is_never_a_total_row():
+    from procedures_ap.ingest import approve_mapping, normalize_table, propose_mapping
+    headers = ["Payment Number", "Payment Amount", "Vendor"]
+    rows = [dict(zip(headers, r)) for r in (("P1", "100.00", "Acme"),
+                                            ("P2", "100.00", "Total Cycling"))]
+    spec = approve_mapping(propose_mapping("Payments", headers, proposed_by="p"),
+                           approved_by="r")
+    table = normalize_table(rows, spec)
+    assert [r["payment_number"] for r in table.records] == ["P1", "P2"]
+    assert table.diagnostics["total_rows_set_aside"] == 0
