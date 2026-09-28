@@ -524,25 +524,44 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         label_header = spec.column_map.get(required[0]) if required else None
         if _looks_like_total(raw, label_header) and _only_label_and_amounts(
                 raw, spec.column_map, label_header):
-            # A report's total line: never loaded as a record. It is accepted
-            # as a total only when every populated measure ties on one basis
-            # (since the last total, or over all rows); otherwise it is set
-            # aside with each disagreement named (re-review 5).
-            shown = {f: v for f in measures
-                     if (v := _measure(record, raw, spec, f)) is not None}
+            # A row labelled like a total, carrying only its label and
+            # measures. It is a total when every populated measure ties on one
+            # basis (since the last total, or over all rows). Otherwise it is
+            # ambiguous: a report total that disagrees with its detail, or a
+            # real record named "Total ..." — so it is held for review, never
+            # loaded and never described as a total (re-reviews 5 and 6).
+            shown, unreadable = {}, []
+            for f in measures:
+                cell = raw.get(spec.column_map[f])
+                if cell is None or (isinstance(cell, str) and not cell.strip()):
+                    continue
+                value = _measure(record, raw, spec, f)
+                if value is None:
+                    unreadable.append(f"{f} shows {cell!r}, not a number")
+                else:
+                    shown[f] = value
             ties = [basis for basis in (since_total, all_loaded)
-                    if shown and all(v == basis[f] for f, v in shown.items())]
+                    if shown and not unreadable
+                    and all(v == basis[f] for f, v in shown.items())]
             if ties:
                 reason = (f"a total row: its {', '.join(shown)} equal the sums of the "
                           "rows above it, so it is not a record")
             else:
-                gaps = [f"{f} shows {v}, rows above sum to {since_total[f]}"
-                        for f, v in shown.items() if v != since_total[f]]
-                reason = ("a total row that does not tie ("
+                def gaps_against(basis):
+                    return [f"{f} shows {v}, rows above sum to {basis[f]}"
+                            for f, v in shown.items() if v != basis[f]]
+                since_gaps, all_gaps = gaps_against(since_total), gaps_against(all_loaded)
+                basis, gaps = (("since the last subtotal", since_gaps)
+                               if len(since_gaps) <= len(all_gaps)
+                               else ("over all rows", all_gaps))
+                gaps = unreadable + gaps
+                reason = ("held for review: labelled like a total but it does not tie ("
                           + ("; ".join(gaps) if gaps else "it carries no amounts")
-                          + "); set aside, not loaded — the report and its detail "
-                            "disagree")
-                totals_not_tying.append({"source_row": source_row, "gaps": gaps})
+                          + f"; compared {basis}). Either the report's total disagrees "
+                            "with its detail, or this is a real record named like a "
+                            "total — not loaded until resolved")
+                totals_not_tying.append({"source_row": source_row, "basis": basis,
+                                         "gaps": gaps})
             table.rejects.append({"source_row": source_row, "reason": reason,
                                   "raw": dict(raw)})
             totals_set_aside += 1

@@ -364,3 +364,36 @@ def test_rereview5_a_fully_tying_total_is_accepted():
                        [("E1", "2025-06-15", "80", "2000.00", "1600.00"),
                         ("TOTAL", "", "80", "2000.00", "1600.00")])
     assert len(table.records) == 1 and table.diagnostics["total_rows_not_tying"] == []
+
+
+# ================================================ sixth re-review
+PAY = ["Employee ID", "Pay Date", "Hours", "Gross", "Net"]
+
+
+def test_rereview6_an_unreadable_total_amount_is_named_not_ignored():
+    table = _normalize("Payroll_register", PAY,
+                       [("E1", "2025-06-15", "80", "2000", "1600"),
+                        ("E2", "2025-06-15", "80", "1800", "1440"),
+                        ("TOTAL", "", "160", "3,8O0", "3040")])
+    assert len(table.records) == 2
+    [held] = table.diagnostics["total_rows_not_tying"]
+    assert any("gross shows '3,8O0', not a number" in g for g in held["gaps"])
+
+
+def test_rereview6_a_sparse_record_named_total_is_held_for_review_not_called_a_total():
+    table = _normalize("AR_listing", ["Customer", "Balance"], [("Total Cycling", "100.00")])
+    [reject] = table.rejects
+    assert reject["reason"].startswith("held for review")
+    assert "real record named like a total" in reject["reason"]
+
+
+def test_rereview6_a_grand_total_is_compared_over_all_rows():
+    table = _normalize("Payroll_register", PAY,
+                       [("E1", "2025-06-15", "80", "100", "80"),
+                        ("E2", "2025-06-15", "0", "100", "80"),
+                        ("Total for Dept A", "", "80", "200", "160"),
+                        ("E3", "2025-06-15", "80", "100", "80"),
+                        ("GRAND TOTAL", "", "160", "999", "240")])
+    [held] = table.diagnostics["total_rows_not_tying"]
+    assert held["basis"] == "over all rows"
+    assert held["gaps"] == ["gross shows 999, rows above sum to 300"]
