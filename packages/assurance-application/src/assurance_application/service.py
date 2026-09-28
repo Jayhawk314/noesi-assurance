@@ -15,6 +15,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 import sqlite3
 from decimal import Decimal
 
@@ -1047,7 +1048,10 @@ class WorkbenchService:
             raw = str(values.get("start") or "").strip()
             if raw:
                 try:
-                    start = _date.fromisoformat(raw[:10])
+                    # Exactly YYYY-MM-DD: trailing text is refused, not truncated.
+                    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+                        raise ValueError
+                    start = _date.fromisoformat(raw)
                 except ValueError:
                     raise ValueError(f"period start {raw!r} is not a date "
                                      "(YYYY-MM-DD)") from None

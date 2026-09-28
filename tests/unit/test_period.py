@@ -45,6 +45,9 @@ def test_the_partner_records_the_period_start_and_procedures_receive_it(service)
     ("2026-01-01", "must be before the period end"),
     ("2023-12-01", "more than 24 months"),
     ("April 2025", "is not a date"),
+    # review 2026-09-28, F5: trailing text was truncated away and accepted
+    ("2025-04-01garbage", "is not a date"),
+    ("2025-04-01T99:99:99", "is not a date"),
 ])
 def test_an_impossible_period_start_is_refused(service, start, message):
     svc, eid = service
