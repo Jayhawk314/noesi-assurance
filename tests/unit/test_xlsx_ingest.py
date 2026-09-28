@@ -162,3 +162,64 @@ def _refusal(content: bytes) -> str:
     with pytest.raises(xlsx.WorkbookError) as info:
         xlsx.extract(content)
     return str(info.value)
+
+
+# ------------------------------------------------ K2: multi-section reports
+def _sectioned_report() -> bytes:
+    """A reconciliation-style report: summary lines, then sections that each
+    repeat the same heading row."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for row in (["Company"], ["Checking, Period Ending 06/30/2026"],
+                ["RECONCILIATION REPORT"], [],
+                ["Statement ending balance", None, None, 1000.0], [],
+                ["Checks and payments cleared (2)"],
+                ["DATE", "TYPE", "REF NO.", "AMOUNT"],
+                ["06/02/2026", "Check", "101", -50.0],
+                ["06/03/2026", "Check", "102", -25.0], [],
+                ["Uncleared checks and payments (1)"],
+                ["DATE", "TYPE", "REF NO.", "AMOUNT"],
+                ["06/29/2026", "Check", "109", -80.0]):
+        ws.append(row)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_k2_a_report_of_several_sections_is_not_read_as_one_table():
+    with pytest.raises(xlsx.WorkbookError) as refused:
+        xlsx.extract(_sectioned_report())
+    message = str(refused.value)
+    assert "repeats its heading row (DATE, TYPE, REF NO., AMOUNT) at row 13" in message
+    assert "only the first section" in message
+
+
+def test_k2_a_chosen_heading_row_reads_that_section_and_says_it_repeats():
+    extraction, _, rows = xlsx.extract(_sectioned_report(), header_row=13)
+    assert [r["REF NO."] for r in rows] == ["109"]      # the uncleared section
+    assert "repeated_heading_rows" not in extraction    # nothing repeats below 13
+    extraction, _, rows = xlsx.extract(_sectioned_report(), header_row=8)
+    assert [r["REF NO."] for r in rows] == ["101", "102"]
+    assert extraction["repeated_heading_rows"] == [13]
+
+
+def test_k2_a_plain_table_is_unaffected():
+    extraction, _, _ = xlsx.extract(WORKBOOK.read_bytes(), sheet="Check register")
+    assert "repeated_heading_rows" not in extraction
+
+
+KESTREL_REC = (ROOT / "case-studies" / "kestrel-valley-cycle" / "data" / "quickbooks"
+               / "Checking_Reconciliation.xlsx")
+
+
+@pytest.mark.skipif(not KESTREL_REC.is_file(), reason="case data not in tree")
+def test_k2_quickbooks_reconciliation_report_is_refused_not_misread(service):
+    eid = service.create_engagement(PARTNER, "Kestrel", "2026-06-30")["engagement_id"]
+    service.assign_team(PARTNER, eid, PREPARER, "preparer")
+    art = service.store_source(PREPARER, eid, content=KESTREL_REC.read_bytes(),
+                               media_type=XLSX_TYPE,
+                               original_name="Checking_Reconciliation.xlsx")
+    with pytest.raises(ValueError, match="report of several sections"):
+        service.propose_source_mapping(PREPARER, eid, role="Bank_reconciliation",
+                                       artifact_id=art["artifact_id"])

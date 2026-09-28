@@ -59,7 +59,11 @@ The **Sources & Mappings** flow implements exactly those habits:
    in red, not as data supplied. A report's total line ("TOTAL", "Total
    for …") whose amount equals the sum of the rows above it is set aside as
    a total, so it cannot double the population; a total line that does not
-   tie is kept and named for the reviewer. When a role already has data, a second
+   tie is kept and named for the reviewer. A workbook that repeats its
+   heading row lower down (a report of several sections, such as a bank
+   reconciliation report) is refused rather than read as one table, which
+   would take only its first section; choosing a heading row explicitly
+   reads that one section. When a role already has data, a second
    file must say what it does: **replaces it** (a corrected file; the
    earlier load is marked "not used") or **adds to it** (more rows of the
    same kind, such as a second bank account's reconciliation; both are

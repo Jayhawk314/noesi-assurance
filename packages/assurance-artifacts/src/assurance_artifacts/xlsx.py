@@ -259,12 +259,28 @@ def extract(content: bytes, *, sheet: str | None = None,
     data = book.read(sheet)
     if not data.rows:
         raise WorkbookError(f"sheet {sheet!r} is empty")
+    chosen = header_row is not None
     header_row = header_row or suggest_header_row(data.rows)
     if not 1 <= header_row <= len(data.rows):
         raise WorkbookError(
             f"header row {header_row} is outside sheet {sheet!r} "
             f"(rows 1-{len(data.rows)})")
     raw_headers = data.rows[header_row - 1]
+    # A report of several sections (a bank reconciliation report: cleared
+    # checks, cleared deposits, uncleared checks, ...) repeats its heading
+    # row. Read as one table it yields only the first section, silently.
+    heading = [c.strip() for c in raw_headers if c.strip()]
+    repeated = [index for index, row in
+                enumerate(data.rows[header_row:], start=header_row + 1)
+                if len(heading) > 1 and [c.strip() for c in row if c.strip()] == heading]
+    if repeated and not chosen:
+        raise WorkbookError(
+            f"sheet {sheet!r} repeats its heading row ({', '.join(heading)}) at "
+            f"row{'s' if len(repeated) > 1 else ''} "
+            f"{', '.join(str(r) for r in repeated)} after row {header_row}: it is a "
+            f"report of several sections, not one table, and reading it as one "
+            f"would take only the first section. Prepare one table with one row "
+            f"per item, or choose a heading row to read that section alone")
     headers: list[str] = []
     for index, value in enumerate(raw_headers):
         name = value.strip() or f"Column {_col_letters(index)}"
@@ -285,4 +301,6 @@ def extract(content: bytes, *, sheet: str | None = None,
                   "data_rows": len(records),
                   "stopped_at_blank_row": stopped_at,
                   "nonblank_rows_below_ignored": ignored_below}
+    if repeated:
+        extraction["repeated_heading_rows"] = repeated
     return extraction, headers, records
