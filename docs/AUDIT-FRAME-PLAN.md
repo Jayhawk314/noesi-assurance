@@ -70,6 +70,37 @@ passes add depth.
 - Every batch gets an independent review before anything is pushed.
 - Harborline must still give 11 procedures and 52 findings.
 
+## Limitations of what is built, by kind (recorded 2026-09-28)
+
+**Outside any software (stated, never faked).** These are observation and
+confirmation, reading contracts (title passage, covenant definitions,
+waivers), judgments (lives, estimates, allowances), and inquiry of
+management. Noesi says it did not do them. The completion procedures give
+each one a place for the auditor's own recorded conclusion.
+
+**Partly fixable: the depth pass, first item.** The related-party blind spot
+is the one to fix first. Management's list cannot find a party it omits,
+but the data can show the signs of one:
+- A vendor sharing an address, bank account or tax ID with an employee.
+  The Vendors role has to carry those fields first.
+- Near-identical names, reusing the similarity logic from Harborline's
+  vendor look-alikes.
+
+**Engineering shortcuts: the rest of the depth pass.** None of these gives
+a wrong answer today; each says what it did not do.
+- Depreciation: declining balance and tax tables.
+- Additions: sample selection and projection, reusing `sampling.py`.
+- Journal entries: Benford, description keywords, entries by senior
+  management.
+- Revenue: sales against a customer master.
+- Covenants: adjusted and trailing measures.
+- Payroll tax recompute: left out on purpose, because it is
+  jurisdiction-specific.
+
+**Fixed:**
+- Engagement period start (`9fa7429`).
+- Cycle findings placed in their own area in the unified view (`7bb63ab`).
+
 ## After the frame
 
 1. QuickBooks fitting (K4–K14) and recipes.
