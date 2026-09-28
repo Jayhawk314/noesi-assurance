@@ -215,3 +215,17 @@ A partner reads "11 blocked" on an engagement that never meant to run them.
 7. **State the movement rule (AND/OR) as a policy;** choose the "Likely"
    convention on mapping; hide out-of-scope AP rows from cycle-only coverage
    (K9, K13, K14).
+
+## Status after the run (the findings above are left as recorded)
+
+| Finding | Status | Commit |
+|---|---|---|
+| K3 second file silently replaces the first | fixed: a load must say replace or add; added files are read together; runs record the datasets read | `94ecaa7` |
+| K1 total row loads as a record | fixed: a tying total row is set aside with its reason | `2ca4081` |
+| K2 multi-section report read as one table | fixed: refused with the repeated heading rows named | `afe4454` |
+| K4–K14 | open; the QuickBooks fitting comes after the missing audit areas | — |
+
+Pass A now refuses the payroll reconciliation and the prior-year trial
+balance unless told to replace or add (K3). It also refuses both
+reconciliation reports (K2), and it would set aside the aging's TOTAL row
+(K1). These three fixes have not yet had an independent review.
