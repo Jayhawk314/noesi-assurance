@@ -76,6 +76,10 @@ def execute_procedure(procedure_id: str, tables: dict,
     if executor is None:
         raise ValueError("no incremental executor is registered for this procedure")
     contract = CYCLE_CONTRACTS_BY_ID[procedure_id]
+    # A mapped column is not the same as a value on every row: a blank
+    # required value must not turn into a zero or a skipped row (review
+    # 2026-09-28, F2). Rows missing one are set aside, named, and not tested.
+    tables, incomplete, excluded = _drop_incomplete_rows(procedure_id, contract, tables)
     empty_roles = [role for role in contract.required_fields
                    if not records(tables, role)]
     if empty_roles:
@@ -89,10 +93,62 @@ def execute_procedure(procedure_id: str, tables: dict,
             )
             for role in empty_roles
         ]
+        findings = incomplete + findings
         return findings, {
             "population": 0, "refused_empty_roles": empty_roles,
-            "exceptions": len(findings),
+            "excluded_incomplete_rows": excluded, "exceptions": len(findings),
         }
     findings, stats = executor(tables, policies or {})
+    if incomplete:
+        findings = incomplete + list(findings)
+        stats = {**stats, "excluded_incomplete_rows": excluded,
+                 "exceptions": stats.get("exceptions", 0) + len(incomplete)}
     # The run summary is sealed as canonical JSON: Decimals and dates as text.
     return findings, jsonable(stats)
+
+
+# Required fields whose blank value the procedure itself reports, more
+# precisely than an incomplete-row refusal would: no shipping evidence; an
+# item measured another way listed as not recomputed; an unclassified or
+# unanswered confirmation refused as such; an inspection concluded by
+# reference rather than by date; an estimate not yet resolved.
+_CONFIRMATIONS = frozenset({"classification", "confirmed_value"})
+VALUE_OPTIONAL: dict[str, frozenset[str]] = {
+    "ar.confirmations_nonstatistical": _CONFIRMATIONS,
+    "ar.confirmations_mus": _CONFIRMATIONS,
+    "ar.confirmations_difference": _CONFIRMATIONS,
+    "ap.unrecorded_liabilities_search": frozenset({"liability_date"}),
+    "estimates.retrospective_review": frozenset({"prior_estimate", "outcome"}),
+    "rev.sales_cutoff": frozenset({"ship_date"}),
+    "accruals.recompute": frozenset({"total_amount", "service_start", "service_end"}),
+    "ppe.depreciation_recompute": frozenset({"useful_life_years",
+                                             "depreciation_expense"}),
+}
+
+
+def _blank(value) -> bool:
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _drop_incomplete_rows(procedure_id: str, contract, tables: dict):
+    tables = dict(tables)
+    findings, excluded = [], {}
+    optional = VALUE_OPTIONAL.get(procedure_id, frozenset())
+    for role, fields in contract.required_fields.items():
+        needed = [f for f in fields if f not in optional]
+        keep, bad = [], []
+        for row in records(tables, role):
+            (bad if any(_blank(row.get(f)) for f in needed) else keep).append(row)
+        if not bad:
+            continue
+        tables[role] = keep
+        excluded[role] = len(bad)
+        missing = sorted({f for row in bad for f in needed if _blank(row.get(f))})
+        findings.append(receipt(
+            procedure_id, ("incomplete_rows", role), "AMBIGUOUS",
+            f"{len(bad)} {role} row(s) have no value for {', '.join(missing)}; they "
+            "were not tested. Supply the values or record why the gap is accepted",
+            {"finding_class": "REFUSAL", "cycle": SCOPE_OF[procedure_id],
+             "role": role, "fields": missing,
+             "rows": [row.get("source_row") for row in bad[:50]]}))
+    return tables, findings, excluded
