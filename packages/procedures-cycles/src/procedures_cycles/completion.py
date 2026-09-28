@@ -144,10 +144,11 @@ def going_concern_indicators(tables: dict, policies: dict):
     return findings, stats
 
 
-# AU-C 580 written representations every audit needs. A letter that lists
-# them without these codes is read by wording: every group must appear (any
-# word within a group), so the sentence has to make the representation, not
-# merely mention its subject. Codes remain the reliable way to identify one.
+# AU-C 580 written representations every audit needs. Only a row coded to
+# one of these counts: the code is the auditor's reviewed reading that the
+# sentence makes the representation. Wording is matched only to *suggest* a
+# code (every group of words present), never to accept one, because a
+# sentence can name a representation and deny it (re-review RR1).
 REQUIRED_REPRESENTATIONS: dict[str, tuple[tuple[str, ...], ...]] = {
     "fs_responsibility": (("responsib",), ("financial statements",)),
     "internal_control": (("responsib",), ("internal control",)),
@@ -173,14 +174,25 @@ _ORDER = ("fraud_allegations", "uncorrected_misstatements", "related_parties",
           "laws_regulations", "all_transactions_recorded", "all_information",
           "estimates", "fraud", "fs_responsibility")
 _AFFIRMATIVE = {"yes", "y", "true", "obtained", "received", "provided", "signed", "x"}
+# A signer is a person or title: it has letters, and is not a yes/no, a
+# boolean or a placeholder.
 _NOT_A_SIGNER = {"no", "none", "unsigned", "not signed", "n/a", "na", "-", "pending",
-                 "tbd", "unknown", "to follow"}
+                 "tbd", "unknown", "to follow", "false", "true", "yes", "y", "n",
+                 "null", "nil", "blank", "signed", "x"}
 
 
-def _code_of(row: dict) -> str | None:
+def _signer(value) -> str | None:
+    name = text(value)
+    letters = sum(ch.isalpha() for ch in name)
+    return name if letters >= 2 and name.lower() not in _NOT_A_SIGNER else None
+
+
+def _coded(row: dict) -> str | None:
     code = key_text(row.get("code")).replace(" ", "_")
-    if code in REQUIRED_REPRESENTATIONS:
-        return code
+    return code if code in REQUIRED_REPRESENTATIONS else None
+
+
+def _suggested_code(row: dict) -> str | None:
     wording = " ".join(text(row.get("representation")).lower().split())
     for candidate in _ORDER:                   # most specific wording first
         if all(any(word in wording for word in group)
@@ -193,30 +205,44 @@ def representation_letter(tables: dict, policies: dict):
     pid = "completion.representation_letter"
     _, report_date = report_window(policies)
     rows = records(tables, "Representations")
-    findings, status, unrecognized = [], {}, []
+    findings, values, unrecognized = [], {}, []
+    suggestions: dict[str, list[str]] = {}
     for row in rows:
-        code = _code_of(row)
+        code = _coded(row)
         if code is None:
-            unrecognized.append(text(row.get("representation"))[:80])
+            wording = text(row.get("representation"))[:80]
+            hint = _suggested_code(row)
+            if hint:
+                suggestions.setdefault(hint, []).append(wording)
+            else:
+                unrecognized.append(wording)
             continue
-        value = text(row.get("obtained")).lower()
         # Only a clear yes counts: blank, pending or unknown is not obtained.
-        if value in _AFFIRMATIVE or status.get(code) == "obtained":
-            status[code] = "obtained"
-        else:
-            status[code] = value or "blank"
+        value = text(row.get("obtained")).lower()
+        values.setdefault(code, []).append("obtained" if value in _AFFIRMATIVE
+                                           else (value or "blank"))
     for code in REQUIRED_REPRESENTATIONS:
-        state = status.get(code)
-        if state == "obtained":
+        seen = values.get(code, [])
+        if seen and all(v == "obtained" for v in seen):
             continue
+        if not seen:
+            state = "not in the letter"
+            if code in suggestions:
+                state += (" as a coded representation; uncoded wording that may be it: "
+                          + "; ".join(repr(w) for w in suggestions[code][:2])
+                          + " — read it and code it if it makes the representation")
+        elif "obtained" in seen:
+            state = f"recorded both obtained and {sorted(set(seen) - {'obtained'})}"
+        else:
+            state = f"marked {sorted(set(seen))}, not obtained"
         findings.append(receipt(
             pid, (code, "not_obtained"), "CLASH",
-            f"required representation {code.replace('_', ' ')} is "
-            + (f"marked {state!r}, not obtained" if state else "not in the letter")
-            + " — a scope limitation; AU-C 580 requires a disclaimer or withdrawal "
-              "when required representations are not provided",
+            f"required representation {code.replace('_', ' ')} is {state} — a scope "
+            "limitation; AU-C 580 requires a disclaimer or withdrawal when required "
+            "representations are not provided",
             {"finding_class": "PROVED_EXCEPTION", "cycle": "completion",
-             "representation": code, "status": state or "missing"}))
+             "representation": code, "status": seen or "missing",
+             "uncoded_candidates": suggestions.get(code, [])}))
     dates = sorted({d for d in (day(r.get("dated")) for r in rows) if d})
     if not dates:
         findings.append(receipt(pid, ("letter", "undated"), "CLASH",
@@ -230,16 +256,16 @@ def representation_letter(tables: dict, policies: dict):
             f"as of the report date {report_date}",
             {"finding_class": "PROVED_EXCEPTION", "cycle": "completion",
              "dates": dates, "report_date": report_date}))
-    signers = sorted({text(r.get("signed_by")) for r in rows
-                      if text(r.get("signed_by"))
-                      and text(r.get("signed_by")).lower() not in _NOT_A_SIGNER})
+    signers = sorted({s for s in (_signer(r.get("signed_by")) for r in rows) if s})
     if not signers:
         findings.append(receipt(pid, ("letter", "unsigned"), "CLASH",
                                 "no one is recorded as signing the representation letter",
                                 {"finding_class": "PROVED_EXCEPTION",
                                  "cycle": "completion"}))
     stats = {"population": len(rows), "required": len(REQUIRED_REPRESENTATIONS),
-             "obtained": sum(1 for v in status.values() if v == "obtained"),
+             "obtained": sum(1 for v in values.values()
+                             if v and all(x == "obtained" for x in v)),
              "signed_by": signers, "report_date": report_date,
+             "uncoded_suggestions": suggestions,
              "unrecognized_rows": unrecognized, "exceptions": len(findings)}
     return findings, stats

@@ -39,14 +39,25 @@ def sales_cutoff(tables: dict, policies: dict):
             continue
         if shipped is None:
             no_ship_date += 1
-            if invoiced <= pe and not text(inv.get("shipping_document")):
-                unshipped += 1
-                findings.append(receipt(
-                    pid, (number, "no_shipping_evidence"), "TENSION",
-                    f"invoice {number} ({amount}, {invoiced}): no shipping date or "
-                    "document — did the sale occur? Vouch to shipping records",
-                    {**base, "finding_class": "CONJECTURE", "assertion": "occurrence"},
-                    amount))
+            if invoiced <= pe:
+                document = text(inv.get("shipping_document"))
+                if not document:
+                    unshipped += 1
+                    findings.append(receipt(
+                        pid, (number, "no_shipping_evidence"), "TENSION",
+                        f"invoice {number} ({amount}, {invoiced}): no shipping date or "
+                        "document — did the sale occur? Vouch to shipping records",
+                        {**base, "finding_class": "CONJECTURE",
+                         "assertion": "occurrence"}, amount))
+                else:
+                    # A document number does not say which side of period end
+                    # the goods left on (re-review RR2).
+                    findings.append(receipt(
+                        pid, (number, "no_ship_date"), "AMBIGUOUS",
+                        f"invoice {number} ({amount}, {invoiced}): shipping document "
+                        f"{document} has no date, so cutoff cannot be tested — obtain "
+                        "the shipping date", {**base, "finding_class": "REFUSAL",
+                                              "assertion": "cutoff"}, amount))
             continue
         if invoiced <= pe < shipped:
             over += amount

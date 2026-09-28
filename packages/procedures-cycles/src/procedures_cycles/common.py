@@ -68,6 +68,20 @@ def day(value) -> date | None:
     return None
 
 
+def strict_day(value) -> date | None:
+    """A date given as a date or as exactly YYYY-MM-DD; anything else is None
+    (trailing text is not truncated away)."""
+    if isinstance(value, date):
+        return value
+    s = str(value or "").strip()
+    if len(s) != 10 or s[4] != "-" or s[7] != "-":
+        return None
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
 def text(value) -> str:
     return str(value or "").strip()
 
@@ -128,7 +142,10 @@ def report_window(policies: dict) -> tuple[date, date]:
     date is required and must follow period end: without it the window is
     undefined, and an earlier one is impossible."""
     pe = policy_date(policies, "period_end")
-    rd = day(policies.get("report_date"))
+    raw = policies.get("report_date")
+    rd = strict_day(raw)
+    if raw not in (None, "") and rd is None:
+        raise PolicyError(f"report date {raw!r} is not a date (YYYY-MM-DD exactly)")
     if rd is None:
         raise PolicyError("policy 'report_date' is not set (the date of the auditor's "
                           "report; it bounds the subsequent period and dates the "

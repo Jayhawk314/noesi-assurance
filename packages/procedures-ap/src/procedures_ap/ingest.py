@@ -405,14 +405,18 @@ def _jsonable_rows(records: list[dict]) -> list[dict]:
 _TOTAL_LABEL = re.compile(r"^\s*(grand\s+)?totals?(\s|:|$)", re.IGNORECASE)
 
 
-def _looks_like_total(raw: dict) -> bool:
-    """A report's total or subtotal line: its label — the first non-blank
-    cell, where reports print "TOTAL", "Total for ...", "Grand total" —
-    reads as a total. Only the label counts: a payee named "Total Cycling"
-    in a later column never makes a transaction a total (review 2026-09-28,
-    F3). Whether it *is* one is then decided by whether its amount ties."""
-    label = next((v for v in raw.values() if isinstance(v, str) and v.strip()), "")
-    return bool(_TOTAL_LABEL.match(label))
+def _looks_like_total(raw: dict, key_header: str | None) -> bool:
+    """A report's total or subtotal line: its label reads "TOTAL", "Total
+    for ...", "Grand total". The label is the row's key column (payment
+    number, customer, ...) when the mapping has one, else the first
+    non-blank cell; so a payee named "Total Cycling" is never a total,
+    whatever order the columns come in (review 2026-09-28 F3, re-review
+    RR3). Whether it *is* one is then decided by whether its amount ties."""
+    if key_header is not None:
+        label = raw.get(key_header) or ""
+    else:
+        label = next((v for v in raw.values() if isinstance(v, str) and v.strip()), "")
+    return isinstance(label, str) and bool(_TOTAL_LABEL.match(label))
 
 
 def normalize_table(rows: list[dict], spec: MappingSpec, *,
@@ -473,7 +477,7 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         record["source_row"] = source_row
         record["source_hash"] = content_hash(raw)
 
-        if _looks_like_total(raw):
+        if _looks_like_total(raw, spec.column_map.get(required[0]) if required else None):
             amount = record.get(amount_field) if have_amount else None
             if amount is not None and amount in (since_total, all_loaded):
                 table.rejects.append({

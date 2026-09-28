@@ -143,12 +143,23 @@ WORDED = [
 ]
 
 
-def test_a_worded_letter_is_recognized_and_its_date_and_signature_checked():
-    good = [rep(wording=w) for w in WORDED]
+def test_wording_suggests_a_code_but_only_a_coded_row_counts():
+    worded = [rep(wording=w) for w in WORDED]
+    findings, stats = execute_procedure("completion.representation_letter",
+                                        {"Representations": worded}, LETTER)
+    # every representation is still open, each pointing at its likely sentence
+    assert keys(findings) == {(code, "not_obtained") for code in REQUIRED_REPRESENTATIONS}
+    assert set(stats["uncoded_suggestions"]) == set(REQUIRED_REPRESENTATIONS)
+    coded = [rep(code=c, wording=w) for c, ws in stats["uncoded_suggestions"].items()
+             for w in ws]
     findings, _ = execute_procedure("completion.representation_letter",
-                                    {"Representations": good}, LETTER)
+                                    {"Representations": coded}, LETTER)
     assert findings == []
-    late = [rep(wording=w, dated=date(2026, 2, 10), signed="") for w in WORDED]
+
+
+def test_a_coded_letter_has_its_date_and_signature_checked():
+    late = [rep(code=code, dated=date(2026, 2, 10), signed="")
+            for code in REQUIRED_REPRESENTATIONS]
     findings, _ = execute_procedure("completion.representation_letter",
                                     {"Representations": late}, LETTER)
     assert keys(findings) == {("letter", "not_dated_report_date"), ("letter", "unsigned")}

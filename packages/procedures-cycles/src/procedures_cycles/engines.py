@@ -112,7 +112,10 @@ def execute_procedure(procedure_id: str, tables: dict,
 # item measured another way listed as not recomputed; an unclassified or
 # unanswered confirmation refused as such; an inspection concluded by
 # reference rather than by date; an estimate not yet resolved.
-_CONFIRMATIONS = frozenset({"classification", "confirmed_value"})
+# A confirmation's classification may be blank when there is no difference;
+# the executor refuses an unclassified difference. Its confirmed value may
+# not: a blank one would enter the projection as zero (re-review RR2).
+_CONFIRMATIONS = frozenset({"classification"})
 VALUE_OPTIONAL: dict[str, frozenset[str]] = {
     "ar.confirmations_nonstatistical": _CONFIRMATIONS,
     "ar.confirmations_mus": _CONFIRMATIONS,

@@ -35,7 +35,9 @@ def test_sales_cutoff_finds_both_directions_and_unshipped_sales():
                                         {"period_end": PE})
     assert keys(findings) == {("101", "invoiced_before_shipment"),
                               ("102", "shipped_before_invoicing"),
-                              ("103", "no_shipping_evidence")}
+                              ("103", "no_shipping_evidence"),
+                              # a shipping document without a date: untestable
+                              ("104", "no_ship_date")}
     assert stats["overstated_cutoff"] == "12500.00"
     assert stats["understated_cutoff"] == "3300.00"
 

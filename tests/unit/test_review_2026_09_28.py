@@ -149,3 +149,87 @@ def test_f3_a_payee_named_total_is_never_a_total_row():
     table = normalize_table(rows, spec)
     assert [r["payment_number"] for r in table.records] == ["P1", "P2"]
     assert table.diagnostics["total_rows_set_aside"] == 0
+
+
+# ================================================ re-review 2026-09-29 (RR1-RR4)
+NEGATED = {
+    "fs_responsibility": "Management is not responsible for the financial statements",
+    "internal_control": "Management disclaims responsibility for internal control",
+    "estimates": "The accounting estimates are not reasonable",
+    "related_parties": "Related parties were not disclosed",
+    "subsequent_events": "Subsequent events were not adjusted or disclosed",
+}
+
+
+@pytest.mark.parametrize("target, sentence", sorted(NEGATED.items()))
+def test_rr1_a_sentence_that_denies_a_representation_never_provides_it(target, sentence):
+    rows = [r for r in letter() if r["code"] != target]
+    rows.append({"representation": sentence, "obtained": "yes",
+                 "dated": date(2026, 2, 15), "signed_by": "CEO"})
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": rows}, LETTER)
+    assert keys(findings) == {(target, "not_obtained")}
+
+
+@pytest.mark.parametrize("signer", ["false", "true", "0", "yes", "X"])
+def test_rr1_booleans_and_marks_are_not_signatures(signer):
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": letter(signed=signer)}, LETTER)
+    assert keys(findings) == {("letter", "unsigned")}
+
+
+def test_rr1_a_conflicting_representation_is_named_not_resolved_to_obtained():
+    rows = letter() + [{"code": "fraud", "representation": "fraud", "obtained": "refused",
+                        "dated": date(2026, 2, 15), "signed_by": "CEO"}]
+    findings, _ = execute_procedure("completion.representation_letter",
+                                    {"Representations": rows}, LETTER)
+    [conflict] = findings
+    assert conflict.key[1:] == ("fraud", "not_obtained")
+    assert "both obtained and ['refused']" in conflict.reason
+
+
+def test_rr2_a_shipping_document_without_a_date_is_not_a_clean_cutoff():
+    invoices = [{"invoice_number": "I1", "invoice_date": date(2025, 12, 30),
+                 "amount": D("4000"), "ship_date": None, "shipping_document": "BOL-9"}]
+    findings, stats = execute_procedure("rev.sales_cutoff", {"Sales_invoices": invoices},
+                                        {"period_end": "2025-12-31"})
+    assert keys(findings) == {("i1", "no_ship_date")} and stats["exceptions"] == 1
+
+
+@pytest.mark.parametrize("method, policies", [
+    ("ar.confirmations_nonstatistical", {"ar_tolerable_misstatement": "5000"}),
+    ("ar.confirmations_mus", {"ar_tolerable_misstatement": "5000",
+                              "ar_risk_incorrect_acceptance": "0.05",
+                              "mus_interval": "10000"}),
+    ("ar.confirmations_difference", {"ar_tolerable_misstatement": "5000",
+                                     "ar_risk_incorrect_acceptance": "0.05"}),
+])
+def test_rr2_a_confirmation_with_no_confirmed_value_is_not_a_zero(method, policies):
+    listing = [{"customer_number": c, "balance": D(b)}
+               for c, b in (("C1", "20000"), ("C2", "8000"), ("C3", "6000"))]
+    replies = [{"customer_number": "C1", "book_value": D("20000"),
+                "confirmed_value": D("20000"), "classification": "no_difference"},
+               {"customer_number": "C2", "book_value": D("8000"),
+                "confirmed_value": None, "classification": "timing"}]
+    findings, _ = execute_procedure(method, {"AR_listing": listing,
+                                             "Confirmations": replies}, policies)
+    assert ("incomplete_rows", "Confirmations") in keys(findings)
+
+
+def test_rr3_column_order_cannot_turn_a_payee_into_a_total():
+    from procedures_ap.ingest import approve_mapping, normalize_table, propose_mapping
+    headers = ["Vendor", "Payment Number", "Payment Amount"]
+    rows = [dict(zip(headers, r)) for r in (("Acme", "P1", "100.00"),
+                                            ("Total Cycling", "P2", "100.00"))]
+    spec = approve_mapping(propose_mapping("Payments", headers, proposed_by="p"),
+                           approved_by="r")
+    table = normalize_table(rows, spec)
+    assert [r["payment_number"] for r in table.records] == ["P1", "P2"]
+
+
+@pytest.mark.parametrize("value", ["2026-02-15garbage", "2026-02-15T10:00:00", "Feb 15"])
+def test_rr4_a_malformed_report_date_is_refused_not_truncated(value):
+    with pytest.raises(PolicyError, match="not a date"):
+        execute_procedure("completion.subsequent_events", {"Journal_entries": LATE},
+                          {"period_end": "2025-12-31", "se_threshold": "1",
+                           "report_date": value})

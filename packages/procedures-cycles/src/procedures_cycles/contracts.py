@@ -438,13 +438,15 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
         "completion.representation_letter", "Management representation letter",
         "Check that the letter contains every representation AU-C 580 requires, "
-        "obtained, signed, and dated as of the report date.",
+        "coded, obtained, signed, and dated as of the report date.",
         "completion", ("presentation", "completeness"),
         {"Representations": ("representation",)},
         required_policies=("period_end", "report_date"),
         evidence_source="the signed management representation letter",
         denominator_role="Representations",
-        limitations="Checks presence, dating and signature; whether the signers have "
+        limitations="Counts only representations coded by the auditor; uncoded "
+                    "wording is suggested, never accepted. Checks presence, dating "
+                    "and signature; whether the signers have "
                     "the appropriate responsibilities, and any specific "
                     "representations the engagement needs, are the auditor's.",
     ),
