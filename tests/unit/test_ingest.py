@@ -215,10 +215,13 @@ def test_k1_a_name_that_starts_with_total_is_still_a_record():
     assert len(table.records) == 2 and table.rejects == []
 
 
-def test_k1_a_total_row_that_does_not_tie_is_kept_and_named():
+def test_k1_a_total_row_that_does_not_tie_is_set_aside_with_the_gap_named():
+    # A report footer is never a record; when it disagrees with its detail
+    # the disagreement is named (re-review 5), not loaded as a payment.
     table = _payments([("P1", "100.00", "Acme"), ("TOTAL", "999.00", "")])
-    assert len(table.records) == 2
-    assert table.diagnostics["total_labelled_rows_kept"] == [3]
+    assert [r["payment_number"] for r in table.records] == ["P1"]
+    [gap] = table.diagnostics["total_rows_not_tying"]
+    assert gap["source_row"] == 3 and "shows 999.00, rows above sum to 100.00" in         gap["gaps"][0]
 
 
 KESTREL_AGING = (Path(__file__).resolve().parents[2] / "case-studies"

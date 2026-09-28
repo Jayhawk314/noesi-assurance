@@ -499,6 +499,7 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
     since_total = {f: Decimal("0") for f in measures}
     all_loaded = {f: Decimal("0") for f in measures}
     totals_set_aside = 0
+    totals_not_tying: list[dict] = []
     total_labels_kept: list[int] = []
     # source_row points at the row in the file as the client sent it: CSV
     # line numbers by default (header on line 1); a workbook passes the
@@ -523,20 +524,32 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         label_header = spec.column_map.get(required[0]) if required else None
         if _looks_like_total(raw, label_header) and _only_label_and_amounts(
                 raw, spec.column_map, label_header):
-            tied = next((f for f in measures
-                         if (v := _measure(record, raw, spec, f)) is not None
-                         and v in (since_total[f], all_loaded[f])), None)
-            if tied is not None:
-                table.rejects.append({
-                    "source_row": source_row,
-                    "reason": f"a total row: its {tied} equals the sum of the "
-                              "rows above it, so it is not a record",
-                    "raw": dict(raw),
-                })
-                totals_set_aside += 1
-                since_total = {f: Decimal("0") for f in measures}
-                continue
-            total_labels_kept.append(source_row)
+            # A report's total line: never loaded as a record. It is accepted
+            # as a total only when every populated measure ties on one basis
+            # (since the last total, or over all rows); otherwise it is set
+            # aside with each disagreement named (re-review 5).
+            shown = {f: v for f in measures
+                     if (v := _measure(record, raw, spec, f)) is not None}
+            ties = [basis for basis in (since_total, all_loaded)
+                    if shown and all(v == basis[f] for f, v in shown.items())]
+            if ties:
+                reason = (f"a total row: its {', '.join(shown)} equal the sums of the "
+                          "rows above it, so it is not a record")
+            else:
+                gaps = [f"{f} shows {v}, rows above sum to {since_total[f]}"
+                        for f, v in shown.items() if v != since_total[f]]
+                reason = ("a total row that does not tie ("
+                          + ("; ".join(gaps) if gaps else "it carries no amounts")
+                          + "); set aside, not loaded — the report and its detail "
+                            "disagree")
+                totals_not_tying.append({"source_row": source_row, "gaps": gaps})
+            table.rejects.append({"source_row": source_row, "reason": reason,
+                                  "raw": dict(raw)})
+            totals_set_aside += 1
+            since_total = {f: Decimal("0") for f in measures}
+            continue
+        if _looks_like_total(raw, label_header):
+            total_labels_kept.append(source_row)     # a record named "Total ..."
 
         blank = [f for f in required
                  if record.get(f) in (None, "")]
@@ -572,6 +585,7 @@ def normalize_table(rows: list[dict], spec: MappingSpec, *,
         "required_fields_checked": required,
         "total_rows_set_aside": totals_set_aside,
         "total_labelled_rows_kept": total_labels_kept,
+        "total_rows_not_tying": totals_not_tying,
     }
     table.control_total = (control.quantize(Decimal("0.01"))
                            if have_amount else None)

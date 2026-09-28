@@ -335,3 +335,32 @@ def test_rrrrr2_an_inventory_total_ties_on_extended_cost_not_unit_cost():
                         ("TOTAL", "14", "", "150.00")])
     assert [r["stock_number"] for r in table.records] == ["KV-1", "KV-2"]
     assert table.control_total == D("150.00")           # extended cost, not unit cost
+
+
+# ================================================ fifth re-review (all measures tie)
+def test_rereview5_one_tying_measure_cannot_hide_another_that_contradicts():
+    table = _normalize("Payroll_register",
+                       ["Employee ID", "Pay Date", "Hours", "Gross", "Net"],
+                       [("E1", "2025-06-15", "80", "2000.00", "1600.00"),
+                        ("E2", "2025-06-15", "80", "1800.00", "1440.00"),
+                        ("TOTAL", "", "160", "3800.00", "9999.00")])   # net contradicts
+    assert [r["employee_id"] for r in table.records] == ["E1", "E2"]   # never loaded
+    [gap] = table.diagnostics["total_rows_not_tying"]
+    assert any("net shows 9999.00, rows above sum to 3040.00" in g for g in gap["gaps"])
+
+
+def test_rereview5_a_zero_bucket_does_not_mask_another_bucket():
+    table = _normalize("AR_listing", ["Customer", "Current", "31 - 60", "Balance"],
+                       [("C1", "100.00", "0", "100.00"),
+                        ("C2", "50.00", "0", "50.00"),
+                        ("TOTAL", "999.00", "0", "150.00")])        # current contradicts
+    assert len(table.records) == 2
+    assert table.diagnostics["total_rows_not_tying"]
+
+
+def test_rereview5_a_fully_tying_total_is_accepted():
+    table = _normalize("Payroll_register",
+                       ["Employee ID", "Pay Date", "Hours", "Gross", "Net"],
+                       [("E1", "2025-06-15", "80", "2000.00", "1600.00"),
+                        ("TOTAL", "", "80", "2000.00", "1600.00")])
+    assert len(table.records) == 1 and table.diagnostics["total_rows_not_tying"] == []
