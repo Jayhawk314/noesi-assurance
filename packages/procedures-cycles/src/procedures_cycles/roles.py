@@ -165,6 +165,23 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "reductions": ["reductions", "decreases", "distributions", "dividends"],
         "ending": ["ending", "ending balance", "closing balance"],
     },
+    "Accrual_schedule": {
+        "item": ["item", "description", "name", "vendor", "accrual", "prepaid"],
+        "kind": ["kind", "type", "category"],
+        "account": ["account", "account number", "gl account"],
+        "beginning": ["beginning", "beginning balance", "opening balance"],
+        "additions": ["additions", "increases", "accrued", "paid in advance"],
+        "reductions": ["reductions", "decreases", "amortization", "amortized",
+                       "paid", "reversed"],
+        "ending": ["ending", "ending balance", "closing balance", "balance"],
+        "total_amount": ["total amount", "contract amount", "policy amount",
+                         "total cost", "annual amount"],
+        "service_start": ["service start", "period start", "coverage start",
+                          "start date", "effective date"],
+        "service_end": ["service end", "period end", "coverage end", "end date",
+                        "expiration date"],
+        "billed_to_date": ["billed to date", "invoiced to date", "billed", "paid to date"],
+    },
     "Journal_entries": {
         "entry_id": ["entry id", "entry number", "entry no", "je number", "je id",
                      "journal number", "journal entry", "journal no", "num",
@@ -272,13 +289,14 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
                  "depreciation_expense", "accumulated_depreciation", "vouched_amount",
                  "beginning_balance", "borrowings", "repayments", "ending_balance",
                  "interest_expense", "current_portion", "beginning", "additions",
-                 "reductions", "ending"}
+                 "reductions", "ending", "total_amount", "billed_to_date"}
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
                "received_books", "received_bank", "liability_date", "entry_date",
                "posted_date", "invoice_date", "ship_date", "memo_date", "pay_date",
-               "hire_date", "termination_date", "acquired_date", "disposal_date"}
+               "hire_date", "termination_date", "acquired_date", "disposal_date",
+               "service_start", "service_end"}
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
@@ -290,6 +308,7 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
     "Credit_memos": ("memo_number",),
+    "Accrual_schedule": ("item",),
     "Debt_schedule": ("loan_id",),
     "Equity_rollforward": ("component",),
     "Covenants": ("covenant",),
@@ -318,6 +337,8 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",
                        "sales by invoice"],
     "Credit_memos": ["credit memos", "credit memo listing", "credits issued"],
+    "Accrual_schedule": ["accruals schedule", "accrual schedule", "prepaids schedule",
+                         "prepaid schedule", "accruals and prepaids"],
     "Debt_schedule": ["debt schedule", "notes payable schedule", "loan schedule",
                       "debt rollforward"],
     "Equity_rollforward": ["equity rollforward", "statement of equity",

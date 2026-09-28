@@ -16,7 +16,7 @@ from __future__ import annotations
 from procedures_ap.contracts import ProcedureContract
 
 SCOPES = ("planning", "controls", "journal_entries", "receivables", "payables", "payroll",
-          "cash", "inventory", "ppe", "debt_equity", "completion")
+          "cash", "inventory", "ppe", "debt_equity", "accruals", "completion")
 
 CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
@@ -343,6 +343,31 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "board minutes and share registers are inspected separately.",
     ),
     ProcedureContract(
+        "accruals.rollforward", "Accruals and prepaids rollforward",
+        "Foot each accrual and prepaid from beginning through additions and reductions "
+        "to ending, and tie the schedule to the trial balance account by account.",
+        "accruals", ("completeness", "accuracy", "existence"),
+        {"Accrual_schedule": ("item", "kind", "beginning", "ending")},
+        evidence_source="client accruals and prepaids schedule and trial balance",
+        denominator_role="Accrual_schedule",
+        limitations="Ties need the account column and a trial balance. Accruals never "
+                    "recorded are found by the unrecorded-liabilities search, not here.",
+    ),
+    ProcedureContract(
+        "accruals.recompute", "Accruals and prepaids recompute",
+        "Recompute each item with a contract amount and service period by time "
+        "proportion: the unexpired share of a prepaid, the earned-but-unbilled share of "
+        "an accrual.",
+        "accruals", ("valuation", "accuracy", "cutoff"),
+        {"Accrual_schedule": ("item", "kind", "ending", "total_amount", "service_start",
+                              "service_end")},
+        required_policies=("period_end",),
+        evidence_source="contracts, policies and invoices behind the schedule",
+        denominator_role="Accrual_schedule",
+        limitations="Time proportion by days only; items measured by usage or estimate "
+                    "are listed as not recomputed.",
+    ),
+    ProcedureContract(
         "fs.adjusted_trial_balance", "Adjusted trial balance",
         "Check that proposed adjusting entries balance, apply them to the trial "
         "balance, and re-foot.",
@@ -392,6 +417,8 @@ SCOPE_OF: dict[str, str] = {
     "debt.rollforward_and_interest": "debt_equity",
     "debt.covenants": "debt_equity",
     "equity.rollforward": "debt_equity",
+    "accruals.rollforward": "accruals",
+    "accruals.recompute": "accruals",
     "fs.adjusted_trial_balance": "completion",
     "completion.uncorrected_misstatements": "completion",
 }
@@ -410,6 +437,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
+    "accruals_rounding_tolerance",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -453,6 +481,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "ppe_depreciation_accounts": {"ppe"}, "ppe_vouch_threshold": {"ppe"},
     "debt_interest_tolerance_pct": {"debt_equity"},
     "debt_interest_accounts": {"debt_equity"},
+    "accruals_rounding_tolerance": {"accruals"},
 }
 
 
