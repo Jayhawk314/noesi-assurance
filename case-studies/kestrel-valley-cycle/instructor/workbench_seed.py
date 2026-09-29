@@ -52,7 +52,7 @@ def prep_journal(name: str):
     identifies it (date, type, Num, name), because Num alone is blank for
     deposits and transfers and repeats across types."""
     def prep() -> bytes:
-        rows, entry, header_seen, line = [], None, False, 0
+        rows, entry, header_seen, line, occurrences = [], None, False, 0, {}
         for r in run_noesi._sheet(name):
             cells = list(r[1:11]) + [None] * (10 - len(r[1:11]))
             date, kind, num, who, memo, account, debit, credit, created, by = cells
@@ -60,9 +60,17 @@ def prep_journal(name: str):
                 header_seen = date == "Date"
                 continue
             if date:  # a transaction's first line
-                entry = {"id": " ".join(x for x in (
-                            f"{date[6:]}-{date[:2]}-{date[3:5]}", kind, num or "(no num)",
-                            who or "") if x).strip(),
+                base_id = " ".join(x for x in (
+                    f"{date[6:]}-{date[:2]}-{date[3:5]}", kind, num or "(no num)",
+                    who or "") if x).strip()
+                occurrence = occurrences.get(base_id, 0) + 1
+                occurrences[base_id] = occurrence
+                # QuickBooks can emit separate same-day deposits with no Num
+                # or name. Preserve the familiar key for the first, and give
+                # later occurrences a stable discriminator instead of merging
+                # distinct entries in the journal engine.
+                entry_id = base_id if occurrence == 1 else f"{base_id} [{occurrence}]"
+                entry = {"id": entry_id,
                          "date": date, "kind": kind, "created": created, "by": by}
                 line = 0
             if entry is None or not account:

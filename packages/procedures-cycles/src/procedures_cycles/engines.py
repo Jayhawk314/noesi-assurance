@@ -127,11 +127,15 @@ def execute_procedure(procedure_id: str, tables: dict,
 # the executor refuses an unclassified difference. Its confirmed value may
 # not: a blank one would enter the projection as zero (re-review RR2).
 _CONFIRMATIONS = frozenset({"classification"})
-VALUE_OPTIONAL: dict[str, frozenset[str]] = {
+VALUE_OPTIONAL: dict[str, frozenset[str | tuple[str, str]]] = {
     "ar.confirmations_nonstatistical": _CONFIRMATIONS,
     "ar.confirmations_mus": _CONFIRMATIONS,
     "ar.confirmations_difference": _CONFIRMATIONS,
-    "ap.unrecorded_liabilities_search": frozenset({"liability_date"}),
+    # A blank voucher on a subsequent payment is itself relevant to the
+    # completeness search and must remain in the selection population. The
+    # Vouchers role still requires its own voucher_number values.
+    "ap.unrecorded_liabilities_search": frozenset({
+        "liability_date", ("Payments", "voucher_number")}),
     "estimates.retrospective_review": frozenset({"prior_estimate", "outcome"}),
     "rev.sales_cutoff": frozenset({"ship_date"}),
     "accruals.recompute": frozenset({"total_amount", "service_start", "service_end"}),
@@ -149,7 +153,7 @@ def _drop_incomplete_rows(procedure_id: str, contract, tables: dict):
     findings, excluded = [], {}
     optional = VALUE_OPTIONAL.get(procedure_id, frozenset())
     for role, fields in contract.required_fields.items():
-        needed = [f for f in fields if f not in optional]
+        needed = [f for f in fields if f not in optional and (role, f) not in optional]
         keep, bad = [], []
         for row in records(tables, role):
             (bad if any(_blank(row.get(f)) for f in needed) else keep).append(row)

@@ -346,19 +346,23 @@ def uncorrected_misstatements(tables: dict, policies: dict):
     if chosen and chosen not in LIKELY_BASES:
         raise PolicyError("misstatement_likely_basis must be 'total' or "
                           "'beyond_identified'")
-    shown = {r_id: b for r_id, b in ((text(r.get("description")), _basis_shown_by(r))
-                                     for r in rows) if b}
+    # Descriptions need not be unique. Keep every row's evidence so two rows
+    # called (for example) "projection" cannot overwrite one another and hide
+    # a conflict about what Likely means.
+    shown = [(text(r.get("description")), b)
+             for r in rows if (b := _basis_shown_by(r))]
+    shown_bases = {b for _, b in shown}
     if chosen:
         basis, basis_source = chosen, "policy"
-        for description, b in sorted(shown.items()):
+        for description, b in sorted(set(shown)):
             if b != chosen:
                 findings.append(receipt(
                     pid, ("likely_basis_contradicted", description), "TENSION",
                     f"'{description}': its statement-line amounts read likely as "
                     f"{b.replace('_', ' ')}, not {chosen.replace('_', ' ')} as set",
                     {"finding_class": "CONJECTURE", "cycle": "completion"}))
-    elif len(set(shown.values())) == 1:
-        basis, basis_source = next(iter(shown.values())), "statement-line columns"
+    elif len(shown_bases) == 1:
+        basis, basis_source = next(iter(shown_bases)), "statement-line columns"
     else:
         basis, basis_source = "total", "assumed"
         if any(money(r.get("likely")) for r in rows):

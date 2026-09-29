@@ -62,6 +62,20 @@ def test_without_setting_or_evidence_the_engine_says_it_could_not_tell():
     assert stats["totals"]["likely"] == "833.73" and findings == []
 
 
+def test_duplicate_descriptions_do_not_hide_conflicting_basis_evidence():
+    rows = [
+        {"description": "projection", "identified": D("100"), "likely": D("200"),
+         "current_assets": D("-200")},
+        {"description": "projection", "identified": D("100"), "likely": D("200"),
+         "current_assets": D("-300")},
+    ]
+    findings, stats = run(rows)
+    assert stats["likely_basis"] == "total"
+    assert stats["likely_basis_source"] == "assumed"
+    assert stats["totals"]["likely"] == "400.00"
+    assert ("likely_basis_unknown",) in keys(findings)
+
+
 def test_the_setting_is_checked_when_set(tmp_path):
     conn = connect(tmp_path / "c.db")
     migrate(conn)

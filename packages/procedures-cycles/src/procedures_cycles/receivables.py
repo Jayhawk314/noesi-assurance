@@ -74,8 +74,11 @@ def listing_tie(tables: dict, policies: dict):
                  "net_balance": balance}))
     # The aging carries a 1-30 column (current meaning "not yet due") or not
     # (current meaning 0-30); the allowance rates follow the columns it has.
+    # A mapped column still exists when every value in it is blank. Test the
+    # records' shape, not their amounts, or a blank 1-30 column silently turns
+    # a five-rate method into a four-rate method and shifts every older rate.
     fields = [f for f in AGING_BUCKETS
-              if f != "days_1_30" or any(r.get(f) is not None for r in listing)]
+              if f != "days_1_30" or any(f in r for r in listing)]
     buckets = {f: sum((money(r.get(f)) for r in listing), ZERO) for f in fields}
     stats = {"population": len(listing), "customers": len(customers),
              "listing_total": total, "gl_total": gl,

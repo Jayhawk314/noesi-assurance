@@ -2,6 +2,9 @@
 """The Workbench demo is the Kestrel Valley case: loaded and run through the
 real service path, idempotent, and landing on the key's draft opinion."""
 
+import csv
+import importlib.util
+import io
 from pathlib import Path
 
 import pytest
@@ -12,6 +15,26 @@ from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 
 CASE = Path(__file__).resolve().parents[2] / "case-studies" / "kestrel-valley-cycle"
+
+
+def load_seed_module():
+    seeder = CASE / "instructor" / "workbench_seed.py"
+    spec = importlib.util.spec_from_file_location("kestrel_seed_test", seeder)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.skipif(not CASE.is_dir(), reason="case data not in tree")
+def test_prepared_journal_keeps_same_day_unnumbered_deposits_separate():
+    module = load_seed_module()
+    rows = list(csv.DictReader(io.StringIO(
+        module.prep_journal("Journal.xlsx")().decode("utf-8"))))
+    entry_ids = {row["Entry ID"] for row in rows}
+    assert len(entry_ids) == 461
+    assert sum(row["Line"] == "1" for row in rows) == 461
+    assert "2026-06-30 Deposit (no num)" in entry_ids
+    assert "2026-06-30 Deposit (no num) [2]" in entry_ids
 
 
 @pytest.mark.skipif(not CASE.is_dir(), reason="case data not in tree")

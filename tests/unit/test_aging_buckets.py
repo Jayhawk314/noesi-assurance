@@ -60,6 +60,24 @@ def test_a_four_column_aging_still_takes_four_rates():
                           {"ar_allowance_rates": "0.01,0.02,0.05,0.15,0.40"})
 
 
+def test_an_all_blank_1_30_column_still_keeps_the_five_rate_layout():
+    five = [{"customer_number": "A", "balance": D("100"), "current": D("10"),
+             "days_1_30": None, "days_31_60": D("20"), "days_61_90": D("30"),
+             "days_over_90": D("40")}]
+    tb = [{"account": "1100", "balance": D("100"), "side": "DR",
+           "line": "receivables"},
+          {"account": "1110", "balance": D("8"), "side": "CR",
+           "line": "allowance"}]
+    findings, stats = execute_procedure(
+        "ar.listing_tie", {"AR_listing": five, "Trial_balance": tb},
+        {"ar_allowance_rates": "0.01,0.02,0.05,0.15,0.40"})
+    assert stats["allowance_required"] == "22"
+    assert ("allowance_estimate",) in keys(findings)
+    with pytest.raises(PolicyError, match="5 columns"):
+        execute_procedure("ar.listing_tie", {"AR_listing": five, "Trial_balance": tb},
+                          {"ar_allowance_rates": "0.01,0.02,0.05,0.15"})
+
+
 def test_bad_rates_are_refused_when_set(tmp_path):
     conn = connect(tmp_path / "c.db")
     migrate(conn)

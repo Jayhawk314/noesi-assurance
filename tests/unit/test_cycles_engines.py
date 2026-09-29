@@ -273,6 +273,23 @@ def test_selected_multiline_disbursement_requires_every_line_inspected():
     assert ("900-2", "selected_not_inspected") in keys(findings, "TENSION")
 
 
+def test_blank_voucher_stays_in_the_unrecorded_liability_search_population():
+    payments = [{"payment_number": "900-1", "check_number": "900",
+                 "voucher_number": "", "payment_amount": D("12000")}]
+    inspections = [{"payment_number": "900-1",
+                    "liability_date": date(2026, 12, 20)}]
+    findings, stats = execute_procedure(
+        "ap.unrecorded_liabilities_search",
+        {"Vouchers": [{"voucher_number": "A", "voucher_amount": D("100")}],
+         "Payments": payments, "Disbursement_inspection": inspections},
+        {"period_end": "2026-12-31", "search_threshold": "10000"})
+    assert stats["population"] == 1
+    assert stats["selected_above_threshold"] == ["900"]
+    assert stats["outcomes"]["unrecorded"] == 1
+    assert ("incomplete_rows", "Payments") not in keys(findings)
+    assert ("900-1", "unrecorded") in keys(findings, "CLASH")
+
+
 def test_empty_cycle_population_is_blocked_and_executor_refuses_it():
     inventory = {
         "Inventory_listing": {"fields": ["stock_number"], "rows": 0},
