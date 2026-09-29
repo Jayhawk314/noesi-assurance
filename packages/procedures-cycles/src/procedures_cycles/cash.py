@@ -218,6 +218,19 @@ def interbank_transfers(tables: dict, policies: dict):
     pe = policy_date(policies, "period_end")
     recs = _recs(tables)
     findings, rows = [], []
+    # One reconciliation item accounts for one transfer: a match consumes it,
+    # so two same-amount transfers need two items.
+    unused: dict[tuple[str, str], list[dict]] = {}
+
+    def take(account: str, kind: str, tid: str, amount) -> bool:
+        pool = unused.setdefault((account, kind), list(
+            recs.get(account, {}).get("items", {}).get(kind, [])))
+        hit = (next((r for r in pool if key_text(r.get("reference")) == tid), None)
+               or next((r for r in pool if money(r.get("amount")) == amount), None))
+        if hit is not None:
+            pool.remove(hit)
+        return hit is not None
+
     for t in records(tables, "Transfers"):
         tid = key_text(t.get("transfer_id"))
         amount = money(t.get("amount"))
@@ -255,12 +268,9 @@ def interbank_transfers(tables: dict, policies: dict):
                 f"{amount}", {**base, "finding_class": "PROVED_EXCEPTION",
                               "direction": "understatement"}, amount))
         if d_books <= pe < d_bank:
-            listed = recs.get(frm, {}).get("items", {}).get("outstanding_check", [])
-            refs = {key_text(r.get("reference")) for r in listed}
             # The transfer ID is often the auditor's own; the reconciliation
             # may list the item by amount only (K10).
-            same_amount = any(money(r.get("amount")) == amount for r in listed)
-            if tid not in refs and not same_amount:
+            if not take(frm, "outstanding_check", tid, amount):
                 row["issues"].append("missing_outstanding_check")
                 findings.append(receipt(
                     pid, (tid, "missing_outstanding_check"), "CLASH",
@@ -270,9 +280,7 @@ def interbank_transfers(tables: dict, policies: dict):
                                                   "finding_class": "PROVED_EXCEPTION"},
                     amount))
         if r_books <= pe < r_bank:
-            dits = [money(r.get("amount")) for r in
-                    recs.get(to, {}).get("items", {}).get("deposit_in_transit", [])]
-            if amount not in dits:
+            if not take(to, "deposit_in_transit", tid, amount):
                 row["issues"].append("missing_deposit_in_transit")
                 findings.append(receipt(
                     pid, (tid, "missing_deposit_in_transit"), "CLASH",

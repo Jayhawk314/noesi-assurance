@@ -33,13 +33,26 @@ archives) is not on this path yet.
 
 ## Phase 1: finish the Workbench
 
-### 0. The finish-line check (next)
-There is no test of the finish line today: `check_key.py` checks the key
-against the data, not against Noesi. Build one module-by-module check that
-runs the Kestrel demo through the Workbench and compares each module's
-results with `answer_key*.json`, listing what matches, what differs and
-why. It replaces guessing about what is left; items below are re-ranked
-by it.
+### 0. The finish-line check (done 2026-09-29)
+`case-studies/kestrel-valley-cycle/instructor/finish_line_check.py` seeds
+the demo as `--demo` does and compares all 13 modules with the key; it
+writes `FINISH-LINE-REPORT.md` and exits 1 on any unexplained difference.
+**141 of 153 lines match, 0 unexplained.** Fixed from it: quick ratio
+(cash and receivables only), allowance reported to the cent, and the
+demo's policies (movement rule "or", manual journal sources, holidays).
+Also fixed, from Codex's audit: a confirmed credit balance no longer enters
+the confirmation sample; one reconciliation item covers one transfer.
+
+What still differs, and where it goes:
+- Ridgeback's 3,150 on the aging (allowance, confirmation projection): the
+  key works from a re-run aging; not an engine defect. James: keep, or
+  add the as-loaded figures to the key?
+- A/R turnover on average gross A/R: the engine reports the AICPA
+  sales-to-receivables ratio. James: key or engine?
+- PO overrun, A/P subledger tie, unrecorded liability: section C.
+- Checks without bills, employee/vendor shared address, stale accrual
+  (no activity all year): parking lot (depth pass).
+- SAD vs the completion procedure: B2.
 
 ### A. Engine breaks Kestrel found that are still open
 From `case-studies/kestrel-valley-cycle/instructor/NOESI-RUN-FINDINGS.md`.
@@ -102,6 +115,12 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- Inventory matching (Codex, 2026-09-29): later count tags for an item can
+  carry conflicting identity data that is dropped, and description
+  differences are never a finding. Known limits; changing identity rules
+  needs a policy decision, not a quick patch.
+- Stale accruals, checks to vendors with no bills, employee/vendor shared
+  addresses (the finish-line check lists them).
 - PRODUCTION-READINESS P0/P1 (real-client use): after Phase 2 and a real user.
 - Partner report sign-off (Codex's patch broke 17 tests; the print button covers it).
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,

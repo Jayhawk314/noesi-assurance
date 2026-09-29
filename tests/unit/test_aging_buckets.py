@@ -44,8 +44,8 @@ def test_a_five_column_aging_foots_and_takes_five_rates():
         "ar.listing_tie", {"AR_listing": FIVE, "Trial_balance": TB},
         {"ar_allowance_rates": "0.01,0.02,0.05,0.15,0.40"})
     assert not any(k[0] == "aging_does_not_foot" for k in keys(findings))
-    # A: 5 + 6 + 5 + 7.5 + 20 = 43.5; B: 240; C (credit) left out -> 283.5 -> 284
-    assert stats["allowance_required"] == "284"
+    # A: 5 + 6 + 5 + 7.5 + 20 = 43.5; B: 240; C (credit) left out -> 283.50
+    assert stats["allowance_required"] == "283.50"
     assert ("allowance_estimate",) in keys(findings)
 
 
@@ -54,7 +54,7 @@ def test_a_four_column_aging_still_takes_four_rates():
              "days_31_60": D("300"), "days_61_90": D("100"), "days_over_90": D("0")}]
     _, stats = execute_procedure("ar.listing_tie", {"AR_listing": four, "Trial_balance": TB},
                                  {"ar_allowance_rates": "0.03,0.10,0.15,0.30"})
-    assert stats["allowance_required"] == "63"
+    assert stats["allowance_required"] == "63.00"
     with pytest.raises(PolicyError, match="4 columns"):
         execute_procedure("ar.listing_tie", {"AR_listing": four, "Trial_balance": TB},
                           {"ar_allowance_rates": "0.01,0.02,0.05,0.15,0.40"})
@@ -71,7 +71,7 @@ def test_an_all_blank_1_30_column_still_keeps_the_five_rate_layout():
     findings, stats = execute_procedure(
         "ar.listing_tie", {"AR_listing": five, "Trial_balance": tb},
         {"ar_allowance_rates": "0.01,0.02,0.05,0.15,0.40"})
-    assert stats["allowance_required"] == "22"
+    assert stats["allowance_required"] == "21.60"  # 0.10 + 1.00 + 4.50 + 16.00
     assert ("allowance_estimate",) in keys(findings)
     with pytest.raises(PolicyError, match="5 columns"):
         execute_procedure("ar.listing_tie", {"AR_listing": five, "Trial_balance": tb},

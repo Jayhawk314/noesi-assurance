@@ -127,7 +127,9 @@ def ratios(t: dict[str, Decimal], prior: dict[str, Decimal] | None = None) -> di
     average_inventory = ((t["inventory"] + prior["inventory"]) / 2) if prior else None
     out = {
         "current_ratio": div(current_assets, current_liabilities),
-        "quick_ratio": div(current_assets - t["inventory"], current_liabilities),
+        # Quick assets are cash and receivables (AICPA analytical procedures
+        # guide): prepaids and other current assets are not.
+        "quick_ratio": div(t["cash"] + net_receivables, current_liabilities),
         "sales_to_receivables": div(net_sales, net_receivables),
         "days_sales_in_receivables": (div(net_receivables * 365, net_sales)),
         "inventory_turnover": div(t["cost_of_sales"], average_inventory)

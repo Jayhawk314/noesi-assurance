@@ -71,6 +71,7 @@ Exporting those four reports from the same QBO sandbox would settle both.
 | ar_tolerable_misstatement | 9,000 |
 | inventory_tolerable_misstatement | 9,000 |
 | analytics_threshold_pct / _amount | 10 / 15,000 |
+| analytics_threshold_rule | or (a movement passing either threshold is flagged) |
 | ar_allowance_rates | Current 1%, 1–30 2%, 31–60 5%, 61–90 15%, 91+ 40% |
 | dit_max_days | 3 |
 | period_end (engagement record) | 2026-06-30 |

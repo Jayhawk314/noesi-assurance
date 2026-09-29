@@ -35,8 +35,12 @@ CYCLES = ["planning", "journal_entries", "receivables", "payables", "payroll", "
 def _policies() -> dict:
     k2 = json.loads((HERE / "answer_key_part2.json").read_text(encoding="utf-8"))
     k3 = json.loads((HERE / "answer_key_part3.json").read_text(encoding="utf-8"))
+    kp = json.loads((HERE / "answer_key_payables.json").read_text(encoding="utf-8"))
     return {"pm_allocation_multiple": "2.0", "analytics_threshold_pct": "10",
-            "analytics_threshold_amount": "15000", "ar_tolerable_misstatement": "9000",
+            "analytics_threshold_amount": "15000", "analytics_threshold_rule": "or",
+            "je_manual_sources": "Journal Entry",
+            "je_holidays": kp["je_testing_policies"]["je_holidays"],
+            "ar_tolerable_misstatement": "9000",
             "inventory_tolerable_misstatement": "9000", "dit_max_days": "3",
             "split_threshold": "2500", "split_window_days": "7",
             "je_authorized_users": "Dana Merritt", "je_round_amount_threshold": "10000",

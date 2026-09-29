@@ -104,12 +104,14 @@ def listing_tie(tables: dict, policies: dict):
         required = sum((amount * rate
                         for cust, amounts in by_customer.items() if net.get(cust, ZERO) > 0
                         for amount, rate in zip(amounts, rates)),
-                       ZERO).quantize(Decimal("1"))
+                       ZERO).quantize(Decimal("0.01"))
         recorded = -sum((_signed(r) or ZERO for r in tb
                          if text(r.get("line")).lower() == "allowance"), ZERO)
         stats.update({"allowance_required": required, "allowance_recorded": recorded,
                       "allowance_rates": [str(r) for r in rates]})
-        if required != recorded.quantize(Decimal("1")):
+        # Reported to the cent (it is the adjusting entry's amount); a
+        # difference under a dollar is rounding in the client's booking.
+        if abs(required - recorded) >= 1:
             findings.append(receipt(
                 pid, ("allowance_estimate",), "CLASH",
                 f"allowance recomputed from the aging is {required}; the books carry "
@@ -218,14 +220,18 @@ def confirmations_nonstatistical(tables: dict, policies: dict):
     customer_balances = _customer_balances(tables)
     rows = _confirmation_rows(tables, pid, findings)
     significant = [r for r in rows if r["book"] > tm]
-    sampled = [r for r in rows if r["book"] <= tm]
     # K12: the population projected over is the debit balances; a credit
-    # balance owes nothing to sample and is flagged on its own.
+    # balance owes nothing to sample and is flagged on its own. A confirmed
+    # credit balance is kept out of the sample too, or its negative book
+    # value shrinks the sample and inflates the projection; its misstatement
+    # counts as found, never projected.
+    sampled = [r for r in rows if ZERO < r["book"] <= tm]
+    credit_confirmed = [r for r in rows if r["book"] <= ZERO]
     stratum_value = sum((balance for balance in customer_balances.values()
                          if ZERO < balance <= tm), ZERO)
     credits_excluded = sorted(c for c, b in customer_balances.items() if b < 0)
     sample_value = sum((r["book"] for r in sampled), ZERO)
-    known = sum((r["misstatement"] for r in significant), ZERO)
+    known = sum((r["misstatement"] for r in significant + credit_confirmed), ZERO)
     sample_misstatement = sum((r["misstatement"] for r in sampled), ZERO)
     projected_sample = (sampling.ratio_projection(sample_misstatement, sample_value,
                                                   stratum_value)
@@ -250,6 +256,7 @@ def confirmations_nonstatistical(tables: dict, policies: dict):
         total))
     stats = {"population": len(customer_balances), "listing_rows": len(listing),
              "credit_balances_excluded": credits_excluded,
+             "credit_balances_confirmed": sorted(r["customer"] for r in credit_confirmed),
              "confirmations": len(rows),
              "significant": len(significant), "sampled": len(sampled),
              "stratum_value": stratum_value, "sample_value": sample_value,
@@ -272,7 +279,10 @@ def confirmations_mus(tables: dict, policies: dict):
     listing = records(tables, "AR_listing")
     customer_balances = _customer_balances(tables)
     rows = _confirmation_rows(tables, pid, findings)
-    large = [r for r in rows if r["book"] > tm or r["book"] >= interval]
+    # A confirmed credit balance is not a sampling unit (a negative book value
+    # has no tainting); its misstatement is added in full, like a large item.
+    large = [r for r in rows if r["book"] > tm or r["book"] >= interval
+             or r["book"] <= ZERO]
     units = [r for r in rows if r not in large]
     taintings = []
     for r in units:

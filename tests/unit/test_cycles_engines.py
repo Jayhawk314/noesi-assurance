@@ -144,8 +144,36 @@ def test_ar_allowance_recomputed_from_aging():
     findings, stats = execute_procedure("ar.listing_tie",
                                         {"AR_listing": listing, "Trial_balance": tb},
                                         {"ar_allowance_rates": "0.03,0.10,0.15,0.30"})
-    assert stats["allowance_required"] == "63"  # 18 + 30 + 15
+    assert stats["allowance_required"] == "63.00"  # 18 + 30 + 15
     assert ("allowance_estimate",) in keys(findings, "CLASH")
+
+
+def test_ar_allowance_is_reported_to_the_cent_and_ignores_sub_dollar_rounding():
+    listing = [{"customer_number": "1", "balance": D("1234.50"), "current": D("1234.50")}]
+    tb = [{"account": "1100", "balance": D("1234.50"), "side": "DR", "line": "receivables"},
+          {"account": "1110", "balance": D("37.00"), "side": "CR", "line": "allowance"}]
+    policies = {"ar_allowance_rates": "0.03,0.10,0.15,0.30"}
+    findings, stats = execute_procedure(
+        "ar.listing_tie", {"AR_listing": listing, "Trial_balance": tb}, policies)
+    assert stats["allowance_required"] == "37.04"   # 3% of 1234.50 = 37.035
+    assert ("allowance_estimate",) not in keys(findings)   # booked 37.00: rounding
+    tb[1] = {**tb[1], "balance": D("36.00")}
+    findings, _ = execute_procedure(
+        "ar.listing_tie", {"AR_listing": listing, "Trial_balance": tb}, policies)
+    assert ("allowance_estimate",) in keys(findings, "CLASH")
+
+
+def test_quick_ratio_counts_only_cash_and_net_receivables():
+    rows = TB + [{"account": "1300", "balance": D("35000"), "side": "DR",
+                  "line": "other_current_assets", "prior_balance": D("0")},
+                 {"account": "3100", "balance": D("35000"), "side": "CR",
+                  "line": "equity", "prior_balance": D("0")}]
+    _, stats = execute_procedure("fs.trial_balance_analytics", {"Trial_balance": rows}, {})
+    r = stats["current"]["ratios"]
+    # quick assets 100000 + (50000 - 5000) = 145000 / 70000; prepaids left out
+    assert D(r["quick_ratio"]) == D("2.0714")
+    # the current ratio still counts them: 100000 + 45000 + 80000 + 35000
+    assert D(r["current_ratio"]) == D("3.7143")
 
 
 CONFIRMS = [
@@ -172,6 +200,25 @@ def test_confirmations_nonstatistical_projects_and_refuses_unclassified():
     assert D(stats["projected_sample_misstatement"]) == D("1885.71")
     assert D(stats["projected_total"]) == D("2885.71")
     assert ("evaluation",) in keys(findings, "AGREE")
+
+
+def test_a_confirmed_credit_balance_stays_out_of_the_projection():
+    listing = LISTING + [{"customer_number": "11", "balance": D("-4000")}]
+    confirms = CONFIRMS[:4] + [
+        {"customer_number": "11", "book_value": D("-4000"), "confirmed_value": D("-4000"),
+         "classification": "no_difference"}]
+    findings, stats = execute_procedure(
+        "ar.confirmations_nonstatistical", {"AR_listing": listing, "Confirmations": confirms},
+        {"ar_tolerable_misstatement": "40000"})
+    # the same as without it: sample book 21000, not 17000; stratum 44000
+    assert stats["sample_value"] == "21000" and stats["stratum_value"] == "44000.00"
+    assert D(stats["projected_sample_misstatement"]) == D("1885.71")
+    assert stats["credit_balances_confirmed"] == ["11"]
+    _, mus = execute_procedure(
+        "ar.confirmations_mus", {"AR_listing": listing, "Confirmations": confirms},
+        {"ar_tolerable_misstatement": "40000", "ar_risk_incorrect_acceptance": "0.05",
+         "mus_interval": "10000"})
+    assert mus["unit_items"] == 3   # 9000, 7000, 5000; the credit balance is not a unit
 
 
 def test_confirmation_evaluation_aggregates_ar_detail_to_customer_balance():
@@ -389,6 +436,20 @@ def test_a_transfer_listed_by_amount_on_the_reconciliation_is_found():
                                     {"period_end": "2026-12-31"})
     # REC lists check 104 for 300: the transfer is on the reconciliation by amount
     assert ("t-1", "missing_outstanding_check") not in keys(findings, "CLASH")
+
+
+def test_one_reconciliation_item_accounts_for_one_transfer():
+    twin = {"transfer_id": "T-1", "amount": D("300"), "from_account": "general",
+            "to_account": "payroll", "disbursed_books": date(2026, 12, 30),
+            "disbursed_bank": date(2027, 1, 2), "received_books": date(2026, 12, 30),
+            "received_bank": date(2026, 12, 30)}
+    transfers = [twin, {**twin, "transfer_id": "T-2"}]
+    findings, _ = execute_procedure("cash.interbank_transfers",
+                                    {"Transfers": transfers, "Bank_reconciliation": REC},
+                                    {"period_end": "2026-12-31"})
+    # REC lists one 300 check: it covers one transfer, not both
+    missing = {k[0] for k in keys(findings, "CLASH") if k[1] == "missing_outstanding_check"}
+    assert missing == {"t-2"}
 
 
 def test_interbank_transfers_detects_kiting_and_missing_rec_items():
