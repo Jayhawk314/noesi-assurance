@@ -164,3 +164,33 @@ Three things are not testable from QuickBooks Online exports:
 
 Parts 2 (payroll, PP&E, debt and equity, accruals) and 3 (estimates, related
 parties, completion) follow.
+
+## Part 2: payroll, property and equipment, debt and equity, accruals
+
+```
+python case-studies/kestrel-valley-cycle/generate_part2.py
+```
+
+These files do not come from QuickBooks. They come from a payroll provider,
+the client's spreadsheets, and the auditor's own sheets. Their layouts are
+modeled.
+- `data/client/`: payroll register, employee master, fixed-asset register,
+  debt schedule, equity rollforward, accruals and prepaids schedule.
+- `data/auditor/`: additions vouching and covenants.
+
+Every total ties to the frozen trial balances and to part 1's journal. The
+key is `instructor/answer_key_part2.json`.
+
+Planted items:
+- **Payroll:**
+  - a ghost employee (E16) paid 24 times;
+  - E12 paid more than 15 days after termination;
+  - E03 and E09 share a bank account;
+  - one net pay 100 high;
+  - the bookkeeper's home address is the DM Consulting vendor address.
+- **Fixed assets:** FA-06's depreciation is overstated by 300.
+- **Debt:** the current-ratio covenant (1.20 minimum) is breached at 1.13.
+- **Equity:** the members' capital line adds a 5,000 contribution the ledger
+  does not have.
+- **Accruals:** the insurance prepaid is 267.62 over time-proportion; the
+  audit fee accrual is 2,604.18 over; accrued payroll is unchanged all year.

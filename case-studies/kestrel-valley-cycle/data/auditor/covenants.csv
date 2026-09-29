@@ -1,0 +1,2 @@
+Covenant,Numerator Accounts,Denominator Accounts,Operator,Threshold
+Current ratio,"10100, 10200, 10300, 10900, 11000, 11900, 12100, 13000","20000, 21000, 22000, 23000",>=,1.20

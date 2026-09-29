@@ -1,0 +1,15 @@
+Employee ID,Name,Status,Hire Date,Termination Date,Direct Deposit Account,Home Address
+E01,Jo Kestrel,active,2015-03-01,,BK-10442,9 Lindley Pl Bozeman MT 59715
+E02,Ray Okafor,active,2017-06-12,,BK-20871,31 Olive St Bozeman MT 59715
+E03,Tess Hollis,active,2018-02-05,,BK-33019,88 Babcock St Bozeman MT 59715
+E04,Luis Varga,active,2019-09-16,,BK-40225,5 Tracy Ave Bozeman MT 59715
+E05,Mina Soto,active,2020-01-06,,BK-51990,140 Durston Rd Bozeman MT 59715
+E06,Carl Brandt,active,2020-08-03,,BK-60318,22 Kagy Blvd Bozeman MT 59715
+E07,Dana Merritt,active,2021-04-19,,BK-70455,414 S Willson Ave Bozeman MT 59715
+E08,Owen Pike,active,2021-11-01,,BK-81127,63 Grand Ave Bozeman MT 59715
+E09,Nell Farris,active,2022-03-14,,BK-33019,12 Story St Bozeman MT 59715
+E10,Gabe Lund,active,2022-07-25,,BK-10877,7 Hoffman Dr Bozeman MT 59715
+E11,Ivy Chen,active,2023-05-08,,BK-11904,300 Fowler Ln Bozeman MT 59715
+E12,Hank Duvall,terminated,2019-04-01,2026-02-13,BK-12603,19 Aspen St Bozeman MT 59715
+E13,Rosa Quint,active,2024-02-19,,BK-13370,45 Cottonwood Rd Bozeman MT 59715
+E14,Theo Marsh,active,2024-09-09,,BK-14029,8 Bridger Dr Bozeman MT 59715

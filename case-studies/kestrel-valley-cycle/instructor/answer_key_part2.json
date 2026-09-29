@@ -1,0 +1,109 @@
+{
+  "case_part": "2 of 3: payroll, PP&E, debt and equity, accruals",
+  "period": {
+    "start": "2025-07-01",
+    "end": "2026-06-30"
+  },
+  "policies": {
+    "payroll_expense_accounts": "60100",
+    "payroll_final_pay_days": "15",
+    "ppe_cost_accounts": "15000",
+    "ppe_accumulated_depreciation_accounts": "15900",
+    "ppe_depreciation_convention": "full_month",
+    "ppe_depreciation_accounts": "64000",
+    "debt_accounts": "23000",
+    "debt_interest_tolerance_pct": "10",
+    "debt_interest_accounts": "69000"
+  },
+  "payroll": {
+    "register_gross": "486300.00",
+    "tb_wages_60100": "486300.00",
+    "difference": "0.00",
+    "ghost_employee": {
+      "id": "E16",
+      "payments": 24,
+      "net_paid": "16941.52"
+    },
+    "paid_after_termination": {
+      "id": "E12",
+      "terminated": "2026-02-13",
+      "grace_days": 15,
+      "payments_beyond_grace": [
+        "2026-03-02"
+      ]
+    },
+    "shared_bank_account": [
+      "E03",
+      "E09"
+    ],
+    "net_pay_error": {
+      "id": "E05",
+      "date": "2025-10-15",
+      "over_by": "100.00"
+    },
+    "bookkeeper_address_is_a_vendor_address": {
+      "employee": "E07 Dana Merritt",
+      "vendor": "DM Consulting"
+    }
+  },
+  "ppe": {
+    "beginning_cost": "198300.00",
+    "additions": "14500.00",
+    "disposals": "0.00",
+    "ending_cost": "212800.00",
+    "depreciation_register": "18250.00",
+    "accumulated": "96450.00",
+    "convention": "full_month",
+    "depreciation_differs": {
+      "asset": "FA-06",
+      "recorded": "1657.14",
+      "recomputed": "1357.14",
+      "difference": "300.00"
+    },
+    "leasehold_salvage": "15044.60",
+    "additions_vouched": "FA-01 in full; no exceptions"
+  },
+  "debt_equity": {
+    "loan": {
+      "beginning": "200000.00",
+      "repaid": "50000.00",
+      "ending": "150000.00",
+      "interest_recorded": "13750.00",
+      "rate": "7.5%",
+      "interest_expected_avg_balance": "13125.00",
+      "interest_difference_pct": "4.8"
+    },
+    "covenant_current_ratio": {
+      "current_assets": "552988.55",
+      "current_liabilities": "489767.62",
+      "ratio": "1.1291",
+      "minimum": "1.20",
+      "breached": true
+    },
+    "equity": {
+      "members_capital": "schedule adds a 5,000 contribution the ledger does not have: foots (60,000 + 5,000 = 65,000) but does not tie (TB 60,000.00)",
+      "retained_earnings": "foots and ties"
+    }
+  },
+  "accruals": {
+    "ties": {
+      "13000": "18400.00",
+      "21000": "42315.00"
+    },
+    "insurance_recompute": {
+      "recorded": "7000.00",
+      "expected": "6732.38",
+      "difference": "267.62"
+    },
+    "audit_fee_recompute": {
+      "recorded": "11555.00",
+      "expected": "8950.82",
+      "difference": "2604.18"
+    },
+    "not_recomputed": [
+      "Software and dues",
+      "Accrued payroll"
+    ],
+    "stale": "Accrued payroll unchanged all year (30,760): ask why"
+  }
+}

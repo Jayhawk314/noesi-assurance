@@ -1,0 +1,8 @@
+Asset ID,Description,Placed in Service,Cost,Useful Life,Salvage Value,Method,Current Year Depreciation,Accumulated Depreciation
+FA-01,Warehouse racking,2025-08-12,14500.00,10,0.00,SL,1329.17,1329.17
+FA-02,Forklift,2021-03-15,32000.00,10,0.00,SL,3200.00,17066.67
+FA-03,Delivery van,2022-09-01,42000.00,7,0.00,SL,6000.00,23000.00
+FA-04,Steel shelving,2019-07-01,28000.00,5,0.00,SL,0.00,28000.00
+FA-05,Computers,2023-01-10,12800.00,3,0.00,SL,2133.33,12800.00
+FA-06,Office furniture,2020-05-01,9500.00,7,0.00,SL,1657.14,8669.05
+FA-07,Leasehold improvements,2018-07-01,74000.00,15,15044.60,SL,3930.36,5585.11
