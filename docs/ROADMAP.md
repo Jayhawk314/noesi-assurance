@@ -37,7 +37,7 @@ archives) is not on this path yet.
 `case-studies/kestrel-valley-cycle/instructor/finish_line_check.py` seeds
 the demo as `--demo` does and compares all 13 modules with the key; it
 writes `FINISH-LINE-REPORT.md` and exits 1 on any unexplained difference.
-**149 of 155 lines match, 0 unexplained** (141 of 153 before the key
+**152 of 155 lines match, 0 unexplained** (the 3 left wait on QuickBooks exports, section C) (141 of 153 before the key
 decisions below). Fixed from it: quick ratio
 (cash and receivables only), allowance reported to the cent, and the
 demo's policies (movement rule "or", manual journal sources, holidays).

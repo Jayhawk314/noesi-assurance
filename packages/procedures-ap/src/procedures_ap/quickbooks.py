@@ -125,6 +125,16 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
         note="Only bill payments are kept; checks and expenses paid without "
              "a bill are left out and counted."),
     Recipe(
+        recipe_id="qbo.transaction_list_by_vendor.direct_payments",
+        report="Transaction List by Vendor", role="Direct_payments",
+        headers=_TX_BY_VENDOR, group_column="Vendor",
+        column_map={"payment_number": "Num", "vendor_number": "Vendor",
+                    "payment_amount": PAID_AMOUNT, "payment_date": "Date"},
+        type_column="Transaction type", types=("Check", "Expense"),
+        paid_amount=True, sign_account_column="Account full name",
+        note="Checks and expenses paid straight to a vendor, without a bill; "
+             "bill payments are the Payments recipe."),
+    Recipe(
         recipe_id="qbo.transaction_list_by_vendor.purchase_orders",
         report="Transaction List by Vendor", role="Purchase_orders",
         headers=_TX_BY_VENDOR, group_column="Vendor",
@@ -150,7 +160,8 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
         role="Vendors",
         headers=("Vendor", "Phone numbers", "Email", "Full name",
                  "Billing address", "Account #"),
-        column_map={"vendor_number": "Vendor", "vendor_name": "Vendor"},
+        column_map={"vendor_number": "Vendor", "vendor_name": "Vendor",
+                    "address": "Billing address"},
         amount_columns=(),
         note="QuickBooks identifies vendors by display name, so the name "
              "is also the vendor key. 'Account #' is your account number "

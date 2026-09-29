@@ -113,6 +113,8 @@ LOADS = [
      "qbo.transaction_list_by_vendor.purchase_orders", None),
     ("quickbooks/Bill_Payment_List.xlsx", "Payments", None,
      "qbo.bill_payment_list.payments", None),
+    ("quickbooks/Transaction_List_by_Vendor.xlsx", "Direct_payments", None,
+     "qbo.transaction_list_by_vendor.direct_payments", None),
     ("journal_prepared.csv", "Journal_entries", prep_journal("Journal.xlsx"), None, None),
     ("journal_2026-07_prepared.csv", "Journal_entries", prep_journal("Journal_2026-07.xlsx"),
      None, "add"),

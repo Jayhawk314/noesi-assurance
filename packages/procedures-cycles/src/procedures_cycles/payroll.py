@@ -21,6 +21,11 @@ from procedures_cycles.statements import _signed
 REGISTER, MASTER = "Payroll_register", "Payroll_master"
 
 
+def _address(value) -> str:
+    """An address compared loosely: case, punctuation and spacing ignored."""
+    return " ".join("".join(c if c.isalnum() else " " for c in text(value).lower()).split())
+
+
 def register_tests(tables: dict, policies: dict):
     pid = "payroll.register_tests"
     grace = dec(policies.get("payroll_final_pay_days"))
@@ -91,6 +96,22 @@ def register_tests(tables: dict, policies: dict):
                 lead((",".join(sorted(emps)), f"shared_{field}"), "TENSION",
                      f"employees {', '.join(sorted(emps))} share one {label}",
                      {"employees": sorted(emps), field: value})
+    # An employee living at a vendor's address: the employee may own or
+    # control the vendor (a conflict, or a shell). Only when a vendor list
+    # with addresses is loaded.
+    vendor_at: dict[str, list[str]] = {}
+    for v in records(tables, "Vendors"):
+        where = _address(v.get("address"))
+        if where:
+            vendor_at.setdefault(where, []).append(text(v.get("vendor_name"))
+                                                   or text(v.get("vendor_number")))
+    for emp, person in sorted(master.items()):
+        for vendor in sorted(vendor_at.get(_address(person.get("address")), [])):
+            lead((emp, key_text(vendor), "address_is_a_vendor"), "TENSION",
+                 f"employee {emp} ({text(person.get('name'))}) lives at the address of "
+                 f"vendor {vendor} — does the employee own or control it? Check what "
+                 "it was paid, and whether it is disclosed as a related party",
+                 {"employee": emp, "vendor": vendor, "address": person.get("address")})
     # A check that could not run is said, never skipped in silence (Kestrel
     # parts 2-3, C2): without withholding or deduction columns net pay
     # cannot be re-performed.

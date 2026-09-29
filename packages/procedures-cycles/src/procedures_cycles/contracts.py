@@ -185,6 +185,20 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "vendor statements and receiving records are separate searches.",
     ),
     ProcedureContract(
+        "ap.payments_without_bills", "Payments to vendors that never billed",
+        "List vendors paid directly (checks and expenses, not bill payments) who have "
+        "no bill in the period: money going out with no invoice behind it.",
+        "payables", ("occurrence",),
+        {"Direct_payments": ("vendor_number", "payment_amount"),
+         "Vouchers": ("vendor_number",)},
+        evidence_source="the client's direct checks and expenses by vendor, and its "
+                        "bill listing",
+        denominator_role="Direct_payments",
+        limitations="A lead, not an exception: rent, loan payments and utilities are "
+                    "often paid without a bill. Vendors are matched by name as the "
+                    "ledger writes it; a vendor recorded under two names is not joined.",
+    ),
+    ProcedureContract(
         "ap.duplicate_bills", "Duplicate bills",
         "List vendor invoices recorded more than once: the same invoice number for the "
         "same amount (under one vendor or two), or with different amounts.",
@@ -494,6 +508,7 @@ SCOPE_OF: dict[str, str] = {
     "ar.confirmations_difference": "receivables",
     "ap.unrecorded_liabilities_search": "payables",
     "ap.duplicate_bills": "payables",
+    "ap.payments_without_bills": "payables",
     "payroll.register_tests": "payroll",
     "payroll.register_to_ledger": "payroll",
     "cash.bank_reconciliation": "cash",

@@ -2,7 +2,7 @@
 
 *Written by `finish_line_check.py` (ROADMAP step 0). It seeds the Workbench demo through the real service path, as `--demo` does, and compares each Learn module with `answer_key*.json`. Do not edit by hand; re-run the script.*
 
-**149 match, 0 differ, 6 not in Noesi** (30 procedures run).
+**152 match, 0 differ, 3 not in Noesi** (31 procedures run).
 
 | # | Module | Match | Differ | Not in Noesi |
 |---|---|---|---|---|
@@ -10,12 +10,12 @@
 | 2 | Planning | 19 | 0 | 0 |
 | 3 | Journal entries | 13 | 0 | 0 |
 | 4 | Revenue and receivables | 16 | 0 | 0 |
-| 5 | Payables | 12 | 0 | 3 |
+| 5 | Payables | 13 | 0 | 2 |
 | 6 | Cash | 12 | 0 | 0 |
 | 7 | Inventory | 10 | 0 | 0 |
-| 8 | Payroll | 7 | 0 | 1 |
+| 8 | Payroll | 8 | 0 | 0 |
 | 9 | Property and equipment | 8 | 0 | 0 |
-| 10 | Debt, equity, accruals | 10 | 0 | 1 |
+| 10 | Debt, equity, accruals | 11 | 0 | 0 |
 | 11 | Estimates and related parties | 5 | 0 | 0 |
 | 12 | Completion | 27 | 0 | 1 |
 | 13 | The opinion | 5 | 0 | 0 |
@@ -38,11 +38,9 @@ Matches: aging total; A/R per trial balance; aging to ledger difference found; c
 
 ## 5. Payables
 
-Matches: vendors; vendor twins; bills (loaded + set aside); bills without a number (set aside at load); bill payments; bill payments total; duplicate bill MC-25009; split bills: Hyalite total; short payment on check 4425 (left open); three-way match not testable; segregation of duties not testable; duplicate's misstatement.
+Matches: vendors; vendor twins; bills (loaded + set aside); bills without a number (set aside at load); bill payments; bill payments total; duplicate bill MC-25009; split bills: Hyalite total; short payment on check 4425 (left open); checks without bills: DM Consulting; three-way match not testable; segregation of duties not testable; duplicate's misstatement.
 
 - **not in Noesi: PO overrun: Summit Tire PO 1021.** Key True; Workbench —. Why: QuickBooks' Transaction List by Vendor carries no PO link on a bill (the PO number is only in the memo), so voucher-to-PO tests are partial (partial); roadmap C.
-
-- **not in Noesi: checks without bills: DM Consulting 4,500.** Key True; Workbench —. Why: no procedure tests direct checks to vendors that never billed; the Payments loaded are bill payments only (parking lot: depth pass).
 
 - **not in Noesi: A/P subledger ties to the ledger.** Key 0.00; Workbench —. Why: the A/P control schedule is built from Unpaid Bills and a General Ledger export; Kestrel has a trial balance, not a General Ledger export (blocked); roadmap C.
 
@@ -56,9 +54,7 @@ Matches: listing total; tags (loaded + void set aside); void tags set aside; qua
 
 ## 8. Payroll
 
-Matches: register gross; wages per ledger; difference; ghost employee E16: payments; paid after termination: E12; shared bank account: E03, E09; net pay error: E05.
-
-- **not in Noesi: bookkeeper's address is a vendor's (DM Consulting).** Key True; Workbench —. Why: no procedure compares employee and vendor addresses (parking lot: depth pass, 'vendor sharing an address with an employee').
+Matches: register gross; wages per ledger; difference; ghost employee E16: payments; paid after termination: E12; shared bank account: E03, E09; net pay error: E05; bookkeeper's address is a vendor's (E07, DM Consulting).
 
 ## 9. Property and equipment
 
@@ -66,9 +62,7 @@ Matches: beginning cost; additions; disposals; ending cost; accumulated; depreci
 
 ## 10. Debt, equity, accruals
 
-Matches: loan beginning; loan ending; interest within tolerance (4.8% < 10%); current-ratio covenant breached; members' capital does not tie; retained earnings ties; accruals and prepaids tie to the ledger; insurance premium recompute differs by; audit fee recompute differs by; not recomputed.
-
-- **not in Noesi: stale accrual: Accrued payroll unchanged all year.** Key accrued payroll; Workbench —. Why: the rollforward tests that each item foots and ties; it does not point out a balance with no activity all year (parking lot).
+Matches: loan beginning; loan ending; interest within tolerance (4.8% < 10%); current-ratio covenant breached; members' capital does not tie; retained earnings ties; accruals and prepaids tie to the ledger; insurance premium recompute differs by; audit fee recompute differs by; not recomputed; stale accrual: Accrued payroll unchanged all year.
 
 ## 11. Estimates and related parties
 

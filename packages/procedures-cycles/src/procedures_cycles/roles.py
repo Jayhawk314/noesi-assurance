@@ -34,6 +34,13 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "line": ["line", "fs line", "statement line", "caption", "classification"],
         "amount": ["amount", "prior year", "prior year amount", "balance", "reported"],
     },
+    # Checks and expenses paid straight to a vendor, with no bill behind them.
+    "Direct_payments": {
+        "payment_number": ["payment number", "check number", "check no", "num", "number"],
+        "vendor_number": ["vendor", "payee", "vendor name"],
+        "payment_amount": ["amount", "payment amount"],
+        "payment_date": ["date", "payment date", "check date"],
+    },
     "AR_listing": {
         "customer_number": ["customer number", "customer no", "customer id",
                             "account number", "customer"],
@@ -334,6 +341,7 @@ DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
     "Prior_statements": ("line",),
+    "Direct_payments": ("vendor_number",),
     "AR_listing": ("customer_number",),
     "Bank_reconciliation": ("account", "item_type"),
     "Cutoff_statement": ("account",),
@@ -365,6 +373,7 @@ REQUIRED: dict[str, tuple[str, ...]] = {
 
 FILENAME_HINTS: dict[str, list[str]] = {
     "Trial_balance": ["trial balance", "tb", "working trial balance"],
+    "Direct_payments": ["direct payments", "checks without bills", "expenses by vendor"],
     "Prior_statements": ["prior year statements", "prior year figures",
                          "comparative figures", "prior year financial statements"],
     "AR_listing": ["ar listing", "accounts receivable", "receivables", "ar aging", "aging"],

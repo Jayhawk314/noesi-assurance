@@ -55,6 +55,15 @@ def rollforward(tables: dict, policies: dict):
                 f"schedule shows {end}", {"finding_class": "PROVED_EXCEPTION",
                                           "cycle": "accruals", "source_rows": src},
                 begin + adds - less - end))
+        elif begin and not adds and not less:
+            # A balance nobody touched all year is a question, not an error:
+            # is it still owed (or still unexpired), and why no activity?
+            findings.append(receipt(
+                pid, (item, "unchanged"), "TENSION",
+                f"{item}: {end} at both ends of the period with no additions or "
+                "reductions — ask why, and whether it is still valid",
+                {"finding_class": "CONJECTURE", "cycle": "accruals", "source_rows": src,
+                 "limits": "no activity is a lead for inquiry, not a misstatement"}))
         account = key_text(row.get("account"))
         if account:
             group = by_account.setdefault(account, {"kind": kind, "begin": ZERO,

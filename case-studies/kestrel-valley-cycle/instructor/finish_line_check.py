@@ -298,9 +298,9 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       "QuickBooks' Transaction List by Vendor carries no PO link on a bill (the "
       "PO number is only in the memo), so voucher-to-PO tests are partial "
       f"({status('ap.voucher_po_reference')}); roadmap C", expect=NOT_IN)
-    c("checks without bills: DM Consulting 4,500", True, NOT_IN,
-      "no procedure tests direct checks to vendors that never billed; the "
-      "Payments loaded are bill payments only (parking lot: depth pass)", expect=NOT_IN)
+    c("checks without bills: DM Consulting", KP["checks_without_bills"]["total"],
+      next((v["evidence"]["total"] for v in fnd.get("ap.payments_without_bills", [])
+            if v["key"][1] == "dm consulting"), NOT_IN))
     c("A/P subledger ties to the ledger", KP["ap_subledger_to_ledger"]["difference"],
       NOT_IN if not ran("ap.subledger_gl_balance_tie") else "0.00",
       "the A/P control schedule is built from Unpaid Bills and a General Ledger "
@@ -377,9 +377,8 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("shared bank account: E03, E09", True,
       has("payroll.register_tests", "e03,e09", "shared_bank_account"))
     c("net pay error: E05", True, has("payroll.register_tests", "e05", "net_pay_differs"))
-    c("bookkeeper's address is a vendor's (DM Consulting)", True, NOT_IN,
-      "no procedure compares employee and vendor addresses (parking lot: depth "
-      "pass, 'vendor sharing an address with an employee')", expect=NOT_IN)
+    c("bookkeeper's address is a vendor's (E07, DM Consulting)", True,
+      has("payroll.register_tests", "e07", "dm consulting", "address_is_a_vendor"))
 
     # ---- 9 Property and equipment
     c.module = MODULES[8]
@@ -412,7 +411,9 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       has("equity.rollforward", "members' capital", "ending_to_ledger"))
     c("retained earnings ties", False, has("equity.rollforward", "retained earnings"))
     s = run("accruals.rollforward")
-    c("accruals and prepaids tie to the ledger", 0, s.get("exceptions", NOT_IN))
+    c("accruals and prepaids tie to the ledger", False,
+      any(str(v["key"][-1]).endswith("_to_ledger") for v in fnd.get("accruals.rollforward", []))
+      if s else NOT_IN)
     ac = K2["accruals"]
     for name, key in (("insurance premium", ac["insurance_recompute"]),
                       ("audit fee", ac["audit_fee_recompute"])):
@@ -425,9 +426,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     stale = [v["key"][1] for v in fnd.get("accruals.rollforward", [])
              if v["key"][-1] == "unchanged"]
     c("stale accrual: Accrued payroll unchanged all year", ["accrued payroll"],
-      stale or NOT_IN,
-      "the rollforward tests that each item foots and ties; it does not point "
-      "out a balance with no activity all year (parking lot)", expect=NOT_IN)
+      stale or NOT_IN)
 
     # ---- 11 Estimates and related parties
     c.module = MODULES[10]

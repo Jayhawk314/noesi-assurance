@@ -106,6 +106,52 @@ def test_prior_year_figures_that_disagree_with_the_trial_balance_are_flagged():
     assert flagged == {("prior_figures_disagree", "receivables")}
 
 
+def test_an_accrual_untouched_all_year_is_a_lead():
+    schedule = [
+        {"item": "Accrued bonus", "kind": "accrued expense", "account": "2100",
+         "beginning": D("5000"), "additions": D("0"), "reductions": D("0"),
+         "ending": D("5000")},
+        {"item": "Accrued rent", "kind": "accrued expense", "account": "2100",
+         "beginning": D("1000"), "additions": D("12000"), "reductions": D("12000"),
+         "ending": D("1000")},
+        {"item": "Empty", "kind": "accrued expense", "account": "2100",
+         "beginning": D("0"), "additions": D("0"), "reductions": D("0"),
+         "ending": D("0")}]
+    findings, _ = execute_procedure("accruals.rollforward",
+                                    {"Accrual_schedule": schedule}, {})
+    assert {k for k in keys(findings, "TENSION") if k[1] == "unchanged"} == {
+        ("accrued bonus", "unchanged")}
+
+
+def test_an_employee_living_at_a_vendor_address_is_a_lead():
+    master = [{"employee_id": "E1", "name": "Pat", "address": "12 Oak St., Springfield"},
+              {"employee_id": "E2", "name": "Lee", "address": "9 Elm St Springfield"}]
+    register = [{"employee_id": "E1", "pay_date": date(2026, 1, 15), "gross": D("100"),
+                 "net": D("80"), "tax_withheld": D("20")}]
+    vendors = [{"vendor_number": "Oak Advisory", "vendor_name": "Oak Advisory",
+                "address": "12 OAK ST SPRINGFIELD"},
+               {"vendor_number": "Acme", "vendor_name": "Acme", "address": "1 Main St"}]
+    findings, _ = execute_procedure(
+        "payroll.register_tests",
+        {"Payroll_register": register, "Payroll_master": master, "Vendors": vendors}, {})
+    assert {k for k in keys(findings) if k[-1] == "address_is_a_vendor"} == {
+        ("e1", "oak advisory", "address_is_a_vendor")}
+
+
+def test_vendors_paid_directly_without_any_bill_are_leads():
+    bills = [{"voucher_number": "B1", "vendor_number": "Acme", "voucher_amount": D("500")}]
+    direct = [{"payment_number": "101", "vendor_number": "Acme", "payment_amount": D("50")},
+              {"payment_number": "102", "vendor_number": "Shadow LLC",
+               "payment_amount": D("1500")},
+              {"payment_number": "103", "vendor_number": "shadow  llc",
+               "payment_amount": D("1500")}]
+    findings, stats = execute_procedure(
+        "ap.payments_without_bills", {"Vouchers": bills, "Direct_payments": direct}, {})
+    assert keys(findings) == {("shadow llc", "paid_without_bills")}
+    assert D(findings[0].evidence["total"]) == D("3000")
+    assert stats["vendors_paid"] == 2
+
+
 def test_trial_balance_out_of_balance_is_an_exception():
     rows = TB + [{"account": "9999", "balance": D("1"), "side": "DR", "line": "cash"}]
     findings, _ = execute_procedure("fs.trial_balance_analytics", {"Trial_balance": rows}, {})

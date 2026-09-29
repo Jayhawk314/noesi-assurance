@@ -61,3 +61,39 @@ def duplicate_bills(tables: dict, policies: dict):
              "invoice_numbers": len(groups), "likely_duplicates": duplicated,
              "exceptions": len(findings)}
     return findings, stats
+
+
+def _vendor_key(value) -> str:
+    return " ".join(text(value).lower().split())
+
+
+def payments_without_bills(tables: dict, policies: dict):
+    """Vendors paid directly who never sent a bill in the period."""
+    pid = "ap.payments_without_bills"
+    billed = {_vendor_key(b.get("vendor_number")) for b in records(tables, ROLE)}
+    paid: dict[str, list[dict]] = {}
+    payments = records(tables, "Direct_payments")
+    for p in payments:
+        vendor = _vendor_key(p.get("vendor_number"))
+        if vendor:
+            paid.setdefault(vendor, []).append(p)
+    findings = []
+    for vendor, rows in sorted(paid.items()):
+        if vendor in billed:
+            continue
+        total = sum((money(p.get("payment_amount")) for p in rows), money(0))
+        name = text(rows[0].get("vendor_number"))
+        findings.append(receipt(
+            pid, (vendor, "paid_without_bills"), "TENSION",
+            f"{name} was paid {total} in {len(rows)} direct payment(s) and sent no "
+            "bill in the period — what was bought, who approved it, and is the vendor "
+            "real?",
+            {"finding_class": "CONJECTURE", "cycle": "payables", "vendor": name,
+             "total": total, "payments": len(rows),
+             "source_rows": [source_ref("Direct_payments", p, "payment_number")
+                             for p in rows],
+             "limits": "rent, loans and utilities are often paid without a bill"},
+            total))
+    return findings, {"population": len(payments), "vendors_paid": len(paid),
+                      "vendors_without_bills": len(findings),
+                      "exceptions": len(findings)}

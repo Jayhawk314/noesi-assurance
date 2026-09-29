@@ -40,6 +40,7 @@ EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "ar.confirmations_difference": receivables.confirmations_difference,
     "ap.unrecorded_liabilities_search": payables.unrecorded_liabilities_search,
     "ap.duplicate_bills": duplicates.duplicate_bills,
+    "ap.payments_without_bills": duplicates.payments_without_bills,
     "payroll.register_tests": payroll.register_tests,
     "payroll.register_to_ledger": payroll.register_to_ledger,
     "cash.bank_reconciliation": cash.bank_reconciliation,

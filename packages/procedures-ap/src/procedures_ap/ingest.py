@@ -35,6 +35,7 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "vendor_number": ["vendor number", "vendor no", "vendor id", "vendor code",
                           "supplier number", "supplier no", "supplier id", "vendor"],
         "vendor_name": ["vendor name", "supplier name", "payee name", "name"],
+        "address": ["billing address", "vendor address", "street address", "address"],
     },
     "Employees": {
         "employee_number": ["employee number", "employee no", "employee id",

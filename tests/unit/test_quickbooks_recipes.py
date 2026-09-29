@@ -35,7 +35,8 @@ def _flatten(content, recipe_id):
 
 def test_reports_are_recognized_by_title_and_exact_headings():
     by_vendor = qb.recognize(xlsx.preview(BY_VENDOR)[0]["rows"])
-    assert {m["role"] for m in by_vendor} == {"Vouchers", "Payments", "Purchase_orders"}
+    assert {m["role"] for m in by_vendor} == {"Vouchers", "Payments", "Purchase_orders",
+                                              "Direct_payments"}
     assert all(m["header_row"] == 5 for m in by_vendor)
     [payments] = qb.recognize(xlsx.preview(BILL_PAYMENTS)[0]["rows"])
     assert payments["recipe"] == "qbo.bill_payment_list.payments"
@@ -216,7 +217,8 @@ def test_vendor_contact_list_loads_as_reviewed_vendors(service):
     svc, eid = service
     _, proposal, normalized = _load(svc, eid, CONTACTS, "Vendor Contact List.xlsx",
                                     "Vendors", "qbo.vendor_contact_list.vendors")
-    assert proposal["column_map"] == {"vendor_number": "Vendor", "vendor_name": "Vendor"}
+    assert proposal["column_map"] == {"vendor_number": "Vendor", "vendor_name": "Vendor",
+                                      "address": "Billing address"}
     rec = normalized["reconciliation"]
     assert rec["rows_loaded"] == 26 and rec["rows_rejected"] == 0
     assert rec["diagnostics"]["duplicate_keys"] == []
