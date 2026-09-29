@@ -14,7 +14,7 @@
     "definitions": {
       "movement": "current minus prior per account; flagged when |pct| > 10 (or prior is zero and current is not) or |change| > 15,000",
       "current_ratio": "(cash + AR net + inventory + other current assets) / (AP + accrued + line of credit)",
-      "ar_turnover_gross": "net revenue / average gross A/R (account 11000)",
+      "sales_to_receivables": "net revenue / year-end net A/R (11000 less allowance 11900)",
       "inventory_turnover": "cost of sales / average inventory (needs prior year)"
     },
     "movements_flagged": [
@@ -198,7 +198,7 @@
         "net_revenue": "4225320.00",
         "cost_of_sales": "3056640.00",
         "pretax_income": "327827.50",
-        "ar_turnover_gross": "15.94",
+        "sales_to_receivables": "16.41",
         "inventory_turnover": "48.80"
       },
       "2025": {
@@ -212,6 +212,7 @@
     }
   },
   "ar.listing_tie": {
+    "figures_basis": "allowance figures are the re-run aging (after the Ridgeback write-off), the corrected scenario; as_loaded is the aging as exported",
     "aging_total": "264883.70",
     "tb_accounts_receivable": "261733.70",
     "difference": "3150.00",
@@ -227,9 +228,15 @@
     "allowance_required": "5627.38",
     "allowance_basis": "approved rates on each customer's five buckets, debit-balance customers only, after the Ridgeback write-off",
     "allowance_recorded": "4200.00",
-    "allowance_shortfall": "1427.38"
+    "allowance_shortfall": "1427.38",
+    "as_loaded": {
+      "allowance_required": "6887.38",
+      "allowance_shortfall": "2687.38",
+      "basis": "the same rates on the aging as exported, Ridgeback Cycles included"
+    }
   },
   "ar.confirmations_nonstatistical": {
+    "figures_basis": "projection over the re-run aging (after the Ridgeback write-off), the corrected scenario; as_loaded is over the aging as exported",
     "key_items": [
       "Alpine Loop Bicycles",
       "Basalt Ridge Bike Co.",
@@ -256,6 +263,11 @@
     "remainder_book": "32552.30",
     "projected_remainder": "833.73",
     "total_likely": "3083.73",
+    "as_loaded": {
+      "remainder_book": "35702.30",
+      "projected_remainder": "914.41",
+      "total_likely": "3164.41"
+    },
     "tolerable": "9000",
     "conclusion": "below tolerable; timing (Gallatin) and customer error (Yellowstone) are not misstatements"
   },

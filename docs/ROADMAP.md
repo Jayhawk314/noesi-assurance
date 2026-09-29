@@ -37,18 +37,22 @@ archives) is not on this path yet.
 `case-studies/kestrel-valley-cycle/instructor/finish_line_check.py` seeds
 the demo as `--demo` does and compares all 13 modules with the key; it
 writes `FINISH-LINE-REPORT.md` and exits 1 on any unexplained difference.
-**141 of 153 lines match, 0 unexplained.** Fixed from it: quick ratio
+**147 of 154 lines match, 0 unexplained** (141 of 153 before the key
+decisions below). Fixed from it: quick ratio
 (cash and receivables only), allowance reported to the cent, and the
 demo's policies (movement rule "or", manual journal sources, holidays).
 Also fixed, from Codex's audit: a confirmed credit balance no longer enters
 the confirmation sample; one reconciliation item covers one transfer.
 
+Decided (James, via Codex, 2026-09-29): the key now carries Ridgeback's
+as-loaded figures (allowance 6,887.38; projection 914.41) beside the
+re-run-aging ones, labelled; the key's A/R ratio is sales to year-end net
+receivables (16.41), the engine's metric. The checker pins every known
+difference to its exact Workbench value, so a moved value fails.
+Known limit: `ar.confirmations_difference` still counts a confirmed credit
+balance in its sample (Kestrel does not use that method).
+
 What still differs, and where it goes:
-- Ridgeback's 3,150 on the aging (allowance, confirmation projection): the
-  key works from a re-run aging; not an engine defect. James: keep, or
-  add the as-loaded figures to the key?
-- A/R turnover on average gross A/R: the engine reports the AICPA
-  sales-to-receivables ratio. James: key or engine?
 - PO overrun, A/P subledger tie, unrecorded liability: section C.
 - Checks without bills, employee/vendor shared address, stale accrual
   (no activity all year): parking lot (depth pass).

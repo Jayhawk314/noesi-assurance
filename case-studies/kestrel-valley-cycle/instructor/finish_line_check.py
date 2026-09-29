@@ -12,8 +12,10 @@ asked about is compared with what the Workbench produced:
 - ``not in Noesi``: the Workbench does not produce this answer; the reason
   is stated.
 
-A difference with no stated reason prints as UNEXPLAINED and makes the
-script exit 1: that is new information, not a known gap.
+A known difference is pinned: its reason and the exact Workbench value it
+gives (or that it gives none). A difference with nothing pinned, or a
+pinned one whose Workbench value has moved, prints as UNEXPLAINED and makes
+the script exit 1: that is new information, not a known gap.
 
     .venv\\Scripts\\python case-studies\\kestrel-valley-cycle\\instructor\\finish_line_check.py
 
@@ -73,16 +75,27 @@ def same(key, got) -> bool:
 
 
 class Check:
+    """A known difference is pinned: its reason and the exact Workbench value
+    it is known to give (``expect``, or NOT_IN). Any other value, or a
+    difference with nothing pinned, is UNEXPLAINED."""
+
     def __init__(self):
         self.rows: list[dict] = []
         self.module = ""
 
-    def __call__(self, item, key, got, why=""):
+    def __call__(self, item, key, got, why="", expect=None):
         status = ("not in Noesi" if got is NOT_IN else
                   "match" if same(key, got) else "differs")
+        if status == "match":
+            why = ""
+        elif not why or expect is None:
+            why = "UNEXPLAINED"
+        elif not (got is NOT_IN if expect is NOT_IN else
+                  got is not NOT_IN and same(expect, got)):
+            why = (f"UNEXPLAINED: the known difference was Workbench {expect!r}; "
+                   f"it is now {got!r}")
         self.rows.append({"module": self.module, "item": item, "key": key, "got": got,
-                          "status": status,
-                          "why": "" if status == "match" else (why or "UNEXPLAINED")})
+                          "status": status, "why": why})
 
 
 def seed():
@@ -171,19 +184,14 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     flagged = {m["account"].split(" ")[0] for m in tba["movements_flagged"]}
     got = {v["key"][2] for v in fnd.get("fs.trial_balance_analytics", [])
            if v["key"][1] == "movement"}
-    c("movements flagged (10% or 15,000)", sorted(flagged), sorted(got),
-      "the demo left analytics_threshold_rule unset, so a movement had to pass "
-      "both thresholds; the key flags either")
+    c("movements flagged (10% or 15,000)", sorted(flagged), sorted(got))
     now = (s.get("current") or {})
     before = (s.get("prior") or {})
     r26, r25 = tba["ratios"]["2026"], tba["ratios"]["2025"]
     for label, key, block in (("2026", r26, now), ("2025", r25, before)):
         ratios, figs = block.get("ratios") or {}, block.get("figures") or {}
         c(f"{label} current ratio", key["current_ratio"], ratios.get("current_ratio", NOT_IN))
-        c(f"{label} quick ratio", key["quick_ratio"], ratios.get("quick_ratio", NOT_IN),
-          "the engine counted other current assets (here the transfers-clearing "
-          "account and prepaids) as quick assets; quick assets are cash and "
-          "receivables")
+        c(f"{label} quick ratio", key["quick_ratio"], ratios.get("quick_ratio", NOT_IN))
         c(f"{label} gross margin %", key["gross_margin_pct"],
           _dec(ratios["gross_margin"]) * 100 if ratios.get("gross_margin") else NOT_IN)
         c(f"{label} net revenue", key["net_revenue"], figs.get("net_sales", NOT_IN))
@@ -193,11 +201,8 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       (s.get("line_totals") or {}).get("cost_of_sales", NOT_IN))
     c("2026 inventory turnover (average inventory)", r26["inventory_turnover"],
       (now.get("ratios") or {}).get("inventory_turnover", NOT_IN))
-    c("2026 A/R turnover on average gross A/R", r26["ar_turnover_gross"],
-      (now.get("ratios") or {}).get("receivables_turnover", NOT_IN),
-      "the engine reports sales to year-end net receivables "
-      f"({(now.get('ratios') or {}).get('sales_to_receivables')}), the AICPA "
-      "guide's ratio, not a turnover on average gross A/R")
+    c("2026 sales to year-end net receivables", r26["sales_to_receivables"],
+      (now.get("ratios") or {}).get("sales_to_receivables", NOT_IN))
 
     # ---- 3 Journal entries
     c.module = MODULES[2]
@@ -215,9 +220,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       len(nd) + len(s.get("no_description_not_manual_entries") or []))
     manual = [v["key"][1] for v in nd]
     c("manual entries without a description", ["journal entry 1052"],
-      [m.split(" ", 1)[1] for m in manual],
-      "the demo set no je_manual_sources, so every entry without a description "
-      "is a lead and the one manual entry is not singled out")
+      [m.split(" ", 1)[1] for m in manual])
     rare = set()
     for v in with_test("je.journal_entry_testing", "seldom_used_account"):
         rare.update(v["evidence"].get("accounts", []))
@@ -239,12 +242,15 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("aging to ledger difference found", True, has("ar.listing_tie", "listing_to_gl"))
     c("credit balance: Summit Loop Racing", True,
       has("ar.listing_tie", "credit_balance", "summit loop racing"))
-    ridgeback = ("the aging still carries Ridgeback Cycles' 3,150.00, written off "
-                 "after it was run; the key recomputes after the write-off (a "
-                 "re-run aging), the Workbench on the aging as loaded")
-    c("allowance required", lt["allowance_required"], s.get("allowance_required", NOT_IN),
-      ridgeback + " (3,150.00 x 40% = 1,260.00)")
+    # The learner reperforms from the aging as exported (Ridgeback still on
+    # it); the key's re-run-aging figures are the corrected scenario, for
+    # discussion, and are not something the Workbench is given.
+    c("allowance required (aging as loaded)", lt["as_loaded"]["allowance_required"],
+      s.get("allowance_required", NOT_IN))
     c("allowance recorded", lt["allowance_recorded"], s.get("allowance_recorded", NOT_IN))
+    c("allowance short (aging as loaded)", lt["as_loaded"]["allowance_shortfall"],
+      _dec(s["allowance_required"]) - _dec(s["allowance_recorded"])
+      if "allowance_required" in s else NOT_IN)
     cf = K1["ar.confirmations_nonstatistical"]
     s = run("ar.confirmations_nonstatistical")
     c("key items", len(cf["key_items"]), s.get("significant", NOT_IN))
@@ -255,11 +261,13 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       [v["key"][-1] for v in fnd.get("ar.confirmations_nonstatistical", [])
        if v["key"][1] == "client_misstatement"])
     c("sample book value", cf["sample_book"], s.get("sample_value", NOT_IN))
-    c("remainder book value", cf["remainder_book"], s.get("stratum_value", NOT_IN), ridgeback)
-    c("projected misstatement", cf["projected_remainder"],
-      s.get("projected_sample_misstatement", NOT_IN), ridgeback)
-    c("total likely misstatement", cf["total_likely"], s.get("projected_total", NOT_IN),
-      ridgeback)
+    loaded_cf = cf["as_loaded"]
+    c("remainder book value (aging as loaded)", loaded_cf["remainder_book"],
+      s.get("stratum_value", NOT_IN))
+    c("projected misstatement (aging as loaded)", loaded_cf["projected_remainder"],
+      s.get("projected_sample_misstatement", NOT_IN))
+    c("total likely misstatement (aging as loaded)", loaded_cf["total_likely"],
+      s.get("projected_total", NOT_IN))
     c("below tolerable", True,
       _dec(s["projected_total"]) < _dec(cf["tolerable"]) if s else NOT_IN)
 
@@ -289,15 +297,15 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       NOT_IN if not ran("ap.voucher_po_reference") else has("ap.voucher_po_reference", "1021"),
       "QuickBooks' Transaction List by Vendor carries no PO link on a bill (the "
       "PO number is only in the memo), so voucher-to-PO tests are partial "
-      f"({status('ap.voucher_po_reference')}); roadmap C")
+      f"({status('ap.voucher_po_reference')}); roadmap C", expect=NOT_IN)
     c("checks without bills: DM Consulting 4,500", True, NOT_IN,
       "no procedure tests direct checks to vendors that never billed; the "
-      "Payments loaded are bill payments only (parking lot: depth pass)")
+      "Payments loaded are bill payments only (parking lot: depth pass)", expect=NOT_IN)
     c("A/P subledger ties to the ledger", KP["ap_subledger_to_ledger"]["difference"],
       NOT_IN if not ran("ap.subledger_gl_balance_tie") else "0.00",
       "the A/P control schedule is built from Unpaid Bills and a General Ledger "
       "export; Kestrel has a trial balance, not a General Ledger export "
-      f"({status('ap.subledger_gl_balance_tie')}); roadmap C")
+      f"({status('ap.subledger_gl_balance_tie')}); roadmap C", expect=NOT_IN)
     c("three-way match not testable", "blocked", status("ap.three_way_receipt_match"))
     c("segregation of duties not testable", "partial", status("ap.segregation_of_duties"))
     c("duplicate's misstatement", KP["misstatement_from_duplicate"]["amount"],
@@ -371,7 +379,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("net pay error: E05", True, has("payroll.register_tests", "e05", "net_pay_differs"))
     c("bookkeeper's address is a vendor's (DM Consulting)", True, NOT_IN,
       "no procedure compares employee and vendor addresses (parking lot: depth "
-      "pass, 'vendor sharing an address with an employee')")
+      "pass, 'vendor sharing an address with an employee')", expect=NOT_IN)
 
     # ---- 9 Property and equipment
     c.module = MODULES[8]
@@ -419,7 +427,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("stale accrual: Accrued payroll unchanged all year", ["accrued payroll"],
       stale or NOT_IN,
       "the rollforward tests that each item foots and ties; it does not point "
-      "out a balance with no activity all year")
+      "out a balance with no activity all year (parking lot)", expect=NOT_IN)
 
     # ---- 11 Estimates and related parties
     c.module = MODULES[10]
@@ -449,7 +457,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       NOT_IN if not ran("ap.unrecorded_liabilities_search") else "",
       "the search needs payments linked to bills and the auditor's inspection "
       f"results ({status('ap.unrecorded_liabilities_search')}); the July "
-      "check is below the subsequent-events threshold")
+      "check is below the subsequent-events threshold; roadmap C", expect=NOT_IN)
     rl = K3["representation_letter"]
     c("representation missing", rl["missing"],
       [v["key"][1] for v in with_test("completion.representation_letter", "not_obtained")])
@@ -466,7 +474,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
       d["sad"].get("total_unadjusted", NOT_IN) or "0.00",
       "the summary of uncorrected misstatements (SAD) totals only findings the "
       "team has disposed as misstatements, none yet, while the procedure reads "
-      "the misstatement schedule; roadmap B2")
+      "the misstatement schedule; roadmap B2", expect="0")
     gc = K3["going_concern"]
     s = run("completion.going_concern_indicators")
     for item in ("working_capital", "net_income", "equity", "current_ratio"):
@@ -547,7 +555,7 @@ def main() -> int:
     for r in c.rows:
         if r["status"] != "match":
             print(f"[{r['status']:<12}] {r['module']}: {r['item']} — {r['why']}")
-    unexplained = [r for r in c.rows if r["why"] == "UNEXPLAINED"]
+    unexplained = [r for r in c.rows if r["why"].startswith("UNEXPLAINED")]
     print(f"\n{sum(r['status'] == 'match' for r in c.rows)} of {len(c.rows)} match; "
           f"{len(unexplained)} unexplained. Report: {REPORT.name}")
     return 1 if unexplained else 0

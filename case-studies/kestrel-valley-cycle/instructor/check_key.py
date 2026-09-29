@@ -63,6 +63,16 @@ def main():
                     if num(r[6]) > 0 and r[0] != "Ridgeback Cycles").quantize(CENT)
     results.append(check("allowance required", allowance,
                          KEY["ar.listing_tie"]["allowance_required"]))
+    loaded = sum(sum(num(r[1 + i]) * rates[i] for i in range(5)) for r in aging
+                 if num(r[6]) > 0).quantize(CENT)
+    results.append(check("allowance required, aging as loaded", loaded,
+                         KEY["ar.listing_tie"]["as_loaded"]["allowance_required"]))
+    net_ar = tb["11000"] + tb["11900"]
+    revenue = -(tb["40000"] + tb["40500"])
+    results.append(check("sales to year-end net receivables",
+                         (revenue / net_ar).quantize(CENT),
+                         KEY["fs.trial_balance_analytics"]["ratios"]["2026"]
+                         ["sales_to_receivables"]))
 
     # Inventory: listing total, count by SKU (trimmed, upper-cased), differences
     listing = {r[1]: (int(r[2]), num(r[3]))
@@ -99,6 +109,11 @@ def main():
                     if n not in key_names and v > 0 and n != "Ridgeback Cycles")
     results.append(check("AR projected remainder", (mis / sbook * remainder).quantize(CENT),
                          KEY["ar.confirmations_nonstatistical"]["projected_remainder"]))
+    loaded_remainder = sum(v for n, v in by_name.items() if n not in key_names and v > 0)
+    results.append(check("AR projected remainder, aging as loaded",
+                         (mis / sbook * loaded_remainder).quantize(CENT),
+                         KEY["ar.confirmations_nonstatistical"]["as_loaded"]
+                         ["projected_remainder"]))
 
     # Checking reconciliation: register balance = TB
     rec_rows = sheet("Checking_Reconciliation.xlsx")

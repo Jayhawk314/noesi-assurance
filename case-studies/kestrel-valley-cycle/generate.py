@@ -586,11 +586,11 @@ def answer_key(aging, aging_total, ar_per_tb, inv, inventory_total, statement_en
             "pretax_income": str(revenue - cogs - L["Operating expenses"]
                                  - L["Interest expense"]),
         }
-    ar_avg = (current["11000"] + prior["11000"]) / 2
+    ar_net = current["11000"] + current["11900"]
     inv_avg = (current["12100"] + prior["12100"]) / 2
     rev26 = D(ratios["2026"]["net_revenue"])
     cogs26 = D(ratios["2026"]["cost_of_sales"])
-    ratios["2026"]["ar_turnover_gross"] = str((rev26 / ar_avg).quantize(D("0.01")))
+    ratios["2026"]["sales_to_receivables"] = str((rev26 / ar_net).quantize(D("0.01")))
     ratios["2026"]["inventory_turnover"] = str((cogs26 / inv_avg).quantize(D("0.01")))
     key["fs.trial_balance_analytics"] = {
         "tb_foots": True, "definitions": {
@@ -598,7 +598,8 @@ def answer_key(aging, aging_total, ar_per_tb, inv, inventory_total, statement_en
                         "(or prior is zero and current is not) or |change| > 15,000",
             "current_ratio": "(cash + AR net + inventory + other current assets) / "
                              "(AP + accrued + line of credit)",
-            "ar_turnover_gross": "net revenue / average gross A/R (account 11000)",
+            "sales_to_receivables": "net revenue / year-end net A/R (11000 less "
+                                    "allowance 11900)",
             "inventory_turnover": "cost of sales / average inventory (needs prior year)"},
         "movements_flagged": movements, "ratios": ratios}
 
@@ -607,7 +608,14 @@ def answer_key(aging, aging_total, ar_per_tb, inv, inventory_total, statement_en
     required = sum(sum(a[i] * ALLOWANCE_RATES[BUCKETS[i]] for i in range(5))
                    for _, a, _ in positive)
     required = m(required)
+    # The same method on the aging as exported (Ridgeback still on it): what
+    # a learner reperforms from the file they load.
+    as_loaded = m(sum(sum(a[i] * ALLOWANCE_RATES[BUCKETS[i]] for i in range(5))
+                      for _, a, t in aging if t > 0))
     key["ar.listing_tie"] = {
+        "figures_basis": "allowance figures are the re-run aging (after the Ridgeback "
+                         "write-off), the corrected scenario; as_loaded is the aging "
+                         "as exported",
         "aging_total": str(aging_total), "tb_accounts_receivable": str(ar_per_tb),
         "difference": str(aging_total - ar_per_tb),
         "difference_explained": "Ridgeback Cycles 3,150.00 written off by JE 1066, "
@@ -622,6 +630,10 @@ def answer_key(aging, aging_total, ar_per_tb, inv, inventory_total, statement_en
                            "balance customers only, after the Ridgeback write-off",
         "allowance_recorded": str(-current["11900"]),
         "allowance_shortfall": str(required + current["11900"]),
+        "as_loaded": {"allowance_required": str(as_loaded),
+                      "allowance_shortfall": str(as_loaded + current["11900"]),
+                      "basis": "the same rates on the aging as exported, Ridgeback "
+                               "Cycles included"},
     }
 
     # Receivables: nonstatistical confirmations (textbook ratio projection)
@@ -638,12 +650,20 @@ def answer_key(aging, aging_total, ar_per_tb, inv, inventory_total, statement_en
                  if n not in key_items and t > 0 and n != WRITE_OFF[0]]
     remainder_book = sum(by_name[n] for n in remainder)
     projected = m(sample_mis / sample_book * remainder_book)
+    loaded_book = remainder_book + by_name[WRITE_OFF[0]]
+    loaded_projected = m(sample_mis / sample_book * loaded_book)
     key["ar.confirmations_nonstatistical"] = {
+        "figures_basis": "projection over the re-run aging (after the Ridgeback "
+                         "write-off), the corrected scenario; as_loaded is over the "
+                         "aging as exported",
         "key_items": key_items, "sample_items": sample,
         "key_known_misstatement": str(key_known),
         "sample_misstatement": str(sample_mis), "sample_book": str(sample_book),
         "remainder_book": str(remainder_book), "projected_remainder": str(projected),
         "total_likely": str(key_known + projected),
+        "as_loaded": {"remainder_book": str(loaded_book),
+                      "projected_remainder": str(loaded_projected),
+                      "total_likely": str(key_known + loaded_projected)},
         "tolerable": str(AR_TOLERABLE),
         "conclusion": "below tolerable; timing (Gallatin) and customer error "
                       "(Yellowstone) are not misstatements"}

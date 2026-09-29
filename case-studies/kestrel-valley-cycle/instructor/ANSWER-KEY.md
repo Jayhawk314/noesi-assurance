@@ -24,7 +24,7 @@ than they should.
 | Current ratio | 1.13 | 1.00 |
 | Quick ratio | 1.01 | 0.85 |
 | Gross margin | 27.7% | 28.4% |
-| A/R turnover (net revenue / avg gross A/R) | 15.94 | — |
+| Sales to receivables (net revenue / year-end net A/R) | 16.41 | — |
 | Inventory turnover (cost of sales / avg inventory) | 48.80 | — |
 
 Accounts that move by more than 10% or more than 15,000 are listed in the JSON
@@ -54,6 +54,10 @@ Inventory turnover of 48.8 is a question for inquiry; the answer is drop-ship.
     customers only, bucket by bucket, excluding Ridgeback.
   - Recorded: 4,200.00.
   - **Short 1,427.38** → AJE-2.
+  - These are the corrected (re-run aging) figures. On the aging as
+    exported, which is what a learner loads and reperforms, Ridgeback's
+    3,150.00 in the over-90 column adds 1,260.00: required **6,887.38**,
+    short **2,687.38**. The difference is the input, not the method.
 
 **Confirmations (nonstatistical).**
 - The key items are every customer at or above 9,000: 11 customers, all
@@ -70,6 +74,9 @@ Inventory turnover of 48.8 is a question for inquiry; the answer is drop-ship.
     **833.73**.
 - Total likely misstatement 2,250.00 + 833.73 = **3,083.73**, below tolerable
   9,000.
+- On the aging as exported (Ridgeback still in the remainder): 620.00 /
+  24,207.30 × 35,702.30 = **914.41**; total likely **3,164.41**. Same
+  conclusion.
 
 ## Inventory
 
