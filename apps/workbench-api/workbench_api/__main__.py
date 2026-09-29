@@ -1,7 +1,7 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Run the local workbench: API + built review UI on loopback.
 
-    python -m workbench_api [--data DIR] [--port N]
+    python -m workbench_api [--data DIR] [--port N] [--demo]
 
 Prints the one-session bearer token; paste it into the UI's token gate.
 """
@@ -31,10 +31,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8347)
     parser.add_argument("--principal", default=f"local:{getpass.getuser()}",
                         help="principal id for this session")
-    parser.add_argument("--demo", nargs="?", const="", default=None,
-                        metavar="CASE_DIR",
-                        help="seed the Harborline demo engagement (optionally "
-                             "from an explicit case data directory)")
+    parser.add_argument("--demo", action="store_true",
+                        help="load the Kestrel Valley demo engagement (the full "
+                             "audit, loaded and run)")
+    # Internal only: the retired Harborline demo, kept for the old Learn
+    # app's lessons and the engine's regression baseline; not advertised.
+    parser.add_argument("--demo-harborline", nargs="?", const="", default=None,
+                        metavar="CASE_DIR", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
     data = Path(args.data)
@@ -52,12 +55,16 @@ def main(argv: list[str] | None = None) -> int:
                           studio_dir=studio)
 
     demo_note = ""
-    if args.demo is not None:
+    if args.demo:
+        from workbench_api.demo import seed_kestrel
+        outcome = seed_kestrel(service, args.principal)
+        demo_note = ("Kestrel Valley Cycle Supply: loaded and "
+                     f"{outcome.get('procedures_run', 0)} procedures run"
+                     if outcome["seeded"] else "Kestrel Valley Cycle Supply: already present")
+    if args.demo_harborline is not None:
         from workbench_api.demo import seed_demo
-        outcome = seed_demo(service, args.principal,
-                            case_dir=Path(args.demo) if args.demo else None)
-        demo_note = ("seeded — switch chairs in the UI to run procedures"
-                     if outcome["seeded"] else "already present")
+        seed_demo(service, args.principal,
+                  case_dir=Path(args.demo_harborline) if args.demo_harborline else None)
 
     port = server.server_address[1]
     # flush=True: the token must reach a redirected log immediately.
@@ -68,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"principal:  {args.principal}", flush=True)
     print(f"token:      {auth.token}", flush=True)
     if demo_note:
-        print(f"demo:       Harborline Marine Group ({demo_note})", flush=True)
+        print(f"demo:       {demo_note}", flush=True)
     print("Ctrl+C stops the server. The token dies with it.", flush=True)
     try:
         server.serve_forever()

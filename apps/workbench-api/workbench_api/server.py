@@ -434,6 +434,12 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
 
         def _post(self, route: list[str], actor: str) -> dict:
             match route:
+                case ["demo", "kestrel"]:
+                    from workbench_api.demo import seed_kestrel
+                    try:
+                        return seed_kestrel(service, actor)
+                    except FileNotFoundError as exc:
+                        raise ApiError(404, str(exc)) from None
                 case ["engagements"]:
                     body = self._read_json()
                     return service.create_engagement(

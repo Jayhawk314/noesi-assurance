@@ -35,6 +35,27 @@ ROLE_FILES = {
 DEMO_POLICIES = (("split_threshold", "10000"), ("split_window_days", "9"))
 
 
+def kestrel_case_dir() -> Path:
+    """The in-repo Kestrel Valley case; absent in installed-package deployments."""
+    return (Path(__file__).resolve().parents[3]
+            / "case-studies" / "kestrel-valley-cycle")
+
+
+def seed_kestrel(service, partner: str) -> dict:
+    """The Workbench demo: the full Kestrel Valley audit, loaded and run
+    through the real service path (idempotent)."""
+    seeder = kestrel_case_dir() / "instructor" / "workbench_seed.py"
+    if not seeder.is_file():
+        raise FileNotFoundError(
+            f"the Kestrel Valley case is not present at {kestrel_case_dir()}; "
+            "the demo needs the repository's case-studies folder")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("kestrel_workbench_seed", seeder)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.seed(service, partner)
+
+
 def default_case_dir() -> Path:
     """The in-repo Harborline data; absent in installed-package deployments."""
     return (Path(__file__).resolve().parents[3]

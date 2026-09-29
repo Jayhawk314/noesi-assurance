@@ -58,6 +58,7 @@ function Workbench({ client }: { client: Client }) {
   const [acting, setActing] = useState("");
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [manualOpen, setManualOpen] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -102,6 +103,15 @@ function Workbench({ client }: { client: Client }) {
     client.actingAs = principal;
     setActing(principal);
     setError("");
+  }
+
+  async function loadDemo() {
+    try {
+      setError("");
+      setDemoLoading(true);
+      await client.loadKestrelDemo();
+      await refresh();
+    } catch (exc) { report(exc); } finally { setDemoLoading(false); }
   }
 
   async function create() {
@@ -183,6 +193,12 @@ function Workbench({ client }: { client: Client }) {
                       disabled={!newClient.trim() || !newPeriod.trim()}>
                 create engagement
               </button>
+            </form>
+            <form className="inline" onSubmit={(e) => { e.preventDefault(); void loadDemo(); }}>
+              <button className="action" type="submit" disabled={demoLoading}>
+                {demoLoading ? "loading the Kestrel demo…" : "load the Kestrel demo"}
+              </button>
+              <span className="note"> the full audit of a sample company, loaded and run</span>
             </form>
             <p className="note">
               Creating an engagement makes the acting principal (top right)
