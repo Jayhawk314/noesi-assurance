@@ -528,7 +528,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
     "accruals_rounding_tolerance", "estimates_bias_min_count",
-    "report_date", "gc_current_ratio_floor", "rep_signers",
+    "report_date", "gc_current_ratio_floor", "rep_signers", "misstatement_likely_basis",
 )
 
 # Supplied from the engagement record rather than typed as policies.
@@ -576,7 +576,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "accruals_rounding_tolerance": {"accruals"},
     "estimates_bias_min_count": {"estimates"},
     "report_date": {"completion"}, "gc_current_ratio_floor": {"completion"},
-    "rep_signers": {"completion"},
+    "rep_signers": {"completion"}, "misstatement_likely_basis": {"completion"},
 }
 
 

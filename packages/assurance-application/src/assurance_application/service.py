@@ -1234,6 +1234,11 @@ class WorkbenchService:
                     parse_allowance_rates(str(values["value"]))
                 except PolicyError as exc:
                     raise ValueError(str(exc)) from exc
+            if name == "misstatement_likely_basis":
+                from procedures_cycles.statements import LIKELY_BASES
+                if str(values["value"]).strip().lower() not in LIKELY_BASES:
+                    raise ValueError("misstatement_likely_basis must be 'total' or "
+                                     "'beyond_identified'")
             document.setdefault("policies", {})[name] = str(values["value"])
         else:
             raise ValueError(f"unknown workflow section {section!r}")

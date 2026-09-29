@@ -318,13 +318,61 @@ SUM_COLUMNS = ("identified", "likely", "current_assets", "noncurrent_assets",
                "current_liabilities", "noncurrent_liabilities", "income_before_taxes")
 
 
+LIKELY_BASES = ("total", "beyond_identified")
+
+
+def _basis_shown_by(row: dict) -> str | None:
+    """Which reading of "likely" the row's statement-line columns bear out:
+    the largest line effect equals likely (total) or identified + likely
+    (beyond identified). None when the row cannot tell them apart."""
+    identified, likely = money(row.get("identified")), money(row.get("likely"))
+    effect = max((abs(money(row.get(c))) for c in SUM_COLUMNS[2:]), default=ZERO)
+    if not likely or not identified or not effect:
+        return None
+    as_total, as_beyond = effect == abs(likely), effect == abs(identified + likely)
+    return "total" if as_total and not as_beyond else (
+        "beyond_identified" if as_beyond and not as_total else None)
+
+
 def uncorrected_misstatements(tables: dict, policies: dict):
     pid = "completion.uncorrected_misstatements"
     materiality = policy_decimal(policies, "materiality")
     rows = records(tables, "Misstatements")
+    findings = []
+    # "Likely" is either the whole likely misstatement or the projection
+    # beyond the identified amount; summaries use both. The partner's
+    # setting decides; failing that, the rows' own line columns may show it.
+    chosen = text(policies.get("misstatement_likely_basis")).lower()
+    if chosen and chosen not in LIKELY_BASES:
+        raise PolicyError("misstatement_likely_basis must be 'total' or "
+                          "'beyond_identified'")
+    shown = {r_id: b for r_id, b in ((text(r.get("description")), _basis_shown_by(r))
+                                     for r in rows) if b}
+    if chosen:
+        basis, basis_source = chosen, "policy"
+        for description, b in sorted(shown.items()):
+            if b != chosen:
+                findings.append(receipt(
+                    pid, ("likely_basis_contradicted", description), "TENSION",
+                    f"'{description}': its statement-line amounts read likely as "
+                    f"{b.replace('_', ' ')}, not {chosen.replace('_', ' ')} as set",
+                    {"finding_class": "CONJECTURE", "cycle": "completion"}))
+    elif len(set(shown.values())) == 1:
+        basis, basis_source = next(iter(shown.values())), "statement-line columns"
+    else:
+        basis, basis_source = "total", "assumed"
+        if any(money(r.get("likely")) for r in rows):
+            findings.append(receipt(
+                pid, ("likely_basis_unknown",), "AMBIGUOUS",
+                "the summary does not show whether 'likely' is the whole likely "
+                "misstatement or the amount beyond identified; it was read as the "
+                "whole — set misstatement_likely_basis",
+                {"finding_class": "CONJECTURE", "cycle": "completion"}))
+    if basis == "beyond_identified":
+        rows = [{**r, "likely": money(r.get("identified")) + money(r.get("likely"))}
+                for r in rows]
     totals = {c: sum((money(r.get(c)) for r in rows), ZERO) for c in SUM_COLUMNS}
     remaining = {c: (materiality - abs(v)).quantize(CENT) for c, v in totals.items()}
-    findings = []
     for column in SUM_COLUMNS[2:]:
         if abs(totals[column]) >= materiality:
             findings.append(receipt(
@@ -348,6 +396,7 @@ def uncorrected_misstatements(tables: dict, policies: dict):
                  "source_rows": [source_ref("Misstatements", r, "description")]}))
     return findings, {"population": len(rows), "materiality": materiality,
                       "totals": totals, "remaining": remaining,
+                      "likely_basis": basis, "likely_basis_source": basis_source,
                       "exceptions": len(findings)}
 
 
