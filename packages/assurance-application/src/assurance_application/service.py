@@ -1046,6 +1046,26 @@ class WorkbenchService:
                 "done": bool(values.get("done", False)),
                 "note": str(values.get("note", "")),
                 "evidence": list(values.get("evidence", []))}
+        elif section == "opinion_decision":
+            # A judgment the draft opinion asks for (pervasiveness, the
+            # going-concern conclusion). The partner's alone; kept, with who
+            # and why, in the signed engagement record.
+            self._require(engagement_id, actor, "partner")
+            from assurance_domain.opinion import DECISION_ANSWERS
+            decision = str(values.get("decision") or "")
+            answer = str(values.get("answer") or "")
+            note = " ".join(str(values.get("note") or "").split())
+            if decision not in DECISION_ANSWERS:
+                raise ValueError(f"unknown decision {decision!r}; one of "
+                                 f"{sorted(DECISION_ANSWERS)}")
+            if answer not in DECISION_ANSWERS[decision]:
+                raise ValueError(f"{decision} takes one of "
+                                 f"{list(DECISION_ANSWERS[decision])}, not {answer!r}")
+            if len(note) < 10:
+                raise ValueError("record the reason for the decision (ten characters "
+                                 "or more); it becomes part of the signed record")
+            document.setdefault("opinion_decisions", {})[decision] = {
+                "answer": answer, "note": note, "decided_by": actor}
         elif section == "period":
             # The period's first day, when it is not the twelve months ending at
             # period end (a first year, a changed year end). The partner owns it.
@@ -1299,7 +1319,8 @@ class WorkbenchService:
             readiness=self.readiness(engagement_id), sad=self.sad(engagement_id),
             findings=findings, misstatement_run=summary_run,
             materiality=float(document["materiality"].get("amount") or 0),
-            completion=document.get("completion") or {})
+            completion=document.get("completion") or {},
+            recorded=document.get("opinion_decisions") or {})
 
     def readiness(self, engagement_id: str) -> dict:
         info = self._engagement(engagement_id)

@@ -131,3 +131,67 @@ def test_final_f3_a_misstatement_equal_to_materiality_is_material():
     out = opinion(run=summary("-15000"))
     assert out["proposed_opinion"] == "qualified_or_adverse"
     assert not any("below materiality" in r for r in out["basis"])
+
+
+# ------------------------------------------------ the partner's decisions
+def test_recorded_decisions_settle_the_opinion():
+    gap = finding("completion.subsequent_events", ["no_subsequent_records"], "AMBIGUOUS",
+                  cls="REFUSAL")
+    both = [gap]
+    run = summary("0", "-20000")
+    assert opinion(both, run=run)["opinion"] is None          # judgments still open
+    rec = {"pervasiveness_of_scope_limitation": {"answer": "not_pervasive"},
+           "pervasiveness_of_misstatement": {"answer": "not_pervasive"}}
+    out = draft_opinion(readiness=READY, sad=SAD, findings=both, misstatement_run=run,
+                        materiality=15000, completion={}, recorded=rec)
+    assert out["opinion"] == "qualified" and out["decisions_required"] == []
+    rec["pervasiveness_of_misstatement"] = {"answer": "pervasive"}
+    out = draft_opinion(readiness=READY, sad=SAD, findings=both, misstatement_run=run,
+                        materiality=15000, completion={}, recorded=rec)
+    assert out["opinion"] == "adverse"
+    rec["pervasiveness_of_scope_limitation"] = {"answer": "pervasive"}
+    out = draft_opinion(readiness=READY, sad=SAD, findings=both, misstatement_run=run,
+                        materiality=15000, completion={}, recorded=rec)
+    assert out["opinion"] == "disclaimer"
+
+
+def test_going_concern_answers():
+    gc = finding("completion.going_concern_indicators", ["net_loss"], "TENSION",
+                 cls="CONJECTURE")
+    disclosed = draft_opinion(readiness=READY, sad=SAD, findings=[gc],
+                              misstatement_run=summary(), materiality=15000,
+                              completion={}, recorded={"going_concern_conclusion": {
+                                  "answer": "substantial_doubt_disclosed"}})
+    assert disclosed["opinion"] == "unmodified" and disclosed["going_concern_section"]
+    undisclosed = draft_opinion(readiness=READY, sad=SAD, findings=[gc],
+                                misstatement_run=summary(), materiality=15000,
+                                completion={}, recorded={"going_concern_conclusion": {
+                                    "answer": "substantial_doubt_not_disclosed"}})
+    assert undisclosed["proposed_opinion"] == "qualified_or_adverse"
+    assert [d["decision"] for d in undisclosed["decisions_required"]] == [
+        "pervasiveness_of_misstatement"]
+
+
+def test_only_the_partner_records_a_decision_with_a_reason(tmp_path):
+    import pytest as _pytest
+    from assurance_application.service import AuthorizationError, WorkbenchService
+    from assurance_artifacts.vault import ArtifactVault
+    from assurance_persistence.database import connect, migrate
+    from assurance_persistence.legacy_import import ensure_tenant
+    conn = connect(tmp_path / "c.db")
+    migrate(conn)
+    svc = WorkbenchService(conn, ArtifactVault(tmp_path / "v"), ensure_tenant(conn, "o"))
+    eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
+    svc.assign_team("pa", eid, "pr", "preparer")
+    decide = {"decision": "pervasiveness_of_misstatement", "answer": "not_pervasive",
+              "note": "confined to inventory; statements usable"}
+    with _pytest.raises(AuthorizationError):
+        svc.update_workflow("pr", eid, "opinion_decision", decide)
+    with _pytest.raises(ValueError, match="reason"):
+        svc.update_workflow("pa", eid, "opinion_decision", {**decide, "note": "ok"})
+    with _pytest.raises(ValueError, match="takes one of"):
+        svc.update_workflow("pa", eid, "opinion_decision", {**decide, "answer": "maybe"})
+    svc.update_workflow("pa", eid, "opinion_decision", decide)
+    recorded = svc.draft_opinion(eid)["recorded_decisions"]
+    assert recorded["pervasiveness_of_misstatement"]["decided_by"] == "pa"
+    conn.close()

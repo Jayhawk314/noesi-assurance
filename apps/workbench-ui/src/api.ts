@@ -292,6 +292,11 @@ export interface CycleCatalog { areas: CycleArea[]; engagement_policies: string[
 export interface DraftOpinion {
   status: string;
   proposed_opinion: string;
+  /** the opinion once every judgment is recorded; null while any is open */
+  opinion: string | null;
+  going_concern_section: boolean;
+  recorded_decisions: Record<string, { answer: string; note: string; decided_by: string }>;
+  decision_answers: Record<string, string[]>;
   basis: string[];
   decisions_required: { decision: string; why: string }[];
   readiness_blockers: Blocker[];

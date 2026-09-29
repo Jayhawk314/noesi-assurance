@@ -35,7 +35,7 @@ def _open(finding: dict) -> bool:
 
 def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                   misstatement_run: dict | None, materiality: float,
-                  completion: dict) -> dict:
+                  completion: dict, recorded: dict | None = None) -> dict:
     reasons, decisions = [], []
     m = Decimal(str(materiality or 0))
 
@@ -86,39 +86,54 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     indicators += sorted({f"covenant_breached: {f['verdict']['key'][1]}" for f in findings
                           if f["procedure_id"] == "debt.covenants"
                           and f["verdict"]["verdict"] == "CLASH" and _open(f)})
+    recorded = recorded or {}
+    gc_answer = (recorded.get("going_concern_conclusion") or {}).get("answer")
     gc_check = completion.get("going_concern") or {}
-    gc_concluded = bool(gc_check.get("done")) and bool(gc_check.get("note"))
+    gc_concluded = bool(gc_answer) or (bool(gc_check.get("done")) and bool(gc_check.get("note")))
     if indicators and not gc_concluded:
         decisions.append({
             "decision": "going_concern_conclusion",
             "why": f"indicators present ({', '.join(indicators)}); record whether "
-                   "substantial doubt exists (completion check 'going_concern', with "
-                   "a note) before an opinion"})
+                   "substantial doubt exists, and whether it is adequately disclosed"})
+    # Doubt the statements do not adequately disclose is itself a
+    # misstatement of the disclosures (AU-C 570).
+    gc_undisclosed = gc_answer == "substantial_doubt_not_disclosed"
+
+    def answer(key):
+        return (recorded.get(key) or {}).get("answer")
 
     # --- the proposal: every cause of modification is evaluated, none hides
     # another (final review F2); missing representations still lead.
     if refusals:
         reasons.append(f"{len(refusals)} scope limitation(s) still open: work the "
                        "engine could not perform on the evidence given")
-        decisions.append({"decision": "pervasiveness_of_scope_limitation",
-                          "why": "qualified if the possible effects are material but "
-                                 "not pervasive, disclaimer if pervasive (AU-C 705)"})
-    if material:
-        reasons.append(f"uncorrected misstatements of {largest} on "
-                       f"{misstatement['largest_line']} reach materiality {m}")
-        decisions.append({"decision": "pervasiveness_of_misstatement",
-                          "why": "qualified if material but not pervasive, adverse if "
-                                 "pervasive (AU-C 705)"})
+        if not answer("pervasiveness_of_scope_limitation"):
+            decisions.append({"decision": "pervasiveness_of_scope_limitation",
+                              "why": "qualified if the possible effects are material "
+                                     "but not pervasive, disclaimer if pervasive "
+                                     "(AU-C 705)"})
+    if material or gc_undisclosed:
+        if material:
+            reasons.append(f"uncorrected misstatements of {largest} on "
+                           f"{misstatement['largest_line']} reach materiality {m}")
+        if gc_undisclosed:
+            reasons.append("substantial doubt about going concern is not adequately "
+                           "disclosed (AU-C 570)")
+        if not answer("pervasiveness_of_misstatement"):
+            decisions.append({"decision": "pervasiveness_of_misstatement",
+                              "why": "qualified if material but not pervasive, adverse "
+                                     "if pervasive (AU-C 705)"})
+    modified = material or gc_undisclosed
     if missing_reps:
         proposal = "disclaimer"
         reasons.insert(0, f"required written representations not provided: "
                           f"{', '.join(missing_reps)} (AU-C 580 requires a disclaimer "
                           "or withdrawal)")
-    elif refusals and material:
+    elif refusals and modified:
         proposal = "qualified_adverse_or_disclaimer"
     elif refusals:
         proposal = "qualified_or_disclaimer"
-    elif material:
+    elif modified:
         proposal = "qualified_or_adverse"
     else:
         proposal = "unmodified"
@@ -126,15 +141,36 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                        f"({m}); no open scope limitation; representations obtained")
     if indicators and gc_concluded:
         reasons.append("going-concern conclusion recorded: "
-                       f"{gc_check.get('note')}; if substantial doubt exists, the report "
-                       "adds a going-concern section (AU-C 570)")
+                       + (gc_answer.replace("_", " ") if gc_answer
+                          else str(gc_check.get("note"))))
+
+    # --- the opinion, once every judgment is recorded (AU-C 705 ladder)
+    pending_judgment = any(d["decision"] != "correct_the_representation_letter"
+                           for d in decisions)
+    opinion = None
+    if missing_reps:
+        opinion = "disclaimer"
+    elif not pending_judgment:
+        if refusals and answer("pervasiveness_of_scope_limitation") == "pervasive":
+            opinion = "disclaimer"
+        elif modified and answer("pervasiveness_of_misstatement") == "pervasive":
+            opinion = "adverse"
+        elif refusals or modified:
+            opinion = "qualified"
+        else:
+            opinion = "unmodified"
+    going_concern_section = gc_answer == "substantial_doubt_disclosed"
 
     ready = bool(readiness.get("ready")) and not decisions
     return {
         "status": "draft_for_partner" if ready else "not_ready",
         "proposed_opinion": proposal,
+        "opinion": opinion,
+        "going_concern_section": going_concern_section,
         "basis": reasons,
         "decisions_required": decisions,
+        "recorded_decisions": recorded,
+        "decision_answers": {k: list(v) for k, v in DECISION_ANSWERS.items()},
         "readiness_blockers": readiness.get("blockers", []),
         "misstatements": misstatement,
         "materiality": str(m),
@@ -144,3 +180,12 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
         "note": "A draft for the engagement partner. The opinion, and every "
                 "judgment listed under decisions_required, is the partner's.",
     }
+
+
+# The judgments a partner records, and the answers each accepts.
+DECISION_ANSWERS: dict[str, tuple[str, ...]] = {
+    "pervasiveness_of_scope_limitation": ("not_pervasive", "pervasive"),
+    "pervasiveness_of_misstatement": ("not_pervasive", "pervasive"),
+    "going_concern_conclusion": ("no_substantial_doubt", "substantial_doubt_disclosed",
+                                 "substantial_doubt_not_disclosed"),
+}
