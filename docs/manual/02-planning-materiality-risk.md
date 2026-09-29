@@ -61,8 +61,8 @@ evaluating significant unusual transactions. A fraud risk is normally a
 significant risk. SAS No. 151, approved in August 2026, replaces AU-C 240
 for periods ending on or after December 15, 2028 (early adoption
 permitted); the definition of fraud and the auditor's objective do not
-change. The **Fraud in payables** course, lesson F2 (`/studio/#/learn/fraud/2`),
-works a full fraud risk assessment on Harborline.
+change. The legacy **Fraud in payables** course, lesson F2
+(`/studio/#/learn/fraud/2`), provides a narrower payables example.
 
 ## In the workbench
 
@@ -128,18 +128,18 @@ unexplained exclusion blocks completion
 (`PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE`), because "we skipped it" is not
 documentation.
 
-## In Harborline
+## In Kestrel
 
-The audit plan
-([`02-audit-plan.md`](../../case-studies/harborline-marine/docs/02-audit-plan.md))
-sets materiality at **420,000** (1% of revenue — the benchmark the lender's
-covenant tracks), giving performance materiality 315,000 and clearly
-trivial 21,000. Enter 420000 on the SAD screen and confirm the derived
-figures match the plan.
+Overall materiality is **15,000**, about 4.6% of pre-tax income. The demo
+records that benchmark and rationale; the SAD derives clearly trivial at
+750. The performance-materiality schedule allocates 33,000 across audit
+areas against a partner-approved cap of 2 × 15,000 = 30,000, so the planning
+procedure reports a 3,000 over-allocation.
 
-Then read the plan's risk table closely — it is the best page in the case.
-Each row is a fact from the engagement brief (the AP supervisor vacancy,
-vendor creation moving into purchasing, the receiving-process change)
-turned into an assertion-level risk and answered by a specific procedure.
-When you reach chapter 5, you will run those procedures; the reason each
-one is on the plan is in this table, not in the software.
+Build the risk register from the case facts rather than from the findings.
+Examples include management override (journal-entry testing), receivables
+valuation (aging and confirmations), inventory existence and valuation
+(count/listing and pricing), cash cutoff (reconciliation and transfers), and
+the completeness of liabilities (the subsequent-disbursements search). Link
+each risk to the procedure that answers it; a procedure's presence in the
+catalog is not, by itself, a reason to perform it.

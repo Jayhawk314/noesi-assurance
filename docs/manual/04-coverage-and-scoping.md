@@ -42,31 +42,30 @@ coverage only after a preparer validates it and a *different* reviewer
 approves the validation; a newly supported procedure becomes
 `ready_to_run`, because receiving a file is not execution.
 
-**Policies.** Engagement policies are set on the Coverage screen (or the
-workflow API) and take effect for every subsequent run: the run inherits
-the approved policy; an explicit per-run value overrides it. Two exist
-today:
-
-- `split_threshold` (required by the split-payment review) — the client's
-  approval limit.
-- `split_window_days` (optional) — how many days a payment cluster may
-  span. The default is 0 (same-day only); widening it is an audit judgment
-  you make explicitly, never a default the tool picks for you.
+**Policies.** Engagement policies are set on Scope & Policies (or the
+workflow API) and take effect for every subsequent run: the run inherits the
+approved value and records it in its manifest. The catalog names each
+procedure's required and optional policies. Examples include a split-payment
+threshold and window, allowance rates by aging bucket, journal-entry
+authorization and round-amount thresholds, sampling tolerable misstatement,
+bank-clearing days, analytics thresholds, and the report date. They are audit
+judgments, never values the engine should infer from the desired answer.
 
 **Deselection.** A procedure you will not perform is deselected *with a
 rationale*, which travels to the workpaper ("procedures not executed").
 
-## In Harborline
+## In Kestrel
 
-With all ten files loaded, coverage reads **10 executable, 1 partial** —
-the split review is partial because `split_threshold` is not yet set.
-Harborline's written policy requires a second signature above **$10,000**,
-so set `split_threshold = 10000`. Coverage moves to **11 executable**.
+The demo scopes the full audit and records the partner's approved policies.
+Read Coverage before reading any findings. It should distinguish executable
+procedures from procedures blocked by genuinely absent populations and from
+alternative sampling methods that were not selected. In particular, missing
+receiving and approver evidence remains visible; it is not hidden by the fact
+that other payables procedures can run.
 
-Then the judgment call: set `split_window_days = 9` — and be ready to
-defend that number, because Assignment 7 will ask you to. Why nine and not
-same-day? Because a clerk avoiding a second signature has no reason to
-write all the checks on the same afternoon. Why nine and not ninety?
-Because the wider the window, the more innocent payment patterns you sweep
-in. There is no universally right answer; there is only *your* answer,
-documented. That is what "an audit parameter, not a default" means.
+Change one judgment in a scratch engagement and watch coverage respond. For
+example, omit the five allowance rates and `ar.listing_tie` can still tie the
+aging to the ledger, but it cannot claim to have recomputed management's
+allowance method. The important lesson is not a fixed count of green rows;
+it is that every green row can explain the data and judgment that make it
+executable.

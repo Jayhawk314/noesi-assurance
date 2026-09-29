@@ -214,9 +214,7 @@ are not unique.
 - I did not re-review unrelated earlier commits, production-readiness claims,
   security boundaries, locking/export, licensing, or case studies outside the
   four-commit scope.
-- I did not review or modify the pre-existing untracked `oceanview/`,
-  `strategy/`, `video/`, `docs/OCEANVIEW_MARINE_CASE_MAP.md`, or other
-  unrelated untracked files.
+- I did not review or modify unrelated pre-existing untracked files.
 
 ## Overall verdict
 

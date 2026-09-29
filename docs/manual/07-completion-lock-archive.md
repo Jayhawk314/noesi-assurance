@@ -62,22 +62,24 @@ reviewed and approved again — and the next lock signs a manifest that
 workpaper carry the full amendment history. This is AU-C 230's
 post-assembly rule, made structural.
 
-## In Harborline
+## In Kestrel
 
-1. Work the six completion checks with real notes (the final-analytical
-   and evidence-sufficiency notes can reference your assignment memos).
-2. Watch readiness drain to green as each blocker clears, then lock as
-   the partner chair. Export the packet; open the workpaper; find your
-   scope limitations and your disposition notes in it.
-3. **Then reopen it.** Give a real reason — say, *"Client delivered a
-   corrected AP control balance after archiving; reperforming the
-   control-account tie."* Reperform `ap.subledger_gl_balance_tie`, try to
-   lock again immediately, and read the refusal: the rerun is unreviewed.
-   Review and approve it through the chairs, re-lock, re-export — and look
-   at the packet's **lock amendment history**: both generations of the
-   lock, both signatures, your reason, and both runs with their review
-   chains. That is what "nothing is ever quietly edited" looks like as a
-   data structure.
+1. Review the adjusted trial balance, the final misstatement schedule, the
+   July transaction leads, going-concern indicators, and the representation
+   letter. Record evidence-backed notes for all six completion checks.
+2. Read the draft opinion as a proposal. The missing representation drives
+   its current direction, while pervasiveness and the going-concern conclusion
+   remain explicit partner decisions. Do not resolve either by editing the
+   case data to make the screen green.
+3. Clear or follow up every finding, review and approve every selected run,
+   record the partner decisions, and watch readiness explain what remains.
+   Lock only when the evidence truly supports it; export the packet and find
+   the scope limitations, policies, line mapping, dispositions, and opinion
+   decisions in the final record.
+4. **Then practice supersession in a scratch copy.** Reopen with a specific
+   reason, reperform one procedure after changing a source or mapping, and try
+   to lock before reviewing the rerun. The refusal, followed by a second
+   reviewed lock whose history names the first, is the lesson.
 
 One caution to carry back to practice: the lock proves the *file's*
 integrity, not the audit's quality. A signed archive of thin work is

@@ -52,7 +52,8 @@ tests/
                           # QuickBooks Online report exports
   golden/                 # frozen bundles captured from noesi-cpa (Phase 0)
 case-studies/
-  harborline-marine/      # the complete teaching case
+  kestrel-valley-cycle/   # the full-cycle QuickBooks-shaped teaching case
+  harborline-marine/      # the frozen AP regression case and legacy course
 docs/
   manual/                 # the textbook, served in the workbench
   learn/                  # Learn course plan and research notes
@@ -99,10 +100,11 @@ signing keys).
 .venv\Scripts\noesi-workbench --demo
 ```
 
-`--demo` seeds a fully loaded engagement from the Harborline Marine teaching
-case (836 rows across ten record sets, loaded through the real three-chair
-review path, with the split-payment policies approved). Open it, press "run"
-on any procedure, and read what the engine found — and refused to claim.
+`--demo` seeds and runs a full Kestrel Valley Cycle Supply engagement through
+the real three-chair path: QuickBooks-shaped reports, client and auditor
+schedules, approved policies, reviewed trial-balance line mappings, and every
+currently executable selected procedure. Open the completed runs and read
+what the engine found — and what coverage refused to claim.
 
 ### Loading a client's files
 
@@ -148,15 +150,15 @@ active one.
 `docs/manual/` is a working textbook that teaches the audit process and the
 workbench together — every chapter pairs what professional standards require
 (**in practice**) with the concrete steps in the tool (**in the workbench**)
-and the running example (**in Harborline**). The workbench serves it
+and the running example (**in Kestrel**). The workbench serves it
 rendered: the **📖 manual** button in the header, from any screen — so a
 student never leaves the tool to look up why a gate refused them.
 
-`case-studies/harborline-marine/` is the complete instructor-ready case
-behind it: generated data with 40 planted exceptions, spreadsheet-first
-student assignments, workpaper templates, and an answer key.
-`instructor/verify_run.py` re-runs the whole case headlessly and prints
-every finding for reconciliation against the key.
+`case-studies/kestrel-valley-cycle/` is the full-cycle case behind it:
+QuickBooks-shaped exports, client and auditor schedules, independently
+computed answer keys, and headless checks that rederive the expected figures.
+The frozen Harborline case remains as the AP engine's regression fixture and
+the source for the legacy Studio course; it is not the manual's running case.
 
 ## Reference repository
 
@@ -206,7 +208,7 @@ evidences and the Noesi test that compares it.
 Copyright (c) 2026 James Hawkins. Licensed under the **PolyForm Noncommercial
 License 1.0.0** — see [LICENSE.md](LICENSE.md). In plain terms: personal
 study, teaching, research, and use by noncommercial organizations (including
-classroom use of the Harborline case) are free; **any commercial use —
+classroom use of the included teaching cases) are free; **any commercial use —
 including use on client engagements — requires a separate commercial license
 from the copyright holder** (jhawk314@gmail.com).
 

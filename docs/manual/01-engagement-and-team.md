@@ -59,15 +59,14 @@ Steps:
 3. Team tab → add a preparer and a reviewer principal.
 4. Practice switching chairs in the header; watch the roles chip update.
 
-## In Harborline
+## In Kestrel
 
-The case is designed for exactly three chairs. With `--demo`, the
-engagement **Harborline Marine Group (demo)** arrives with `demo-preparer`
-and `demo-reviewer` already assigned and the session principal as partner.
-Loading it by hand instead: create the engagement as your partner chair
-and assign the two other chairs yourself — the case walkthrough
-([`03-walkthrough.md`](../../case-studies/harborline-marine/docs/03-walkthrough.md))
-gives the exact sequence.
+The case is designed for the same three chairs. With `--demo`, the engagement
+**Kestrel Valley Cycle Supply (demo)** arrives with `demo-preparer` and
+`demo-reviewer` assigned and the session principal as partner. Loading it by
+hand instead: create a June 30, 2026 engagement as the partner chair, assign
+the other two chairs, and set the period start to July 1, 2025 before scoping
+the cycles.
 
 Try to approve one of your own mapping proposals while sitting in the
 preparer chair. The refusal you get is the point: the server enforces the

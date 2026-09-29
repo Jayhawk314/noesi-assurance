@@ -172,20 +172,22 @@ approved mapping and verifies the result against the recorded digest — and
 refuses to serve data it cannot reproduce. What you see is always what the
 evidence still supports.
 
-## In Harborline
+## In Kestrel
 
-Load all ten files from `data/` in one bulk pass — every Harborline
-filename infers its role, so the suggestions should match the walkthrough
-exactly (or start from `--demo`, which performs this whole chapter through
-the three chairs, batch path included). All ten load with **zero
-rejected rows** — and two mappings refuse fields:
+Start with `--demo` to inspect the completed ingestion trail, then repeat a
+few sources by hand. Kestrel combines QuickBooks exports, client schedules,
+bank data, and auditor-prepared evidence. The QuickBooks Journal, trial
+balance, aging, inventory, and reconciliation are loaded through explicit
+hand-preparation functions where the current generic recipes cannot yet read
+the report safely; their provenance says so. No figures are invented.
 
-- `Purchase_orders` refuses `created_on` / `approved_on` — the PO extract
-  genuinely lacks approval timestamps. This is scope limitation #1 in the
-  audit plan, discovered independently by the tool at ingestion.
-- `Value_flows` refuses `flow_type`.
+On **Scope & Policies**, confirm the suggested mappings from the client's
+trial-balance labels to statement lines and map the allowance account as an
+account-specific override. This reviewed mapping is what lets analytics,
+going concern, and the receivables tie read the same trial balance without
+teaching the engine Kestrel's vocabulary.
 
-Write the PO refusal down now, the way you would on a real engagement. In
-chapter 7 it belongs in the workpaper's limitations, and the engagement
-brief told you it was coming: management did not provide approval
-timestamps, and nothing downstream can conjure them.
+Notice the honest gaps as well: QuickBooks does not provide receiving records
+or an approver field, so three-way matching and segregation-of-duties testing
+cannot be made complete by renaming columns. Preserve those limits for the
+workpaper rather than synthesizing evidence.

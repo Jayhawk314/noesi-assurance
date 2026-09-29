@@ -66,29 +66,26 @@ completion blockers — the SAD refuses to conclude over an unreviewed
 judgment. This is the gate that implements AU-C 450's "evaluate before
 you conclude".
 
-## In Harborline
+## In Kestrel
 
-Work the 52 findings. The instructive ones:
+Start with root causes, not the number of receipts:
 
-- **The subledger tie** (`CLASH`, variance 18,450): below clearly trivial?
-  No — 21,000 is the line and this is under it, but is a control-account
-  reconciliation difference *qualitatively* trivial at year end? Argue it
-  both ways (Assignment 6), then disposition with the argument in the note.
-- **The five self-approvals**: individually small, collectively evidence
-  about the approval control during the supervisor vacancy. Their
-  disposition notes should say what the control conclusion is, not just
-  "cleared".
-- **The cross-findings**: the three phantom-PO vouchers appear in both the
-  reference test and the three-way match. If both land on the SAD at face
-  value you have double-counted ~27,000 of exposure. Decide which
-  procedure's finding carries the amount and clear the other *by
-  reference* — the note on each should point at the other.
-- **The value-flow ring** (`TENSION`, 48,500 returning through Meridian
-  within days): the population is management-prepared and unverified. Write
-  the disposition so it does not allege more than the evidence supports —
-  Assignment 8's exact exercise.
+- The aging-to-ledger difference is explained by a write-off entered after
+  the aging was exported. Clear it only after obtaining the rerun or recording
+  why alternative evidence resolves the population difference.
+- The customer credit balance is a classification question, while the
+  allowance shortfall is a valuation difference. They are not one item merely
+  because both come from `ar.listing_tie`.
+- Confirmation timing and customer-error differences are not client
+  misstatements; the pricing and freight differences are. The sampling result
+  reports what was identified and what was projected.
+- Cash and inventory each contain exceptions that lead to proposed
+  adjustments and others that remain uncorrected. Link cross-findings to one
+  root cause so the SAD does not count the same exposure twice.
 
-Then set materiality (420,000) if you have not, and read the SAD's
-conclusion. With the planted misstatements dispositioned honestly, the
-aggregate stays under materiality — the interesting output is not the
-conclusion but the discipline of the trail that supports it.
+Kestrel's final uncorrected-misstatements schedule uses “Likely” for the amount
+beyond identified on some rows. The run records how that convention was
+determined and aggregates by statement line. Read that completion schedule
+alongside the finding-based SAD: the current pilot still exposes both because
+they answer related but not identical questions. The partner, not either
+screen alone, concludes on materiality and the opinion.

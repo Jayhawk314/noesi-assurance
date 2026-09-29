@@ -36,46 +36,45 @@ Review lifecycle: the preparer's completed run is **reviewed** by the
 reviewer chair, then **approved** by the partner (who must not be the
 reviewer). Completion blocks on any run left unapproved.
 
-The eleven procedures, and how to read each:
+The live catalog on Coverage is the source of truth; it grows as a tested
+cycle earns a contract and executor. Read it in families rather than
+memorizing a frozen list:
 
-| Procedure | Assertions | What it does | Read the results knowing |
-|---|---|---|---|
-| `ap.payment_voucher_reference` | occurrence, accuracy | every payment must cite an observed voucher | absence may be an incomplete voucher export — completeness of the population decides what absence proves |
-| `ap.voucher_po_reference` | occurrence, authorization | every PO-citing voucher must reach an observed PO | non-PO spend (rent, utilities) is counted, not flagged |
-| `ap.document_chain` | occurrence, accuracy, cutoff | PO → voucher → payment amounts and date order cohere; escalates only anomalous chains | coherence does not authenticate any document; expect cross-findings from reference defects |
-| `ap.segregation_of_duties` | authorization | row-level: same creator and approver, or missing approver | field semantics and compensating controls need auditor evaluation |
-| `ap.vendor_relational_twins` | occurrence | near-identical vendor identities (name similarity) plus transaction-profile twins | a twin is an investigation lead, not proof of duplication or fraud |
-| `ap.three_way_receipt_match` | occurrence, accuracy, authorization | invoiced and paid goods were ordered and received | 2% tolerance on amounts; services and partial deliveries need review |
-| `ap.split_payment_review` | authorization | sub-threshold payment clusters per vendor within the chosen window | the window is your parameter; same-day default sees only crude splitting |
-| `ap.subledger_gl_balance_tie` | completeness, accuracy | period-end subledger vs GL control account | a cent-level tie-out; any difference is named |
-| `cash.bank_clearing` | occurrence, completeness, accuracy | payments clear through the independent bank feed | **2% amount tolerance** — know it before calling the silence clean |
-| `gl.payment_posting` | completeness, accuracy, cutoff | payments post to GL at the right amount and period | period mismatches are cutoff exceptions |
-| `forensic.closed_value_flow` | occurrence | amount- and time-coherent directed cycles in the value flows | a coherent round trip is a lead; population completeness bounds what it proves |
+| Family | Representative procedures | Read the results knowing |
+|---|---|---|
+| Planning and controls | trial-balance analytics, performance-materiality allocation, attribute evaluation | analytics create inquiry leads; control deviations change the audit response, not the books |
+| Journal entries | fraud-risk tests and population rollforward | a risk characteristic selects an entry for inspection; it does not prove fraud |
+| Revenue and receivables | cutoff, aging-to-ledger tie, confirmations and three sampling methods | alternative sampling methods are not cumulative; classification of confirmation differences is auditor evidence |
+| Payables | references, duplicates, subsequent-disbursement search, document chain and three-way match | missing purchase or receiving evidence limits the conclusion; a selected payment needs every line inspected |
+| Payroll, PP&E, debt, equity and accruals | register tests, rollforwards, recalculations and covenant tests | schedules are management assertions until vouched; covenant and estimate conclusions remain professional judgments |
+| Cash and inventory | bank reconciliation, transfers, count/listing trace and pricing projection | cutoff evidence is account-specific; observation and ownership cannot be automated from a spreadsheet |
+| Estimates and related parties | retrospective review and matching | bias patterns and name/address matches are leads, not conclusions about intent or completeness |
+| Completion | adjusted trial balance, subsequent events, going concern, representations and uncorrected misstatements | the engine assembles evidence and contradictions; the partner records the report judgments |
 
 Every finding arrives as a **receipt**: verdict, reason, the source rows
 (with content hashes), the tolerance applied, and a stated limitation —
 identified by the hash of its own content. Chapter 6 is about judging them.
 
-## In Harborline
+## In Kestrel
 
-Run all eleven (preparer chair), then review and approve each (reviewer,
-then partner chair). Expect **52 findings**, and reconcile them against
-your own spreadsheet work from the assignments:
+The demo has already run every executable selected procedure. Open the runs
+as the preparer, then move through reviewer and partner approval while
+reconciling each result to your own work. Useful anchors:
 
-- The three-way match reports **10**, though only 7 receipt problems were
-  planted — the three vouchers with phantom POs surface here too. One
-  defect, two procedures; Assignment 4 asks whether that is one finding or
-  two on the SAD.
-- Bank clearing reports **5**, though 6 differences were planted — one sits
-  at 0.9%, inside the 2% tolerance, deliberately. The tool is silent about
-  it and *correct* to be silent; a student who reconciles the bank column
-  by hand finds a difference the tool never mentions. Whether it matters
-  is your call, not the engine's.
-- The split review finds the planted cluster — five payments to one vendor
-  totalling 48,995 across nine days — only because you set the window in
-  chapter 4. Re-run it with the default and watch it go silent: same data,
-  different parameter, different evidence.
-- Segregation of duties flags exactly five self-approved payments. Before
-  you disposition them, check their dates against the June–September
-  supervisor vacancy from the engagement brief — a cluster with a known
-  cause reads very differently from a year-round spread.
+- Journal-entry testing identifies the post-closing entry and the unusual
+  round, weekend entry posted by someone outside the authorized-user policy.
+- Receivables separates the aging-to-ledger difference, a customer credit,
+  the allowance recomputation, and confirmation misstatements. The remaining
+  allowance difference is a known write-off timing question for the auditor;
+  the engine does not guess it away.
+- Cash distinguishes a stale outstanding check, an amount mismatch, a slow
+  deposit in transit, and a kiting-shaped transfer.
+- Inventory keeps count/listing exceptions separate from the projected
+  pricing result.
+- Completion finds all five above-threshold July transactions, but the team
+  must decide which reflect conditions at year end and which are routine.
+
+Where the tool and your hand work differ, trace the source rows and policy
+before reading the answer key. A mismatch can be an engine defect, a mapping
+defect, a population limitation, or a judgment the engine properly leaves to
+you.
