@@ -58,7 +58,7 @@ passes add depth.
    - Subsequent events: disbursements and receipts after year end.
    - Going-concern indicators from the ratios.
    - A representation letter checklist.
-9. **Reporting:** a draft opinion, with its basis, from the readiness state:
+9. **Reporting (built, `a5c57f5`):** a draft opinion, with its basis, from the readiness state:
    uncorrected misstatements against materiality, and scope limitations.
 
 ## Rules for every area
