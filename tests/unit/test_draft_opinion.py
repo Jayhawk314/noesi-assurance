@@ -115,3 +115,19 @@ def test_a_breached_covenant_calls_for_a_going_concern_conclusion():
     out = opinion([breach], run=summary())
     assert out["going_concern_indicators"] == ["covenant_breached: current ratio"]
     assert out["decisions_required"][0]["decision"] == "going_concern_conclusion"
+
+
+# ------------------------------------------------ final review (2026-09-29)
+def test_final_f2_a_scope_limitation_does_not_hide_a_material_misstatement():
+    gap = finding("completion.subsequent_events", ["no_subsequent_records"], "AMBIGUOUS",
+                  cls="REFUSAL")
+    out = opinion([gap], run=summary("0", "-20000"))
+    assert out["proposed_opinion"] == "qualified_adverse_or_disclaimer"
+    assert {d["decision"] for d in out["decisions_required"]} == {
+        "pervasiveness_of_scope_limitation", "pervasiveness_of_misstatement"}
+
+
+def test_final_f3_a_misstatement_equal_to_materiality_is_material():
+    out = opinion(run=summary("-15000"))
+    assert out["proposed_opinion"] == "qualified_or_adverse"
+    assert not any("below materiality" in r for r in out["basis"])

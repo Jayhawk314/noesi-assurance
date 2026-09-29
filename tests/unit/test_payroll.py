@@ -109,3 +109,17 @@ def test_taxes_withheld_heading_is_recognized():
                            ["Employee ID", "Check Date", "Gross Pay", "Taxes Withheld",
                             "Net Pay"])
     assert spec.column_map["tax_withheld"] == "Taxes Withheld"
+
+
+def test_final_f1_rows_without_withholding_are_named_even_when_others_have_it():
+    register = [{"employee_id": "E1", "pay_date": date(2025, 6, 15), "gross": D("1000"),
+                 "tax_withheld": D("100"), "net": D("900")},
+                {"employee_id": "E2", "pay_date": date(2025, 6, 15), "gross": D("1000"),
+                 "tax_withheld": None, "net": D("900")}]
+    findings, stats = execute_procedure(
+        "payroll.register_tests",
+        {"Payroll_register": register,
+         "Payroll_master": [{"employee_id": "E1"}, {"employee_id": "E2"}]}, {})
+    [gap] = [f for f in findings if f.key[1:] == ("net_pay", "not_performed")]
+    assert "1 of 2 register rows" in gap.reason
+    assert stats["not_performed"]["net_pay"] == "1 of 2 rows have no withholding or deduction"

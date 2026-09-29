@@ -73,7 +73,9 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
         misstatement = {"source": "SAD from dispositioned findings (no summary of "
                                   "uncorrected misstatements has been run)",
                         "largest_line": "total", "amount": str(largest)}
-    material = bool(m) and largest > m
+    # At materiality counts as material, as the completion procedure itself
+    # judges it (final review F3).
+    material = bool(m) and largest >= m
 
     # --- going concern (AU-C 570)
     indicators = sorted({str(f["verdict"]["key"][1]) for f in findings
@@ -93,26 +95,31 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                    "substantial doubt exists (completion check 'going_concern', with "
                    "a note) before an opinion"})
 
-    # --- the proposal
-    if missing_reps:
-        proposal = "disclaimer"
-        reasons.append(f"required written representations not provided: "
-                       f"{', '.join(missing_reps)} (AU-C 580 requires a disclaimer "
-                       "or withdrawal)")
-    elif refusals:
-        proposal = "qualified_or_disclaimer"
+    # --- the proposal: every cause of modification is evaluated, none hides
+    # another (final review F2); missing representations still lead.
+    if refusals:
         reasons.append(f"{len(refusals)} scope limitation(s) still open: work the "
                        "engine could not perform on the evidence given")
         decisions.append({"decision": "pervasiveness_of_scope_limitation",
                           "why": "qualified if the possible effects are material but "
                                  "not pervasive, disclaimer if pervasive (AU-C 705)"})
-    elif material:
-        proposal = "qualified_or_adverse"
-        reasons.append(f"uncorrected misstatements of {largest} on {misstatement['largest_line']} "
-                       f"exceed materiality {m}")
+    if material:
+        reasons.append(f"uncorrected misstatements of {largest} on "
+                       f"{misstatement['largest_line']} reach materiality {m}")
         decisions.append({"decision": "pervasiveness_of_misstatement",
                           "why": "qualified if material but not pervasive, adverse if "
                                  "pervasive (AU-C 705)"})
+    if missing_reps:
+        proposal = "disclaimer"
+        reasons.insert(0, f"required written representations not provided: "
+                          f"{', '.join(missing_reps)} (AU-C 580 requires a disclaimer "
+                          "or withdrawal)")
+    elif refusals and material:
+        proposal = "qualified_adverse_or_disclaimer"
+    elif refusals:
+        proposal = "qualified_or_disclaimer"
+    elif material:
+        proposal = "qualified_or_adverse"
     else:
         proposal = "unmodified"
         reasons.append(f"uncorrected misstatements ({largest}) are below materiality "

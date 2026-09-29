@@ -94,15 +94,24 @@ def register_tests(tables: dict, policies: dict):
     # A check that could not run is said, never skipped in silence (Kestrel
     # parts 2-3, C2): without withholding or deduction columns net pay
     # cannot be re-performed.
+    # Every row whose net pay could not be re-performed is named, whether the
+    # whole register lacks withholding or only some rows do (final review F1).
     not_performed = {}
-    if rows and not any(dec(r.get(f)) is not None for r in rows
-                        for f in ("tax_withheld", "deductions")):
-        not_performed["net_pay"] = "no withholding or deduction column is mapped"
+    untested = [r for r in rows if all(dec(r.get(f)) is None
+                                       for f in ("tax_withheld", "deductions"))]
+    if untested:
+        whole = len(untested) == len(rows)
+        not_performed["net_pay"] = (
+            "no withholding or deduction column is mapped" if whole
+            else f"{len(untested)} of {len(rows)} rows have no withholding or deduction")
         findings.append(receipt(
             pid, ("net_pay", "not_performed"), "AMBIGUOUS",
-            "net pay was not re-performed: the register has no withholding or "
-            "deduction column mapped. Map it, or record why the test is not needed",
-            {"finding_class": "REFUSAL", "cycle": "payroll"}))
+            f"net pay was not re-performed for {len(untested)} of {len(rows)} register "
+            "rows: they carry no withholding or deduction amount. Supply them, or "
+            "record why the test is not needed",
+            {"finding_class": "REFUSAL", "cycle": "payroll",
+             "rows": [r.get("source_row") for r in untested[:50]],
+             "employees": sorted({key_text(r.get("employee_id")) for r in untested})}))
     stats = {"population": len(rows), "employees_on_master": len(master),
              "final_pay_grace_days": int(grace) if grace is not None else 0,
              "not_performed": not_performed,
