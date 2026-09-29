@@ -26,7 +26,7 @@ def duplicate_bills(tables: dict, policies: dict):
     pid = "ap.duplicate_bills"
     groups: dict[str, list[dict]] = {}
     for bill in records(tables, ROLE):
-        key = _invoice_key(bill.get("voucher_number"))
+        key = _invoice_key(bill.get("invoice_number"))
         if key:
             groups.setdefault(key, []).append(bill)
     findings, duplicated = [], 0
@@ -46,7 +46,7 @@ def duplicate_bills(tables: dict, policies: dict):
             duplicated += 1
             findings.append(receipt(
                 pid, (key, "same_invoice_same_amount"), "CLASH",
-                f"invoice {text(bills[0].get('voucher_number'))} is recorded "
+                f"invoice {text(bills[0].get('invoice_number'))} is recorded "
                 f"{len(bills)} times for the same amount ({shown})"
                 + (" under different vendor records" if len(vendors) > 1 else "")
                 + f" — {extra} likely recorded twice; confirm with the vendor and "
@@ -54,7 +54,7 @@ def duplicate_bills(tables: dict, policies: dict):
         else:
             findings.append(receipt(
                 pid, (key, "same_invoice_different_amounts"), "TENSION",
-                f"invoice {text(bills[0].get('voucher_number'))} appears {len(bills)} "
+                f"invoice {text(bills[0].get('invoice_number'))} appears {len(bills)} "
                 f"times with different amounts ({shown}) — a correction, a partial "
                 "bill, or a duplicate?", evidence))
     stats = {"population": len(records(tables, ROLE)),

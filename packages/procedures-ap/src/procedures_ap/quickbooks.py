@@ -110,7 +110,8 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
         recipe_id="qbo.transaction_list_by_vendor.vouchers",
         report="Transaction List by Vendor", role="Vouchers",
         headers=_TX_BY_VENDOR, group_column="Vendor",
-        column_map={"voucher_number": "Num", "vendor_number": "Vendor",
+        column_map={"voucher_number": "Num", "invoice_number": "Num",
+                    "vendor_number": "Vendor",
                     "voucher_amount": "Amount", "voucher_date": "Date"},
         type_column="Transaction type", types=("Bill",), note=_NO_BILL_NUMBER),
     Recipe(
@@ -138,7 +139,8 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
         headers=("Date", "Transaction type", "Num", "Due date", "Past due",
                  "Amount", "Open balance"),
         group_column="Vendor", amount_columns=("Amount", "Open balance"),
-        column_map={"voucher_number": "Num", "vendor_number": "Vendor",
+        column_map={"voucher_number": "Num", "invoice_number": "Num",
+                    "vendor_number": "Vendor",
                     "voucher_amount": "Amount", "voucher_date": "Date"},
         note="Open bills only. The grand TOTAL of Open balance is the AP "
              "subledger balance, to compare with the ledger's Accounts "

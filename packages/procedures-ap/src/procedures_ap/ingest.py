@@ -56,6 +56,13 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
     "Vouchers": {
         "voucher_number": ["voucher number", "voucher no", "voucher id",
                            "invoice number", "invoice no", "invoice id", "voucher", "invoice"],
+        # The supplier's own invoice number, which only a supplier reuses.
+        # A voucher system's voucher number is the client's sequence, unique
+        # by design, so duplicate-bill testing needs this field, not that one.
+        "invoice_number": ["vendor invoice number", "supplier invoice number",
+                           "vendor invoice no", "supplier invoice no", "vendor invoice",
+                           "supplier invoice", "bill number", "bill no",
+                           "invoice number", "invoice no"],
         "po_number": ["po number", "po no", "purchase order number", "purchase order", "po"],
         "vendor_number": ["vendor number", "vendor no", "vendor id", "supplier number",
                           "supplier id", "vendor"],

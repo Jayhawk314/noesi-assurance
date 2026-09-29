@@ -3,11 +3,15 @@
 
 from decimal import Decimal as D
 
+from itertools import count
+
 from procedures_cycles.engines import execute_procedure
 
+_VOUCHERS = count(1)
 
 def bill(num, vendor, amount, dated="2025-03-03"):
-    return {"voucher_number": num, "vendor_number": vendor,
+    return {"voucher_number": f"V{next(_VOUCHERS)}",
+            "invoice_number": num, "vendor_number": vendor,
             "voucher_amount": D(amount), "voucher_date": dated}
 
 
@@ -39,3 +43,19 @@ def test_no_duplicates_no_findings():
                                     {"Vouchers": [bill("X1", "V", "1"),
                                                   bill("X2", "V", "1")]}, {})
     assert findings == []
+
+
+def test_a_voucher_number_alone_cannot_show_a_duplicate():
+    # A voucher system numbers its own vouchers uniquely; only the supplier's
+    # invoice number can repeat. Without it the test needs data, not a pass.
+    from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID
+    required = CYCLE_CONTRACTS_BY_ID["ap.duplicate_bills"].required_fields["Vouchers"]
+    assert "invoice_number" in required and "voucher_number" not in required
+    from procedures_ap.ingest import detect_columns, ROLE_SCHEMAS
+    voucher_system = detect_columns(["Voucher Number", "Vendor Number", "Voucher Amount"],
+                                    ROLE_SCHEMAS["Vouchers"])
+    assert "invoice_number" not in voucher_system
+    both = detect_columns(["Voucher Number", "Invoice Number", "Vendor Number"],
+                          ROLE_SCHEMAS["Vouchers"])
+    assert both["voucher_number"] == "Voucher Number"
+    assert both["invoice_number"] == "Invoice Number"

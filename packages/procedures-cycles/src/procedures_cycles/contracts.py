@@ -187,10 +187,12 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "List vendor invoices recorded more than once: the same invoice number for the "
         "same amount (under one vendor or two), or with different amounts.",
         "payables", ("occurrence", "accuracy"),
-        {"Vouchers": ("voucher_number", "vendor_number", "voucher_amount")},
-        evidence_source="client bill listing (vendor invoices entered)",
+        {"Vouchers": ("invoice_number", "vendor_number", "voucher_amount")},
+        evidence_source="client bill listing with each supplier's invoice number",
         denominator_role="Vouchers",
-        limitations="Compares invoice numbers by letters and digits; a duplicate "
+        limitations="Needs the supplier's invoice number; a voucher number the "
+                    "client assigns is unique by design and cannot show a duplicate. "
+                    "Compares invoice numbers by letters and digits; a duplicate "
                     "keyed with a different number, or bills with no number, are not "
                     "seen. Whether it was paid twice needs the vendor's statement.",
     ),
