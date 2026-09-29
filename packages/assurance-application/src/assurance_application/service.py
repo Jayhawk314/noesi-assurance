@@ -505,6 +505,9 @@ class WorkbenchService:
         start = (document.get("period") or {}).get("start")
         if start:
             policies.setdefault("period_start", str(start))
+        if document.get("line_mapping"):
+            policies.setdefault("line_mapping",
+                                json.dumps(document["line_mapping"], sort_keys=True))
         amount = (document.get("materiality") or {}).get("amount")
         if amount:
             policies.setdefault("materiality", str(amount))
@@ -1046,6 +1049,26 @@ class WorkbenchService:
                 "done": bool(values.get("done", False)),
                 "note": str(values.get("note", "")),
                 "evidence": list(values.get("evidence", []))}
+        elif section == "line_mapping":
+            # The client's own trial-balance label (or one account) mapped to
+            # a statement line the procedures read (K8). The preparer or the
+            # partner sets it; it reaches every run as a recorded policy.
+            self._require(engagement_id, actor, "preparer", "partner")
+            from procedures_cycles.common import key_text as _key
+            from procedures_cycles.statements import LINES
+            label = " ".join(str(values.get("label") or "").split()).lower()
+            account = _key(values.get("account")) if values.get("account") else ""
+            if bool(label) == bool(account):
+                raise ValueError("map either a label or one account, not both")
+            key = f"account:{account}" if account else f"label:{label}"
+            line = str(values.get("line") or "").strip()
+            mapping = document.setdefault("line_mapping", {})
+            if not line:
+                mapping.pop(key, None)
+            elif line not in LINES:
+                raise ValueError(f"unknown statement line {line!r}; one of {list(LINES)}")
+            else:
+                mapping[key] = line
         elif section == "opinion_decision":
             # A judgment the draft opinion asks for (pervasiveness, the
             # going-concern conclusion). The partner's alone; kept, with who
@@ -1271,6 +1294,28 @@ class WorkbenchService:
         if pending:
             summary["conclusion"] = None
         return summary
+
+    def trial_balance_lines(self, engagement_id: str) -> dict:
+        """Each label on the loaded trial balance, whether Noesi recognizes it,
+        how it is mapped, and a suggestion — for the line-mapping screen."""
+        from procedures_cycles.statements import LINES, suggest_line
+        document, _ = self.workflow_document(engagement_id)
+        mapping = document.get("line_mapping") or {}
+        table = self._tables(engagement_id).get("Trial_balance")
+        labels: dict[str, dict] = {}
+        for row in (table.records if table else []):
+            label = " ".join(str(row.get("line") or "").split())
+            item = labels.setdefault(label.lower(), {
+                "label": label, "accounts": [],
+                "recognized": label.lower() in LINES,
+                "mapped_to": mapping.get(f"label:{label.lower()}"),
+                "suggestion": suggest_line(label)})
+            item["accounts"].append(str(row.get("account") or ""))
+        overrides = {k[len("account:"):]: v for k, v in mapping.items()
+                     if k.startswith("account:")}
+        return {"lines": list(LINES), "labels": sorted(labels.values(),
+                                                        key=lambda i: i["label"]),
+                "account_overrides": overrides, "has_trial_balance": table is not None}
 
     def cycle_catalog(self) -> dict:
         """The audit areas a partner can switch on, each with its procedures

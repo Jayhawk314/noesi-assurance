@@ -424,6 +424,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.readiness(eid)
                 case ["engagements", eid, "opinion"]:
                     return service.draft_opinion(eid)
+                case ["engagements", eid, "trial-balance-lines"]:
+                    return service.trial_balance_lines(eid)
                 case ["engagements", eid, "lock"]:
                     return service.verify_lock(eid)
                 case ["engagements", eid, "workpaper"]:

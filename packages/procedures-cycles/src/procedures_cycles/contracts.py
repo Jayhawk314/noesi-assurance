@@ -532,7 +532,8 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
 )
 
 # Supplied from the engagement record rather than typed as policies.
-ENGAGEMENT_POLICIES: tuple[str, ...] = ("period_end", "period_start", "materiality")
+ENGAGEMENT_POLICIES: tuple[str, ...] = ("period_end", "period_start", "materiality",
+                                        "line_mapping")
 
 
 def contracts_for_scope(scope) -> tuple[ProcedureContract, ...]:

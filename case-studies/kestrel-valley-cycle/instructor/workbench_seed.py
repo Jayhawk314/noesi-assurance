@@ -122,6 +122,16 @@ def seed(service, partner: str) -> dict:
         except (ValueError, KeyError) as exc:
             refused.append({"file": label, "role": role, "reason": str(exc)})
 
+    # Map the client's own lead-schedule labels to statement lines, as the
+    # preparer would: confirm each suggestion, and file the allowance
+    # account (labelled "Accounts receivable") on the allowance line.
+    for item in service.trial_balance_lines(eid)["labels"]:
+        if not item["recognized"] and item["suggestion"]:
+            service.update_workflow(PREPARER, eid, "line_mapping",
+                                    {"label": item["label"], "line": item["suggestion"]})
+    service.update_workflow(PREPARER, eid, "line_mapping",
+                            {"account": "11900", "line": "allowance"})
+
     runs = 0
     for row in service.coverage(eid)["procedures"]:
         if row["status"] == "executable":

@@ -6,7 +6,7 @@
  *  (GET /api/cycles), so this screen never drifts from the engine. */
 
 import { useCallback, useState } from "react";
-import { Client, CycleArea, CycleCatalog, WorkflowDocument } from "../api";
+import { Client, CycleArea, CycleCatalog, TrialBalanceLines, WorkflowDocument } from "../api";
 import { useResource } from "../lib/useResource";
 
 const AREA_LABEL: Record<string, string> = {
@@ -29,8 +29,13 @@ export function ScopeScreen({ client, eid, onError }: {
   const loadDoc = useCallback(() => client.workflow(eid), [client, eid]);
   const catalog = useResource<CycleCatalog>(loadCatalog);
   const doc = useResource<{ document: WorkflowDocument; version: number }>(loadDoc);
+  const loadLines = useCallback(() => client.trialBalanceLines(eid), [client, eid]);
+  const tbLines = useResource<TrialBalanceLines>(loadLines);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [start, setStart] = useState<string | null>(null);
+  const [lineChoice, setLineChoice] = useState<Record<string, string>>({});
+  const [overrideAccount, setOverrideAccount] = useState("");
+  const [overrideLine, setOverrideLine] = useState("");
 
   if (catalog.error) return <div className="error-bar">{catalog.error}</div>;
   if (doc.error) return <div className="error-bar">{doc.error}</div>;
@@ -42,7 +47,8 @@ export function ScopeScreen({ client, eid, onError }: {
   const periodStart = start ?? document.period?.start ?? "";
 
   const save = (section: string, values: Record<string, unknown>) =>
-    client.updateWorkflow(eid, section, values).then(doc.reload).catch(onError);
+    client.updateWorkflow(eid, section, values)
+      .then(() => { doc.reload(); tbLines.reload(); }).catch(onError);
 
   function toggle(area: CycleArea) {
     const next = new Set(inScope);
@@ -85,6 +91,72 @@ export function ScopeScreen({ client, eid, onError }: {
           <button className="action" type="submit">save period start</button>
         </form>
       </div>
+
+      {tbLines.data?.has_trial_balance && (
+        <div className="panel">
+          <h3>Trial balance lines</h3>
+          <p className="note">
+            Match each of the client's own labels to a statement line once, so
+            ratios, going concern and the receivables tie can read the trial
+            balance. A suggestion is filled in where the label makes it clear;
+            confirm it. Map a single account differently below (for example an
+            allowance filed under "Accounts receivable").
+          </p>
+          <table className="dense">
+            <thead><tr><th>Client label</th><th>Accounts</th><th>Statement line</th><th /></tr></thead>
+            <tbody>
+              {tbLines.data.labels.map((item) => {
+                const current = lineChoice[item.label] ?? item.mapped_to ?? item.suggestion ?? "";
+                return (
+                  <tr key={item.label}>
+                    <td>{item.label || <i>(blank)</i>}</td>
+                    <td>{item.accounts.join(", ")}</td>
+                    <td>
+                      {item.recognized ? <span className="status ok">recognized</span> : (
+                        <select value={current}
+                                onChange={(e) => setLineChoice({ ...lineChoice, [item.label]: e.target.value })}>
+                          <option value="">choose…</option>
+                          {tbLines.data!.lines.map((l) => <option key={l} value={l}>{words(l)}</option>)}
+                        </select>
+                      )}
+                      {!item.recognized && !item.mapped_to && item.suggestion && !lineChoice[item.label] && (
+                        <div className="note">suggested: check it</div>
+                      )}
+                    </td>
+                    <td>
+                      {!item.recognized && (
+                        <button className="action" disabled={!current || current === item.mapped_to}
+                                onClick={() => void save("line_mapping", { label: item.label, line: current })}>
+                          {item.mapped_to ? "change" : "map"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="note">
+            Account overrides:{" "}
+            {Object.entries(tbLines.data.account_overrides).map(([a, l]) => `${a} → ${words(l)}`).join(", ") || "none"}
+          </p>
+          <form className="inline" onSubmit={(e) => {
+            e.preventDefault();
+            void save("line_mapping", { account: overrideAccount, line: overrideLine });
+            setOverrideAccount(""); setOverrideLine("");
+          }}>
+            <input value={overrideAccount} placeholder="account number"
+                   onChange={(e) => setOverrideAccount(e.target.value)} />{" "}
+            <select value={overrideLine} onChange={(e) => setOverrideLine(e.target.value)}>
+              <option value="">(remove override)</option>
+              {tbLines.data.lines.map((l) => <option key={l} value={l}>{words(l)}</option>)}
+            </select>{" "}
+            <button className="action" type="submit" disabled={!overrideAccount.trim()}>
+              set account override
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="panel">
         <h3>Audit areas in scope</h3>

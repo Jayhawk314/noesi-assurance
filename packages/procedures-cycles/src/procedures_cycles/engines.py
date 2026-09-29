@@ -77,6 +77,16 @@ def execute_procedure(procedure_id: str, tables: dict,
     if executor is None:
         raise ValueError("no incremental executor is registered for this procedure")
     contract = CYCLE_CONTRACTS_BY_ID[procedure_id]
+    # The engagement's account-to-line mapping (K8) turns the client's own
+    # lead-schedule labels into the statement lines the procedures read. It
+    # travels as a policy, so every run's manifest records the mapping used.
+    mapping_text = (policies or {}).get("line_mapping")
+    if mapping_text and "Trial_balance" in tables:
+        import json as _json
+        from procedures_cycles.statements import apply_line_mapping
+        mapping = _json.loads(mapping_text) if isinstance(mapping_text, str) else mapping_text
+        tables = {**tables, "Trial_balance": apply_line_mapping(
+            records(tables, "Trial_balance"), mapping)}
     # A mapped column is not the same as a value on every row: a blank
     # required value must not turn into a zero or a skipped row (review
     # 2026-09-28, F2). Rows missing one are set aside, named, and not tested.

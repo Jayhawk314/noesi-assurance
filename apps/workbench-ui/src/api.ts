@@ -288,6 +288,15 @@ export interface CycleArea {
 }
 export interface CycleCatalog { areas: CycleArea[]; engagement_policies: string[] }
 
+/** The loaded trial balance's own labels and how they map to statement lines. */
+export interface TrialBalanceLines {
+  lines: string[];
+  labels: { label: string; accounts: string[]; recognized: boolean;
+            mapped_to: string | null; suggestion: string | null }[];
+  account_overrides: Record<string, string>;
+  has_trial_balance: boolean;
+}
+
 /** The draft opinion (a proposal; the partner decides). */
 export interface DraftOpinion {
   status: string;
@@ -528,7 +537,9 @@ export class Client {
     this.request<Impact>("GET", `/api/engagements/${eid}/impact`);
 
   sad = (eid: string) => this.request<Sad>("GET", `/api/engagements/${eid}/sad`);
-  cycleCatalog = () => this.request<CycleCatalog>("GET", "/api/cycles");  draftOpinion = (eid: string) =>
+  cycleCatalog = () => this.request<CycleCatalog>("GET", "/api/cycles");
+  trialBalanceLines = (eid: string) =>
+    this.request<TrialBalanceLines>("GET", `/api/engagements/${eid}/trial-balance-lines`);  draftOpinion = (eid: string) =>
     this.request<DraftOpinion>("GET", `/api/engagements/${eid}/opinion`);
   readiness = (eid: string) =>
     this.request<Readiness>("GET", `/api/engagements/${eid}/readiness`);

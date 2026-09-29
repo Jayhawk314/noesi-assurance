@@ -34,6 +34,52 @@ LINES = (
 )
 _CREDIT_NORMAL = {"allowance", "current_liabilities", "noncurrent_liabilities", "equity",
                   "sales", "other_income"}
+
+# Words in a client's own lead-schedule label that suggest one of LINES.
+# A suggestion only: the preparer confirms every mapping (finding K8).
+_LINE_HINTS: tuple[tuple[str, str], ...] = (
+    ("allowance", "allowance"), ("doubtful", "allowance"),
+    ("sales return", "sales_returns"), ("returns and allowances", "sales_returns"),
+    ("cost of", "cost_of_sales"), ("cogs", "cost_of_sales"),
+    ("receivable", "receivables"), ("cash", "cash"), ("bank", "cash"),
+    ("inventor", "inventory"), ("prepaid", "other_current_assets"),
+    ("other current asset", "other_current_assets"),
+    ("property", "noncurrent_assets"), ("equipment", "noncurrent_assets"),
+    ("fixed asset", "noncurrent_assets"), ("intangible", "noncurrent_assets"),
+    ("long-term debt", "noncurrent_liabilities"), ("long term debt", "noncurrent_liabilities"),
+    ("notes payable - long", "noncurrent_liabilities"),
+    ("payable", "current_liabilities"), ("accrued", "current_liabilities"),
+    ("line of credit", "current_liabilities"), ("current liabilit", "current_liabilities"),
+    ("equity", "equity"), ("capital", "equity"), ("retained", "equity"),
+    ("revenue", "sales"), ("sales", "sales"), ("income tax", "income_tax"),
+    ("other income", "other_income"), ("interest income", "other_income"),
+    ("interest expense", "other_expense"), ("other expense", "other_expense"),
+    ("expense", "operating_expense"),
+)
+
+
+def suggest_line(label: str) -> str | None:
+    """A likely statement line for a client's own label, or None."""
+    words = text(label).lower()
+    if words in LINES:
+        return words
+    return next((line for hint, line in _LINE_HINTS if hint in words), None)
+
+
+def apply_line_mapping(rows: list[dict], mapping: dict) -> list[dict]:
+    """Trial balance rows with their line translated by the engagement's
+    mapping: an account-specific entry ("account:11900") first, then the
+    label ("label:accounts receivable"). Rows already on a recognized line,
+    or not mapped, keep their line; the originals are never changed."""
+    if not mapping:
+        return rows
+    out = []
+    for row in rows:
+        label = text(row.get("line")).lower()
+        target = (mapping.get(f"account:{key_text(row.get('account'))}")
+                  or mapping.get(f"label:{label}"))
+        out.append({**row, "line": target} if target else row)
+    return out
 _INCOME = {"sales", "sales_returns", "cost_of_sales", "operating_expense", "other_income",
            "other_expense", "income_tax"}
 
