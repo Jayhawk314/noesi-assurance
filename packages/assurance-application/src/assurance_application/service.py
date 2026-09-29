@@ -339,11 +339,12 @@ class WorkbenchService:
                         (artifact_id,)).fetchone()
                     if name is None:
                         raise KeyError(f"artifact {artifact_id}")
-                    role = infer_role(name["original_name"]) or ""
+                    role = self._guess_role(artifact_id,
+                                            name["original_name"])[0] or ""
                 if not role:
                     raise ValueError(
                         "no role given and none inferable from the "
-                        "filename; choose the role explicitly")
+                        "filename or its columns; choose the role explicitly")
                 if (artifact_id, role) in active:
                     entry.update(status="skipped", role=role,
                                  reason="an active mapping spec already "
@@ -430,7 +431,8 @@ class WorkbenchService:
                    WHERE engagement_id = ? ORDER BY created_at, rowid""",
                 (engagement_id,)):
             item = dict(row)
-            item["inferred_role"] = infer_role(item["original_name"])
+            item["inferred_role"], item["inferred_from"] = self._guess_role(
+                item["artifact_id"], item["original_name"])
             artifacts.append(item)
         specs = []
         for row in self._conn.execute(
@@ -462,8 +464,11 @@ class WorkbenchService:
             dataset["rejected_reasons"] = (
                 self._rejected_reasons(dataset["mapping_spec_id"])
                 if dataset["rows_rejected"] else [])
+        # Every data type the engine can load (payables and cycle roles), so
+        # the "map as" choice always matches the engine.
+        from procedures_ap.ingest import ROLE_SCHEMAS
         return {"artifacts": artifacts, "mapping_specs": specs,
-                "datasets": datasets}
+                "datasets": datasets, "roles": sorted(ROLE_SCHEMAS)}
 
     def _rejected_reasons(self, spec_id: str) -> list[dict]:
         """Why rows were set aside, grouped by reason with their row numbers.
@@ -2031,6 +2036,24 @@ class WorkbenchService:
             rows, spec, source_file=artifact_name,
             first_row=int(extraction["header_row"]) + 1 if extraction else 2,
             source_rows=source_rows)
+
+    def _guess_role(self, artifact_id: str, filename: str) -> tuple[str | None, str]:
+        """The role a stored file most likely carries: its name first, then
+        its column headings when the name says nothing. A suggestion for the
+        preparer and reviewer, cached per file (stored files never change)."""
+        role = infer_role(filename)
+        if role:
+            return role, "filename"
+        cache = self.__dict__.setdefault("_role_guess_cache", {})
+        if artifact_id not in cache:
+            from procedures_ap.ingest import infer_role_from_headers
+            try:
+                headers, _, _, _ = self._artifact_table(artifact_id, None)
+                cache[artifact_id] = infer_role_from_headers(list(headers))
+            except (ValueError, KeyError, UnicodeDecodeError):
+                cache[artifact_id] = None       # unreadable, several sheets, sections
+        guess = cache[artifact_id]
+        return guess, ("columns" if guess else "")
 
     def _role_states(self, engagement_id: str) -> dict[str, list]:
         """Per role, after each load: (that load, the datasets then in use).

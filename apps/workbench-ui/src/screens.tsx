@@ -85,6 +85,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   const load = useCallback(() => client.sources(eid), [client, eid]);
   const { data, reload } = useLoader<Sources>(load, onError);
   const fileInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
   const [mapRole, setMapRole] = useState<Record<string, string>>({});
   // Excel sources: the loaded preview and the sheet/header-row choice.
   const [books, setBooks] = useState<Record<string, WorkbookPreview>>({});
@@ -144,15 +145,29 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
     }).catch(onError);
   };
 
-  async function upload() {
-    const files = Array.from(fileInput.current?.files ?? []);
-    if (!files.length) return;
-    try {
-      for (const file of files) await client.uploadSource(eid, file);
-      if (fileInput.current) fileInput.current.value = "";
-      reload();
-    } catch (exc) { onError(exc); reload(); }
+  // Files the workbench can store as evidence; a folder's other files
+  // (hidden files, Office lock files, anything else) are skipped and named.
+  const ACCEPTED = /\.(csv|txt|xlsx|xls|pdf|json|png|jpe?g)$/i;
+
+  async function uploadFiles(input: React.RefObject<HTMLInputElement>) {
+    const all = Array.from(input.current?.files ?? []);
+    if (!all.length) return;
+    const files = all.filter((f) => ACCEPTED.test(f.name) && !f.name.startsWith(".")
+                                    && !f.name.startsWith("~$"));
+    const skipped = all.filter((f) => !files.includes(f)).map((f) => f.name);
+    // One bad or already-stored file never stops the rest; each is named.
+    const failed: string[] = [];
+    for (const file of files) {
+      try { await client.uploadSource(eid, file); }
+      catch (exc) { failed.push(`${file.name}: ${exc instanceof Error ? exc.message : exc}`); }
+    }
+    if (input.current) input.current.value = "";
+    const notes = [...(skipped.length ? [`skipped (not a data file): ${skipped.join(", ")}`] : []),
+                   ...failed];
+    if (notes.length) onError(new Error(notes.join("; ")));
+    reload();
   }
+  const upload = () => uploadFiles(fileInput);
 
   // The role a proposal would use: an explicit choice beats the filename
   // suggestion. A file is done mapping *for a role* once an active spec maps
@@ -199,8 +214,12 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                 <select value={chosenRole(artifact)}
                         onChange={(e) => setMapRole({ ...mapRole, [artifact.artifact_id]: e.target.value })}>
                   <option value="">choose role…</option>
-                  {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+                  {(data?.roles ?? ROLES).map((role) => (
+                    <option key={role} value={role}>{role.replace(/_/g, " ")}</option>))}
                 </select>
+                {artifact.inferred_from === "columns" && !mapRole[artifact.artifact_id] && (
+                  <div className="note">guessed from its columns: check it</div>
+                )}
               </td>
               <td>
                 {!mapped(artifact) && (
@@ -236,6 +255,13 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void upload(); }}>
         <input type="file" ref={fileInput} accept=".csv,.txt,.xlsx,.xls,.pdf,.json,.png,.jpg,.jpeg" multiple />
         <button className="action" type="submit">upload sources</button>
+        {" "}
+        <label className="action">
+          upload a folder
+          <input type="file" ref={folderInput} style={{ display: "none" }}
+                 {...{ webkitdirectory: "", directory: "" }}
+                 onChange={() => void uploadFiles(folderInput)} />
+        </label>
         {proposable.length > 0 && (
           <button className="action" type="button"
                   onClick={batch(() => client.proposeMappings(

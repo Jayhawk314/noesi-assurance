@@ -336,7 +336,7 @@ def test_bulk_proposal_reports_per_item_without_blocking_the_rest(
         BOB, engagement, content=PAYMENTS_CSV, media_type="text/csv",
         original_name="payments.csv")["artifact_id"]
     unnamed = service.store_source(
-        BOB, engagement, content=BALANCES_CSV, media_type="text/csv",
+        BOB, engagement, content=b"Foo,Bar\n1,2\n", media_type="text/csv",
         original_name="export_final_v2.csv")["artifact_id"]
 
     outcome = service.propose_source_mappings(
@@ -353,8 +353,26 @@ def test_bulk_proposal_reports_per_item_without_blocking_the_rest(
     # An uninferable file loads fine once the preparer names the role.
     named = service.propose_source_mappings(
         BOB, engagement,
-        [{"artifact_id": unnamed, "role": "AP_control_balance"}])
+        [{"artifact_id": unnamed, "role": "Vendors"}])
     assert named["proposed"] == 1
+    assert named["results"][0]["role"] == "Vendors"
+
+
+def test_a_file_named_nothing_useful_is_guessed_from_its_columns(service, engagement):
+    """A client's 'export (3).csv' is recognized by its headings; the guess is
+    labelled as coming from the columns, and it is still only a proposal."""
+    aid = service.store_source(
+        BOB, engagement, content=BALANCES_CSV, media_type="text/csv",
+        original_name="export (3).csv")["artifact_id"]
+    [item] = [a for a in service.sources(engagement)["artifacts"]
+              if a["artifact_id"] == aid]
+    assert (item["inferred_role"], item["inferred_from"]) == (
+        "AP_control_balance", "columns")
+    outcome = service.propose_source_mappings(BOB, engagement, [{"artifact_id": aid}])
+    assert outcome["results"][0]["role"] == "AP_control_balance"
+    # the "map as" list offers every data type, not only the payables ones
+    roles = service.sources(engagement)["roles"]
+    assert {"Payroll_register", "Trial_balance", "Fixed_assets", "Vendors"} <= set(roles)
 
 
 def test_bulk_approval_enforces_separation_per_item(service, engagement):

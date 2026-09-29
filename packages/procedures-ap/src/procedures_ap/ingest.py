@@ -173,6 +173,27 @@ ROLE_FILENAME_HINTS: dict[str, list[str]] = {
 }
 
 
+def infer_role_from_headers(headers: list[str]) -> str | None:
+    """Suggest the role a file's column headings best fit, for files whose
+    name says nothing (``export (3).csv``). A role qualifies only when every
+    one of its required fields maps and at least two fields map in all; the
+    role mapping the most fields wins, and a tie returns None rather than
+    picking one. A suggestion for the reviewer, never an approval."""
+    best: list[tuple[int, str]] = []
+    for role, schema in ROLE_SCHEMAS.items():
+        mapped = detect_columns(headers, schema)
+        required = _REQUIRED.get(role, ())
+        if len(mapped) < 2 or any(f not in mapped for f in required):
+            continue
+        best.append((len(mapped), role))
+    if not best:
+        return None
+    best.sort(reverse=True)
+    if len(best) > 1 and best[0][0] == best[1][0]:
+        return None
+    return best[0][1]
+
+
 def infer_role(filename: str) -> str | None:
     """Suggest the canonical role a filename most likely carries.
 

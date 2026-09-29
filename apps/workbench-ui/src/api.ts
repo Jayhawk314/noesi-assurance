@@ -25,6 +25,8 @@ export interface Artifact {
   created_at: string;
   /** Filename-based role suggestion; null when nothing is inferable. */
   inferred_role: string | null;
+  /** how the role was suggested: from the file's name or from its columns */
+  inferred_from?: "filename" | "columns" | "";
 }
 
 /** One item of a batch outcome; exactly one of the statuses applies. */
@@ -133,6 +135,8 @@ export interface Sources {
   artifacts: Artifact[];
   mapping_specs: MappingSpec[];
   datasets: Dataset[];
+  /** every data type the engine can load */
+  roles?: string[];
 }
 
 export interface CoverageRow {
