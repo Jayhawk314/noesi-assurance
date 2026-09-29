@@ -508,6 +508,50 @@ export function CoverageScreen({ client, eid, onError }: ScreenProps) {
 
 const DISPOSITIONS = ["cleared", "unadjusted", "adjusted", "waived", "follow_up"];
 
+// A run can complete while some of its tests did not run (a policy not set,
+// a column not supplied). Say which, and why, next to the run: a completed
+// run with nothing found is not a clean result for a test that never ran.
+function RunDetails({ summary }: { summary: Record<string, unknown> }) {
+  const notPerformed = (summary.not_performed ?? {}) as Record<string, string>;
+  const skipped = Object.entries(notPerformed);
+  const rest = Object.entries(summary).filter(([key]) => key !== "not_performed");
+  // Built only when opened: a run's details can list hundreds of rows.
+  const [open, setOpen] = useState(false);
+  const show = (value: unknown) =>
+    typeof value === "object" && value !== null
+      ? JSON.stringify(value, null, 1) : String(value);
+  return (
+    <>
+      {skipped.length > 0 && (
+        <div className="not-performed">
+          <b>Not performed ({skipped.length}):</b>
+          <ul>
+            {skipped.map(([test, why]) => (
+              <li key={test}><code>{test}</code>: {why}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {rest.length > 0 && (
+        <details className="run-details"
+                 onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+          <summary>run details</summary>
+          {open && <table className="dense">
+            <tbody>
+              {rest.map(([key, value]) => (
+                <tr key={key}>
+                  <th><code>{key}</code></th>
+                  <td><pre>{show(value)}</pre></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>}
+        </details>
+      )}
+    </>
+  );
+}
+
 export function RunsScreen({ client, eid, onError }: ScreenProps) {
   const load = useCallback(async () => {
     const [{ runs }, { findings }, coverage] = await Promise.all([
@@ -552,7 +596,8 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
       <table className="dense">
         <thead>
           <tr><th>Procedure</th><th>Status</th><th>Executed by</th>
-              <th>Reviewed by</th><th>Approved by</th><th>Error</th><th /></tr>
+              <th>Reviewed by</th><th>Approved by</th><th>Error</th><th>Details</th>
+              <th /></tr>
         </thead>
         <tbody>
           {(data?.runs ?? []).map((run: Run) => (
@@ -563,6 +608,7 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
               <td><code>{run.reviewed_by || "—"}</code></td>
               <td><code>{run.approved_by || "—"}</code></td>
               <td className="note">{run.error || "—"}</td>
+              <td><RunDetails summary={run.summary ?? {}} /></td>
               <td>
                 {run.status === "completed" && (
                   <button className="action"

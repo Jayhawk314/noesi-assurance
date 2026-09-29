@@ -548,3 +548,10 @@ table.dense tr.skipped td { opacity: .55; }
   body { background: #fff; color: #000; }
   .panel { border: none; box-shadow: none; break-inside: avoid; }
 }
+
+.not-performed { font-size: 0.8rem; color: var(--warn); background: var(--warn-soft);
+  border: 1px solid var(--warn-line); border-radius: var(--radius); padding: 0.3rem 0.5rem; }
+.not-performed ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+.run-details summary { cursor: pointer; font-size: 0.8rem; color: var(--ink-soft); }
+.run-details pre { margin: 0; max-height: 12rem; overflow: auto; font-size: 0.75rem;
+  white-space: pre-wrap; word-break: break-word; }
