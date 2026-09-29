@@ -192,3 +192,37 @@ def test_manual_sources_without_a_source_column_is_not_performed():
                           policies={**POLICIES, "je_manual_sources": "Journal Entry"})
     assert "source" in stats["not_performed"]["no_description"]
     assert not any(t == "no_description" for _, t in selected(findings))
+
+
+def _bare(entry, source, memo=""):
+    return [dict(line(entry, "6000", D("5.00"), memo=memo), source=source),
+            dict(line(entry, "2100", D("-5.00"), memo=memo), source=source)]
+
+
+def test_an_all_blank_description_column_is_tested_not_missing():
+    # review 09-29 H: a mapped but empty description column is the risk itself
+    listing = _bare("M1", "Journal Entry") + _bare("M2", "Journal Entry")
+    findings, stats = run("je.journal_entry_testing", listing,
+                          {**POLICIES, "je_manual_sources": "Journal Entry"})
+    assert "no_description" not in stats["not_performed"]
+    assert {e for e, t in selected(findings) if t == "no_description"} == {"m1", "m2"}
+
+
+def test_exclusions_are_listed_and_unknown_or_mixed_sources_say_so():
+    # review 09-29 M3: the excluded population is re-performable; blank and
+    # mixed sources are selected with the reason, not called manual
+    mixed = [dict(line("MIX", "6000", D("5.00"), memo=""), source="Journal Entry"),
+             dict(line("MIX", "2100", D("-5.00"), memo=""), source="Invoice")]
+    listing = (_bare("DESC", "Invoice", memo="memo") + _bare("BLANK", "")
+               + mixed + _bare("AUTO", "Invoice"))
+    findings, stats = run("je.journal_entry_testing", listing,
+                          {**POLICIES, "je_manual_sources": "Journal Entry, GJ"})
+    reasons = {f.key[1]: f.reason for f in findings if f.key[2] == "no_description"}
+    assert set(reasons) == {"blank", "mix"}
+    assert "not recorded" in reasons["blank"] and "manual entry" not in reasons["blank"]
+    assert "mixed sources" in reasons["mix"]
+    assert stats["no_description_not_manual"] == 1
+    [auto] = stats["no_description_not_manual_entries"]
+    assert auto["entry_id"] == "auto" and auto["sources"] == ["Invoice"]
+    assert auto["source_rows"]
+    assert stats["manual_sources_not_seen"] == ["gj"]

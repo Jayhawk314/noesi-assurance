@@ -59,3 +59,10 @@ def test_a_voucher_number_alone_cannot_show_a_duplicate():
                           ROLE_SCHEMAS["Vouchers"])
     assert both["voucher_number"] == "Voucher Number"
     assert both["invoice_number"] == "Invoice Number"
+
+
+def test_a_lone_invoice_number_heading_feeds_both_fields():
+    from procedures_ap.ingest import ROLE_SCHEMAS, detect_columns
+    lone = detect_columns(["Invoice Number", "Vendor Number", "Voucher Amount"],
+                          ROLE_SCHEMAS["Vouchers"])
+    assert lone["voucher_number"] == lone["invoice_number"] == "Invoice Number"

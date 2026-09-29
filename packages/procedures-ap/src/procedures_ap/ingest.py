@@ -232,9 +232,18 @@ def _norm(header: str) -> str:
     return "".join(ch for ch in (header or "").lower() if ch.isalnum())
 
 
+# Fields that may share a heading already taken by another field. A bill
+# listing whose only number is headed "Invoice Number" gives that number to
+# the voucher key and to the supplier's invoice number alike; a heading
+# like "Voucher Number" is not a synonym of invoice_number, so a voucher
+# system's own sequence never lands there.
+SHAREABLE_FIELDS = frozenset({"invoice_number"})
+
+
 def detect_columns(headers: list[str],
                    schema: dict[str, list[str]]) -> dict[str, str]:
-    """Map canonical fields to actual headers (normalized, no header reuse)."""
+    """Map canonical fields to actual headers (normalized; a header is
+    reused only by a field in SHAREABLE_FIELDS, and only as a fallback)."""
     norm_syn = {f: {_norm(s) for s in syns} for f, syns in schema.items()}
     mapping: dict[str, str] = {}
     used: set[str] = set()
@@ -246,6 +255,10 @@ def detect_columns(headers: list[str],
                 mapping[field_name] = header
                 used.add(header)
                 break
+    for field_name in SHAREABLE_FIELDS & set(schema) - set(mapping):
+        shared = next((h for h in headers if _norm(h) in norm_syn[field_name]), None)
+        if shared is not None:
+            mapping[field_name] = shared
     return mapping
 
 

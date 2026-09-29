@@ -55,6 +55,9 @@ def journal_entry_testing(tables: dict, policies: dict):
     counts: dict[str, int] = {}
     not_performed: dict[str, str] = {}
     has = lambda field: any(text(r.get(field)) for r in rows)
+    # A mapped column exists even when every value in it is blank. For the
+    # description that is the risk itself, not missing data (review 09-29 H).
+    mapped = lambda field: any(field in r for r in rows)
 
     def lead(entry_id, test, verdict, reason, evidence, amount=None, cls="CONJECTURE"):
         counts[test] = counts.get(test, 0) + 1
@@ -83,17 +86,21 @@ def journal_entry_testing(tables: dict, policies: dict):
         not_performed.setdefault("self_approved", "the listing has no approver")
     if seldom_max is None:
         not_performed["seldom_used_account"] = "policy je_seldom_used_max is not set"
-    if not has("description"):
+    if not mapped("description"):
         not_performed["no_description"] = "the listing has no description column"
     # Which sources are manual entries is the auditor's judgment (the
     # names differ by system). With it, "no description" selects manual
     # entries only: a system-generated invoice without a memo is routine.
     manual_sources = {s.lower() for s in (_csv_policy(policies, "je_manual_sources") or [])}
-    if manual_sources and not has("source"):
+    if manual_sources and not mapped("source"):
         not_performed["no_description"] = (
             "policy je_manual_sources is set but the listing has no source "
             "(transaction type) column")
-    routine_without_description = 0
+    # Every entry left out as not manual is listed, with its sources, so the
+    # auditor can re-perform the classification and see a policy that
+    # matched nothing.
+    not_manual: list[dict] = []
+    sources_seen: dict[str, int] = {}
 
     entry_dates = {entry_id: min((d for d in (day(line.get("entry_date")) for line in lines)
                                   if d), default=None)
@@ -122,6 +129,8 @@ def journal_entry_testing(tables: dict, policies: dict):
             before_period += 1               # an earlier period's entry
             continue
         tested += 1
+        for s in {text(line.get("source")) for line in lines} - {""}:
+            sources_seen[s] = sources_seen.get(s, 0) + 1
         base = {"entry_date": dated, "lines": len(lines), "source_rows": src}
         if any(a is None for a in amounts):
             lead(entry_id, "no_amount", "AMBIGUOUS",
@@ -173,13 +182,23 @@ def journal_entry_testing(tables: dict, policies: dict):
                      {**base, "accounts": rare}, debits)
         if "no_description" not in not_performed and not any(
                 text(line.get("description")) for line in lines):
-            sources = {text(line.get("source")).lower() for line in lines} - {""}
+            named = sorted({text(line.get("source")) for line in lines} - {""})
+            sources = {s.lower() for s in named}
             if manual_sources and sources and not sources & manual_sources:
-                routine_without_description += 1
+                not_manual.append({"entry_id": entry_id, "sources": named,
+                                   "source_rows": src})
             else:
+                why = ""
+                if manual_sources and not sources:
+                    why = " (its source is not recorded, so it is not excluded)"
+                elif manual_sources and sources - manual_sources:
+                    why = (f" (its lines carry mixed sources {', '.join(named)}; "
+                           "one is on the manual list)")
+                elif manual_sources:
+                    why = f" of a manual entry ({', '.join(named)})"
                 lead(entry_id, "no_description", "TENSION",
-                     f"entry {entry_id}: no description on any line"
-                     + (" of a manual entry" if manual_sources else ""), base, debits)
+                     f"entry {entry_id}: no description on any line" + why,
+                     {**base, "sources": named}, debits)
 
     all_tests = ("unbalanced", "posted_after_period_end", "weekend_or_holiday",
                  "round_amount", "unauthorized_user", "self_approved",
@@ -191,7 +210,11 @@ def journal_entry_testing(tables: dict, policies: dict):
              "not_performed": not_performed, "selected_by_test": counts,
              "round_unit": unit, "exceptions": len(findings),
              "manual_sources": sorted(manual_sources) or None,
-             "no_description_not_manual": routine_without_description}
+             "no_description_not_manual": len(not_manual),
+             "no_description_not_manual_entries": not_manual,
+             "sources_seen": dict(sorted(sources_seen.items())),
+             "manual_sources_not_seen": sorted(
+                 manual_sources - {s.lower() for s in sources_seen})}
     return findings, stats
 
 
