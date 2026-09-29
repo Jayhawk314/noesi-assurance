@@ -29,10 +29,10 @@ Fixed already: K1, K2, K3, K5, K8, K13; K4, K6, K10, K11 (`4b4549c`).
 | ~~K6~~ done `4b4549c` | Count tags compared one by one, not summed per item | Medium |
 | ~~K10~~ done `4b4549c` | Reconciling items without a check number cannot be matched | Medium |
 | ~~K11~~ done `4b4549c` | An account with no cutoff statement reads as "did not clear" | Medium |
-| K7 | Count descriptions compared with listing descriptions | Low |
-| K9 | Movement threshold rule (AND/OR) not a policy | Low |
-| K12 | Confirmation projection population | Low |
-| K14 | Payables-only procedures show in a cycles-only scope | Low |
+| ~~K7~~ done `02601eb` | Count descriptions compared with listing descriptions | Low |
+| ~~K9~~ done `02601eb` | Movement threshold rule (AND/OR) not a policy | Low |
+| ~~K12~~ done `02601eb` | Confirmation projection population | Low |
+| ~~K14~~ done `02601eb` | Payables-only procedures show in a cycles-only scope | Low |
 
 ### B. Engine gaps Oceanview found that are still open
 From the private friction log and CYCLES-ROLLOUT §6.

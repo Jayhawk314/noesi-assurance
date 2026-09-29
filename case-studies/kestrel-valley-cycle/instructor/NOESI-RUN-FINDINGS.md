@@ -230,7 +230,7 @@ A partner reads "11 blocked" on an engagement that never meant to run them.
 | K6 count tags compared one by one | fixed: tags summed per item; a repeated tag number is the exception | `4b4549c` |
 | K10 items without a reference cannot be matched | fixed: unreferenced bank lines matched by amount, one per item, recorded in the run | `4b4549c` |
 | K11 no cutoff statement reads as "did not clear" | fixed: one "not tested" notice for the account | `4b4549c` |
-| K7, K9, K12, K14 | open (low) | — |
+| K7, K9, K12, K14 | fixed: shorthand descriptions recorded not led; AND/OR rule a policy; credit balances out of the projection; AP procedures out of a scope without payables | `02601eb` |
 
 K5 residual, left as the engine's correct behaviour: the demo recomputes an
 allowance of 6,887 against the key's 5,627.38. The 1,260 difference is 40% of
