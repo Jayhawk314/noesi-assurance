@@ -249,7 +249,7 @@ def main():
             "every_account_rolls_forward": True, "closed_to": "32000",
             "prior_year_closing_amount": str(closing)},
         "misstatement_from_duplicate": {
-            "amount": key["duplicate_bill"]["duplicate_amount"],
+            "amount": key["duplicate_bill"]["amount"],
             "effect": "purchases and cost of sales overstated; a refund is due"},
     })
     # A second path: the key's totals re-read from the files just written.

@@ -10,8 +10,7 @@
     "vendor": "Moraine Cycle Components, Inc.",
     "twin_of": "Moraine Cycle Components",
     "invoice": "MC-25009",
-    "original_amount": "169202.82",
-    "duplicate_amount": "18432.50",
+    "amount": "18432.50",
     "original_date": "2026-03-06",
     "duplicate_date": "2026-03-17"
   },

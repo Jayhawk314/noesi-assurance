@@ -159,19 +159,27 @@ def build():
     # the duplicate: Moraine's March invoice entered again under the look-alike vendor
     original = next(x for x in bills if x[0] == "Moraine Cycle Components"
                     and x[1].month == 3)
-    dup_amount = original[3]
+    # A true duplicate: the original March invoice is 18,432.50 too; the
+    # difference moves to Moraine's April bill so the year's purchases (and
+    # its purchase order) stay exact.
+    delta = original[3] - duplicate
+    bills[bills.index(original)] = original[:3] + (duplicate,) + original[4:]
+    april = next(x for x in bills if x[0] == "Moraine Cycle Components"
+                 and x[1].month == 4)
+    bills[bills.index(april)] = april[:3] + (april[3] + delta,) + april[4:]
+    for i, po in enumerate(b.pos):
+        if po[0] == "Moraine Cycle Components" and po[3] == original[3] \
+                and f"PO {po[2]}" == original[5]:
+            b.pos[i] = po[:3] + (duplicate,)
+        if po[0] == "Moraine Cycle Components" and f"PO {po[2]}" == april[5]:
+            b.pos[i] = po[:3] + (po[3] + delta,)
     duplicate_bill = ("Moraine Cycle Components, Inc.", workday(2026, 3, 17),
                       original[2], duplicate, "12100", "")
-    # shift the difference so purchases stay exact
-    fix = dup_amount - duplicate
-    bills[bills.index(original)] = original[:3] + (dup_amount,) + original[4:]
     bills.append(duplicate_bill)
     key["duplicate_bill"] = {"vendor": duplicate_bill[0], "twin_of": original[0],
-                             "invoice": original[2], "original_amount": str(dup_amount),
-                             "duplicate_amount": str(duplicate),
+                             "invoice": original[2], "amount": str(duplicate),
                              "original_date": original[1].isoformat(),
                              "duplicate_date": duplicate_bill[1].isoformat()}
-    assert fix == dup_amount - duplicate
 
     # ---- expense bills
     def monthly(vendor, account, total, day, memo, num_fmt, skip_num=()):
