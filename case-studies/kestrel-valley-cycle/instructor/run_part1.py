@@ -51,11 +51,15 @@ def main() -> int:
         svc.update_workflow(P, eid, "cycles", {"cycles": ["journal_entries"]})
         svc.update_workflow(P, eid, "period", {"start": "2025-07-01"})
         print("== Loads ==")
+        stored: dict[str, dict] = {}      # one stored file may feed several roles
         for name, role, recipe, mode in LOADS:
             print(f"\n  {name} -> {role}" + (f" [{recipe}]" if recipe else ""))
             try:
-                art = svc.store_source(R, eid, content=(QBO / name).read_bytes(),
-                                       media_type=XLSX, original_name=name)
+                if name not in stored:
+                    stored[name] = svc.store_source(
+                        R, eid, content=(QBO / name).read_bytes(),
+                        media_type=XLSX, original_name=name)
+                art = stored[name]
                 prop = svc.propose_source_mapping(
                     R, eid, role=role, artifact_id=art["artifact_id"],
                     extraction={"recipe": recipe} if recipe else None)

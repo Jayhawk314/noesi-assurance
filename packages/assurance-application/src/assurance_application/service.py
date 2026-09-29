@@ -312,12 +312,14 @@ class WorkbenchService:
                                 items: list[dict]) -> dict:
         """Batch propose. Each item: artifact_id plus an optional role; a
         missing role is inferred from the artifact's filename (still just a
-        proposal for the reviewer). Artifacts that already carry an active
-        spec are skipped, so 'propose all' is safe to repeat."""
+        proposal for the reviewer). A file already under an active spec
+        *for the same role* is skipped, so 'propose all' is safe to repeat;
+        one file may still feed several roles (a QuickBooks Transaction List
+        by Vendor holds both bills and purchase orders)."""
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
-        active = {row["artifact_id"] for row in self._conn.execute(
-            """SELECT artifact_id FROM mapping_spec
+        active = {(row["artifact_id"], row["role"]) for row in self._conn.execute(
+            """SELECT artifact_id, role FROM mapping_spec
                WHERE engagement_id = ? AND status != 'superseded'""",
             (engagement_id,))}
         results = []
@@ -325,35 +327,36 @@ class WorkbenchService:
             artifact_id = str(item.get("artifact_id") or "")
             entry: dict = {"artifact_id": artifact_id}
             try:
-                if artifact_id in active:
-                    entry.update(status="skipped",
+                role = str(item.get("role") or "")
+                extraction = item.get("extraction")
+                if not role and isinstance(extraction, dict) \
+                        and extraction.get("recipe"):
+                    role = quickbooks.get(str(extraction["recipe"])).role
+                if not role:
+                    name = self._conn.execute(
+                        "SELECT original_name FROM artifact "
+                        "WHERE artifact_id = ?",
+                        (artifact_id,)).fetchone()
+                    if name is None:
+                        raise KeyError(f"artifact {artifact_id}")
+                    role = infer_role(name["original_name"]) or ""
+                if not role:
+                    raise ValueError(
+                        "no role given and none inferable from the "
+                        "filename; choose the role explicitly")
+                if (artifact_id, role) in active:
+                    entry.update(status="skipped", role=role,
                                  reason="an active mapping spec already "
-                                        "exists for this artifact")
-                else:
-                    role = str(item.get("role") or "")
-                    extraction = item.get("extraction")
-                    if not role and isinstance(extraction, dict) \
-                            and extraction.get("recipe"):
-                        role = quickbooks.get(str(extraction["recipe"])).role
-                    if not role:
-                        name = self._conn.execute(
-                            "SELECT original_name FROM artifact "
-                            "WHERE artifact_id = ?",
-                            (artifact_id,)).fetchone()
-                        if name is None:
-                            raise KeyError(f"artifact {artifact_id}")
-                        role = infer_role(name["original_name"]) or ""
-                    if not role:
-                        raise ValueError(
-                            "no role given and none inferable from the "
-                            "filename; choose the role explicitly")
-                    entry.update(self.propose_source_mapping(
-                        actor, engagement_id, role=role,
-                        artifact_id=artifact_id,
-                        extraction=extraction if isinstance(extraction, dict)
-                        else None))
-                    entry.update(status="proposed", role=role)
-                    active.add(artifact_id)
+                                        f"maps this file as {role}")
+                    results.append(entry)
+                    continue
+                entry.update(self.propose_source_mapping(
+                    actor, engagement_id, role=role,
+                    artifact_id=artifact_id,
+                    extraction=extraction if isinstance(extraction, dict)
+                    else None))
+                entry.update(status="proposed", role=role)
+                active.add((artifact_id, role))
             except (ValueError, KeyError, NotFoundError) as exc:
                 entry.update(status="error", error=str(exc))
             results.append(entry)

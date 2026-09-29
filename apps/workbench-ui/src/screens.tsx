@@ -155,16 +155,18 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   }
 
   // The role a proposal would use: an explicit choice beats the filename
-  // suggestion. Artifacts already under an active spec are done mapping.
+  // suggestion. A file is done mapping *for a role* once an active spec maps
+  // it as that role; it may still feed another role (one QuickBooks report
+  // can hold bills and purchase orders).
   const chosenRole = (artifact: Artifact) =>
     mapRole[artifact.artifact_id] ?? artifact.inferred_role ?? "";
-  const activelyMapped = new Set(
+  const mappedAs = new Set(
     (data?.mapping_specs ?? [])
       .filter((s) => s.status !== "superseded")
-      .map((s) => s.artifact_id));
+      .map((s) => `${s.artifact_id}|${s.role}`));
+  const mapped = (a: Artifact) => mappedAs.has(`${a.artifact_id}|${chosenRole(a)}`);
   const proposable = (data?.artifacts ?? []).filter(
-    (a) => a.state === "promoted" && !activelyMapped.has(a.artifact_id)
-           && chosenRole(a));
+    (a) => a.state === "promoted" && !mapped(a) && chosenRole(a));
   const proposedSpecs = (data?.mapping_specs ?? [])
     .filter((s) => s.status === "proposed");
   const normalizedSpecs = new Set(
@@ -201,7 +203,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                 </select>
               </td>
               <td>
-                {!activelyMapped.has(artifact.artifact_id) && (
+                {!mapped(artifact) && (
                   <button className="action"
                           disabled={!chosenRole(artifact)}
                           onClick={act(() => client.proposeMapping(
@@ -210,7 +212,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                     propose mapping
                   </button>
                 )}
-                {isWorkbook(artifact) && !activelyMapped.has(artifact.artifact_id) && (
+                {isWorkbook(artifact) && !mapped(artifact) && (
                   <button className="action" onClick={() => openBook(artifact)}>
                     {books[artifact.artifact_id] ? "sheet ✓" : "choose sheet"}
                   </button>
@@ -219,7 +221,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
             </tr>
           ))}
           {(data?.artifacts ?? []).filter((a) => books[a.artifact_id]
-            && !activelyMapped.has(a.artifact_id)).map((artifact) => (
+            && !mapped(a)).map((artifact) => (
             <tr key={`${artifact.artifact_id}-book`}>
               <td colSpan={6}>
                 <WorkbookChooser book={books[artifact.artifact_id]}

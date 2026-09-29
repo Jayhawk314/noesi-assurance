@@ -325,3 +325,22 @@ def test_quickbooks_reports_without_a_recipe_are_named_not_guessed(service):
     rows = xlsx.preview(applied)[0]["rows"]
     assert "links a payment" in qb.unsupported_report(rows)
     assert qb.unsupported_report(xlsx.preview(UNPAID)[0]["rows"]) is None
+
+
+def test_one_stored_report_feeds_several_roles_once_each(service):
+    """A Transaction List by Vendor holds bills and purchase orders: the same
+    stored file may be mapped once per role, and repeating 'propose all'
+    still skips what is already mapped."""
+    svc, eid = service
+    artifact = svc.store_source(PREPARER, eid, content=BY_VENDOR,
+                                media_type=XLSX_TYPE,
+                                original_name="Transaction List by Vendor.xlsx")
+    items = [{"artifact_id": artifact["artifact_id"],
+              "extraction": {"recipe": "qbo.transaction_list_by_vendor.vouchers"}},
+             {"artifact_id": artifact["artifact_id"],
+              "extraction": {"recipe": "qbo.transaction_list_by_vendor.purchase_orders"}}]
+    first = svc.propose_source_mappings(PREPARER, eid, items)
+    assert [r["status"] for r in first["results"]] == ["proposed", "proposed"]
+    assert {r["role"] for r in first["results"]} == {"Vouchers", "Purchase_orders"}
+    again = svc.propose_source_mappings(PREPARER, eid, items)
+    assert [r["status"] for r in again["results"]] == ["skipped", "skipped"]
