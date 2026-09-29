@@ -7,13 +7,16 @@ import {
 } from "./screens";
 import { FlowMapScreen } from "./screens/FlowMap";
 import { ManualScreen } from "./screens/Manual";
+import { OpinionScreen } from "./screens/Opinion";
 import { RiskScreen } from "./screens/Risk";
+import { ScopeScreen } from "./screens/Scope";
 import { WhatChangedScreen } from "./screens/WhatChanged";
 import { useTheme } from "./lib/theme";
 
 const TABS = [
-  "Flow Map", "Team", "Planning & Risk", "Sources & Mappings", "Coverage",
-  "Runs & Findings", "What Changed", "SAD & Completion", "Lock & Export",
+  "Flow Map", "Team", "Scope & Policies", "Planning & Risk", "Sources & Mappings",
+  "Coverage", "Runs & Findings", "What Changed", "SAD & Completion", "Draft Opinion",
+  "Lock & Export",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -272,6 +275,8 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
                             onGoToSources={() => onNavigate("Sources & Mappings")} />;
     case "Team":
       return <TeamScreen client={client} eid={eid} onError={onError} />;
+    case "Scope & Policies":
+      return <ScopeScreen client={client} eid={eid} onError={onError} />;
     case "Planning & Risk":
       return <RiskScreen client={client} eid={eid} onError={onError} />;
     case "Sources & Mappings":
@@ -284,6 +289,8 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
       return <WhatChangedScreen client={client} eid={eid} onError={onError} />;
     case "SAD & Completion":
       return <SadScreen client={client} eid={eid} onError={onError} />;
+    case "Draft Opinion":
+      return <OpinionScreen client={client} eid={eid} onError={onError} />;
     case "Lock & Export":
       return <LockScreen client={client} engagement={engagement}
                          onError={onError} onChanged={onChanged} />;

@@ -395,6 +395,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return render_chapter(default_manual_dir(), chapter)
                 case ["engagements"]:
                     return {"engagements": service.list_engagements()}
+                case ["cycles"]:
+                    return service.cycle_catalog()
                 case ["engagements", eid, "team"]:
                     return {"team": service.team(eid)}
                 case ["engagements", eid, "sources"]:

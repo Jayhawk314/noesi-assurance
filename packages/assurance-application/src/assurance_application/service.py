@@ -1247,6 +1247,30 @@ class WorkbenchService:
             summary["conclusion"] = None
         return summary
 
+    def cycle_catalog(self) -> dict:
+        """The audit areas a partner can switch on, each with its procedures
+        and the policies they need (required) or can use (optional); read by
+        the Scope & Policies screen so it is never hand-maintained."""
+        from procedures_cycles.contracts import (
+            CYCLE_PROCEDURES, OPTIONAL_POLICIES as CYCLE_OPTIONAL, policy_scopes,
+        )
+        areas = []
+        for scope in SCOPES:
+            contracts = [c for c in CYCLE_PROCEDURES if SCOPE_OF[c.procedure_id] == scope]
+            required = sorted({p for c in contracts for p in c.required_policies
+                               if p not in ENGAGEMENT_POLICIES})
+            optional = sorted(p for p in CYCLE_OPTIONAL
+                              if scope in policy_scopes(p) and p not in required
+                              and p not in ENGAGEMENT_POLICIES)
+            areas.append({
+                "scope": scope,
+                "procedures": [{"procedure_id": c.procedure_id, "title": c.name,
+                                "required_policies": [p for p in c.required_policies
+                                                      if p not in ENGAGEMENT_POLICIES]}
+                               for c in contracts],
+                "required_policies": required, "optional_policies": optional})
+        return {"areas": areas, "engagement_policies": list(ENGAGEMENT_POLICIES)}
+
     def draft_opinion(self, engagement_id: str) -> dict:
         """The opinion the evidence points to, with its basis and the
         judgments the partner must still record. Read-only; a draft."""

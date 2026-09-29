@@ -271,6 +271,32 @@ export interface WorkflowDocument {
   completion: Record<string, { done: boolean; note: string }>;
   procedures?: Record<string, { selected: boolean; rationale: string }>;
   policies?: Record<string, string>;
+  cycles?: string[];
+  period?: { start: string };
+}
+
+/** The audit areas a partner can switch on, from GET /api/cycles. */
+export interface CycleArea {
+  scope: string;
+  procedures: { procedure_id: string; title: string; required_policies: string[] }[];
+  required_policies: string[];
+  optional_policies: string[];
+}
+export interface CycleCatalog { areas: CycleArea[]; engagement_policies: string[] }
+
+/** The draft opinion (a proposal; the partner decides). */
+export interface DraftOpinion {
+  status: string;
+  proposed_opinion: string;
+  basis: string[];
+  decisions_required: { decision: string; why: string }[];
+  readiness_blockers: Blocker[];
+  misstatements: { source: string; largest_line: string; amount: string };
+  materiality: string;
+  open_scope_limitations: number;
+  missing_representations: string[];
+  going_concern_indicators: string[];
+  note: string;
 }
 
 export interface LockVerification {
@@ -493,6 +519,9 @@ export class Client {
     this.request<Impact>("GET", `/api/engagements/${eid}/impact`);
 
   sad = (eid: string) => this.request<Sad>("GET", `/api/engagements/${eid}/sad`);
+  cycleCatalog = () => this.request<CycleCatalog>("GET", "/api/cycles");
+  draftOpinion = (eid: string) =>
+    this.request<DraftOpinion>("GET", `/api/engagements/${eid}/opinion`);
   readiness = (eid: string) =>
     this.request<Readiness>("GET", `/api/engagements/${eid}/readiness`);
   workflow = (eid: string) =>

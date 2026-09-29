@@ -514,3 +514,21 @@ def test_unread_bodies_do_not_poison_keepalive_connections(api):
     body = second.read()
     assert second.status == 200, body
     conn.close()
+
+
+def test_cycle_catalog_and_draft_opinion_routes(api):
+    port, auth = api
+    status, catalog = _request(port, "GET", "/api/cycles", token=auth.token)
+    assert status == 200
+    scopes = [a["scope"] for a in catalog["areas"]]
+    assert "payroll" in scopes and "completion" in scopes
+    completion = next(a for a in catalog["areas"] if a["scope"] == "completion")
+    assert "report_date" in completion["required_policies"]
+    status, created = _request(port, "POST", "/api/engagements", token=auth.token,
+                               body={"client_name": "Acme", "period_end": "2025-12-31"})
+    assert status == 200
+    eid = created["engagement_id"]
+    status, opinion = _request(port, "GET", f"/api/engagements/{eid}/opinion",
+                               token=auth.token)
+    assert status == 200
+    assert opinion["status"] == "not_ready" and "proposed_opinion" in opinion
