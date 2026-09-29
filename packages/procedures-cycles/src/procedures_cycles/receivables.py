@@ -219,8 +219,11 @@ def confirmations_nonstatistical(tables: dict, policies: dict):
     rows = _confirmation_rows(tables, pid, findings)
     significant = [r for r in rows if r["book"] > tm]
     sampled = [r for r in rows if r["book"] <= tm]
+    # K12: the population projected over is the debit balances; a credit
+    # balance owes nothing to sample and is flagged on its own.
     stratum_value = sum((balance for balance in customer_balances.values()
-                         if balance <= tm), ZERO)
+                         if ZERO < balance <= tm), ZERO)
+    credits_excluded = sorted(c for c, b in customer_balances.items() if b < 0)
     sample_value = sum((r["book"] for r in sampled), ZERO)
     known = sum((r["misstatement"] for r in significant), ZERO)
     sample_misstatement = sum((r["misstatement"] for r in sampled), ZERO)
@@ -246,6 +249,7 @@ def confirmations_nonstatistical(tables: dict, policies: dict):
          "limits": "nonstatistical: sampling risk is judged, not measured"},
         total))
     stats = {"population": len(customer_balances), "listing_rows": len(listing),
+             "credit_balances_excluded": credits_excluded,
              "confirmations": len(rows),
              "significant": len(significant), "sampled": len(sampled),
              "stratum_value": stratum_value, "sample_value": sample_value,
@@ -294,7 +298,7 @@ def confirmations_mus(tables: dict, policies: dict):
                    "and must be evaluated separately"},
         uml))
     population = sum((balance for balance in customer_balances.values()
-                      if balance <= tm), ZERO)
+                      if ZERO < balance <= tm), ZERO)
     stats = {"population": len(customer_balances), "listing_rows": len(listing),
              "confirmations": len(rows),
              "large_items": len(large), "unit_items": len(units),

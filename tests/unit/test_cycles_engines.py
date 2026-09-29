@@ -496,3 +496,29 @@ def test_r3_credit_memo_line_on_a_debit_customer_is_not_a_credit_balance():
                                     {"AR_listing": listing, "Trial_balance": tb}, {})
     assert ("credit_balance", "c1") not in keys(findings)
     assert ("credit_balance", "c2") in keys(findings, "TENSION")
+
+
+def test_k9_movement_threshold_rule_is_stated_and_chosen():
+    tb = [{"account": "4000", "description": "Sales", "balance": D("109600"),
+           "prior_balance": D("100000"), "side": "CR", "line": "revenue"},
+          {"account": "1000", "description": "Cash", "balance": D("109600"),
+           "prior_balance": D("100000"), "side": "DR", "line": "cash"}]
+    base = {"analytics_threshold_pct": "0.10", "analytics_threshold_amount": "5000"}
+    findings, stats = execute_procedure("fs.trial_balance_analytics",
+                                        {"Trial_balance": tb}, base)
+    assert stats["threshold_rule"] == "and"
+    assert not any(k[0] == "movement" for k in keys(findings))   # 9.6% < 10%
+    findings, _ = execute_procedure("fs.trial_balance_analytics", {"Trial_balance": tb},
+                                    {**base, "analytics_threshold_rule": "or"})
+    assert ("movement", "4000") in keys(findings)                  # 9,600 > 5,000
+
+
+def test_k7_k12_description_shorthand_and_credit_balances():
+    listing = [{"stock_number": "A", "description": "Carbon Handlebar 780mm",
+                "quantity": D("5"), "cost": D("50")}]
+    count = [{"stock_number": "A", "description": "Carbon bar", "quantity": D("5")}]
+    findings, stats = execute_procedure("inventory.count_listing_trace",
+                                        {"Inventory_listing": listing,
+                                         "Inventory_count": count}, {})
+    assert ("details_differ", "a") not in keys(findings)
+    assert stats["description_differs_only"][0]["count"] == "Carbon bar"

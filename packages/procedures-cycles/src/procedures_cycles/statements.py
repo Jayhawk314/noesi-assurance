@@ -183,6 +183,11 @@ def trial_balance_analytics(tables: dict, policies: dict):
     if policies.get("analytics_threshold_pct") not in (None, ""):
         threshold = Decimal(repr(policy_rate(policies, "analytics_threshold_pct")))
     floor = dec(policies.get("analytics_threshold_amount")) or ZERO
+    # K9: whether a movement must pass both thresholds or either is the
+    # auditor's rule, stated with the result; unset, both (the stricter).
+    rule = text(policies.get("analytics_threshold_rule")).lower() or "and"
+    if rule not in ("and", "or"):
+        raise PolicyError("analytics_threshold_rule must be 'and' or 'or'")
     movements = []
     if prior is not None:
         for r in rows:
@@ -199,7 +204,11 @@ def trial_balance_analytics(tables: dict, policies: dict):
             if threshold is None:
                 continue
             big_pct = pct is None or abs(pct) >= threshold
-            if big_pct and abs(change) >= floor and change != 0:
+            big_amount = abs(change) >= floor
+            if rule == "or" and not floor:
+                big_amount = False           # no amount threshold set: it adds nothing
+            if change != 0 and ((big_pct and big_amount) if rule == "and"
+                                else (big_pct or big_amount)):
                 findings.append(receipt(
                     pid, ("movement", text(r.get("account"))), "TENSION",
                     f"account {text(r.get('account'))} {text(r.get('description'))} moved "
@@ -212,7 +221,7 @@ def trial_balance_analytics(tables: dict, policies: dict):
                                "not a misstatement"}))
     stats = {"population": len(rows), "debits": debits, "credits": credits,
              "line_totals": {k: v for k, v in current.items()},
-             "current": now, "prior": before,
+             "current": now, "prior": before, "threshold_rule": rule,
              "ratio_change": {k: (now["ratios"][k] - before["ratios"][k])
                               if before and now["ratios"][k] is not None
                               and before["ratios"][k] is not None else None

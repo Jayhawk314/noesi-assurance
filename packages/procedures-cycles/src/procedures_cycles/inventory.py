@@ -98,11 +98,20 @@ def count_listing_trace(tables: dict, policies: dict):
                                                         "cycle": "inventory",
                                                         "assertion": "existence"},
                                 value))
-    mismatched = []
+    mismatched, description_only = [], []
     for key in sorted(set(listing) & set(counted)):
         a, b = listing[key], counted[key]
         diffs = [f for f in ("description", "model")
                  if _norm(a.get(f)) and _norm(b.get(f)) and _norm(a.get(f)) != _norm(b.get(f))]
+        # K7: count tags carry shorthand ("Carbon bar"); with the stock number
+        # matched, a description that differs alone is recorded, not a lead.
+        # A model or quantity difference still is.
+        if diffs == ["description"] and not (
+                dec(a.get("quantity")) is not None and dec(b.get("quantity")) is not None
+                and dec(a.get("quantity")) != dec(b.get("quantity"))):
+            description_only.append({"item": key, "count": text(b.get("description")),
+                                     "listing": text(a.get("description"))})
+            continue
         qa, qb = dec(a.get("quantity")), dec(b.get("quantity"))
         if qa is not None and qb is not None and qa != qb:
             diffs.append("quantity")
@@ -130,6 +139,7 @@ def count_listing_trace(tables: dict, policies: dict):
                       "listed_total": total, "counted_not_listed": not_listed,
                       "listed_not_counted": not_counted, "details_differ": mismatched,
                       "items_with_several_tags": several_tags,
+                      "description_differs_only": description_only,
                       "extension_errors": extension_errors, "exceptions": len(findings)}
 
 

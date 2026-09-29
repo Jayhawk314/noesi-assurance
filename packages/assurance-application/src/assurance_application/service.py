@@ -495,9 +495,13 @@ class WorkbenchService:
     # --------------------------------------------- screen 3: coverage
 
     def _contracts(self, document: dict) -> tuple:
-        """The eleven AP contracts plus the cycle contracts in scope."""
+        """The eleven AP contracts plus the cycle contracts in scope. An
+        engagement that sets a scope without payables does not carry the AP
+        procedures either: "11 blocked" there reads as work left undone (K14)."""
         from procedures_ap.contracts import PROCEDURES
-        return PROCEDURES + contracts_for_scope(document.get("cycles"))
+        cycles = document.get("cycles")
+        ap = PROCEDURES if not cycles or "payables" in cycles else ()
+        return ap + contracts_for_scope(cycles)
 
     def _engagement_policies(self, engagement_id: str, document: dict) -> dict:
         """Approved policies plus the engagement's own period end and materiality.
@@ -549,12 +553,11 @@ class WorkbenchService:
         # against the same document, so what coverage calls executable is
         # what the run actually receives.
         document, _ = self.workflow_document(engagement_id)
-        if (procedure_id in CYCLE_CONTRACTS_BY_ID
-                and procedure_id not in {
-                    c.procedure_id for c in self._contracts(document)
-                }):
-            raise ValueError(
-                f"cycle procedure {procedure_id!r} is outside the engagement scope")
+        if procedure_id not in {c.procedure_id for c in self._contracts(document)}:
+            from procedures_ap.contracts import CONTRACTS_BY_ID
+            if procedure_id in CYCLE_CONTRACTS_BY_ID or procedure_id in CONTRACTS_BY_ID:
+                raise ValueError(
+                    f"procedure {procedure_id!r} is outside the engagement scope")
         base = (self._engagement_policies(engagement_id, document)
                 if procedure_id in CYCLE_CONTRACTS_BY_ID
                 else document.get("policies") or {})

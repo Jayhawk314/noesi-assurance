@@ -29,7 +29,9 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         evidence_source="client working trial balance with auditor line classification",
         denominator_role="Trial_balance",
         limitations="A ratio or movement is a question for inquiry, not evidence of "
-                    "misstatement. Movement flags need analytics_threshold_pct.",
+                    "misstatement. Movement flags need analytics_threshold_pct; with "
+                    "analytics_threshold_amount a movement must pass both, unless "
+                    "analytics_threshold_rule is 'or'.",
     ),
     ProcedureContract(
         "planning.performance_materiality", "Performance materiality allocation",
@@ -519,7 +521,8 @@ CYCLE_CONTRACTS_BY_ID = {c.procedure_id: c for c in CYCLE_PROCEDURES}
 
 # Policies a team may set that no cycle contract requires.
 OPTIONAL_POLICIES: tuple[str, ...] = (
-    "analytics_threshold_pct", "analytics_threshold_amount", "ar_confidence_factor",
+    "analytics_threshold_pct", "analytics_threshold_amount", "analytics_threshold_rule",
+    "ar_confidence_factor",
     "ar_expected_misstatement", "ar_estimated_sd", "ar_risk_incorrect_rejection",
     "search_interval", "search_start", "search_systematic_count",
     "pricing_sample_value", "ar_allowance_rates",
@@ -562,6 +565,7 @@ def procedures_for_assertion_all(assertion: str) -> list[str]:
 # not in scope can be refused instead of stored as an inert decision.
 _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "analytics_threshold_pct": {"planning"}, "analytics_threshold_amount": {"planning"},
+    "analytics_threshold_rule": {"planning"},
     "ar_confidence_factor": {"receivables"}, "ar_expected_misstatement": {"receivables"},
     "ar_estimated_sd": {"receivables"}, "ar_risk_incorrect_rejection": {"receivables"},
     "ar_allowance_rates": {"receivables"}, "search_interval": {"payables"},
