@@ -1,0 +1,188 @@
+{
+  "po_overrun": {
+    "vendor": "Summit Tire Import",
+    "po": "1021",
+    "po_amount": "90644.37",
+    "bill": "ST-25021",
+    "bill_amount": "101521.69"
+  },
+  "duplicate_bill": {
+    "vendor": "Moraine Cycle Components, Inc.",
+    "twin_of": "Moraine Cycle Components",
+    "invoice": "MC-25009",
+    "original_amount": "169202.82",
+    "duplicate_amount": "18432.50",
+    "original_date": "2026-03-06",
+    "duplicate_date": "2026-03-17"
+  },
+  "bills_without_number": [
+    {
+      "vendor": "Northwestern Energy",
+      "date": "2025-11-12",
+      "amount": "1284.33"
+    },
+    {
+      "vendor": "Northwestern Energy",
+      "date": "2026-04-13",
+      "amount": "1284.33"
+    }
+  ],
+  "split_bills": {
+    "vendor": "Hyalite Fabrication",
+    "approval_limit": "5000.00",
+    "bills": [
+      "4950.00",
+      "4975.00",
+      "4900.00"
+    ],
+    "total": "14825.00"
+  },
+  "checks_without_bills": {
+    "vendor": "DM Consulting",
+    "total": "4500.00",
+    "address_matches": "the bookkeeper's home address"
+  },
+  "no_description_entry": "1052",
+  "owner_entry": {
+    "num": "1047",
+    "date": "2026-03-14",
+    "weekday": "Saturday",
+    "amount": "25000.00",
+    "by": "Jo Kestrel"
+  },
+  "case_part": "1 of 3: payables and the journal",
+  "period": {
+    "start": "2025-07-01",
+    "end": "2026-06-30"
+  },
+  "vendors": {
+    "count": 16,
+    "twins": [
+      [
+        "Moraine Cycle Components",
+        "Moraine Cycle Components, Inc.",
+        "same address and phone"
+      ]
+    ]
+  },
+  "bills": {
+    "count": 102,
+    "total": "3330775.30"
+  },
+  "bill_payments": {
+    "count": 115,
+    "total": "3285040.78"
+  },
+  "ap_subledger_to_ledger": {
+    "unpaid_bills_total": "287640.18",
+    "tb_accounts_payable": "287640.18",
+    "difference": "0.00"
+  },
+  "short_payment": {
+    "vendor": "Alder & Finch CPAs",
+    "bill": "1870.00",
+    "check_4425": "1780.00",
+    "left_open": "90.00"
+  },
+  "purchase_orders": {
+    "count": 36,
+    "three_way_match": "not testable: QuickBooks Online records no receipts"
+  },
+  "segregation_of_duties": "not testable: the exports carry no approver",
+  "journal": {
+    "transactions": 461,
+    "lines": 1006,
+    "entry_identity": "(date, transaction type, num, name): Num alone is not unique and is blank for deposits, transfers and payroll"
+  },
+  "je_testing_policies": {
+    "je_authorized_users": "Dana Merritt",
+    "je_round_amount_threshold": "10000",
+    "je_round_unit": "1000",
+    "je_seldom_used_max": "1",
+    "je_holidays": "2025-07-04, 2025-09-01, 2025-11-27, 2025-12-25, 2026-01-01, 2026-05-25"
+  },
+  "je_testing": {
+    "posted_after_period_end": {
+      "count": 1,
+      "entries": [
+        "2026-06-30 Journal Entry 1066 Ridgeback Cycles"
+      ]
+    },
+    "weekend_or_holiday": {
+      "count": 2,
+      "entries": [
+        "2026-03-14 Journal Entry 1047",
+        "2026-06-27 Bill Payment (Check) 4421 Tri-County Tool Rental"
+      ]
+    },
+    "round_amount": {
+      "count": 4,
+      "entries": [
+        "2025-10-01 Check 4039 First Prairie Bank",
+        "2026-03-14 Journal Entry 1047",
+        "2026-06-30 Deposit (no num) Checking",
+        "2026-06-30 Transfer (no num)"
+      ]
+    },
+    "unauthorized_user": {
+      "count": 1,
+      "entries": [
+        "2026-03-14 Journal Entry 1047"
+      ]
+    },
+    "seldom_used_account": {
+      "count": 7,
+      "entries": [
+        "2025-07-01 Journal Entry 1000",
+        "2025-08-12 Check 4014 Rocky Mountain Racking",
+        "2025-10-01 Check 4039 First Prairie Bank",
+        "2026-06-30 Deposit (no num) Checking",
+        "2026-06-30 Journal Entry 1063",
+        "2026-06-30 Journal Entry 1064",
+        "2026-06-30 Journal Entry 1065"
+      ]
+    },
+    "no_description": {
+      "count": 177,
+      "entries": [
+        "2025-07-07 Invoice 88001 Basalt Ridge Bike Co.",
+        "2025-07-09 Invoice 88002 Bitterroot Wheelworks",
+        "2025-07-14 Invoice 88003 Cottonwood Spokes",
+        "2025-07-18 Bill Payment (Check) 4002 Alder & Finch CPAs",
+        "2025-07-18 Bill Payment (Check) 4003 Big Hole Insurance",
+        "2025-07-18 Bill Payment (Check) 4004 Big Timber Office Supply",
+        "2025-07-18 Bill Payment (Check) 4005 Granite Peak Properties",
+        "2025-07-18 Bill Payment (Check) 4006 Kinetic Drivetrain Co.",
+        "2025-07-18 Bill Payment (Check) 4007 Moraine Cycle Components",
+        "2025-07-18 Bill Payment (Check) 4008 Northwestern Energy",
+        "2025-07-18 Bill Payment (Check) 4009 Summit Tire Import",
+        "2025-07-18 Bill Payment (Check) 4010 Velo Freight Lines",
+        "2025-07-21 Invoice 88004 Flathead Pedalworks",
+        "2025-07-24 Invoice 88005 Grizzly Trail Outfitters",
+        "2025-08-04 Invoice 88006 Crazy Mountain Cycles",
+        "..."
+      ]
+    }
+  },
+  "je_seldom_used_accounts": [
+    "10900",
+    "15000",
+    "21000",
+    "23000",
+    "32000",
+    "51000",
+    "65000"
+  ],
+  "je_manual_entries_without_description": [
+    "Journal Entry 1052"
+  ],
+  "je_population_completeness": {
+    "every_account_rolls_forward": true,
+    "closed_to": "32000",
+    "prior_year_closing_amount": "-326292.00"
+  },
+  "misstatement_from_duplicate": {
+    "amount": "18432.50",
+    "effect": "purchases and cost of sales overstated; a refund is due"
+  }
+}

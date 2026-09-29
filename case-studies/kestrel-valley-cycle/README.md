@@ -120,3 +120,47 @@ the key:
 Fixes come afterwards, as separate engine changes, each approved first. The
 key is never edited to match the engine. If the key itself turns out to be
 wrong, the correction is its own commit with the reason given.
+
+## Part 1 of the full case: payables and the journal
+
+```
+python case-studies/kestrel-valley-cycle/payables_outputs.py
+```
+
+This builds five more QuickBooks files. Four follow the layouts of the real
+exports in `tests/fixtures/quickbooks/`: `Vendor_Contact_List`,
+`Transaction_List_by_Vendor` (POs, bills, bill payments, checks),
+`Bill_Payment_List` and `Unpaid_Bills`. The fifth, a full-year `Journal`
+report, uses a modeled layout, with Create date and Created by as added
+columns.
+
+They are consistent with the frozen files:
+- The journal rolls every account from the prior-year trial balance to the
+  current one.
+- June's checking activity is exactly the June bank reconciliation.
+- The unpaid bills total the trial balance's Accounts Payable (287,640.18).
+
+The key is `instructor/answer_key_payables.json`.
+
+Planted items:
+- A duplicate bill (18,432.50), paid through a look-alike vendor (the twin
+  "Moraine Cycle Components, Inc.").
+- Three bills split under a 5,000 approval limit.
+- 4,500 in checks to DM Consulting with no bills; the vendor's address is
+  the bookkeeper's home address.
+- Two utility bills with no invoice number.
+- A bill 12% over its purchase order.
+- Check 4425 keyed 90 short, leaving 90 open.
+- Journal entries:
+  - JE 1066 was entered after period end.
+  - JE 1047 is a round 25,000 Saturday entry by the owner, who is not an
+    authorized user.
+  - JE 1052 has no description.
+
+Three things are not testable from QuickBooks Online exports:
+- The three-way match: there are no receiving records.
+- Segregation of duties: there is no approver.
+- Customer-level balances: the journal's are not built to match the aging.
+
+Parts 2 (payroll, PP&E, debt and equity, accruals) and 3 (estimates, related
+parties, completion) follow.
