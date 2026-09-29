@@ -74,7 +74,11 @@
 | C5 | Low | The undisclosed related party DM Consulting is not found. This is the known limit of list matching (depth pass: vendor sharing an address with an employee). | Undisclosed; bookkeeper's address |
 | C6 | Low | The misstatement summary raises 11 "likely below identified" tensions (K13, the "Likely" column convention). | none |
 
-## Proposed fixes (for approval; none made)
+## Fixes
+
+C1, C2 and C3 are fixed in the commit after this file's first version. On rerun, E05's net-pay error is found, and the draft opinion names only the related-parties representation as missing, asks for the letter to be corrected, and requires a going-concern conclusion (covenant breach), exactly as the key expects.
+
+## Proposed fixes (as first written)
 
 1. **C1:** separate letter problems from missing representations in the draft
    opinion.

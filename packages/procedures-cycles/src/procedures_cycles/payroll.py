@@ -91,8 +91,21 @@ def register_tests(tables: dict, policies: dict):
                 lead((",".join(sorted(emps)), f"shared_{field}"), "TENSION",
                      f"employees {', '.join(sorted(emps))} share one {label}",
                      {"employees": sorted(emps), field: value})
+    # A check that could not run is said, never skipped in silence (Kestrel
+    # parts 2-3, C2): without withholding or deduction columns net pay
+    # cannot be re-performed.
+    not_performed = {}
+    if rows and not any(dec(r.get(f)) is not None for r in rows
+                        for f in ("tax_withheld", "deductions")):
+        not_performed["net_pay"] = "no withholding or deduction column is mapped"
+        findings.append(receipt(
+            pid, ("net_pay", "not_performed"), "AMBIGUOUS",
+            "net pay was not re-performed: the register has no withholding or "
+            "deduction column mapped. Map it, or record why the test is not needed",
+            {"finding_class": "REFUSAL", "cycle": "payroll"}))
     stats = {"population": len(rows), "employees_on_master": len(master),
              "final_pay_grace_days": int(grace) if grace is not None else 0,
+             "not_performed": not_performed,
              "leads_by_test": counts, "exceptions": len(findings)}
     return findings, stats
 

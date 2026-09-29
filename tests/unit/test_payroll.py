@@ -89,3 +89,23 @@ def test_register_to_ledger_needs_the_wage_accounts_named():
                           {"Payroll_register": REGISTER,
                            "Trial_balance": [{"account": "6100", "balance": D("1")}]},
                           {"period_end": PE})
+
+
+def test_net_pay_check_that_cannot_run_is_said_not_skipped():
+    register = [{"employee_id": "E1", "pay_date": date(2025, 6, 15),
+                 "gross": D("1000.00"), "net": D("900.00")}]         # no withholding column
+    findings, stats = execute_procedure(
+        "payroll.register_tests",
+        {"Payroll_register": register, "Payroll_master": [{"employee_id": "E1"}]}, {})
+    assert ("net_pay", "not_performed") in leads(findings)
+    assert "net_pay" in stats["not_performed"]
+
+
+def test_taxes_withheld_heading_is_recognized():
+    from procedures_ap.ingest import propose_mapping
+    from procedures_cycles.roles import register_roles
+    register_roles()
+    spec = propose_mapping("Payroll_register",
+                           ["Employee ID", "Check Date", "Gross Pay", "Taxes Withheld",
+                            "Net Pay"])
+    assert spec.column_map["tax_withheld"] == "Taxes Withheld"

@@ -98,3 +98,20 @@ def test_the_workbench_serves_a_draft_opinion(tmp_path):
     assert out["status"] == "not_ready"              # nothing done yet
     assert out["proposed_opinion"] in ("unmodified", "qualified_or_adverse")
     conn.close()
+
+
+def test_letter_problems_are_not_missing_representations():
+    undated = finding("completion.representation_letter",
+                      ["letter", "not_dated_report_date"], "CLASH")
+    out = opinion([undated], run=summary())
+    assert out["missing_representations"] == []
+    assert out["proposed_opinion"] == "unmodified"
+    assert [d["decision"] for d in out["decisions_required"]] == [
+        "correct_the_representation_letter"]
+
+
+def test_a_breached_covenant_calls_for_a_going_concern_conclusion():
+    breach = finding("debt.covenants", ["current ratio", "breached"], "CLASH")
+    out = opinion([breach], run=summary())
+    assert out["going_concern_indicators"] == ["covenant_breached: current ratio"]
+    assert out["decisions_required"][0]["decision"] == "going_concern_conclusion"

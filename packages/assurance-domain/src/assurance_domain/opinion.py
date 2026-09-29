@@ -42,7 +42,17 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     # --- written representations (AU-C 580)
     reps = [f for f in findings if f["procedure_id"] == "completion.representation_letter"
             and f["verdict"]["verdict"] == "CLASH" and _open(f)]
-    missing_reps = sorted({str(f["verdict"]["key"][1]) for f in reps})
+    # A missing representation is not the same as a letter problem (dating,
+    # signature): the first points to a disclaimer, the second must be
+    # corrected before the report is dated (Kestrel parts 2-3, C1).
+    missing_reps = sorted({str(f["verdict"]["key"][1]) for f in reps
+                           if str(f["verdict"]["key"][-1]) == "not_obtained"})
+    letter_issues = sorted({str(f["verdict"]["key"][-1]) for f in reps
+                            if str(f["verdict"]["key"][1]) == "letter"})
+    if letter_issues:
+        decisions.append({"decision": "correct_the_representation_letter",
+                          "why": f"the letter has: {', '.join(letter_issues)}; it must "
+                                 "be signed and dated as of the report date"})
 
     # --- scope limitations: refusals nobody has resolved
     refusals = [f for f in findings if _open(f) and
@@ -69,6 +79,11 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     indicators = sorted({str(f["verdict"]["key"][1]) for f in findings
                          if f["procedure_id"] == "completion.going_concern_indicators"
                          and f["verdict"]["verdict"] == "TENSION"})
+    # A breached loan covenant is itself a going-concern indicator (AU-C 570):
+    # the debt may be due on demand (Kestrel parts 2-3, C3).
+    indicators += sorted({f"covenant_breached: {f['verdict']['key'][1]}" for f in findings
+                          if f["procedure_id"] == "debt.covenants"
+                          and f["verdict"]["verdict"] == "CLASH" and _open(f)})
     gc_check = completion.get("going_concern") or {}
     gc_concluded = bool(gc_check.get("done")) and bool(gc_check.get("note"))
     if indicators and not gc_concluded:
