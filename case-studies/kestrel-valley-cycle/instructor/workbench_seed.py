@@ -7,8 +7,8 @@ partner sets materiality, period, audit areas and settings; the preparer
 uploads and maps each file; the reviewer approves each mapping; the
 preparer loads the data and runs every executable procedure. Files the
 Workbench cannot yet take raw from QuickBooks (trial balance, aging,
-reconciliation, inventory; findings K1-K14) go in hand-prepared, as in
-run_noesi.py pass B, and say so in their provenance.
+reconciliation, inventory, the Journal; findings K1-K14 and J1-J4) go in
+hand-prepared, as in run_noesi.py pass B, and say so in their provenance.
 """
 
 from __future__ import annotations
@@ -45,6 +45,39 @@ def _policies() -> dict:
             **k2["policies"], **k3["policies"]}
 
 
+def prep_journal(name: str):
+    """The QuickBooks Journal report, one row per line (J1-J4 in the run
+    findings): date, type, Num and name print only on a transaction's first
+    line, so they are carried down; an entry is identified as the key
+    identifies it (date, type, Num, name), because Num alone is blank for
+    deposits and transfers and repeats across types."""
+    def prep() -> bytes:
+        rows, entry, header_seen, line = [], None, False, 0
+        for r in run_noesi._sheet(name):
+            cells = list(r[1:11]) + [None] * (10 - len(r[1:11]))
+            date, kind, num, who, memo, account, debit, credit, created, by = cells
+            if not header_seen:
+                header_seen = date == "Date"
+                continue
+            if date:  # a transaction's first line
+                entry = {"id": " ".join(x for x in (
+                            f"{date[6:]}-{date[:2]}-{date[3:5]}", kind, num or "(no num)",
+                            who or "") if x).strip(),
+                         "date": date, "kind": kind, "created": created, "by": by}
+                line = 0
+            if entry is None or not account:
+                continue  # a transaction's total row, or the footer
+            line += 1
+            rows.append((entry["id"], line, entry["date"], entry["kind"],
+                         str(account).split(" ", 1)[0], debit if debit is not None else "",
+                         credit if credit is not None else "", entry["created"],
+                         entry["by"], memo or ""))
+        return run_noesi._csv(["Entry ID", "Line", "Entry Date", "Transaction Type",
+                               "Account", "Debit", "Credit", "Posted Date", "Posted By",
+                               "Description"], rows)
+    return prep
+
+
 # (file or prepared label, role, prep function, QuickBooks recipe, load mode)
 LOADS = [
     ("trial_balance_prepared.csv", "Trial_balance", run_noesi.prep_trial_balance, None, None),
@@ -68,8 +101,9 @@ LOADS = [
      "qbo.transaction_list_by_vendor.purchase_orders", None),
     ("quickbooks/Bill_Payment_List.xlsx", "Payments", None,
      "qbo.bill_payment_list.payments", None),
-    ("quickbooks/Journal.xlsx", "Journal_entries", None, None, None),
-    ("quickbooks/Journal_2026-07.xlsx", "Journal_entries", None, None, "add"),
+    ("journal_prepared.csv", "Journal_entries", prep_journal("Journal.xlsx"), None, None),
+    ("journal_2026-07_prepared.csv", "Journal_entries", prep_journal("Journal_2026-07.xlsx"),
+     None, "add"),
     ("client/payroll_register_FY2026.csv", "Payroll_register", None, None, None),
     ("client/employee_master.csv", "Payroll_master", None, None, None),
     ("client/fixed_asset_register.csv", "Fixed_assets", None, None, None),
