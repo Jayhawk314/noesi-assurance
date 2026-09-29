@@ -46,7 +46,8 @@ export function OpinionScreen({ client, eid, onError }: {
         <h3>
           {data.opinion ? "Opinion" : "Draft opinion"}: {LABEL[settled] ?? words(settled)}
           {data.going_concern_section && " — with a going-concern section"}{" "}
-          <button className="small" onClick={reload}>refresh</button>
+          <button className="small" onClick={reload}>refresh</button>{" "}
+          <button className="small" onClick={() => window.print()}>print</button>
         </h3>
         <p className={`status ${ready ? "ok" : "pending"}`}>
           {ready ? "Ready for the partner's sign-off" : "Not ready: see below"}
