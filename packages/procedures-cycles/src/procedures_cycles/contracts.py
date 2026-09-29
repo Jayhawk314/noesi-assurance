@@ -183,6 +183,18 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "vendor statements and receiving records are separate searches.",
     ),
     ProcedureContract(
+        "ap.duplicate_bills", "Duplicate bills",
+        "List vendor invoices recorded more than once: the same invoice number for the "
+        "same amount (under one vendor or two), or with different amounts.",
+        "payables", ("occurrence", "accuracy"),
+        {"Vouchers": ("voucher_number", "vendor_number", "voucher_amount")},
+        evidence_source="client bill listing (vendor invoices entered)",
+        denominator_role="Vouchers",
+        limitations="Compares invoice numbers by letters and digits; a duplicate "
+                    "keyed with a different number, or bills with no number, are not "
+                    "seen. Whether it was paid twice needs the vendor's statement.",
+    ),
+    ProcedureContract(
         "payroll.register_tests", "Payroll register tests",
         "Re-perform gross and net pay, and list people paid who are not on the "
         "employee master, paid after termination, paid twice on one date, or sharing "
@@ -477,6 +489,7 @@ SCOPE_OF: dict[str, str] = {
     "ar.confirmations_mus": "receivables",
     "ar.confirmations_difference": "receivables",
     "ap.unrecorded_liabilities_search": "payables",
+    "ap.duplicate_bills": "payables",
     "payroll.register_tests": "payroll",
     "payroll.register_to_ledger": "payroll",
     "cash.bank_reconciliation": "cash",

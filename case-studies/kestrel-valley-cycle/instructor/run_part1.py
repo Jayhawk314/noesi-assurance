@@ -48,7 +48,7 @@ def main() -> int:
         eid = svc.create_engagement(P, "Kestrel Valley", "2026-06-30")["engagement_id"]
         svc.assign_team(P, eid, R, "preparer")
         svc.assign_team(P, eid, S, "reviewer")
-        svc.update_workflow(P, eid, "cycles", {"cycles": ["journal_entries"]})
+        svc.update_workflow(P, eid, "cycles", {"cycles": ["journal_entries", "payables"]})
         svc.update_workflow(P, eid, "period", {"start": "2025-07-01"})
         print("== Loads ==")
         stored: dict[str, dict] = {}      # one stored file may feed several roles

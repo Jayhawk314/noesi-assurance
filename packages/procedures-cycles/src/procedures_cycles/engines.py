@@ -15,8 +15,8 @@ from assurance_domain.receipts import Receipt
 from procedures_ap import engines as ap_engines
 
 from procedures_cycles import (
-    accruals, cash, completion, controls, debt_equity, estimates, inventory, journal,
-    payables, payroll, ppe, receivables, revenue, statements,
+    accruals, cash, completion, controls, debt_equity, duplicates, estimates, inventory,
+    journal, payables, payroll, ppe, receivables, revenue, statements,
 )
 from procedures_cycles.common import jsonable, receipt, records
 from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID, SCOPE_OF
@@ -39,6 +39,7 @@ EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "ar.confirmations_mus": receivables.confirmations_mus,
     "ar.confirmations_difference": receivables.confirmations_difference,
     "ap.unrecorded_liabilities_search": payables.unrecorded_liabilities_search,
+    "ap.duplicate_bills": duplicates.duplicate_bills,
     "payroll.register_tests": payroll.register_tests,
     "payroll.register_to_ledger": payroll.register_to_ledger,
     "cash.bank_reconciliation": cash.bank_reconciliation,

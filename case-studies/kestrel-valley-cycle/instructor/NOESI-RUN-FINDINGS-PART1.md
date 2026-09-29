@@ -32,7 +32,7 @@
 | J3 | Medium | The posted-after-period-end test is not performed. "Create date" is not recognised as the posted date. | JE 1066 (dated 6/30, entered 7/10) |
 | J4 | Medium | Round amounts: 2 found, key says 4. Seldom-used accounts: 6 found, key says 7. No description: 176 found, key says 177. All three follow from J1 and J2. | 4 / 7 / 177 |
 | P1 | Fixed | One stored file can feed a second role. The engine could already do it, but the Workbench screen and bulk propose skipped any file that was already mapped. They now skip only the same role. The 36 purchase orders load, matching the key. PO-to-bill matching stays partial: the bill export carries no PO number (only a memo). | 36 POs; one bill is 12% over its PO |
-| P2 | Medium | No procedure looks for a duplicate bill (same invoice number and amount, under two vendors). The look-alike vendor is found, but the 18,432.50 paid twice is not. | duplicate MC invoice, 18,432.50 |
+| P2 | Fixed | New generic check ap.duplicate_bills (payables scope; tested on invented data). It finds the Moraine invoice recorded twice for 18,432.50 under the look-alike vendor. | duplicate MC invoice, 18,432.50 |
 | P3 | Low | The subledger-to-ledger tie is blocked: there is no General Ledger export in part 1. | unpaid bills 287,640.18 = TB |
 | P4 | Info | Payment-to-bill and segregation-of-duties checks are partial: QuickBooks exports name neither the bill paid nor an approver. This is inherent, and the key says so. | not testable |
 
@@ -41,9 +41,8 @@ short payment belong to part 3's related-party and completion work.
 
 ## Proposed fixes (for approval; none made)
 
-1. **A QuickBooks Journal recipe (J1–J4).** Carry the date, type, Num and name
+1. **A QuickBooks Journal recipe (J1–J4).** Waiting for a real QuickBooks Journal export: Kestrel's Journal layout is modeled, and building to it would fit the engine to the case. Carry the date, type, Num and name
    down to continuation lines. Key each entry by those four together, and
    read Create date and Created by.
 2. **Let one stored file feed several recipes (P1).** Done.
-3. **A duplicate-bill check (P2):** same invoice number and amount under
-   different or look-alike vendors.
+3. **A duplicate-bill check (P2).** Done.
