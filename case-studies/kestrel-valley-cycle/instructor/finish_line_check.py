@@ -470,11 +470,13 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
           (s.get("totals") or {}).get(line.lower().replace(" ", "_"), NOT_IN))
     c("above materiality on Current Assets", fm["above_materiality"],
       has("completion.uncorrected_misstatements", "current_assets"))
-    c("summary of misstatements agrees with the procedure", fm["largest"],
-      d["sad"].get("total_unadjusted", NOT_IN) or "0.00",
-      "the summary of uncorrected misstatements (SAD) totals only findings the "
-      "team has disposed as misstatements, none yet, while the procedure reads "
-      "the misstatement schedule; roadmap B2", expect="0")
+    schedule = d["sad"].get("schedule") or {}
+    largest = fm["largest_line"].lower().replace(" ", "_")
+    c("summary of misstatements (SAD) carries the schedule's largest line", fm["largest"],
+      abs(_dec((schedule.get("lines") or {}).get(largest, "0")))
+      if schedule else NOT_IN)
+    c("summary of misstatements (SAD) lines at materiality", [largest],
+      schedule.get("material_lines", NOT_IN) if schedule else NOT_IN)
     gc = K3["going_concern"]
     s = run("completion.going_concern_indicators")
     for item in ("working_capital", "net_income", "equity", "current_ratio"):

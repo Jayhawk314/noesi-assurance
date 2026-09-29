@@ -775,6 +775,32 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
         </tbody>
       </table>
 
+      <h3>Misstatement schedule, by statement line</h3>
+      {sad.schedule ? (
+        <>
+          <p className="note">{sad.schedule.note}.</p>
+          <table className="dense">
+            <thead><tr><th>Line</th><th>Signed effect</th><th /></tr></thead>
+            <tbody>
+              {Object.entries(sad.schedule.lines).map(([line, amount]) => (
+                <tr key={line}>
+                  <td>{line.replace(/_/g, " ")}</td>
+                  <td>{Number(amount).toLocaleString()}</td>
+                  <td className={`status ${sad.schedule!.material_lines.includes(line) ? "broken" : "ok"}`}>
+                    {sad.schedule!.material_lines.includes(line) ? "at or above materiality" : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <p className="note">
+          No misstatement schedule has been evaluated (completion.uncorrected_misstatements
+          has not run); the summary above is the disposed findings only.
+        </p>
+      )}
+
       <h3>Materiality</h3>
       <form className="inline"
             onSubmit={(e) => {

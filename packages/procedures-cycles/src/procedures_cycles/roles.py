@@ -27,6 +27,13 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "line": ["line", "fs line", "statement line", "classification", "category",
                  "grouping"],
     },
+    # B3: the prior year's reported figures by statement line (e.g. from the
+    # prior audited statements), for when there is no comparative trial
+    # balance. Amounts as reported: credit-normal lines positive.
+    "Prior_statements": {
+        "line": ["line", "fs line", "statement line", "caption", "classification"],
+        "amount": ["amount", "prior year", "prior year amount", "balance", "reported"],
+    },
     "AR_listing": {
         "customer_number": ["customer number", "customer no", "customer id",
                             "account number", "customer"],
@@ -326,6 +333,7 @@ DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
 
 REQUIRED: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("account",),
+    "Prior_statements": ("line",),
     "AR_listing": ("customer_number",),
     "Bank_reconciliation": ("account", "item_type"),
     "Cutoff_statement": ("account",),
@@ -357,6 +365,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
 
 FILENAME_HINTS: dict[str, list[str]] = {
     "Trial_balance": ["trial balance", "tb", "working trial balance"],
+    "Prior_statements": ["prior year statements", "prior year figures",
+                         "comparative figures", "prior year financial statements"],
     "AR_listing": ["ar listing", "accounts receivable", "receivables", "ar aging", "aging"],
     "Bank_reconciliation": ["bank reconciliation", "bank rec", "reconciliation"],
     "Cutoff_statement": ["cutoff statement", "cutoff bank statement", "cutoff"],

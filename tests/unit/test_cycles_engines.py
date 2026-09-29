@@ -64,6 +64,48 @@ def test_trial_balance_analytics_foots_ratios_and_flags_movements():
     assert ("movement", "4000") not in flagged  # 14.3%
 
 
+def test_prior_year_statement_figures_give_prior_ratios_and_turnover():
+    # B3: no comparative column on the trial balance, only last year's
+    # reported figures by line (credit-normal lines positive, equity closed).
+    current_only = [{k: v for k, v in r.items() if k != "prior_balance"} for r in TB]
+    reported = [{"line": "cash", "amount": D("80000")},
+                {"line": "receivables", "amount": D("40000")},
+                {"line": "allowance", "amount": D("4000")},
+                {"line": "inventory", "amount": D("70000")},
+                {"line": "noncurrent_assets", "amount": D("60000")},
+                {"line": "current_liabilities", "amount": D("50000")},
+                {"line": "equity", "amount": D("196000")},
+                {"line": "sales", "amount": D("350000")},
+                {"line": "cost_of_sales", "amount": D("260000")},
+                {"line": "operating_expense", "amount": D("54000")},
+                {"line": "Goodwill, net", "amount": D("1")}]
+    findings, stats = execute_procedure(
+        "fs.trial_balance_analytics",
+        {"Trial_balance": current_only, "Prior_statements": reported},
+        {"analytics_threshold_pct": "20"})
+    assert stats["prior_source"] == "prior-year statement figures"
+    # cost of sales 300000 / average inventory (80000 + 70000) / 2
+    assert D(stats["current"]["ratios"]["inventory_turnover"]) == D("4.0000")
+    prior = stats["prior"]
+    # (80000 + 36000 + 70000) / 50000; equity as reported, not plus income
+    assert D(prior["ratios"]["current_ratio"]) == D("3.7200")
+    assert D(prior["figures"]["equity"]) == D("196000.00")
+    assert stats["movements"] == []   # account movements need account balances
+    assert ("prior_line_unrecognized", "Goodwill, net") in keys(findings, "AMBIGUOUS")
+
+
+def test_prior_year_figures_that_disagree_with_the_trial_balance_are_flagged():
+    reported = [{"line": "inventory", "amount": D("70000")},     # agrees
+                {"line": "receivables", "amount": D("41000")},   # TB prior: 40000
+                {"line": "equity", "amount": D("1")}]            # not compared
+    findings, stats = execute_procedure(
+        "fs.trial_balance_analytics", {"Trial_balance": TB, "Prior_statements": reported},
+        {})
+    assert stats["prior_source"] == "trial balance prior-year column"
+    flagged = {k for k in keys(findings, "TENSION") if k[0] == "prior_figures_disagree"}
+    assert flagged == {("prior_figures_disagree", "receivables")}
+
+
 def test_trial_balance_out_of_balance_is_an_exception():
     rows = TB + [{"account": "9999", "balance": D("1"), "side": "DR", "line": "cash"}]
     findings, _ = execute_procedure("fs.trial_balance_analytics", {"Trial_balance": rows}, {})

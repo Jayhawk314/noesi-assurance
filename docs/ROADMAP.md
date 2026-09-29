@@ -37,7 +37,7 @@ archives) is not on this path yet.
 `case-studies/kestrel-valley-cycle/instructor/finish_line_check.py` seeds
 the demo as `--demo` does and compares all 13 modules with the key; it
 writes `FINISH-LINE-REPORT.md` and exits 1 on any unexplained difference.
-**147 of 154 lines match, 0 unexplained** (141 of 153 before the key
+**149 of 155 lines match, 0 unexplained** (141 of 153 before the key
 decisions below). Fixed from it: quick ratio
 (cash and receivables only), allowance reported to the cent, and the
 demo's policies (movement rule "or", manual journal sources, holidays).
@@ -56,7 +56,7 @@ What still differs, and where it goes:
 - PO overrun, A/P subledger tie, unrecorded liability: section C.
 - Checks without bills, employee/vendor shared address, stale accrual
   (no activity all year): parking lot (depth pass).
-- SAD vs the completion procedure: B2.
+- SAD vs the completion procedure: fixed by B2 (the check now matches).
 
 ### A. Engine breaks Kestrel found that are still open
 From `case-studies/kestrel-valley-cycle/instructor/NOESI-RUN-FINDINGS.md`.
@@ -78,9 +78,9 @@ From the private friction log and CYCLES-ROLLOUT §6.
 
 | Item | What |
 |---|---|
-| B1 | "Clearly trivial" is hard-coded at 5% of materiality (checked: `TRIVIAL_PCT` in `assurance_application`); firms set their own. Make it a policy. |
-| B2 | Two misstatement summaries disagree (the SAD and `completion.uncorrected_misstatements`). Merge them. |
-| B3 | Inventory turnover needs prior-year figures; allow prior-year statement figures as input. |
+| ~~B1~~ done | Policy `clearly_trivial_pct` (5% unset), one rate for the SAD, concurrence and revision impact; set on the Scope screen. |
+| ~~B2~~ done | The SAD carries the evaluated misstatement schedule (signed, by line) and cannot conclude "immaterial" while a line reaches materiality; the schedule's "material" verdict is no longer counted as one more misstatement. |
+| ~~B3~~ done | Role `Prior_statements` (line, amount as reported): prior ratios and averages (inventory turnover) without a comparative TB; given both, disagreements are flagged. Limit: account movements still need the TB's prior column, and revision impact does not yet mark analytics stale when this file changes. |
 
 ### C. QuickBooks imports (waits for James's real exports)
 Checked: only payables recipes exist today (bill payments, transactions by

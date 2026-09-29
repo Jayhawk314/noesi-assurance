@@ -471,6 +471,60 @@ def test_below_clearly_trivial_needs_no_concurrence(service, engagement):
     assert sad["conclusion"] == "immaterial"
 
 
+SCHEDULE_CSV = (
+    b"Description,Identified,Likely,Current Assets,Noncurrent Assets,"
+    b"Current Liabilities,Noncurrent Liabilities,Income Before Taxes\n"
+    b"Invoice priced above contract,6000.00,0.00,-6000.00,0,0,0,-6000.00\n"
+    b"Pricing sample projected,1000.00,5000.00,-5000.00,0,0,0,-5000.00\n")
+
+
+def test_the_sad_carries_the_misstatement_schedule(service, engagement):
+    # B2: one summary. Nothing is disposed, so the SAD alone would say
+    # "immaterial"; the schedule's current assets and income (-11,000 each)
+    # reach materiality (10,000), so the summary cannot.
+    from decimal import Decimal
+    service.update_workflow(ALICE, engagement, "materiality",
+                            {"amount": 10000.0, "basis": "revenue"})
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["completion"]})
+    assert service.sad(engagement)["schedule"] is None
+    _ingest(service, engagement, SCHEDULE_CSV, "schedule.csv", "Misstatements")
+    service.run_procedure(BOB, engagement,
+                          procedure_id="completion.uncorrected_misstatements")
+    sad = service.sad(engagement)
+    assert sad["schedule"]["material_lines"] == ["current_assets", "income_before_taxes"]
+    assert Decimal(sad["schedule"]["lines"]["current_assets"]) == Decimal("-11000")
+    assert sad["conclusion"] == "material"
+    # The schedule's "reaches materiality" is an evaluation, not one more
+    # misstatement: disposed as unadjusted, it adds nothing to the SAD total.
+    material = next(f for f in service.findings(engagement)
+                    if f["verdict"]["key"][1] == "material")
+    service.set_disposition(BOB, engagement, finding_uid=material["finding_uid"],
+                            status="unadjusted", note="on the schedule")
+    sad = service.sad(engagement)
+    assert sad["total_unadjusted"] == 0.0 and sad["candidates"] == 0
+
+
+def test_clearly_trivial_is_the_firms_policy(service, engagement):
+    # B1: the same $5,000 under $200,000 materiality, but this firm sets
+    # clearly trivial at 2% ($4,000): now it is a significant judgment.
+    service.update_workflow(ALICE, engagement, "materiality",
+                            {"amount": 200000.0, "basis": "assets"})
+    for bad in ("0", "100", "x", "-3"):
+        with pytest.raises(ValueError, match="clearly_trivial_pct"):
+            service.update_workflow(ALICE, engagement, "policy",
+                                    {"name": "clearly_trivial_pct", "value": bad})
+    service.update_workflow(ALICE, engagement, "policy",
+                            {"name": "clearly_trivial_pct", "value": "2"})
+    assert service.sad(engagement)["clearly_trivial"] == 4000.0
+    tie = _tie_finding(service, engagement)
+    assert tie["requires_concurrence"] is True
+    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
+                            status="unadjusted", note="below 2%? no")
+    sad = service.sad(engagement)
+    assert sad["concurrence_pending_count"] == 1 and sad["conclusion"] is None
+    assert "clearly_trivial_pct" in service.cycle_catalog()["general_policies"]
+
+
 # ------------------------------------------- independent review follow-ups
 
 def test_invalid_disposition_status_is_a_validation_error(service, engagement):

@@ -29,7 +29,7 @@ from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
 from assurance_domain.readiness import blank_engagement, readiness
 from assurance_domain.sad import (
-    TRIVIAL_PCT, requires_concurrence, summary_of_differences,
+    requires_concurrence, summary_of_differences, trivial_rate,
 )
 from assurance_persistence.spine import run_command
 from procedures_ap.coverage import compile_coverage, inventory_from_tables
@@ -59,6 +59,15 @@ class AuthorizationError(PermissionError):
 def _finding_uid(verdict: dict) -> str:
     """Engagement-scoped stable finding identity: domain + key, no company."""
     return f"{verdict['domain']}|{json.dumps(verdict['key'], ensure_ascii=False)}"
+
+
+SCHEDULE_PROCEDURE = "completion.uncorrected_misstatements"
+
+
+def _trivial_rate(document: dict) -> Decimal:
+    """B1: the firm's clearly-trivial rate (policy clearly_trivial_pct), or
+    the 5% default; one rate for the SAD, concurrence and revision impact."""
+    return trivial_rate((document.get("policies") or {}).get("clearly_trivial_pct"))
 
 
 class EngagementLockedError(PermissionError):
@@ -658,7 +667,7 @@ class WorkbenchService:
                 "SELECT * FROM disposition WHERE engagement_id = ?",
                 (engagement_id,))}
         document, _ = self.workflow_document(engagement_id)
-        clearly_trivial = TRIVIAL_PCT * (
+        clearly_trivial = _trivial_rate(document) * (
             Decimal(str(document["materiality"].get("amount") or 0)))
         out = []
         for run in self._conn.execute(
@@ -764,7 +773,8 @@ class WorkbenchService:
         from assurance_domain.money import fnum
 
         document, _ = self.workflow_document(engagement_id)
-        limits = thresholds(document["materiality"].get("amount") or 0)
+        limits = thresholds(document["materiality"].get("amount") or 0,
+                            _trivial_rate(document))
         current = self._tables(engagement_id)
         current_records = {role: list(t.engine_view().records)
                            for role, t in current.items()}
@@ -1244,6 +1254,8 @@ class WorkbenchService:
                     parse_allowance_rates(str(values["value"]))
                 except PolicyError as exc:
                     raise ValueError(str(exc)) from exc
+            if name == "clearly_trivial_pct":  # checked now, not when the SAD is read
+                trivial_rate(values["value"])
             if name == "misstatement_likely_basis":
                 from procedures_cycles.statements import LIKELY_BASES
                 if str(values["value"]).strip().lower() not in LIKELY_BASES:
@@ -1264,8 +1276,8 @@ class WorkbenchService:
 
     def sad(self, engagement_id: str, *, materiality: float | None = None) -> dict:
         info = self._engagement(engagement_id)
+        document, _ = self.workflow_document(engagement_id)
         if materiality is None:
-            document, _ = self.workflow_document(engagement_id)
             materiality = float(document["materiality"].get("amount") or 0)
         dispositions = {
             row["finding_uid"]: row
@@ -1277,7 +1289,13 @@ class WorkbenchService:
             verdict = item["verdict"]
             uid = item["finding_uid"]
             record = dispositions.get(uid)
+            # B2: the schedule's "a line reaches materiality" is an evaluation
+            # of misstatements already listed, not one more misstatement; as
+            # a candidate it would be counted a second time.
+            evaluation = (item["procedure_id"] == SCHEDULE_PROCEDURE
+                          and list(verdict["key"])[1:2] == ["material"])
             rows.append({
+                **({"audit_class": "evaluation"} if evaluation else {}),
                 "engagement": info["client_name"],
                 "finding_uid": uid,
                 "domain": verdict["domain"],
@@ -1290,7 +1308,8 @@ class WorkbenchService:
                 "disposition_concurred": bool(record["concurred_by"])
                 if record else False,
             })
-        summary = summary_of_differences(rows, materiality=materiality)
+        summary = summary_of_differences(rows, materiality=materiality,
+                                         trivial_pct=_trivial_rate(document))
         # Above-trivial dispositions are proposals until concurred (AU-C
         # 220); the SAD refuses to conclude over unreviewed judgments. The
         # domain summary keeps its golden-tested shape — these keys ride on
@@ -1313,9 +1332,41 @@ class WorkbenchService:
         summary["open_findings"] = open_findings
         summary["open_findings_count"] = len(open_findings)
         summary["concurrence_pending_count"] = len(pending)
+        # B2: one summary. The misstatement schedule, once evaluated by
+        # completion.uncorrected_misstatements, is the signed, projected,
+        # by-statement-line view; it rides on the SAD, and the SAD cannot
+        # conclude "immaterial" while a line there reaches materiality.
+        schedule = self._misstatement_schedule(engagement_id)
+        summary["schedule"] = schedule
+        if schedule and schedule["material_lines"] and summary["conclusion"] == "immaterial":
+            summary["conclusion"] = "material"
         if pending:
             summary["conclusion"] = None
         return summary
+
+    def _misstatement_schedule(self, engagement_id: str) -> dict | None:
+        """The latest completed evaluation of the misstatement schedule."""
+        row = self._conn.execute(
+            """SELECT run_id, summary FROM procedure_run
+               WHERE engagement_id = ? AND procedure_id = ? AND status = 'completed'
+               ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+            (engagement_id, SCHEDULE_PROCEDURE)).fetchone()
+        if row is None:
+            return None
+        stats = json.loads(row["summary"])
+        totals = stats.get("totals") or {}
+        materiality = Decimal(str(stats.get("materiality") or 0))
+        lines = {k: v for k, v in totals.items() if k not in ("identified", "likely")}
+        material = sorted(k for k, v in lines.items()
+                          if materiality and abs(Decimal(str(v))) >= materiality)
+        return {"run_id": row["run_id"], "materiality": str(materiality),
+                "lines": lines, "identified": totals.get("identified"),
+                "likely": totals.get("likely"),
+                "likely_basis": stats.get("likely_basis"),
+                "material_lines": material,
+                "note": "signed effect by statement line, projections included; the "
+                        "SAD's items above are findings disposed as unadjusted, as "
+                        "unsigned amounts, and belong on this schedule"}
 
     def trial_balance_lines(self, engagement_id: str) -> dict:
         """Each label on the loaded trial balance, whether Noesi recognizes it,
@@ -1361,7 +1412,10 @@ class WorkbenchService:
                                                       if p not in ENGAGEMENT_POLICIES]}
                                for c in contracts],
                 "required_policies": required, "optional_policies": optional})
-        return {"areas": areas, "engagement_policies": list(ENGAGEMENT_POLICIES)}
+        # Settings that belong to no one area (e.g. the firm's clearly-trivial
+        # rate, used by the SAD whatever is in scope).
+        return {"areas": areas, "engagement_policies": list(ENGAGEMENT_POLICIES),
+                "general_policies": ["clearly_trivial_pct"]}
 
     def draft_opinion(self, engagement_id: str) -> dict:
         """The opinion the evidence points to, with its basis and the

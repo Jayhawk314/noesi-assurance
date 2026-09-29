@@ -108,8 +108,11 @@ def _totals(rows: list[dict], field: str) -> dict[str, Decimal]:
     return out
 
 
-def ratios(t: dict[str, Decimal], prior: dict[str, Decimal] | None = None) -> dict:
-    """Standard liquidity, performance and solvency ratios from line totals."""
+def ratios(t: dict[str, Decimal], prior: dict[str, Decimal] | None = None, *,
+           books_closed: bool = False) -> dict:
+    """Standard liquidity, performance and solvency ratios from line totals.
+    ``books_closed``: the equity line already includes the year's income (as
+    reported statements do), so it is not added again."""
     def div(a, b):
         return None if not b else (Decimal(a) / Decimal(b))
 
@@ -123,7 +126,8 @@ def ratios(t: dict[str, Decimal], prior: dict[str, Decimal] | None = None) -> di
     gross_profit = net_sales - t["cost_of_sales"]
     income_before_taxes = (gross_profit - t["operating_expense"] + t["other_income"]
                            - t["other_expense"])
-    equity = t["equity"] + (income_before_taxes - t["income_tax"])  # books still open
+    equity = t["equity"] + (ZERO if books_closed else  # else books still open
+                            income_before_taxes - t["income_tax"])
     average_inventory = ((t["inventory"] + prior["inventory"]) / 2) if prior else None
     out = {
         "current_ratio": div(current_assets, current_liabilities),
@@ -154,6 +158,30 @@ def ratios(t: dict[str, Decimal], prior: dict[str, Decimal] | None = None) -> di
             "figures": {k: v.quantize(CENT) for k, v in figures.items()}}
 
 
+def _prior_statements(tables: dict, pid: str, findings: list) -> dict | None:
+    """Prior-year reported figures summed per statement line (as reported:
+    credit-normal lines positive); None when none were supplied. A caption
+    that is not a statement line is refused, not guessed at."""
+    rows = records(tables, "Prior_statements")
+    if not rows:
+        return None
+    out: dict[str, Decimal] = {}
+    for r in rows:
+        line = text(r.get("line")).lower()
+        amount = dec(r.get("amount"))
+        if line not in LINES:
+            findings.append(receipt(pid, ("prior_line_unrecognized", text(r.get("line"))),
+                                    "AMBIGUOUS",
+                                    f"prior-year figure '{text(r.get('line'))}' is not a "
+                                    "statement line; map it, or it is left out",
+                                    {"finding_class": "REFUSAL", "cycle": "planning",
+                                     "allowed_lines": list(LINES)}))
+            continue
+        if amount is not None:
+            out[line] = out.get(line, ZERO) + amount
+    return out
+
+
 def trial_balance_analytics(tables: dict, policies: dict):
     pid = "fs.trial_balance_analytics"
     rows = records(tables, "Trial_balance")
@@ -178,8 +206,30 @@ def trial_balance_analytics(tables: dict, policies: dict):
     current = _totals(rows, "balance")
     has_prior = any(dec(r.get("prior_balance")) is not None for r in rows)
     prior = _totals(rows, "prior_balance") if has_prior else None
+    # B3: without comparative balances on the trial balance, the prior
+    # year's reported figures by line still give prior ratios and averages
+    # (inventory turnover); account movements need account balances, so
+    # they are not tested from them. Given both, they must agree.
+    reported, prior_source = _prior_statements(tables, pid, findings), None
+    if prior is not None:
+        prior_source = "trial balance prior-year column"
+        # Equity is left out: a trial balance before closing holds the
+        # year's income outside equity; reported statements hold it inside.
+        for line, amount in sorted((reported or {}).items()):
+            if line != "equity" and amount != prior[line]:
+                findings.append(receipt(
+                    pid, ("prior_figures_disagree", line), "TENSION",
+                    f"prior-year {line.replace('_', ' ')}: {amount} as reported, "
+                    f"{prior[line]} from the trial balance's prior-year column",
+                    {"finding_class": "CONJECTURE", "cycle": "planning",
+                     "reported": amount, "trial_balance": prior[line]},
+                    amount - prior[line]))
+    elif reported is not None:
+        prior, prior_source = {**{line: ZERO for line in LINES}, **reported}, \
+            "prior-year statement figures"
     now = ratios(current, prior)
-    before = ratios(prior) if prior else None
+    before = (ratios(prior, books_closed=prior_source == "prior-year statement figures")
+              if prior else None)
 
     threshold = None
     if policies.get("analytics_threshold_pct") not in (None, ""):
@@ -223,7 +273,8 @@ def trial_balance_analytics(tables: dict, policies: dict):
                                "not a misstatement"}))
     stats = {"population": len(rows), "debits": debits, "credits": credits,
              "line_totals": {k: v for k, v in current.items()},
-             "current": now, "prior": before, "threshold_rule": rule,
+             "current": now, "prior": before, "prior_source": prior_source,
+             "threshold_rule": rule,
              "ratio_change": {k: (now["ratios"][k] - before["ratios"][k])
                               if before and now["ratios"][k] is not None
                               and before["ratios"][k] is not None else None

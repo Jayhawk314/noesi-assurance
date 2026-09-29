@@ -21,7 +21,7 @@ from assurance_domain.money import fnum, parse_amount
 
 STATUSES = ("undisposed", "cleared", "unadjusted", "adjusted", "waived", "follow_up")
 
-TRIVIAL_PCT = Decimal("0.05")      # clearly-trivial threshold = 5% of materiality
+TRIVIAL_PCT = Decimal("0.05")      # default clearly-trivial threshold: 5% of materiality
 PERFORMANCE_PCT = Decimal("0.75")  # performance materiality = 75% of materiality
 
 _CENT = Decimal("0.01")
@@ -90,10 +90,28 @@ def requires_concurrence(row: dict, clearly_trivial) -> bool:
     return magnitude > ctt
 
 
-def summary_of_differences(rows: list[dict], *, materiality) -> dict:
+def trivial_rate(value) -> Decimal:
+    """The firm's clearly-trivial rate, as a fraction of materiality: given
+    as a fraction (0.03) or a percent (3 or '3%'); unset, the 5% default."""
+    raw = str(value if value is not None else "").strip()
+    if not raw:
+        return TRIVIAL_PCT
+    rate = parse_amount(raw.rstrip("%"))
+    if rate is None:
+        raise ValueError(f"clearly_trivial_pct {value!r} is not a number")
+    if rate >= 1 or raw.endswith("%"):
+        rate = rate / 100
+    if not Decimal("0") < rate < Decimal("1"):
+        raise ValueError("clearly_trivial_pct must be above 0% and below 100% "
+                         "of materiality")
+    return rate
+
+
+def summary_of_differences(rows: list[dict], *, materiality,
+                           trivial_pct: Decimal = TRIVIAL_PCT) -> dict:
     """Aggregate unadjusted misstatements and conclude against materiality."""
     overall = parse_amount(materiality) or Decimal("0")
-    ctt = _quantized(TRIVIAL_PCT * overall) if overall else Decimal("0")
+    ctt = _quantized(trivial_pct * overall) if overall else Decimal("0")
     performance = _quantized(PERFORMANCE_PCT * overall) if overall else None
 
     def lines_for(status: str) -> list[dict]:

@@ -251,6 +251,11 @@ export interface Sad {
   concurrence_pending: string[];
   concurrence_pending_count: number;
   conclusion: "immaterial" | "material" | null;
+  schedule: {
+    run_id: string; materiality: string; lines: Record<string, string>;
+    identified: string | null; likely: string | null; likely_basis: string | null;
+    material_lines: string[]; note: string;
+  } | null;
 }
 
 export interface Blocker {
@@ -286,7 +291,9 @@ export interface CycleArea {
   required_policies: string[];
   optional_policies: string[];
 }
-export interface CycleCatalog { areas: CycleArea[]; engagement_policies: string[] }
+export interface CycleCatalog {
+  areas: CycleArea[]; engagement_policies: string[]; general_policies: string[];
+}
 
 /** The loaded trial balance's own labels and how they map to statement lines. */
 export interface TrialBalanceLines {

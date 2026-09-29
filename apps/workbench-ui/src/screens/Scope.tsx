@@ -183,6 +183,22 @@ export function ScopeScreen({ client, eid, onError }: {
         </table>
       </div>
 
+      {catalog.data.general_policies.length > 0 && (
+        <div className="panel">
+          <h3>Engagement-wide settings</h3>
+          <p className="note">
+            Clearly trivial is a rate of materiality (5% when unset); the summary of
+            misstatements and second-person concurrence use it.
+          </p>
+          <table className="dense">
+            <thead><tr><th>Setting</th><th>Current</th><th>Change</th></tr></thead>
+            <tbody>
+              {catalog.data.general_policies.map((n) => <PolicyRow key={n} name={n} required={false} />)}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {catalog.data.areas.filter((a) => inScope.has(a.scope)
         && (a.required_policies.length || a.optional_policies.length)).map((area) => (
         <div className="panel" key={`${area.scope}-policies`}>

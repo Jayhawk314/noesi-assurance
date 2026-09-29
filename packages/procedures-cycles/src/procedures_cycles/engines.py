@@ -81,12 +81,13 @@ def execute_procedure(procedure_id: str, tables: dict,
     # lead-schedule labels into the statement lines the procedures read. It
     # travels as a policy, so every run's manifest records the mapping used.
     mapping_text = (policies or {}).get("line_mapping")
-    if mapping_text and "Trial_balance" in tables:
+    if mapping_text:
         import json as _json
         from procedures_cycles.statements import apply_line_mapping
         mapping = _json.loads(mapping_text) if isinstance(mapping_text, str) else mapping_text
-        tables = {**tables, "Trial_balance": apply_line_mapping(
-            records(tables, "Trial_balance"), mapping)}
+        for role in ("Trial_balance", "Prior_statements"):  # the same labels (B3)
+            if role in tables:
+                tables = {**tables, role: apply_line_mapping(records(tables, role), mapping)}
     # A mapped column is not the same as a value on every row: a blank
     # required value must not turn into a zero or a skipped row (review
     # 2026-09-28, F2). Rows missing one are set aside, named, and not tested.
