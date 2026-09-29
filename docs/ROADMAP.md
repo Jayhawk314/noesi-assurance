@@ -1,6 +1,6 @@
 # Noesi roadmap
 
-*Read this first. Built 2026-09-29 from the project's own plans
+*Read this first. Direction set by Claude 2026-09-29 after reading the strategy and readiness documents; items built 2026-09-29 from the project's own plans
 (LEARN-KESTREL-PLAN, AUDIT-FRAME-PLAN, CYCLES-ROLLOUT, the Kestrel run
 findings, the Oceanview friction log) and checked against the code that
 day. Every piece of work should map to a line below; anything else goes in
@@ -8,16 +8,38 @@ the parking lot.*
 
 ## Direction
 
-The Workbench is a tool that **supplements any audit**. It is calibrated on
-two full audits, **Kestrel Valley** (public) and **Oceanview** (purchased,
-private), and **never fitted to either**: what a case exposes is fixed
-generically and tested on invented data.
+The Workbench is a general audit tool: it supplements an audit and never
+claims more than it can prove. It is calibrated on two full audits,
+**Kestrel Valley** (public) and **Oceanview** (purchased, private), and
+**never fitted to either**: what a case exposes is fixed generically and
+tested on invented data.
 
-1. **Phase 1: finish the Workbench** against both audits.
+**What it is for now (Claude's determination, 2026-09-29):** the realistic
+near-term use is teaching. So "finish the Workbench" has a concrete finish
+line, not "any audit":
+
+> **Every one of the 13 Kestrel Learn modules (LEARN-KESTREL-PLAN) runs in
+> the Workbench and matches the answer key, from files as a learner would
+> load them. Oceanview runs privately as the check that nothing is fitted
+> to Kestrel.**
+
+Work that does not move that line goes to the parking lot, however useful.
+Real-client readiness (PRODUCTION-READINESS P0: logins, encryption,
+archives) is not on this path yet.
+
+1. **Phase 1: finish the Workbench** to the finish line above.
 2. **Phase 2: the Kestrel Learn app** (a copy of the Streamlit Learn app),
    with new ElevenLabs videos when credits are available.
 
 ## Phase 1: finish the Workbench
+
+### 0. The finish-line check (next)
+There is no test of the finish line today: `check_key.py` checks the key
+against the data, not against Noesi. Build one module-by-module check that
+runs the Kestrel demo through the Workbench and compares each module's
+results with `answer_key*.json`, listing what matches, what differs and
+why. It replaces guessing about what is left; items below are re-ranked
+by it.
 
 ### A. Engine breaks Kestrel found that are still open
 From `case-studies/kestrel-valley-cycle/instructor/NOESI-RUN-FINDINGS.md`.
@@ -80,6 +102,7 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- PRODUCTION-READINESS P0/P1 (real-client use): after Phase 2 and a real user.
 - Partner report sign-off (Codex's patch broke 17 tests; the print button covers it).
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,
   sample projection for additions, adjusted covenants).
