@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 from decimal import Decimal
+from decimal import Decimal as D
 
 import openpyxl
 
@@ -251,6 +252,14 @@ def main():
             "amount": key["duplicate_bill"]["duplicate_amount"],
             "effect": "purchases and cost of sales overstated; a refund is due"},
     })
+    # A second path: the key's totals re-read from the files just written.
+    ws = openpyxl.load_workbook(g.QBO / "Transaction_List_by_Vendor.xlsx").active
+    in_file = {"Bill": ZERO, "Bill Payment (Check)": ZERO}
+    for r in ws.iter_rows(min_row=6, values_only=True):
+        if r[3] in in_file:
+            in_file[r[3]] += abs(m(r[9]))
+    assert in_file["Bill"] == D(key["bills"]["total"]), in_file
+    assert in_file["Bill Payment (Check)"] == D(key["bill_payments"]["total"]), in_file
     (g.INSTRUCTOR / "answer_key_payables.json").write_text(
         json.dumps(key, indent=2, default=str) + "\n", encoding="utf-8")
     print(json.dumps({k: key[k] for k in ("bills", "bill_payments",

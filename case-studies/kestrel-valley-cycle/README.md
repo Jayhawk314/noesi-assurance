@@ -145,7 +145,7 @@ The key is `instructor/answer_key_payables.json`.
 Planted items:
 - A duplicate bill (18,432.50), paid through a look-alike vendor (the twin
   "Moraine Cycle Components, Inc.").
-- Three bills split under a 5,000 approval limit.
+- Three bills split under a 2,500 approval limit.
 - 4,500 in checks to DM Consulting with no bills; the vendor's address is
   the bookkeeper's home address.
 - Two utility bills with no invoice number.

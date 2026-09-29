@@ -192,36 +192,31 @@ def build():
     bills.append(("Big Hole Insurance", workday(2025, 7, 1), "BH-26-001", premium,
                   "13000", "Annual liability and property premium"))
     manual_reclass = m("612.00")
-    monthly("Velo Freight Lines", "66000", act["66000"] - manual_reclass, 20,
-            "Freight out", "VF-{i:03d}")
-    # tool rental (the uncleared June check 4421) sits in office and shop expense
     tool_rental = m("3100.00")
-    split = [m("4950.00"), m("4975.00"), m("4900.00")]
+    monthly("Velo Freight Lines", "66000", act["66000"] - manual_reclass - tool_rental, 20,
+            "Freight out", "VF-{i:03d}")
+    # tool rental (the uncleared June check 4421) is delivery equipment: freight
+    split = [m("2450.00"), m("2475.00"), m("2400.00")]
     monthly("Big Timber Office Supply", "67000",
-            act["67000"] + manual_reclass - tool_rental - sum(split), 8, "Office supplies",
+            act["67000"] + manual_reclass - sum(split), 8, "Office supplies",
             "BT-{i:04d}")
     bills.append(("Tri-County Tool Rental", workday(2026, 6, 1), "TC-8812", tool_rental,
-                  "67000", "Shop equipment rental"))
+                  "66000", "Delivery equipment rental"))
     for d, amount, num in zip((3, 4, 6), split, ("HF-301", "HF-302", "HF-303")):
         bills.append(("Hyalite Fabrication", date(2025, 11, d), num, amount, "67000",
                       "Display fixtures"))
-    key["split_bills"] = {"vendor": "Hyalite Fabrication", "approval_limit": "5000.00",
+    key["split_bills"] = {"vendor": "Hyalite Fabrication", "approval_limit": "2500.00",
                           "bills": [str(x) for x in split], "total": str(sum(split))}
     accrued_fees = -act["21000"]                     # year-end accrual by journal entry
     consulting = m("4500.00")                        # DM Consulting checks, no bills
     fees = act["68000"] - accrued_fees - consulting
-    fee_bills = spread(fees, [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    june_fee = m("1870.00")                          # paid short by check 4425
+    fee_bills = spread(fees - june_fee, [3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) + [june_fee]
     for i, (amount, (y, mo)) in enumerate(zip(fee_bills, MONTHS)):
         num = f"AF-{2025 + (mo < 7)}-{i + 1:02d}"
-        when = workday(y, mo, 5)
-        if (y, mo) == (2026, 6):
-            amount, when = m("1870.00"), date(2026, 6, 26)
+        when = date(2026, 6, 26) if (y, mo) == (2026, 6) else workday(y, mo, 5)
         bills.append(("Alder & Finch CPAs", when, num, amount, "68000", "Accounting"))
-    # the June fee bill was set to 1,870; restore the total on the May bill
-    total_fees = sum(x[3] for x in bills if x[0] == "Alder & Finch CPAs")
-    may = next(i for i, x in enumerate(bills)
-               if x[0] == "Alder & Finch CPAs" and x[1].month == 5)
-    bills[may] = bills[may][:3] + (bills[may][3] + fees - total_fees,) + bills[may][4:]
+    assert all(x[3] > 0 for x in bills), [x for x in bills if x[3] <= 0]
 
     # ---- payments: by vendor, June fixed by the bank reconciliation
     june_checks = {  # num: (vendor, date, amount) from generate.py's reconciliation
@@ -273,6 +268,7 @@ def build():
                 payments.append((vendor, workday(y, mo, 18), None, amount))
         for n, d, a in june:
             payments.append((vendor, d, n, a))
+    assert all(p[3] > 0 for p in payments), [p for p in payments if p[3] <= 0]
     alder_june = [p for p in payments if p[0] == "Alder & Finch CPAs" and p[2] == "4425"]
     assert alder_june and alder_june[0][3] == m("1780.00")
 
