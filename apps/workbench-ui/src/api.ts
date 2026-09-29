@@ -519,10 +519,7 @@ export class Client {
     this.request<Impact>("GET", `/api/engagements/${eid}/impact`);
 
   sad = (eid: string) => this.request<Sad>("GET", `/api/engagements/${eid}/sad`);
-  cycleCatalog = () => this.request<CycleCatalog>("GET", "/api/cycles");
-  loadKestrelDemo = () =>
-    this.request<{ engagement_id: string; seeded: boolean }>("POST", "/api/demo/kestrel", {});
-  draftOpinion = (eid: string) =>
+  cycleCatalog = () => this.request<CycleCatalog>("GET", "/api/cycles");  draftOpinion = (eid: string) =>
     this.request<DraftOpinion>("GET", `/api/engagements/${eid}/opinion`);
   readiness = (eid: string) =>
     this.request<Readiness>("GET", `/api/engagements/${eid}/readiness`);
