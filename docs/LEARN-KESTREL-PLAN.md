@@ -30,6 +30,21 @@ once.
 README, website, video descriptions) point to its address. Harborline's
 address keeps working.
 
+## What changes in the copy, and what stays the same
+
+James, 2026-09-29: the second version keeps the same layout as today's
+Noesi Learn Streamlit app. Only these change:
+- **Case and demo:** Kestrel instead of Harborline. The Workbench demo is
+  already Kestrel (`--demo`, and the "load the Kestrel demo" button).
+- **Videos:** new ElevenLabs recordings.
+- **Audit documents** (the documents page): Kestrel's own engagement brief,
+  audit plan, walkthrough and assignments, written for Kestrel, not copied
+  from Harborline.
+- **Lesson content:** the Kestrel modules below.
+
+Everything else stays as it is: the Streamlit host, lesson player,
+spreadsheet view, trace, and course map.
+
 ## What the Kestrel app teaches
 
 There are 13 modules, one per audit area. Each has the same four steps:
