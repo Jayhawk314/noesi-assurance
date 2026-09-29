@@ -1,0 +1,119 @@
+{
+  "case_part": "3 of 3: estimates, related parties, completion",
+  "policies": {
+    "estimates_hindsight_pct": "20",
+    "report_date": "2026-07-24",
+    "se_threshold": "10000",
+    "rep_signers": "Jo Kestrel",
+    "gc_current_ratio_floor": "1.20"
+  },
+  "estimates": {
+    "hindsight_threshold_pct": "20",
+    "items": [
+      {
+        "estimate": "Allowance for doubtful accounts",
+        "prior": "12800.00",
+        "outcome": "16520.00",
+        "miss_pct": "29.100",
+        "beyond_20pct": true
+      },
+      {
+        "estimate": "Sales returns reserve",
+        "prior": "5000.00",
+        "outcome": "6100.00",
+        "miss_pct": "22.000",
+        "beyond_20pct": true
+      },
+      {
+        "estimate": "Accrued audit fee",
+        "prior": "8000.00",
+        "outcome": "9350.00",
+        "miss_pct": "16.900",
+        "beyond_20pct": false
+      },
+      {
+        "estimate": "Inventory shrinkage reserve",
+        "prior": "4500.00",
+        "outcome": "6240.00",
+        "miss_pct": "38.700",
+        "beyond_20pct": true
+      }
+    ],
+    "all_missed_upward": true,
+    "bias_indicator": true
+  },
+  "related_parties": {
+    "listed": [
+      "Jo Kestrel",
+      "Kestrel Holdings LLC",
+      "Summit Loop Racing"
+    ],
+    "expected_matches": [
+      "Summit Loop Racing: customer on the A/R aging (credit balance -1,840.00)",
+      "Jo Kestrel: employee E01 at the same address (the owner on the payroll)"
+    ],
+    "undisclosed_not_findable_by_matching": {
+      "party": "DM Consulting",
+      "why": "not on management's list; its address is the bookkeeper's home (employee E07) and it was paid 4,500 by checks with no bills. Matching management's list cannot find it: the depth-pass item 'vendor sharing an address with an employee' would."
+    }
+  },
+  "subsequent_events": {
+    "report_date": "2026-07-24",
+    "threshold": "10000",
+    "expected_leads": [
+      "JE 1071 2026-07-08: 30,000 settlement of a dispute from March 2026 \u2014 a condition that existed at period end: adjust (recognize a liability)",
+      "check 4429 2026-07-01: 25,000 transfer (the T-0701 kiting item)",
+      "transfer 2026-07-01: 40,000 payroll funding (routine)",
+      "deposits 33,580.90 and 27,904.15: customer receipts (routine)"
+    ],
+    "unrecorded_liability": {
+      "check": "4433",
+      "amount": "6100.00",
+      "why": "June freight paid in July, not in June AP"
+    }
+  },
+  "representation_letter": {
+    "rep_signers": "Jo Kestrel",
+    "missing": [
+      "related_parties"
+    ],
+    "dated": "2026-07-20",
+    "report_date": "2026-07-24",
+    "not_dated_report_date": true,
+    "signed": true
+  },
+  "final_misstatements": {
+    "totals": {
+      "Current Assets": "15650.37",
+      "Noncurrent Assets": "300.00",
+      "Current Liabilities": "5335.82",
+      "Noncurrent Liabilities": "0.00",
+      "Income Before Taxes": "10614.55"
+    },
+    "largest_line": "Current Assets",
+    "largest": "15650.37",
+    "materiality": "15000.00",
+    "above_materiality": true
+  },
+  "going_concern": {
+    "working_capital": "63220.93",
+    "net_income": "327827.50",
+    "equity": "179570.93",
+    "current_ratio": "1.1291",
+    "floor": "1.20",
+    "indicators": [
+      "current_ratio_below_floor",
+      "debt covenant breached (part 2)"
+    ],
+    "note": "the engine's going-concern procedure needs its statement-line vocabulary; Kestrel's lead-schedule labels are refused (K8)"
+  },
+  "draft_opinion": {
+    "proposal": "disclaimer",
+    "why": "the related-parties representation is not provided (AU-C 580), which takes precedence over the uncorrected misstatements above materiality",
+    "also": [
+      "uncorrected misstatements exceed materiality on Current Assets (15650.37)",
+      "going-concern conclusion must be recorded (indicators present)",
+      "the letter must be re-dated as of the report date"
+    ]
+  }
+}

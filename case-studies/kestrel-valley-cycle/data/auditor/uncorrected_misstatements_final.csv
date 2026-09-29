@@ -1,0 +1,12 @@
+Description,WP Reference,Identified,Likely,Current Assets,Noncurrent Assets,Current Liabilities,Noncurrent Liabilities,Income Before Taxes
+Big Sky invoice priced above contract,AR-C,2250.00,0.00,-2250.00,0.00,0.00,0.00,-2250.00
+"AR confirmation sample: freight double-billed, projected",AR-C,620.00,213.73,-833.73,0.00,0.00,0.00,-833.73
+Inventory pricing test projection,INV-P,195.00,135.78,-330.78,0.00,0.00,0.00,-330.78
+Hubs shipped 06/29 not relieved from inventory,INV-C,850.00,0.00,-850.00,0.00,0.00,0.00,-850.00
+"Check 4425 recorded at 1,780, cleared at 1,870",CASH-R,90.00,0.00,-90.00,0.00,0.00,0.00,-90.00
+Summit Loop credit balance not reclassified,AR-L,1840.00,0.00,1840.00,0.00,1840.00,0.00,0.00
+Duplicate Moraine invoice paid twice (refund due),AP-D,18432.50,0.00,18432.50,0.00,0.00,0.00,18432.50
+Office furniture depreciation overstated,PPE-D,300.00,0.00,0.00,300.00,0.00,0.00,300.00
+Insurance prepaid over time proportion,ACC-1,267.62,0.00,-267.62,0.00,0.00,0.00,-267.62
+Audit fee over-accrued,ACC-2,2604.18,0.00,0.00,0.00,-2604.18,0.00,2604.18
+June freight not accrued (check 4433),SE-1,6100.00,0.00,0.00,0.00,6100.00,0.00,-6100.00

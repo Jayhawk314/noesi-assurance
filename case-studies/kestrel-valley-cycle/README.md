@@ -194,3 +194,34 @@ Planted items:
   does not have.
 - **Accruals:** the insurance prepaid is 267.62 over time-proportion; the
   audit fee accrual is 2,604.18 over; accrued payroll is unchanged all year.
+
+## Part 3: estimates, related parties, completion
+
+```
+python case-studies/kestrel-valley-cycle/generate_part3.py
+```
+
+Files:
+- `data/client/prior_year_estimates.csv` and `related_parties.csv`
+  (management's list).
+- `data/quickbooks/Journal_2026-07.xlsx`: July 1–24, 2026, after period end.
+- `data/auditor/representation_letter.csv` and
+  `uncorrected_misstatements_final.csv`: the original summary plus the
+  misstatements from parts 1 and 2.
+
+The key is `instructor/answer_key_part3.json`.
+
+Planted items:
+- Every estimate missed upward, three by more than 20% (a bias indicator).
+- DM Consulting is missing from the related-party list.
+- A 30,000 July settlement of a March dispute should be adjusted.
+- 6,100 of June freight was paid in July and never accrued.
+- The representation letter lacks the related-parties representation and is
+  dated four days before the report date.
+- The final misstatements total 15,650.37 on current assets, above
+  materiality.
+- The current ratio is below 1.20, and the covenant is breached.
+
+The expected draft opinion is a **disclaimer**: the missing representation
+takes precedence. The partner still has to decide pervasiveness and record a
+going-concern conclusion.
