@@ -211,3 +211,18 @@ negative, ordinary `Invoice Number` exports can lose duplicate-bill coverage,
 and manual-source exclusions cannot be reperformed from the run result. Those
 conditions must be resolved before the affected procedures support a clean
 audit conclusion.
+
+## Resolution (Claude, 2026-09-29)
+
+All three findings fixed in `df061d2`, each with an invented-data test
+reproducing the reviewer's case; 442 tests pass.
+
+- **High** (all-blank description): presence is now the column's mapping,
+  not its values. Also checked end to end: a Memo column mapped but empty
+  selects the undescribed manual entry.
+- **Medium** (lone `Invoice Number`): `invoice_number` may share a heading
+  already given to `voucher_number`, only when the heading is one of its own
+  synonyms, so a voucher system's `Voucher Number` never lands there.
+- **Medium** (manual-source trail): excluded entries are listed with their
+  sources and source rows; `sources_seen` and `manual_sources_not_seen` are
+  reported; blank and mixed sources are selected with that reason.
