@@ -225,7 +225,7 @@ A partner reads "11 blocked" on an engagement that never meant to run them.
 | K2 multi-section report read as one table | fixed: refused with the repeated heading rows named | `afe4454` |
 | K8 statement-line vocabulary is fixed | fixed: the preparer maps each client label (or one account) to a statement line once, from a suggestion; the mapping is recorded and applied before every run | `ef44399` |
 | K5 aging fixed at four buckets | fixed: "1 - 30" and "91 and over" map; the allowance takes one rate per aging column (four or five); bad rates are refused when set; net-credit customers are left out of the allowance | `a9d348a` |
-| K13 "Likely" read as the aggregate | fixed: the partner's misstatement_likely_basis setting decides; unset, the rows' statement-line columns show it (Kestrel: beyond identified, aggregate 6,194.51, no false tensions); if neither tells, the engine says so | K13 commit |
+| K13 "Likely" read as the aggregate | fixed: the partner's misstatement_likely_basis setting decides; unset, the rows' statement-line columns show it (Kestrel: beyond identified, aggregate 6,194.51, no false tensions); if neither tells, the engine says so | `a20dfb6` |
 | K4, K6, K7, K9–K12, K14 | open | — |
 
 K5 residual, left as the engine's correct behaviour: the demo recomputes an
