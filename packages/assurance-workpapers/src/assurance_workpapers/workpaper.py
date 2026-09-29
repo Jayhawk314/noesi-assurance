@@ -62,6 +62,51 @@ Lock manifest digest <code>{_esc(lock['digest'])}</code><br>
 Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>
 </p>"""]
 
+    opinion = packet.get("opinion")
+    if opinion:
+        settled = opinion.get("opinion")
+        label = (settled or opinion.get("proposed_opinion", "")).replace("_", " ")
+        recorded = opinion.get("recorded_decisions") or {}
+        open_decisions = opinion.get("decisions_required") or []
+        sections.append(
+            "<h2>Opinion</h2>"
+            f"<p><b>{'Opinion' if settled else 'Draft opinion (not settled)'}: "
+            f"{_esc(label)}</b>"
+            + (" — with a going-concern section" if opinion.get("going_concern_section")
+               else "") + "</p>"
+            "<h3>Basis</h3><ul>"
+            + "".join(f"<li>{_esc(b)}</li>" for b in opinion.get("basis", []))
+            + "</ul>"
+            + f"<p class='meta'>Uncorrected misstatements: "
+              f"{_esc(opinion.get('misstatements', {}).get('amount'))} on "
+              f"{_esc(opinion.get('misstatements', {}).get('largest_line'))} against "
+              f"materiality {_esc(opinion.get('materiality'))}. Source: "
+              f"{_esc(opinion.get('misstatements', {}).get('source'))}.</p>"
+            + ("<h3>Partner's decisions</h3>" + _table(
+                ["Decision", "Answer", "Reason", "Decided by"],
+                [[k.replace("_", " "), v.get("answer", "").replace("_", " "),
+                  v.get("note", ""), v.get("decided_by", "")]
+                 for k, v in recorded.items()]) if recorded else "")
+            + ("<h3>Still to decide</h3><ul>"
+               + "".join(f"<li>{_esc(d['decision'].replace('_', ' '))}: "
+                         f"{_esc(d['why'])}</li>" for d in open_decisions) + "</ul>"
+               if open_decisions else "")
+            + f"<p class='meta'>{_esc(opinion.get('note', ''))}</p>")
+
+    scope = packet.get("scope")
+    if scope:
+        materiality = scope.get("materiality") or {}
+        sections.append("<h2>Scope and settings</h2>" + _table(
+            ["Item", "Value"],
+            [["Period", f"{scope.get('period_start') or '12 months to'} – "
+                        f"{scope.get('period_end')}"],
+             ["Materiality", f"{materiality.get('amount')} "
+                             f"({materiality.get('basis', '')})"],
+             ["Audit areas", ", ".join(c.replace('_', ' ')
+                                       for c in scope.get("cycles", [])) or "payables"]]
+            + [[f"setting: {k.replace('_', ' ')}", v]
+               for k, v in sorted((scope.get("policies") or {}).items())]))
+
     if packet.get("lock_history"):
         sections.append(
             "<h2>Lock amendment history</h2>"

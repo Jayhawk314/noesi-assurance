@@ -1798,6 +1798,18 @@ class WorkbenchService:
             "no_data_assertion": document.get("no_data_assertion"),
             "dispositions": dispositions,
             "summary_of_audit_differences": self.sad(engagement_id),
+            # The finished audit file: what was covered and how it was set
+            # up, and the opinion the evidence supports with the partner's
+            # recorded judgments — sealed with everything else.
+            "scope": {
+                "cycles": document.get("cycles") or [],
+                "period_start": (document.get("period") or {}).get("start"),
+                "period_end": info["period_end"],
+                "materiality": document.get("materiality"),
+                "policies": document.get("policies") or {},
+                "retired": document.get("retired") or [],
+            },
+            "opinion": self.draft_opinion(engagement_id),
             "limits": PACKET_LIMITS,
         }
         identity = self._keystore.identity(actor)

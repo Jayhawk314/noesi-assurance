@@ -242,3 +242,17 @@ def test_workpaper_renders_conclusions_with_lineage(service,
     assert "does not prove" in html or "Nothing here" in html
     assert "Procedures not executed" in html
     assert "verify_packet" in html
+
+
+def test_the_final_file_carries_the_opinion_scope_and_decisions(service,
+                                                                locked_engagement):
+    """The signed packet is the finished audit file: the opinion the evidence
+    supports, the partner's recorded judgments, and what was covered, sealed
+    and verifiable offline like everything else."""
+    packet = service.export_packet(CAROL, locked_engagement)
+    assert verify_packet(packet)["verified"] is True
+    assert packet["opinion"]["proposed_opinion"]
+    assert "decisions_required" in packet["opinion"]
+    assert packet["scope"]["period_end"] and "policies" in packet["scope"]
+    html = service.workpaper_html(CAROL, locked_engagement)
+    assert "<h2>Opinion</h2>" in html and "<h2>Scope and settings</h2>" in html
