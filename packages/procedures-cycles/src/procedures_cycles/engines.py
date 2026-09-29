@@ -138,6 +138,9 @@ VALUE_OPTIONAL: dict[str, frozenset[str | tuple[str, str]]] = {
         "liability_date", ("Payments", "voucher_number")}),
     "estimates.retrospective_review": frozenset({"prior_estimate", "outcome"}),
     "rev.sales_cutoff": frozenset({"ship_date"}),
+    # Online transfers and deposit slips reach the bank with no reference;
+    # they are matched by amount (K10), so they must stay in the population.
+    "cash.bank_reconciliation": frozenset({("Cutoff_statement", "reference")}),
     "accruals.recompute": frozenset({"total_amount", "service_start", "service_end"}),
     "ppe.depreciation_recompute": frozenset({"useful_life_years",
                                              "depreciation_expense"}),

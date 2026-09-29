@@ -76,9 +76,35 @@ def bank_reconciliation(tables: dict, policies: dict):
                 f"account {acct}: adjusted bank {adjusted_bank} ≠ adjusted books "
                 f"{adjusted_book}", {"finding_class": "PROVED_EXCEPTION", "cycle": "cash"},
                 adjusted_bank - adjusted_book))
+        # K11: without a cutoff statement for this account nothing can be
+        # said to have cleared or not; say that once, not per item.
+        if not cutoff.get(acct):
+            waiting = len(items["outstanding_check"]) + len(items["deposit_in_transit"])
+            if waiting:
+                findings.append(receipt(
+                    pid, (acct, "no_cutoff_statement"), "AMBIGUOUS",
+                    f"account {acct}: no cutoff statement was supplied for this account, so "
+                    f"its {len(items['outstanding_check'])} outstanding check(s) and "
+                    f"{len(items['deposit_in_transit'])} deposit(s) in transit were not "
+                    "tested for clearing — obtain one or record why not",
+                    {"finding_class": "REFUSAL", "cycle": "cash"}))
+            per_account[acct] = {
+                "totals": total, "adjusted_bank": adjusted_bank,
+                "adjusted_book": adjusted_book, "cutoff_statement": False,
+                "outstanding_checks": len(items["outstanding_check"]),
+                "deposits_in_transit": len(items["deposit_in_transit"])}
+            continue
         cleared = {}
+        # K10: bank lines with no reference (online transfers, most deposit
+        # slips) are matched by amount, one line per item, after references.
+        unreferenced = []
         for c in cutoff.get(acct, []):
-            cleared.setdefault(key_text(c.get("reference")), []).append(c)
+            ref = key_text(c.get("reference"))
+            if ref:
+                cleared.setdefault(ref, []).append(c)
+            elif not _norm_type(c.get("item_type")).startswith("dep"):
+                unreferenced.append(c)
+        matched_by_amount = []
         last = None
         if items["last_check_issued"]:
             last = _num(items["last_check_issued"][0].get("reference"))
@@ -99,6 +125,15 @@ def bank_reconciliation(tables: dict, policies: dict):
                      "source_rows": source}, amount))
             hits = cleared.get(ref, [])
             if not hits:
+                twin = next((c for c in unreferenced
+                             if money(c.get("amount")) == amount), None)
+                if twin is not None:
+                    unreferenced.remove(twin)
+                    matched_by_amount.append(
+                        {"item": ref, "amount": amount,
+                         "cleared_date": day(twin.get("cleared_date"))})
+                    oc_results["cleared"] += 1
+                    continue
                 oc_results["not_cleared"] += 1
                 findings.append(receipt(
                     pid, (acct, "outstanding_not_cleared", ref), "TENSION",
@@ -171,6 +206,7 @@ def bank_reconciliation(tables: dict, policies: dict):
             "totals": total, "adjusted_bank": adjusted_bank, "adjusted_book": adjusted_book,
             "outstanding_checks": len(items["outstanding_check"]), **oc_results,
             "last_check_issued": last, "omitted_outstanding_checks": omitted,
+            "cutoff_statement": True, "matched_by_amount_no_reference": matched_by_amount,
             "deposits_in_transit_not_cleared": dit_unmatched,
             "deposits_cleared_slowly": slow}
     return findings, {"population": len(records(tables, "Bank_reconciliation")),
@@ -219,9 +255,12 @@ def interbank_transfers(tables: dict, policies: dict):
                 f"{amount}", {**base, "finding_class": "PROVED_EXCEPTION",
                               "direction": "understatement"}, amount))
         if d_books <= pe < d_bank:
-            refs = {key_text(r.get("reference"))
-                    for r in recs.get(frm, {}).get("items", {}).get("outstanding_check", [])}
-            if tid not in refs:
+            listed = recs.get(frm, {}).get("items", {}).get("outstanding_check", [])
+            refs = {key_text(r.get("reference")) for r in listed}
+            # The transfer ID is often the auditor's own; the reconciliation
+            # may list the item by amount only (K10).
+            same_amount = any(money(r.get("amount")) == amount for r in listed)
+            if tid not in refs and not same_amount:
                 row["issues"].append("missing_outstanding_check")
                 findings.append(receipt(
                     pid, (tid, "missing_outstanding_check"), "CLASH",

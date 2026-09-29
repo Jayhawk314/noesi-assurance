@@ -353,6 +353,44 @@ def test_bank_reconciliation_cutoff_tests():
     assert ("general", "deposit_cleared_slowly", "500.00") in keys(findings, "TENSION")
 
 
+def test_unreferenced_bank_lines_match_by_amount_and_no_statement_is_said_once():
+    rec = REC + [
+        {"account": "general", "item_type": "outstanding_check", "reference": "transfer",
+         "amount": D("4000")},
+        {"account": "payroll", "item_type": "outstanding_check", "reference": "PR-9",
+         "amount": D("250")},
+    ]
+    cutoff = CUTOFF + [  # an online transfer: no reference on the bank line (K10)
+        {"account": "general", "reference": "", "item_type": "transfer",
+         "amount": D("4000"), "cleared_date": date(2027, 1, 2)},
+        {"account": "general", "reference": "", "item_type": "deposit",
+         "amount": D("75"), "cleared_date": date(2027, 1, 2)},
+    ]
+    findings, stats = execute_procedure("cash.bank_reconciliation",
+                                        {"Bank_reconciliation": rec, "Cutoff_statement": cutoff},
+                                        {"period_end": "2026-12-31"})
+    general = stats["accounts"]["general"]
+    assert ("general", "outstanding_not_cleared", "transfer") not in keys(findings)
+    assert [m["item"] for m in general["matched_by_amount_no_reference"]] == ["transfer"]
+    assert not any("incomplete_rows" in k for k in keys(findings))
+    # K11: payroll has no cutoff statement; one refusal, no per-check "did not clear"
+    assert ("payroll", "no_cutoff_statement") in keys(findings, "AMBIGUOUS")
+    assert ("payroll", "outstanding_not_cleared", "pr-9") not in keys(findings)
+    assert stats["accounts"]["payroll"]["cutoff_statement"] is False
+
+
+def test_a_transfer_listed_by_amount_on_the_reconciliation_is_found():
+    transfers = [{"transfer_id": "T-1", "amount": D("300"), "from_account": "general",
+                  "to_account": "payroll", "disbursed_books": date(2026, 12, 30),
+                  "disbursed_bank": date(2027, 1, 2), "received_books": date(2026, 12, 30),
+                  "received_bank": date(2026, 12, 30)}]
+    findings, _ = execute_procedure("cash.interbank_transfers",
+                                    {"Transfers": transfers, "Bank_reconciliation": REC},
+                                    {"period_end": "2026-12-31"})
+    # REC lists check 104 for 300: the transfer is on the reconciliation by amount
+    assert ("t-1", "missing_outstanding_check") not in keys(findings, "CLASH")
+
+
 def test_interbank_transfers_detects_kiting_and_missing_rec_items():
     transfers = [
         {"transfer_id": "901", "amount": D("5000"), "from_account": "general",
@@ -392,6 +430,26 @@ def test_inventory_trace_and_pricing():
                                         {"inventory_tolerable_misstatement": "500"})
     assert D(stats["projected_misstatement"]) == D("200.00")  # 100 × 6000 / 3000
     assert ("evaluation",) in keys(findings, "AGREE")
+
+
+def test_count_tags_for_one_item_are_summed_and_a_repeated_tag_is_flagged():
+    # K6: an item counted in two places has two tags; its count is their sum
+    listing = [{"stock_number": "A-1", "quantity": D("230"), "unit_cost": D("2"),
+                "cost": D("460")},
+               {"stock_number": "B-2", "quantity": D("10"), "unit_cost": D("1"),
+                "cost": D("10")}]
+    count = [{"tag_number": "1", "stock_number": "A-1", "quantity": D("150")},
+             {"tag_number": "2", "stock_number": "A-1", "quantity": D("80")},
+             {"tag_number": "3", "stock_number": "B-2", "quantity": D("6")},
+             {"tag_number": "3", "stock_number": "B-2", "quantity": D("6")}]  # entered twice
+    findings, stats = execute_procedure("inventory.count_listing_trace",
+                                        {"Inventory_listing": listing, "Inventory_count": count},
+                                        {})
+    assert stats["items_with_several_tags"] == ["a-1"]
+    assert ("details_differ", "a-1") not in keys(findings, "TENSION")   # 150 + 80 = 230
+    assert ("details_differ", "b-2") in keys(findings, "TENSION")       # 6 vs 10
+    assert ("Inventory_count", "duplicate_tag", "3") in keys(findings, "CLASH")
+    assert not any(k[1] == "duplicate" for k in keys(findings, "CLASH"))
 
 
 def test_uncorrected_misstatements_against_materiality():

@@ -81,7 +81,8 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
                          "boat stock number", "number"],
         "description": ["description", "manufacturer", "item description"],
         "model": ["model", "model number"],
-        "quantity": ["quantity", "qty", "count"],
+        "quantity": ["quantity", "qty", "count", "qty counted", "quantity counted"],
+        "tag_number": ["tag number", "tag no", "tag", "tag #", "count tag"],
     },
     "Sales_invoices": {
         "invoice_number": ["invoice number", "invoice no", "invoice", "num", "number"],

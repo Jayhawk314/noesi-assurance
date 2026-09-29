@@ -53,7 +53,35 @@ def count_listing_trace(tables: dict, policies: dict):
         return out
 
     listing = index(listing_rows, "Inventory_listing")
-    counted = index(count_rows, "Inventory_count")
+    # An item counted in several places has several tags; that is normal,
+    # and its count is their sum. What must not repeat is a tag itself (the
+    # same tag entered twice is double-counted).
+    counted: dict[str, dict] = {}
+    tags_per_item: dict[str, int] = {}
+    seen_tags: dict[str, dict] = {}
+    for r in count_rows:
+        tag = key_text(r.get("tag_number"))
+        if tag and tag in seen_tags:
+            findings.append(receipt(pid, ("Inventory_count", "duplicate_tag", tag), "CLASH",
+                                    f"count tag {tag} appears more than once on the "
+                                    "inventory count — counted twice?",
+                                    {"finding_class": "PROVED_EXCEPTION", "cycle": "inventory",
+                                     "source_rows": [source_ref("Inventory_count", seen_tags[tag],
+                                                                "tag_number"),
+                                                     source_ref("Inventory_count", r,
+                                                                "tag_number")]}))
+            continue
+        if tag:
+            seen_tags[tag] = r
+        key = key_text(r.get("stock_number"))
+        tags_per_item[key] = tags_per_item.get(key, 0) + 1
+        if key not in counted:
+            counted[key] = dict(r)
+            continue
+        total, more = dec(counted[key].get("quantity")), dec(r.get("quantity"))
+        counted[key]["quantity"] = (None if total is None or more is None
+                                    else total + more)
+    several_tags = sorted(k for k, n in tags_per_item.items() if n > 1)
     not_listed = sorted(set(counted) - set(listing))
     not_counted = sorted(set(listing) - set(counted))
     for key in not_listed:
@@ -101,6 +129,7 @@ def count_listing_trace(tables: dict, policies: dict):
     return findings, {"population": len(listing_rows), "counted": len(count_rows),
                       "listed_total": total, "counted_not_listed": not_listed,
                       "listed_not_counted": not_counted, "details_differ": mismatched,
+                      "items_with_several_tags": several_tags,
                       "extension_errors": extension_errors, "exceptions": len(findings)}
 
 

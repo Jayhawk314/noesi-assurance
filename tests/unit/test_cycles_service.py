@@ -346,3 +346,14 @@ def test_loads_in_the_same_clock_tick_keep_their_load_order(service, engagement)
     assert [(d["load_mode"], d["in_use"]) for d in datasets] == [
         ("first", False), ("replace", True)]
     assert service._tables(engagement)["Bank_reconciliation"].source_file == "rec_v2.csv"
+
+
+def test_k4_a_file_whose_headings_match_no_field_is_refused(service, engagement):
+    artifact = service.store_source(BOB, engagement, content=b"Foo,Bar\n1,2\n3,4\n",
+                                    media_type="text/csv", original_name="tb.csv")
+    with pytest.raises(ValueError, match="none of this file's headings"):
+        service.propose_source_mapping(BOB, engagement, role="Trial_balance",
+                                       artifact_id=artifact["artifact_id"])
+    batch = service.propose_source_mappings(
+        BOB, engagement, [{"artifact_id": artifact["artifact_id"], "role": "Trial_balance"}])
+    assert batch["results"][0]["status"] == "error"

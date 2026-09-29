@@ -350,12 +350,13 @@ def test_bulk_proposal_reports_per_item_without_blocking_the_rest(
     assert "choose the role explicitly" in by_id[unnamed]["error"]
     assert by_id["no-such-artifact"]["status"] == "error"
 
-    # An uninferable file loads fine once the preparer names the role.
+    # Naming a role does not make headings that match none of its fields
+    # loadable (K4): the item is refused with the reason, not mapped empty.
     named = service.propose_source_mappings(
         BOB, engagement,
         [{"artifact_id": unnamed, "role": "Vendors"}])
-    assert named["proposed"] == 1
-    assert named["results"][0]["role"] == "Vendors"
+    assert named["proposed"] == 0
+    assert "none of this file's headings" in named["results"][0]["error"]
 
 
 def test_a_file_named_nothing_useful_is_guessed_from_its_columns(service, engagement):

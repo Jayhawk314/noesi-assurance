@@ -194,6 +194,13 @@ class WorkbenchService:
         spec = propose_mapping(role, headers, source_sha256=artifact["sha256"],
                                proposed_by=actor,
                                column_map=recipe.column_map if recipe else None)
+        if not spec.column_map:
+            # K4: a mapping of nothing would "load" every row as an empty
+            # record and report success. Refuse it here, where it can be fixed.
+            raise ValueError(
+                f"none of this file's headings ({', '.join(headers) or 'none'}) match a "
+                f"{role} field ({', '.join(spec.refused_fields)}); rename the headings, "
+                "choose the right sheet and heading row, or choose another role")
         stored = spec.to_dict()
         digest = spec.digest
         if resolved is not None:
