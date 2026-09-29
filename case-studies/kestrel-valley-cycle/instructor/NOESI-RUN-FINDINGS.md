@@ -226,7 +226,11 @@ A partner reads "11 blocked" on an engagement that never meant to run them.
 | K8 statement-line vocabulary is fixed | fixed: the preparer maps each client label (or one account) to a statement line once, from a suggestion; the mapping is recorded and applied before every run | `ef44399` |
 | K5 aging fixed at four buckets | fixed: "1 - 30" and "91 and over" map; the allowance takes one rate per aging column (four or five); bad rates are refused when set; net-credit customers are left out of the allowance | `a9d348a` |
 | K13 "Likely" read as the aggregate | fixed: the partner's misstatement_likely_basis setting decides; unset, the rows' statement-line columns show it (Kestrel: beyond identified, aggregate 6,194.51, no false tensions); if neither tells, the engine says so | `a20dfb6` |
-| K4, K6, K7, K9–K12, K14 | open | — |
+| K4 a file with no mapped fields still loads | fixed: refused at proposal with the headings and the role's fields named | `4b4549c` |
+| K6 count tags compared one by one | fixed: tags summed per item; a repeated tag number is the exception | `4b4549c` |
+| K10 items without a reference cannot be matched | fixed: unreferenced bank lines matched by amount, one per item, recorded in the run | `4b4549c` |
+| K11 no cutoff statement reads as "did not clear" | fixed: one "not tested" notice for the account | `4b4549c` |
+| K7, K9, K12, K14 | open (low) | — |
 
 K5 residual, left as the engine's correct behaviour: the demo recomputes an
 allowance of 6,887 against the key's 5,627.38. The 1,260 difference is 40% of

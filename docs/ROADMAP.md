@@ -1,65 +1,92 @@
 # Noesi roadmap
 
-*Read this first. Every piece of work should map to a line below; anything
-that does not goes in the parking lot, not into the Workbench. Updated
-2026-09-29.*
+*Read this first. Built 2026-09-29 from the project's own plans
+(LEARN-KESTREL-PLAN, AUDIT-FRAME-PLAN, CYCLES-ROLLOUT, the Kestrel run
+findings, the Oceanview friction log) and checked against the code that
+day. Every piece of work should map to a line below; anything else goes in
+the parking lot.*
 
 ## Direction
 
-Noesi's Workbench is a tool that **supplements any audit**. It is
-calibrated on two full audits, **Kestrel Valley** (public teaching case)
-and **Oceanview** (purchased, private), and is **never fitted to either**:
-a problem a case exposes is fixed generically and tested on invented data.
+The Workbench is a tool that **supplements any audit**. It is calibrated on
+two full audits, **Kestrel Valley** (public) and **Oceanview** (purchased,
+private), and **never fitted to either**: what a case exposes is fixed
+generically and tested on invented data.
 
-Two phases, in order:
+1. **Phase 1: finish the Workbench** against both audits.
+2. **Phase 2: the Kestrel Learn app** (a copy of the Streamlit Learn app),
+   with new ElevenLabs videos when credits are available.
 
-1. **Finish the Workbench** against Kestrel and Oceanview.
-2. **Then the Kestrel Learn app** (Streamlit), with new videos once
-   ElevenLabs credits are available.
+## Phase 1: finish the Workbench
 
-## Phase 1 — Finish the Workbench
+### A. Engine breaks Kestrel found that are still open
+From `case-studies/kestrel-valley-cycle/instructor/NOESI-RUN-FINDINGS.md`.
+Fixed already: K1, K2, K3, K5, K8, K13; K4, K6, K10, K11 (`4b4549c`).
 
-Done means: both audits run end to end through the Workbench, their
-results agree with the answer keys where the data allows, and wherever the
-data does not allow a test, the Workbench says so rather than passing.
-
-| # | Item | Status |
+| Item | What | Severity |
 |---|---|---|
-| 1.1 | Kestrel full audit runs through the Workbench and lands on the key's draft opinion | Done (demo; test_kestrel_demo) |
-| 1.2 | Kestrel fraud and journal-entry tests agree with the key | Done 2026-09-29 (twins, duplicate bill, split bills, all six JE criteria; JE 1052 with `je_manual_sources`) |
-| 1.3 | Oceanview full audit runs privately; gaps logged in its friction log, fixed generically | Done through run 3; loaded in James's Workbench for hand work |
-| 1.4 | Honesty on screen: tests not performed are shown with the reason | Done 2026-09-29 (Runs screen) |
-| 1.5 | Independent review of the engine changes | Done 2026-09-29 (docs/reviews/REVIEW-2026-09-29-fraud-readiness.md, all findings fixed) |
-| 1.6 | Push local commits to GitHub | **Open** — James runs `git push origin main` |
-| 1.7 | James works Oceanview by hand in the Workbench; what he hits goes into the Oceanview friction log | **Open** — James |
-| 1.8 | Real QuickBooks exports (Journal, trial balance, aging, inventory, bank rec) and recipes built to them | **Open** — waits for real exports from James |
-| 1.9 | Decide Kestrel's fraud coverage for teaching: add self-approved payments and a round-trip value flow to Kestrel, or teach those two lessons (F4, F7) on Harborline | **Open** — James's decision |
+| ~~K4~~ done `4b4549c` | A file with no mapped fields still "loads" | Medium |
+| ~~K6~~ done `4b4549c` | Count tags compared one by one, not summed per item | Medium |
+| ~~K10~~ done `4b4549c` | Reconciling items without a check number cannot be matched | Medium |
+| ~~K11~~ done `4b4549c` | An account with no cutoff statement reads as "did not clear" | Medium |
+| K7 | Count descriptions compared with listing descriptions | Low |
+| K9 | Movement threshold rule (AND/OR) not a policy | Low |
+| K12 | Confirmation projection population | Low |
+| K14 | Payables-only procedures show in a cycles-only scope | Low |
 
-When 1.6–1.9 are done, Phase 1 is done.
+### B. Engine gaps Oceanview found that are still open
+From the private friction log and CYCLES-ROLLOUT §6.
 
-## Phase 2 — Kestrel Learn app
+| Item | What |
+|---|---|
+| B1 | "Clearly trivial" is hard-coded at 5% of materiality (checked: `TRIVIAL_PCT` in `assurance_application`); firms set their own. Make it a policy. |
+| B2 | Two misstatement summaries disagree (the SAD and `completion.uncorrected_misstatements`). Merge them. |
+| B3 | Inventory turnover needs prior-year figures; allow prior-year statement figures as input. |
 
-Starts after Phase 1. The plan is in `docs/LEARN-KESTREL-PLAN.md`.
+### C. QuickBooks imports (waits for James's real exports)
+Checked: only payables recipes exist today (bill payments, transactions by
+vendor, unpaid bills, vendor list). Kestrel's Journal, trial balance, aging,
+inventory and bank rec are hand-prepared in the demo seed.
 
-- Copy the current Noesi Learn Streamlit app for Kestrel (same layout; the
-  case, documents, lessons and videos change). Harborline stays online by
-  link and is never deleted.
-- One module per audit area: the idea, by hand, in Noesi, compare with the
-  key.
-- New ElevenLabs videos, about 20 or more. Scripts first; James approves
-  the scripts and the credits before any voicing.
-- The fraud track moves to Kestrel according to decision 1.9.
+- C1. A real QuickBooks Journal export, then the Journal import built to it.
+- C2. Recipes for trial balance, A/R aging, inventory valuation, bank reconciliation.
 
-## Parking lot (not now)
+### D. Screens
+Checked: cycles and policies, period start, and the Draft Opinion screens
+exist. The Runs screen shows tests not performed (2026-09-29). Nothing
+further planned.
 
-- Partner report sign-off (Codex's patch; broke 17 tests). The Draft
-  Opinion print button covers the need for now.
-- Other Workbench screen polish not needed by Phase 1's definition of done.
+### E. Close-out
+- E1. Push to GitHub (James approves).
+- E2. James works Oceanview by hand in his Workbench (loaded 2026-09-29);
+  anything he hits goes to the private friction log, then to section B.
+- E3. Decide the fraud lessons Kestrel cannot teach (self-approved payments,
+  round-tripped money): add those schemes to Kestrel, or keep those lessons
+  on Harborline.
+
+**Order:** A and B now (no outside dependency) → E1 → C when exports arrive
+→ E2/E3 alongside. Phase 1 is done when A, B, C and E are done.
+
+### Done on 2026-09-29
+Codex's F1-F3 fixes; seldom-used accounts measured within the period;
+duplicate bills needs the supplier's invoice number; `je_manual_sources`;
+Codex's fraud-readiness review and its three fixes; tests not performed on
+the Runs screen. Kestrel's fraud and journal-entry results agree with the key.
+
+## Phase 2: the Kestrel Learn app
+Starts after Phase 1. Details in `docs/LEARN-KESTREL-PLAN.md`: a copy of the
+Learn app with the same layout; 13 modules, one per audit area (idea, by
+hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
+scripts first, James approves scripts and credits before voicing.
+
+## Parking lot
+- Partner report sign-off (Codex's patch broke 17 tests; the print button covers it).
+- Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,
+  sample projection for additions, adjusted covenants).
+- Wiring the cycles into the structural layer (agreed as later, 2026-09-26).
 
 ## Rules
-
-- Kestrel calibrates the engine for all audits; never fit the engine to a case.
-- Oceanview content (names, numbers, files) never enters the public repo.
-- One of Claude or Codex works at a time; reviews come at the end of a
-  piece of work, not in the middle.
+- Never fit the engine to a case; test fixes on invented data.
+- Oceanview content never enters the public repo.
+- One of Claude or Codex works at a time; one review at the end of a batch.
 - Ask James before any push.
