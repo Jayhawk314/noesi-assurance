@@ -86,8 +86,18 @@ def journal_entry_testing(tables: dict, policies: dict):
     if not has("description"):
         not_performed["no_description"] = "the listing has no description column"
 
+    entry_dates = {entry_id: min((d for d in (day(line.get("entry_date")) for line in lines)
+                                  if d), default=None)
+                   for entry_id, lines in entries.items()}
+
+    # "Seldom used" is measured within the period tested. An entry from the
+    # next period (loaded for subsequent-events work) must not make a rare
+    # in-period account look common.
     account_use: dict[str, set[str]] = {}
     for entry_id, lines in entries.items():
+        dated = entry_dates[entry_id]
+        if dated is not None and not start <= dated <= pe:
+            continue
         for line in lines:
             account_use.setdefault(key_text(line.get("account")), set()).add(entry_id)
 
@@ -95,8 +105,7 @@ def journal_entry_testing(tables: dict, policies: dict):
     for entry_id, lines in sorted(entries.items()):
         src = [source_ref(ROLE, line, "entry_id") for line in lines]
         amounts = [_line_amount(line) for line in lines]
-        dated = min((d for d in (day(line.get("entry_date")) for line in lines) if d),
-                    default=None)
+        dated = entry_dates[entry_id]
         if dated is not None and dated > pe:
             after_period += 1                # next period's entry: not in this population
             continue

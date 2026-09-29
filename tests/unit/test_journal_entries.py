@@ -84,6 +84,16 @@ def test_tests_without_their_data_or_policy_are_reported_not_performed():
     assert selected(findings) == {("e2", "unbalanced"), ("e4", "weekend_or_holiday")}
 
 
+def test_next_period_entries_do_not_make_an_account_look_common():
+    # E5 is the only in-period entry to 6500; a next-period entry to 6500
+    # (loaded for subsequent-events work) must not hide it.
+    later = [line("E10", "6500", D("75.00"), dated="2026-01-05"),
+             line("E10", "2100", D("-75.00"), dated="2026-01-05")]
+    findings, stats = run("je.journal_entry_testing", JOURNAL + later)
+    assert ("e5", "seldom_used_account") in selected(findings)
+    assert stats["dated_after_period_end"] == 2
+
+
 def test_holidays_are_the_auditors_list():
     findings, _ = run("je.journal_entry_testing",
                       policies={**POLICIES, "je_holidays": "2025-06-10"})
