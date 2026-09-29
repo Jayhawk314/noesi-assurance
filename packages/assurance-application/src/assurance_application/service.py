@@ -1247,6 +1247,31 @@ class WorkbenchService:
             summary["conclusion"] = None
         return summary
 
+    def draft_opinion(self, engagement_id: str) -> dict:
+        """The opinion the evidence points to, with its basis and the
+        judgments the partner must still record. Read-only; a draft."""
+        from assurance_domain.opinion import draft_opinion
+        document, _ = self.workflow_document(engagement_id)
+        latest: dict[str, str] = {}
+        runs = {}
+        for run in self._conn.execute(
+                """SELECT run_id, procedure_id, status, summary FROM procedure_run
+                   WHERE engagement_id = ? ORDER BY created_at, rowid""",
+                (engagement_id,)):
+            latest[run["procedure_id"]] = run["run_id"]
+            runs[run["run_id"]] = run
+        current = set(latest.values())
+        findings = [f for f in self.findings(engagement_id) if f["run_id"] in current]
+        summary_run = None
+        run_id = latest.get("completion.uncorrected_misstatements")
+        if run_id and runs[run_id]["status"] == "completed":
+            summary_run = {"summary": json.loads(runs[run_id]["summary"])}
+        return draft_opinion(
+            readiness=self.readiness(engagement_id), sad=self.sad(engagement_id),
+            findings=findings, misstatement_run=summary_run,
+            materiality=float(document["materiality"].get("amount") or 0),
+            completion=document.get("completion") or {})
+
     def readiness(self, engagement_id: str) -> dict:
         info = self._engagement(engagement_id)
         document, _ = self.workflow_document(engagement_id)

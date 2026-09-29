@@ -420,6 +420,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.revision_impact(eid)
                 case ["engagements", eid, "readiness"]:
                     return service.readiness(eid)
+                case ["engagements", eid, "opinion"]:
+                    return service.draft_opinion(eid)
                 case ["engagements", eid, "lock"]:
                     return service.verify_lock(eid)
                 case ["engagements", eid, "workpaper"]:
