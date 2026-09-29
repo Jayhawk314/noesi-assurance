@@ -169,3 +169,26 @@ def test_journal_entry_scope_runs_from_a_plain_export(service):
     assert rows["je.population_completeness"] == "blocked"   # no trial balance yet
     run_ = service.run_procedure("pr", eid, procedure_id="je.journal_entry_testing")
     assert run_["status"] == "completed" and run_["findings"] == 1   # the Saturday entry
+
+
+def test_manual_sources_confine_no_description_to_manual_entries():
+    typed = [dict(row, source="Journal Entry") for row in JOURNAL]
+    invoice = [line("E20", "1100", D("64.00"), memo=""), line("E20", "4000", D("-64.00"), memo="")]
+    unknown = [line("E21", "6000", D("12.00"), memo=""), line("E21", "2100", D("-12.00"), memo="")]
+    listing = typed + [dict(r, source="Invoice") for r in invoice] + unknown
+    policies = {**POLICIES, "je_manual_sources": "journal entry, general journal"}
+    findings, stats = run("je.journal_entry_testing", listing, policies)
+    flagged = {e for e, t in selected(findings) if t == "no_description"}
+    # the manual entry and the one whose source is unknown; not the invoice
+    assert flagged == {"e8", "e21"}
+    assert stats["no_description_not_manual"] == 1
+    # without the policy every entry is tested, as before
+    findings, _ = run("je.journal_entry_testing", listing)
+    assert {e for e, t in selected(findings) if t == "no_description"} == {"e8", "e20", "e21"}
+
+
+def test_manual_sources_without_a_source_column_is_not_performed():
+    findings, stats = run("je.journal_entry_testing",
+                          policies={**POLICIES, "je_manual_sources": "Journal Entry"})
+    assert "source" in stats["not_performed"]["no_description"]
+    assert not any(t == "no_description" for _, t in selected(findings))

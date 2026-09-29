@@ -85,6 +85,15 @@ def journal_entry_testing(tables: dict, policies: dict):
         not_performed["seldom_used_account"] = "policy je_seldom_used_max is not set"
     if not has("description"):
         not_performed["no_description"] = "the listing has no description column"
+    # Which sources are manual entries is the auditor's judgment (the
+    # names differ by system). With it, "no description" selects manual
+    # entries only: a system-generated invoice without a memo is routine.
+    manual_sources = {s.lower() for s in (_csv_policy(policies, "je_manual_sources") or [])}
+    if manual_sources and not has("source"):
+        not_performed["no_description"] = (
+            "policy je_manual_sources is set but the listing has no source "
+            "(transaction type) column")
+    routine_without_description = 0
 
     entry_dates = {entry_id: min((d for d in (day(line.get("entry_date")) for line in lines)
                                   if d), default=None)
@@ -164,8 +173,13 @@ def journal_entry_testing(tables: dict, policies: dict):
                      {**base, "accounts": rare}, debits)
         if "no_description" not in not_performed and not any(
                 text(line.get("description")) for line in lines):
-            lead(entry_id, "no_description", "TENSION",
-                 f"entry {entry_id}: no description on any line", base, debits)
+            sources = {text(line.get("source")).lower() for line in lines} - {""}
+            if manual_sources and sources and not sources & manual_sources:
+                routine_without_description += 1
+            else:
+                lead(entry_id, "no_description", "TENSION",
+                     f"entry {entry_id}: no description on any line"
+                     + (" of a manual entry" if manual_sources else ""), base, debits)
 
     all_tests = ("unbalanced", "posted_after_period_end", "weekend_or_holiday",
                  "round_amount", "unauthorized_user", "self_approved",
@@ -175,7 +189,9 @@ def journal_entry_testing(tables: dict, policies: dict):
              "dated_before_period_start": before_period, "period_start": start,
              "tests_performed": [t for t in all_tests if t not in not_performed],
              "not_performed": not_performed, "selected_by_test": counts,
-             "round_unit": unit, "exceptions": len(findings)}
+             "round_unit": unit, "exceptions": len(findings),
+             "manual_sources": sorted(manual_sources) or None,
+             "no_description_not_manual": routine_without_description}
     return findings, stats
 
 
