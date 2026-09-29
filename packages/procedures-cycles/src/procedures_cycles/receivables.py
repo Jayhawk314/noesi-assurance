@@ -25,6 +25,7 @@ from procedures_cycles.common import (
 )
 from procedures_cycles.statements import _signed
 
+AGING_BUCKETS = ("current", "days_1_30", "days_31_60", "days_61_90", "days_over_90")
 CLASSIFICATIONS = ("no_difference", "client_misstatement", "timing", "customer_error",
                    "alternative_procedures")
 
@@ -48,8 +49,7 @@ def listing_tie(tables: dict, policies: dict):
     for r in listing:
         cust = key_text(r.get("customer_number"))
         customers.add(cust)
-        buckets = [dec(r.get(f)) for f in ("current", "days_31_60", "days_61_90",
-                                           "days_over_90")]
+        buckets = [dec(r.get(f)) for f in AGING_BUCKETS]
         if any(b is not None for b in buckets):
             aged += 1
             bucket_sum = sum((b for b in buckets if b is not None), ZERO)
@@ -72,8 +72,11 @@ def listing_tie(tables: dict, policies: dict):
                 "consider reclassification to liabilities",
                 {"finding_class": "CONJECTURE", "cycle": "receivables",
                  "net_balance": balance}))
-    buckets = {f: sum((money(r.get(f)) for r in listing), ZERO)
-               for f in ("current", "days_31_60", "days_61_90", "days_over_90")}
+    # The aging carries a 1-30 column (current meaning "not yet due") or not
+    # (current meaning 0-30); the allowance rates follow the columns it has.
+    fields = [f for f in AGING_BUCKETS
+              if f != "days_1_30" or any(r.get(f) is not None for r in listing)]
+    buckets = {f: sum((money(r.get(f)) for r in listing), ZERO) for f in fields}
     stats = {"population": len(listing), "customers": len(customers),
              "listing_total": total, "gl_total": gl,
              "aged_rows": aged, "aging_totals": buckets}
@@ -81,11 +84,23 @@ def listing_tie(tables: dict, policies: dict):
     if rates_policy:
         # The client's allowance method, applied to the aging: an estimate
         # the auditor recomputes, not one the engine invents.
-        rates = [dec(x) for x in rates_policy.replace(";", ",").split(",")]
-        if len(rates) != 4 or any(r is None for r in rates):
-            raise PolicyError("ar_allowance_rates needs four rates: current, 31-60, "
-                              "61-90, over 90 (e.g. '0.03,0.10,0.15,0.30')")
-        required = sum((amount * rate for amount, rate in zip(buckets.values(), rates)),
+        rates = parse_allowance_rates(rates_policy)
+        if len(rates) != len(fields):
+            raise PolicyError(
+                f"ar_allowance_rates has {len(rates)} rates; this aging has "
+                f"{len(fields)} columns ({', '.join(fields)}), one rate each")
+        # A customer whose net balance is a credit owes nothing to reserve
+        # against (it is a liability, flagged above), so it is left out.
+        by_customer: dict[str, list[Decimal]] = {}
+        for r in listing:
+            amounts = by_customer.setdefault(key_text(r.get("customer_number")),
+                                             [ZERO] * len(fields))
+            for i, f in enumerate(fields):
+                amounts[i] += money(r.get(f))
+        net = _customer_balances(tables)
+        required = sum((amount * rate
+                        for cust, amounts in by_customer.items() if net.get(cust, ZERO) > 0
+                        for amount, rate in zip(amounts, rates)),
                        ZERO).quantize(Decimal("1"))
         recorded = -sum((_signed(r) or ZERO for r in tb
                          if text(r.get("line")).lower() == "allowance"), ZERO)
@@ -103,6 +118,17 @@ def listing_tie(tables: dict, policies: dict):
                 required - recorded))
     stats["exceptions"] = len(findings)
     return findings, stats
+
+
+def parse_allowance_rates(value: str) -> list[Decimal]:
+    """The partner's allowance rates: four (current, 31-60, 61-90, over 90)
+    or five (current, 1-30, 31-60, 61-90, over 90), each between 0 and 1."""
+    rates = [dec(x) for x in text(value).replace(";", ",").split(",")]
+    if len(rates) not in (4, 5) or any(r is None or not 0 <= r <= 1 for r in rates):
+        raise PolicyError("ar_allowance_rates needs four or five rates between 0 and 1, "
+                          "one per aging column, oldest last (e.g. '0.03,0.10,0.15,0.30' "
+                          "or '0.01,0.02,0.05,0.15,0.40')")
+    return rates
 
 
 def _customer_balances(tables: dict) -> dict[str, Decimal]:

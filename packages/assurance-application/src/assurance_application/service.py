@@ -1227,6 +1227,13 @@ class WorkbenchService:
                 raise ValueError(
                     f"{name!r} is used only by the {sorted(owners)} cycle(s), none of "
                     "which is in scope")
+            if name == "ar_allowance_rates":  # checked now, not at run time
+                from procedures_cycles.common import PolicyError
+                from procedures_cycles.receivables import parse_allowance_rates
+                try:
+                    parse_allowance_rates(str(values["value"]))
+                except PolicyError as exc:
+                    raise ValueError(str(exc)) from exc
             document.setdefault("policies", {})[name] = str(values["value"])
         else:
             raise ValueError(f"unknown workflow section {section!r}")

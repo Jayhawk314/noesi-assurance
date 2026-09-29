@@ -41,6 +41,7 @@ def _policies() -> dict:
             "split_threshold": "2500", "split_window_days": "7",
             "je_authorized_users": "Dana Merritt", "je_round_amount_threshold": "10000",
             "je_round_unit": "1000", "je_seldom_used_max": "1",
+            "ar_allowance_rates": run_noesi.POLICIES["ar_allowance_rates"],
             **k2["policies"], **k3["policies"]}
 
 
