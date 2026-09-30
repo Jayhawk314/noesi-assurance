@@ -36,6 +36,7 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
     { kind: "node"; node: MapNode } | { kind: "edge"; edge: MapEdge } | null
   >(null);
   const [running, setRunning] = useState("");
+  const [mapIndex, setMapIndex] = useState(0);
 
   const byId = useMemo(() => {
     const index = new Map<string, CoverageRow>();
@@ -90,7 +91,12 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
   if (error) return <div className="error-bar">{error}</div>;
   if (!data) return null;
 
-  const map = CYCLE_MAPS[0];
+  // Only the cycles in this engagement's scope: a map whose procedures are
+  // all out of scope has nothing to show.
+  const inScope = CYCLE_MAPS.filter((m) => [...m.nodes.flatMap((n) => n.procedures ?? []),
+                                            ...m.edges.flatMap((e) => e.procedures)]
+    .some((id) => byId.has(id)));
+  const map = inScope[Math.min(mapIndex, inScope.length - 1)] ?? CYCLE_MAPS[0];
   const summary = data.coverage.summary;
   const supplied = map.nodes.filter((n) => roleState(n.role) === "supplied");
 
@@ -100,11 +106,22 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
 
   return (
     <>
+      {inScope.length > 1 && (
+        <nav className="tabs fm-cycles" aria-label="cycle">
+          {inScope.map((m, i) => (
+            <button key={m.cycle} className={m === map ? "active" : ""}
+                    onClick={() => { setMapIndex(i); setSelected(null); }}>
+              {m.title}
+            </button>
+          ))}
+        </nav>
+      )}
       <div className="fm-detail-head">
         <h2 style={{ margin: 0 }}>{map.title}</h2>
         <span className="pill idle">
           {supplied.length} of {map.nodes.length} record sets supplied
         </span>
+        <span className="note">whole audit:</span>
         {summary.executable > 0 && (
           <span className="pill ok">{summary.executable} executable</span>
         )}
@@ -175,8 +192,7 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
         <>
           <h3>Not on the map</h3>
           <p className="note">
-            These procedures are not drawn above — add them to the cycle map
-            to place them.
+            These procedures are on no cycle map yet.
           </p>
           <div className="table-wrap">
             <table className="dense">
@@ -287,7 +303,7 @@ function Diagram(
             <text className="fm-label" x="13" y="26">{node.label}</text>
             <text className="fm-sub" x="13" y="45">
               {state === "supplied"
-                ? `${(rows ?? 0).toLocaleString()} rows${asideFor(node.role) ? `, ${asideFor(node.role)} set aside` : ""}`
+                ? `${(rows ?? 0).toLocaleString()} row${rows === 1 ? "" : "s"}${asideFor(node.role) ? `, ${asideFor(node.role)} set aside` : ""}`
                 : state === "empty" ? "0 rows — all set aside"
                 : state === "mapped" ? "mapped, not normalized" : "not supplied"}
             </text>
@@ -355,7 +371,7 @@ function NodeDetail(
         <h3>{node.label}</h3>
         <span className={`pill ${state === "supplied" ? "ok"
           : state === "empty" ? "bad" : state === "mapped" ? "pending" : "idle"}`}>
-          {state === "supplied" ? `${(rows ?? 0).toLocaleString()} rows loaded`
+          {state === "supplied" ? `${(rows ?? 0).toLocaleString()} row${rows === 1 ? "" : "s"} loaded`
             : state === "empty" ? "every row was set aside"
             : state === "mapped" ? "mapped, not normalized" : "not supplied"}
         </span>
