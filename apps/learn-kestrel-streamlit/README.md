@@ -2,7 +2,7 @@
 
 Hosts Noesi's Kestrel Valley course (docs/LEARN-KESTREL-PLAN.md): one module
 per audit area, each in four steps (the idea, by hand, in Noesi, compare with
-the key), the documents page, "Follow a number", "Excel for audit" and the
+the key), the fraud track, the documents page, "Follow a number", "Excel for audit" and the
 course map. The pages are static; nothing here talks to a
 Noesi server. The Harborline course (`apps/learn-streamlit`) is a separate
 app at its own address and is unchanged.

@@ -57,10 +57,16 @@ def main() -> int:
                 if r["status"] == "differs" or r["why"].startswith("UNEXPLAINED")]
     modules: dict[str, list] = {m: [] for m in flc.MODULES}
     for r in check.rows:
+        key, noesi = ("yes" if isinstance(r["key"], bool) else show(r["key"]),
+                      show(r["got"], r["key"]))
+        if r["item"].startswith("transfer "):
+            # The label names a transfer, not a claim: say what each side found.
+            verdict = lambda v: "exception" if v else "no exception"  # noqa: E731
+            key = verdict(r["key"])
+            noesi = "—" if r["got"] is flc.NOT_IN else verdict(r["got"])
         modules[r["module"]].append({
             "item": r["item"], "status": r["status"], "why": r["why"],
-            "key": "yes" if isinstance(r["key"], bool) else show(r["key"]),
-            "noesi": show(r["got"], r["key"]),
+            "key": key, "noesi": noesi,
         })
     expected = report_counts()
     for name, rows in modules.items():

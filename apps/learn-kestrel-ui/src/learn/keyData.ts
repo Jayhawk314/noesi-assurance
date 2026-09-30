@@ -23,13 +23,25 @@ export function findRow(module: string, item: string): KeyRow | undefined {
   return moduleRows(module).find((r) => r.item === item);
 }
 
+/** Follow a dotted path, allowing keys that themselves contain dots (the
+ *  first key file has "cash.interbank_transfers"): the longest key that
+ *  exists at each level wins. */
+function walk(at: unknown, parts: string[]): unknown {
+  if (!parts.length) return at;
+  if (at === null || typeof at !== "object") return undefined;
+  for (let i = parts.length; i > 0; i--) {
+    const key = parts.slice(0, i).join(".");
+    if (key in (at as Record<string, unknown>)) {
+      const found = walk((at as Record<string, unknown>)[key], parts.slice(i));
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
 /** A value from the answer key by path, e.g. "payables.duplicate_bill.invoice". */
 export function keyAt(path: string): string | undefined {
-  let at: unknown = data.key;
-  for (const part of path.split(".")) {
-    if (at === null || typeof at !== "object") return undefined;
-    at = (at as Record<string, unknown>)[part];
-  }
+  const at = walk(data.key, path.split("."));
   if (at === undefined || at === null) return undefined;
   if (Array.isArray(at)) return at.map(String).join(", ");
   if (typeof at === "boolean") return at ? "yes" : "no";

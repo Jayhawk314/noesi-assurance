@@ -37,13 +37,16 @@ export interface Ask {
   label: string;
   row: string;
   key?: string;
+  /** The finish-line module holding `row`, when not the lesson's keyModule
+   *  (fraud lessons draw on several). */
+  module?: string;
 }
 
 export interface Lesson {
   n: number;
   slug: string;
   title: string;
-  phase: "Planning" | "Fieldwork" | "Completion";
+  phase: "Planning" | "Fieldwork" | "Completion" | "Fraud";
   question: string;
   minutes: number;
   objectives: string[];
@@ -57,6 +60,8 @@ export interface Lesson {
   inNoesi: { procedures: string[]; steps: string[] };
   /** Step 4 reads the rows of this finish-line module from kestrel-key.json. */
   keyModule: string;
+  /** Instead of a whole module, these lines ([module, item]) of the check. */
+  keyLines?: [string, string][];
   noesi: {
     coverage: "full" | "partial" | "none";
     summary: string;

@@ -5,7 +5,7 @@
  *
  *  Routes (hash): #/learn (course home), #/learn/<n> (a module),
  *  #/learn/map (the course map), #/learn/documents, #/learn/trace,
- *  #/learn/excel. Static content; needs no session. Progress
+ *  #/learn/excel, #/learn/fraud (the fraud track), #/learn/fraud/<n>. Static content; needs no session. Progress
  *  is a per-browser convenience in localStorage and the page works without it. */
 
 import { Fragment, useEffect, useState } from "react";
@@ -13,6 +13,7 @@ import { Documents } from "./Documents";
 import { ExcelAudit } from "./ExcelAudit";
 import { agrees, findRow, keyAt, moduleRows } from "./keyData";
 import { LessonVideo } from "./LessonVideo";
+import { FRAUD_LESSONS } from "./lessons-fraud";
 import { COMING, LESSONS } from "./lessons";
 import { displayOrder } from "./shuffle";
 import { Trace } from "./Trace";
@@ -76,8 +77,11 @@ export function Learn({ route }: { route: string }) {
     });
   };
 
-  const target = route.split("/").filter(Boolean)[1];
-  const lesson = LESSONS.find((l) => String(l.n) === target);
+  const parts = route.split("/").filter(Boolean);
+  const target = parts[1];
+  const fraud = target === "fraud";
+  const track = fraud ? FRAUD_TRACK : MAIN_TRACK;
+  const lesson = track.lessons.find((l) => String(l.n) === (fraud ? parts[2] : target));
 
   useEffect(() => { window.scrollTo(0, 0); }, [route]);
 
@@ -91,13 +95,15 @@ export function Learn({ route }: { route: string }) {
         <a className="to-workbench" href="#/learn/trace">Follow a number</a>
         <a className="to-workbench" href="#/learn/excel">Excel for audit</a>
         <a className="to-workbench" href="#/learn/map">Course map</a>
+        <a className="to-workbench" href="#/learn/fraud">Fraud track</a>
       </header>
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />
         : target === "trace" ? <Trace />
         : target === "excel" ? <ExcelAudit />
-        : lesson ? <LessonPage lesson={lesson} progress={progress[lesson.slug]}
+        : lesson ? <LessonPage lesson={lesson} track={track} progress={progress[lesson.slug]}
                                onUpdate={(c) => update(lesson.slug, c)} />
+        : fraud ? <FraudHome progress={progress} />
         : <Home progress={progress} />}
     </div>
   );
@@ -159,6 +165,20 @@ function Home({ progress }: { progress: Progress }) {
         </section>
       ))}
 
+      <section className="phase">
+        <h2>Fraud</h2>
+        <div className="lesson-grid">
+          <a className="lesson-tile" href="#/learn/fraud">
+            <span className="tile-n">F</span>
+            <span className="tile-title">Fraud at Kestrel</span>
+            <span className="tile-q">Why fraud happens, fraud risk assessment, and the schemes planted in
+              Kestrel's records: a twin vendor, a shell-like vendor, split bills, a ghost employee, an
+              owner's weekend entry, and cash counted twice.</span>
+            <span className="tile-meta"><span className="muted">{FRAUD_LESSONS.length} lessons</span></span>
+          </a>
+        </div>
+      </section>
+
       <p className="muted fine">Original teaching material on the fictional Kestrel Valley case
         (<code>case-studies/kestrel-valley-cycle</code>). Every figure in the compare steps is the case's
         answer key, checked against the Workbench by <code>finish_line_check.py</code>. Standards
@@ -167,8 +187,29 @@ function Home({ progress }: { progress: Progress }) {
   );
 }
 
-function LessonPage({ lesson, progress, onUpdate }: {
-  lesson: Lesson; progress?: Entry; onUpdate: (c: Partial<Entry>) => void;
+/** A set of lessons with its own numbering, home and labels. */
+interface Track {
+  lessons: Lesson[];
+  base: string;      // hash prefix of a lesson: `${base}/${n}`
+  home: string;
+  homeLabel: string;
+  prefix: string;    // shown before the lesson number: "" or "F"
+  noun: string;      // "Module" or "Lesson"
+  total: number;
+  end: { href: string; label: string };
+}
+const MAIN_TRACK: Track = {
+  lessons: LESSONS, base: "#/learn", home: "#/learn", homeLabel: "Course", prefix: "", noun: "Module",
+  total: ALL.length, end: { href: "#/learn/map", label: "Course map →" },
+};
+const FRAUD_TRACK: Track = {
+  lessons: FRAUD_LESSONS, base: "#/learn/fraud", home: "#/learn/fraud", homeLabel: "Fraud track",
+  prefix: "F", noun: "Lesson", total: FRAUD_LESSONS.length,
+  end: { href: "#/learn/fraud", label: "Fraud track →" },
+};
+
+function LessonPage({ lesson, track, progress, onUpdate }: {
+  lesson: Lesson; track: Track; progress?: Entry; onUpdate: (c: Partial<Entry>) => void;
 }) {
   const total = lesson.sections.length;
   const read = Math.min(progress?.read ?? 1, total) || 1;
@@ -176,18 +217,18 @@ function LessonPage({ lesson, progress, onUpdate }: {
   const allAnswered = lesson.check.every((_, i) => answers[i] !== undefined);
   const finishedReading = read >= total;
   const submitted = !!progress?.submitted;
-  const index = LESSONS.indexOf(lesson);
-  const prev = LESSONS[index - 1];
-  const next = LESSONS[index + 1];
-  const label = (l: Lesson) => `Module ${l.n}`;
+  const index = track.lessons.indexOf(lesson);
+  const prev = track.lessons[index - 1];
+  const next = track.lessons[index + 1];
+  const label = (l: Lesson) => `${track.noun} ${track.prefix}${l.n}`;
 
   return (
     <main className="lesson">
       <nav className="crumbs">
-        <a href="#/learn">Course</a> › {lesson.phase} › {label(lesson)}
+        <a href={track.home}>{track.homeLabel}</a> › {lesson.phase} › {label(lesson)}
       </nav>
       <header className="lesson-head">
-        <div className="next-kicker">{label(lesson)} of {ALL.length} · {lesson.phase} · ~{lesson.minutes} min</div>
+        <div className="next-kicker">{label(lesson)} of {track.total} · {lesson.phase} · ~{lesson.minutes} min</div>
         <h1>{lesson.title}</h1>
         <p className="big-q">{lesson.question}</p>
         <div className="objectives">
@@ -251,13 +292,13 @@ function LessonPage({ lesson, progress, onUpdate }: {
                 The key stays hidden until you do.</p>}
 
           <div className="lesson-foot">
-            {prev ? <a className="secondary" href={`#/learn/${prev.n}`}>← {label(prev)}</a> : <span />}
+            {prev ? <a className="secondary" href={`${track.base}/${prev.n}`}>← {label(prev)}</a> : <span />}
             {submitted && allAnswered && !progress?.done && (
-              <button className="primary" onClick={() => onUpdate({ done: true })}>Mark module complete</button>
+              <button className="primary" onClick={() => onUpdate({ done: true })}>Mark {track.noun.toLowerCase()} complete</button>
             )}
-            {progress?.done && <span className="done-flag">✓ Module complete</span>}
-            {next ? <a className="secondary" href={`#/learn/${next.n}`}>{label(next)} →</a>
-              : <a className="secondary" href="#/learn/map">Course map →</a>}
+            {progress?.done && <span className="done-flag">✓ {track.noun} complete</span>}
+            {next ? <a className="secondary" href={`${track.base}/${next.n}`}>{label(next)} →</a>
+              : <a className="secondary" href={track.end.href}>{track.end.label}</a>}
           </div>
         </>
       )}
@@ -299,7 +340,9 @@ function ByHand({ lesson, progress, onUpdate }: {
 }
 
 function Compare({ lesson, mine }: { lesson: Lesson; mine: Record<number, string> }) {
-  const rows = moduleRows(lesson.keyModule);
+  const rows = lesson.keyLines
+    ? lesson.keyLines.map(([module, item]) => findRow(module, item)).filter((r): r is NonNullable<typeof r> => !!r)
+    : moduleRows(lesson.keyModule);
   const { noesi } = lesson;
   return (
     <>
@@ -308,7 +351,7 @@ function Compare({ lesson, mine }: { lesson: Lesson; mine: Record<number, string
         <div className="table-wrap"><table>
           <thead><tr><th>Question</th><th>You</th><th>Noesi</th><th>Key</th></tr></thead>
           <tbody>{lesson.byHand.asks.map((ask, i) => {
-            const row = findRow(lesson.keyModule, ask.row);
+            const row = findRow(ask.module ?? lesson.keyModule, ask.row);
             const key = (ask.key ? keyAt(ask.key) : row?.key === "yes" ? row.item : row?.key) ?? "?";
             const noesiValue = !row ? "?" : row.status === "not in Noesi" ? "not in Noesi"
               : row.status === "match" ? (ask.key ? "the same" : row.noesi) : row.noesi;
@@ -328,7 +371,7 @@ function Compare({ lesson, mine }: { lesson: Lesson; mine: Record<number, string
       </section>
 
       <section className="lesson-section">
-        <h2>Everything the key checks in this module</h2>
+        <h2>Everything the key checks in this {lesson.keyLines ? "lesson" : "module"}</h2>
         <div className="table-wrap"><table>
           <thead><tr><th>Line of the key</th><th>Key</th><th>Noesi</th><th /></tr></thead>
           <tbody>{rows.map((r) => (
@@ -469,6 +512,55 @@ function CourseMap({ progress }: { progress: Progress }) {
           partner's judgment. The modules marked “coming” wait for the Workbench to load QuickBooks'
           own exports for their files; they will be written once it does.</p>
       </section>
+    </main>
+  );
+}
+
+function FraudHome({ progress }: { progress: Progress }) {
+  const done = FRAUD_LESSONS.filter((l) => progress[l.slug]?.done).length;
+  const next = FRAUD_LESSONS.find((l) => !progress[l.slug]?.done) ?? FRAUD_LESSONS[0];
+  return (
+    <main className="learn-home">
+      <nav className="crumbs"><a href="#/learn">Course</a> › Fraud at Kestrel</nav>
+      <section className="hero">
+        <div className="next-kicker">The fraud track</div>
+        <h1>Fraud at Kestrel</h1>
+        <p>How occupational fraud works and how it is found, worked on the schemes planted in Kestrel's
+          records. Each lesson has the same four steps as the modules: the idea, by hand, in Noesi, and
+          compare with the key. A finding is always a lead, never proof of fraud.</p>
+        <div className="hero-actions">
+          <a className="primary" href={`#/learn/fraud/${next.n}`}>{done ? `Continue with lesson F${next.n}` : "Start lesson F1"}</a>
+          <a className="secondary" href="#/learn/excel">Excel for audit</a>
+          <a className="secondary" href="#/learn/documents">The documents</a>
+          <span className="muted">{done} of {FRAUD_LESSONS.length} lessons complete</span>
+        </div>
+        <div className="progress big"><div style={{ width: `${(100 * done) / FRAUD_LESSONS.length}%` }} /></div>
+      </section>
+
+      <section className="phase">
+        <h2>Lessons</h2>
+        <div className="lesson-grid">
+          {FRAUD_LESSONS.map((l) => {
+            const p = progress[l.slug];
+            return (
+              <a key={l.slug} className={`lesson-tile ${p?.done ? "done" : ""}`} href={`#/learn/fraud/${l.n}`}>
+                <span className="tile-n">{p?.done ? "✓" : `F${l.n}`}</span>
+                <span className="tile-title">{l.title}</span>
+                <span className="tile-q">{l.question}</span>
+                <span className="tile-meta">
+                  <span className={`cov ${l.noesi.coverage}`}>{COVERAGE_LABEL[l.noesi.coverage]}</span>
+                  <span className="muted">~{l.minutes} min</span>
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <p className="muted fine">What Kestrel cannot teach: it has no payments approved by the person who
+        entered them, and no money sent out to a related party and brought back. Those schemes are not
+        planted in this case, and the track does not invent them. Original teaching material; it does not
+        reproduce ACFE text.</p>
     </main>
   );
 }

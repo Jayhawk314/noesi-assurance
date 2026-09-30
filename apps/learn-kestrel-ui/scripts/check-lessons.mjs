@@ -26,6 +26,7 @@ async function load(file) {
   return import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64"));
 }
 const { LESSONS, COMING } = await load("lessons.ts");
+const { FRAUD_LESSONS } = await load("lessons-fraud.ts");
 const { PAPERS } = await load("papers.ts");
 const { STAGES, CORRECTION } = await load("traceData.ts");
 const { EXERCISES } = await load("excelData.ts");
@@ -44,7 +45,17 @@ collect(data);
 const lessonNumbers = new Set(numbers);   // lessons: the key only
 collect(records);                          // pages: the key and the case records
 
-const keyAt = (path) => path.split(".").reduce((at, p) => (at && typeof at === "object" ? at[p] : undefined), data.key);
+// Keys may contain dots ("cash.interbank_transfers"): the longest existing key wins, as in keyData.ts.
+function walk(at, parts) {
+  if (!parts.length) return at;
+  if (at === null || typeof at !== "object") return undefined;
+  for (let i = parts.length; i > 0; i--) {
+    const key = parts.slice(0, i).join(".");
+    if (key in at) { const found = walk(at[key], parts.slice(i)); if (found !== undefined) return found; }
+  }
+  return undefined;
+}
+const keyAt = (path) => walk(data.key, path.split("."));
 
 function textOf(lesson) {
   const out = [];
@@ -52,22 +63,28 @@ function textOf(lesson) {
     if (typeof v === "string") out.push([where, v]);
     else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${where}[${i}]`));
     else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) {
-      if (k === "row" || k === "key" || k === "keyModule" || k === "n" || k === "minutes" || k === "answer") continue;
+      if (k === "row" || k === "key" || k === "keyModule" || k === "module" || k === "keyLines" || k === "n" || k === "minutes" || k === "answer") continue;
       walk(x, `${where}.${k}`);
     }
   };
-  walk(lesson, `module ${lesson.n}`);
+  walk(lesson, lesson.phase === "Fraud" ? `fraud lesson F${lesson.n}` : `module ${lesson.n}`);
   return out;
 }
 
-for (const lesson of LESSONS) {
-  const rows = data.modules[lesson.keyModule];
-  if (!rows) { problems.push(`module ${lesson.n}: no key module "${lesson.keyModule}"`); continue; }
+const hasLine = (module, item) => (data.modules[module] ?? []).some((r) => r.item === item);
+for (const lesson of [...LESSONS, ...FRAUD_LESSONS]) {
+  const name = `${lesson.phase === "Fraud" ? "fraud lesson F" : "module "}${lesson.n}`;
+  if (!data.modules[lesson.keyModule]) { problems.push(`${name}: no key module "${lesson.keyModule}"`); continue; }
+  for (const [module, item] of lesson.keyLines ?? []) {
+    if (!hasLine(module, item)) problems.push(`${name}: key line "${module} / ${item}" does not exist`);
+  }
   for (const ask of lesson.byHand.asks) {
-    if (!rows.some((r) => r.item === ask.row)) problems.push(`module ${lesson.n}: ask "${ask.label}" names no line "${ask.row}"`);
+    const module = ask.module ?? lesson.keyModule;
+    if (!hasLine(module, ask.row)) problems.push(`${name}: ask "${ask.label}" names no line "${module} / ${ask.row}"`);
     if (ask.key !== undefined) {
       const v = keyAt(ask.key);
-      if (v === undefined || v === null || (typeof v === "object" && !Array.isArray(v))) problems.push(`module ${lesson.n}: ask "${ask.label}" key path ${ask.key} does not resolve to a value`);
+      const scalar = (x) => x !== undefined && x !== null && typeof x !== "object";
+      if (!(scalar(v) || (Array.isArray(v) && v.every(scalar)))) problems.push(`${name}: ask "${ask.label}" key path ${ask.key} does not resolve to a value`);
     }
   }
   for (const [where, text] of textOf(lesson)) {
@@ -103,11 +120,15 @@ const written = LESSONS.map((l) => l.n).sort((a, b) => a - b).join(",");
 const coming = COMING.map((c) => c.n).sort((a, b) => a - b).join(",");
 if (written !== "1,5,8,9,10,11,12,13") problems.push(`modules written are ${written}, agreed 1,5,8,9,10,11,12,13`);
 if (coming !== "2,3,4,6,7") problems.push(`modules coming are ${coming}, agreed 2,3,4,6,7`);
+const fraudNs = FRAUD_LESSONS.map((l) => l.n).join(",");
+if (fraudNs !== "1,2,3,4,5,6,7,8,9") problems.push(`fraud lessons are ${fraudNs}, expected 1 to 9`);
 
 if (problems.length) {
   console.error("check-lessons refused:\n" + problems.map((p) => "  " + p).join("\n"));
   process.exit(1);
 }
 const asks = LESSONS.reduce((n, l) => n + l.byHand.asks.length, 0);
+const fraudAsks = FRAUD_LESSONS.reduce((n, l) => n + l.byHand.asks.length, 0);
 console.log(`check-lessons: ${LESSONS.length} modules, ${asks} answers, all tied to the key; ${COMING.length} coming; ` +
+  `${FRAUD_LESSONS.length} fraud lessons, ${fraudAsks} answers; ` +
   `${PAPERS.length} documents, ${STAGES.length} trace stages, ${EXERCISES.length} Excel exercises, every number from the key or the case files`);

@@ -28,7 +28,7 @@
     "status": "match",
     "why": "",
     "key": "partner, preparer, reviewer",
-    "noesi": "reviewer, preparer, partner"
+    "noesi": "partner, preparer, reviewer"
    },
    {
     "item": "every file loads (none refused)",
@@ -555,22 +555,22 @@
     "item": "transfer T-0615",
     "status": "match",
     "why": "",
-    "key": "yes",
-    "noesi": "yes"
+    "key": "no exception",
+    "noesi": "no exception"
    },
    {
     "item": "transfer T-0630",
     "status": "match",
     "why": "",
-    "key": "yes",
-    "noesi": "yes"
+    "key": "no exception",
+    "noesi": "no exception"
    },
    {
     "item": "transfer T-0701",
     "status": "match",
     "why": "",
-    "key": "yes",
-    "noesi": "yes"
+    "key": "exception",
+    "noesi": "exception"
    }
   ],
   "Inventory": [
