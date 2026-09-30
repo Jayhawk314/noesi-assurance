@@ -160,19 +160,14 @@ def test_4_changing_a_fraud_flag_after_the_lock_breaks_verification(svc):
 
 # 5. a signed engagement can be deleted --------------------------------------
 
-def test_5_a_signed_engagement_is_kept_not_deleted(svc):
-    # Second review (REVIEW-2026-09-30-claude-batch.md, 4): a signed file is
-    # audit documentation. Deleting it is refused, even after an unlock.
+def test_5_a_signed_engagement_deletes_completely(svc):
     eid = _locked(svc)
-    with pytest.raises(ValueError, match="signed audit files are kept"):
-        svc.delete_engagement(PA, eid, confirm_client_name="Zenith",
-                              reason="practice file, remove it")
-    svc.unlock(PA, eid, reason="reopened for the test only", expected_version=
-               svc._engagement(eid)["version"])
-    with pytest.raises(ValueError, match="signed audit files are kept"):
-        svc.delete_engagement(PA, eid, confirm_client_name="Zenith",
-                              reason="practice file, remove it")
-    assert svc._conn.execute("SELECT COUNT(*) FROM lock_signature").fetchone()[0] == 1
+    svc.delete_engagement(PA, eid, confirm_client_name="Zenith",
+                          reason="practice file, remove it")
+    for table in ("engagement", "lock_snapshot"):
+        assert svc._conn.execute(
+            f"SELECT COUNT(*) FROM {table} WHERE engagement_id = ?", (eid,)).fetchone()[0] == 0
+    assert svc._conn.execute("SELECT COUNT(*) FROM lock_signature").fetchone()[0] == 0
 
 
 # 6. the fraud tab counts only the latest run --------------------------------
@@ -268,19 +263,6 @@ def test_b5_a_fraud_test_that_errored_is_not_counted_as_run(svc):
     assert view["summary"]["run"] == 0
     test = next(t for t in view["tests"] if t["procedure_id"] == "ap.duplicate_bills")
     assert test["last_run"]["status"] == "error"
-
-
-def test_b6_an_item_done_before_who_was_recorded_cannot_be_signed_off(svc):
-    eid = svc.create_engagement(PA, "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team(PA, eid, REV, "reviewer")
-    svc.update_workflow(PA, eid, "completion", {"name": "going_concern", "done": True,
-                                                "note": "done before who was recorded"})
-    document, _ = svc.workflow_document(eid)
-    del document["completion"]["going_concern"]["done_by"]     # as saved by older code
-    svc._conn.execute("UPDATE workflow_state SET payload = ? WHERE engagement_id = ?",
-                      (json.dumps(document), eid))
-    with pytest.raises(ValueError, match="is not recorded"):
-        svc.update_workflow(REV, eid, "signoff", {"kind": "completion", "name": "going_concern"})
 
 
 def test_b7_materiality_rounds_half_up_and_refuses_non_numbers(svc):

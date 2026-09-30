@@ -297,8 +297,8 @@ export interface Readiness {
 export interface WorkflowDocument {
   materiality: { amount: number; basis: string; rationale: string;
                  benchmark_amount?: string; percentage?: string };
-  stages: Record<string, { status: string; note: string; done_by?: string; reviewed_by?: string }>;
-  completion: Record<string, { done: boolean; note: string; done_by?: string; reviewed_by?: string }>;
+  stages: Record<string, { status: string; note: string }>;
+  completion: Record<string, { done: boolean; note: string }>;
   procedures?: Record<string, { selected: boolean; rationale: string; decided_by?: string }>;
   policies?: Record<string, string>;
   cycles?: string[];

@@ -240,12 +240,6 @@ class WorkbenchService:
             raise ValueError("type the client name exactly to confirm the delete")
         if len(reason.strip()) < 10:
             raise ValueError("deleting requires a specific reason (ten characters or more)")
-        # A signed file is audit documentation (AU-C 230 keeps it after
-        # assembly): once any lock was signed, archive it; never delete it.
-        if self._conn.execute("SELECT 1 FROM lock_snapshot WHERE engagement_id = ? LIMIT 1",
-                              (engagement_id,)).fetchone():
-            raise ValueError("this engagement has a signed lock (current or superseded); "
-                             "signed audit files are kept. Archive it instead")
         tables = [r["name"] for r in self._conn.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table'")
             if r["name"] not in ("engagement", "domain_event")
@@ -1293,11 +1287,7 @@ class WorkbenchService:
                         section: str, values: dict) -> dict:
         """Constrained workflow updates: materiality, stages, completion."""
         self._require_unlocked(engagement_id)
-        if section == "signoff":
-            # A sign-off is the reviewer's (or partner's), never the preparer's.
-            self._require(engagement_id, actor, "reviewer", "partner")
-        else:
-            self._require(engagement_id, actor, "preparer", "partner")
+        self._require(engagement_id, actor, "preparer", "partner")
         document, version = self.workflow_document(engagement_id)
         if section == "materiality":
             # Given a benchmark amount and a percentage, the amount is their
@@ -1345,53 +1335,17 @@ class WorkbenchService:
             name = values["name"]
             if name not in document["stages"]:
                 raise ValueError(f"unknown stage {name!r}")
-            status = str(values.get("status", "not_started"))
-            if status not in ("not_started", "complete"):
-                raise ValueError("a stage is 'not_started' or 'complete'")
-            # A new status or note is new work: any earlier sign-off lapses.
             document["stages"][name] = {
-                "status": status,
-                "note": " ".join(str(values.get("note", "")).split()),
-                "done_by": actor if status == "complete" else ""}
+                "status": str(values.get("status", "not_started")),
+                "note": str(values.get("note", ""))}
         elif section == "completion":
             name = values["name"]
             if name not in document["completion"]:
                 raise ValueError(f"unknown completion check {name!r}")
-            done = bool(values.get("done", False))
-            note = " ".join(str(values.get("note", "")).split())
-            if done and not note:
-                raise ValueError(f"say what was done for {name!r} before "
-                                 "marking it done")
             document["completion"][name] = {
-                "done": done, "note": note,
-                "evidence": list(values.get("evidence", [])),
-                "done_by": actor if done else ""}
-        elif section == "signoff":
-            # The reviewer's sign-off on a completed stage or completion
-            # check. Separation of duties: whoever marked it done cannot
-            # sign it off. Changing the item afterwards clears the sign-off.
-            kind = str(values.get("kind", ""))
-            name = str(values.get("name", ""))
-            items = {"stage": document["stages"],
-                     "completion": document["completion"]}.get(kind)
-            if items is None:
-                raise ValueError("sign off a 'stage' or a 'completion' check")
-            if name not in items:
-                raise ValueError(f"unknown {kind} {name!r}")
-            item = items[name]
-            finished = (item.get("status") == "complete" if kind == "stage"
-                        else bool(item.get("done")))
-            if not finished:
-                raise ValueError(f"{name!r} is not done yet; nothing to sign off")
-            if not item.get("done_by"):
-                # Marked done before who-did-it was recorded: the separation
-                # of duties cannot be checked, so it cannot be signed off yet.
-                raise ValueError(f"who marked {name!r} done is not recorded; reopen "
-                                 "it and mark it done again before signing it off")
-            if item.get("done_by") == actor:
-                raise SeparationOfDutiesError(
-                    "the person who marked it done cannot also sign it off")
-            item["reviewed_by"] = actor
+                "done": bool(values.get("done", False)),
+                "note": str(values.get("note", "")),
+                "evidence": list(values.get("evidence", []))}
         elif section == "line_mapping":
             # The client's own trial-balance label (or one account) mapped to
             # a statement line the procedures read (K8). The preparer or the

@@ -102,8 +102,9 @@ what stops a learner finishing Kestrel in the Workbench.
   tab that clears it.
 - D3. Materiality on Planning & Risk: benchmark, percentage, amount and
   reason; performance materiality and clearly trivial shown beside it.
-- D4. Completion checks and stages: a note for what was done, undo, and a
-  reviewer sign-off by someone other than the preparer.
+- D4. Completion checks and stages: reopen (undo). The sign-off and the
+  required notes built on 30 Sep were removed the same day (James: Noesi is a
+  supplement to an audit, not audit software; no sign-offs or approval steps).
 
 D1-D4 done 2026-09-30 (7cfb3fe). Added the same day (James: "complete the
 other roadmap things, toward the videos"):
@@ -117,8 +118,11 @@ other roadmap things, toward the videos"):
 - D8. Working paper before the lock: a DRAFT, marked, unsigned, never an
   export; saved as an HTML file, since a link cannot carry the session (gap 5).
 
-Still waiting for James: Flow Map (7), undo on Sources/Team (8), activity
-log (10), evidence request status (11), Kestrel's fraud risks (12).
+Dropped 30 Sep (James): the other gaps (Flow Map, undo on Sources/Team,
+activity log, evidence request status, fraud-risk button). **Rule: Noesi is a
+supplement. Build only what tests client data or shows what the tests found
+and could not test. No sign-offs, signatures, approval or file-management
+features.**
 
 ### E. Close-out
 - E1. Push to GitHub (James approves).

@@ -1004,95 +1004,39 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
       </p>
 
       <h3>Stages</h3>
-      <SignoffTable kind="stage" rows={Object.entries(workflow.stages).map(([name, s]) => ({
-        name, done: s.status === "complete", note: s.note,
-        done_by: s.done_by, reviewed_by: s.reviewed_by }))}
-        onSave={(name, done, note) => act(() => client.updateWorkflow(eid, "stage",
-          { name, status: done ? "complete" : "not_started", note }))()}
-        onSignoff={(name) => act(() => client.updateWorkflow(eid, "signoff",
-          { kind: "stage", name }))()} />
+      <DoneTable label="Stage" rows={Object.entries(workflow.stages).map(([name, s]) => ({
+        name, done: s.status === "complete", note: s.note }))}
+        onSet={(name, done) => act(() => client.updateWorkflow(eid, "stage",
+          { name, status: done ? "complete" : "not_started" }))()} />
 
       <h3>Completion checks ({readiness.completion_done}/{readiness.completion_total})</h3>
-      <SignoffTable kind="completion" rows={Object.entries(workflow.completion).map(([name, c]) => ({
-        name, done: c.done, note: c.note, done_by: c.done_by, reviewed_by: c.reviewed_by }))}
-        onSave={(name, done, note) => act(() => client.updateWorkflow(eid, "completion",
-          { name, done, note }))()}
-        onSignoff={(name) => act(() => client.updateWorkflow(eid, "signoff",
-          { kind: "completion", name }))()} />
-      <p className="note">
-        Say what was done before marking an item done. A reviewer or the partner
-        signs it off, never the person who marked it done; changing it afterwards
-        clears the sign-off. The lock needs every item done; the sign-off is kept
-        in the record but does not yet gate the lock.
-      </p>
+      <DoneTable label="Check" rows={Object.entries(workflow.completion).map(([name, c]) => ({
+        name, done: c.done, note: c.note }))}
+        onSet={(name, done) => act(() => client.updateWorkflow(eid, "completion",
+          { name, done, note: done ? "performed" : "" }))()} />
     </>
   );
 }
 
-interface SignoffRow {
-  name: string; done: boolean; note: string; done_by?: string; reviewed_by?: string;
-}
-
-/** Stages and completion checks: what was done, by whom, and who signed it off. */
-function SignoffTable({ kind, rows, onSave, onSignoff }: {
-  kind: "stage" | "completion";
-  rows: SignoffRow[];
-  onSave: (name: string, done: boolean, note: string) => void;
-  onSignoff: (name: string) => void;
+/** Stages and completion checks: done or open, with a way back. */
+function DoneTable({ label, rows, onSet }: {
+  label: string;
+  rows: { name: string; done: boolean; note: string }[];
+  onSet: (name: string, done: boolean) => void;
 }) {
-  const [editing, setEditing] = useState("");
-  const [note, setNote] = useState("");
   return (
     <table className="dense">
-      <thead><tr><th>{kind === "stage" ? "Stage" : "Check"}</th><th>Status</th>
-        <th>What was done</th><th>Sign-off</th><th /></tr></thead>
+      <thead><tr><th>{label}</th><th>Status</th><th>Note</th><th /></tr></thead>
       <tbody>
         {rows.map((row) => (
           <tr key={row.name}>
             <td>{row.name.replace(/_/g, " ")}</td>
-            <td className={`status ${row.done ? "ok" : "pending"}`}>
-              {row.done ? "done" : "open"}
-              {row.done_by && <div className="note">by {row.done_by}</div>}
-            </td>
+            <td className={`status ${row.done ? "ok" : "pending"}`}>{row.done ? "done" : "open"}</td>
+            <td>{row.note}</td>
             <td>
-              {editing === row.name ? (
-                <form className="inline" onSubmit={(e) => {
-                  e.preventDefault(); onSave(row.name, true, note.trim()); setEditing("");
-                }}>
-                  <input value={note} autoFocus size={40}
-                         placeholder="what was done (10+ characters)"
-                         onChange={(e) => setNote(e.target.value)} />
-                  <button className="action" type="submit" disabled={note.trim().length < 10}>
-                    {row.done ? "save" : "mark done"}
-                  </button>
-                  <button className="action" type="button" onClick={() => setEditing("")}>cancel</button>
-                </form>
-              ) : (row.note || <span className="note">—</span>)}
-            </td>
-            <td>
-              {row.reviewed_by ? (
-                <span className="status ok">signed off by {row.reviewed_by}</span>
-              ) : row.done ? (
-                <button className="action"
-                        title="Reviewer or partner; not the person who marked it done"
-                        onClick={() => onSignoff(row.name)}>
-                  sign off
-                </button>
-              ) : <span className="note">—</span>}
-            </td>
-            <td>
-              {editing !== row.name && (
-                <button className="action"
-                        onClick={() => { setEditing(row.name); setNote(row.note); }}>
-                  {row.done ? "edit note" : "mark done…"}
-                </button>
-              )}{" "}
-              {row.done && editing !== row.name && (
-                <button className="action" title="Reopen: marks it open again and clears any sign-off"
-                        onClick={() => onSave(row.name, false, row.note)}>
-                  reopen
-                </button>
-              )}
+              <button className="action" onClick={() => onSet(row.name, !row.done)}>
+                {row.done ? "reopen" : "mark done"}
+              </button>
             </td>
           </tr>
         ))}

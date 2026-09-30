@@ -1,12 +1,11 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
-"""D1, D3, D4 (roadmap 2026-09-30): excluding a procedure, materiality from a
-benchmark, and notes, undo and sign-off on stages and completion checks."""
+"""D1 and D3 (roadmap 2026-09-30): excluding a procedure with a reason, and
+materiality from a benchmark."""
 
 import pytest
 
 from assurance_application.service import AuthorizationError, WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
-from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 
@@ -93,58 +92,3 @@ def test_an_amount_alone_clears_an_earlier_benchmark(service, eid):
     service.update_workflow(ALICE, eid, "materiality", {"amount": 12000})
     m = doc(service, eid)["materiality"]
     assert (m["amount"], m["benchmark_amount"], m["percentage"]) == (12000.0, "", "")
-
-
-# ------------------------------------------------------------------ D4
-
-def test_a_completion_check_needs_a_note_and_can_be_undone(service, eid):
-    with pytest.raises(ValueError, match="say what was done"):
-        service.update_workflow(BOB, eid, "completion",
-                                {"name": "going_concern", "done": True, "note": " "})
-    service.update_workflow(BOB, eid, "completion",
-                            {"name": "going_concern", "done": True,
-                             "note": "indicators reviewed with the CFO"})
-    check = doc(service, eid)["completion"]["going_concern"]
-    assert (check["done"], check["done_by"]) == (True, BOB)
-    service.update_workflow(BOB, eid, "completion",
-                            {"name": "going_concern", "done": False, "note": ""})
-    check = doc(service, eid)["completion"]["going_concern"]
-    assert (check["done"], check["done_by"]) == (False, "")
-
-
-def test_signoff_is_the_reviewers_and_never_the_preparers(service, eid):
-    service.update_workflow(BOB, eid, "completion",
-                            {"name": "subsequent_events", "done": True,
-                             "note": "read minutes to report date"})
-    with pytest.raises(AuthorizationError):  # a preparer holds no sign-off role
-        service.update_workflow(BOB, eid, "signoff",
-                                {"kind": "completion", "name": "subsequent_events"})
-    service.update_workflow(CAROL, eid, "signoff",
-                            {"kind": "completion", "name": "subsequent_events"})
-    assert doc(service, eid)["completion"]["subsequent_events"]["reviewed_by"] == CAROL
-    # Changing the item afterwards clears the sign-off.
-    service.update_workflow(BOB, eid, "completion",
-                            {"name": "subsequent_events", "done": True,
-                             "note": "read minutes and board papers to report date"})
-    assert "reviewed_by" not in doc(service, eid)["completion"]["subsequent_events"]
-
-
-def test_the_partner_who_marked_it_done_cannot_sign_it_off(service, eid):
-    service.update_workflow(ALICE, eid, "stage",
-                            {"name": "risk_assessment", "status": "complete",
-                             "note": "risks assessed and linked"})
-    with pytest.raises(SeparationOfDutiesError):
-        service.update_workflow(ALICE, eid, "signoff",
-                                {"kind": "stage", "name": "risk_assessment"})
-    service.update_workflow(CAROL, eid, "signoff",
-                            {"kind": "stage", "name": "risk_assessment"})
-    assert doc(service, eid)["stages"]["risk_assessment"]["reviewed_by"] == CAROL
-
-
-def test_nothing_open_can_be_signed_off_and_stage_status_is_checked(service, eid):
-    with pytest.raises(ValueError, match="not done yet"):
-        service.update_workflow(CAROL, eid, "signoff",
-                                {"kind": "stage", "name": "controls"})
-    with pytest.raises(ValueError, match="'not_started' or 'complete'"):
-        service.update_workflow(ALICE, eid, "stage",
-                                {"name": "controls", "status": "done"})

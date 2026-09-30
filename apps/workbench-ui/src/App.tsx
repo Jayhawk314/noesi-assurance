@@ -275,8 +275,6 @@ function Workbench({ client }: { client: Client }) {
                   This removes the engagement and everything loaded into it: files, mappings,
                   runs, findings, team and settings. It cannot be undone. The journal keeps a
                   line saying who deleted it and why. To keep it but hide it, use archive instead.
-                  An engagement that was ever locked and signed cannot be deleted: signed audit
-                  files are kept, so archive it.
                 </p>
                 <p>To confirm, type the client name: <b>{deleting.client_name}</b></p>
                 <input value={deleteName} placeholder="type the name to delete" autoFocus style={{ minWidth: "22em" }}

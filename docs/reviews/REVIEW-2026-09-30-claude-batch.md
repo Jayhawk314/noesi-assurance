@@ -211,3 +211,6 @@ v1-lock fixture and a scratch Kestrel load). The real DB was not touched in this
 - b. Fixed: shared keys get the red warning bar again (a duplicated key is itself an audit fact).
 - c. Fixed: with no readiness blockers, NOT READY points to the partner's decisions under "Still to decide".
 - d. Fixed: a benchmark too large to compute is refused ("too large"), tested.
+
+## Reversed later on 30 Sep (James)
+Noesi is a supplement, not audit software. The sign-off (finding 6's fix), the required notes on stages and checks, and the refusal to delete a signed engagement (finding 4's default) were removed. Deleting a signed engagement works again, with the signature cleanup from the first review.
