@@ -38,3 +38,29 @@ def test_the_catalog_carries_the_text_for_every_setting_it_lists(tmp_path):
         assert all(t["label"] for t in catalog["policy_text"].values())
     finally:
         conn.close()
+
+
+def test_the_performance_rate_setting_reaches_the_sad(tmp_path):
+    from assurance_application.service import WorkbenchService
+    from assurance_artifacts.signing import LocalKeyStore
+    from assurance_artifacts.vault import ArtifactVault
+    from assurance_persistence.database import connect, migrate
+    from assurance_persistence.legacy_import import ensure_tenant
+    import pytest
+    conn = connect(tmp_path / "control.db")
+    migrate(conn)
+    try:
+        svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), ensure_tenant(conn, "firm"),
+                               keystore=LocalKeyStore(tmp_path / "keys"))
+        eid = svc.create_engagement("partner", "Invented Co", "2026-12-31")["engagement_id"]
+        svc.update_workflow("partner", eid, "materiality",
+                            {"amount": 20000, "basis": "revenue", "rationale": "about 1% of revenue"})
+        assert svc.sad(eid)["performance_materiality"] == 15000
+        svc.update_workflow("partner", eid, "policy",
+                            {"name": "performance_materiality_pct", "value": "60%"})
+        assert svc.sad(eid)["performance_materiality"] == 12000
+        with pytest.raises(ValueError, match="performance_materiality_pct"):
+            svc.update_workflow("partner", eid, "policy",
+                                {"name": "performance_materiality_pct", "value": "120"})
+    finally:
+        conn.close()

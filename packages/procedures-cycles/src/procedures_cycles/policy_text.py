@@ -19,6 +19,10 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
         "Clearly trivial, as a percent of materiality", PERCENT,
         "Misstatements below this share of materiality are clearly trivial and are "
         "not accumulated. 5% when left empty."),
+    "performance_materiality_pct": (
+        "Performance materiality, as a percent of materiality", PERCENT,
+        "Overall performance materiality is this share of materiality; firms commonly "
+        "use 50% to 75%. 75% when left empty."),
     # planning
     "pm_allocation_multiple": (
         "Allowed total of performance-materiality allocations", RATE,

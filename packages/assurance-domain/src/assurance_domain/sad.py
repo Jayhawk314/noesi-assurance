@@ -107,12 +107,31 @@ def trivial_rate(value) -> Decimal:
     return rate
 
 
+def performance_rate(value) -> Decimal:
+    """The engagement's performance materiality, as a fraction of overall
+    materiality: given as a fraction (0.6) or a percent (60 or '60%'); unset,
+    the 75% default. Firms commonly use 50% to 75%."""
+    raw = str(value if value is not None else "").strip()
+    if not raw:
+        return PERFORMANCE_PCT
+    rate = parse_amount(raw.rstrip("%"))
+    if rate is None:
+        raise ValueError(f"performance_materiality_pct {value!r} is not a number")
+    if rate >= 1 or raw.endswith("%"):
+        rate = rate / 100
+    if not Decimal("0") < rate < Decimal("1"):
+        raise ValueError("performance_materiality_pct must be above 0% and below 100% "
+                         "of materiality")
+    return rate
+
+
 def summary_of_differences(rows: list[dict], *, materiality,
-                           trivial_pct: Decimal = TRIVIAL_PCT) -> dict:
+                           trivial_pct: Decimal = TRIVIAL_PCT,
+                           performance_pct: Decimal = PERFORMANCE_PCT) -> dict:
     """Aggregate unadjusted misstatements and conclude against materiality."""
     overall = parse_amount(materiality) or Decimal("0")
     ctt = _quantized(trivial_pct * overall) if overall else Decimal("0")
-    performance = _quantized(PERFORMANCE_PCT * overall) if overall else None
+    performance = _quantized(performance_pct * overall) if overall else None
 
     def lines_for(status: str) -> list[dict]:
         # One SAD line per misstatement (finding id); rows sharing an id sum.

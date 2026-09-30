@@ -141,3 +141,20 @@ def test_broken_trail_blocks_readiness():
                          trail_status={"ok": False})
     assert produced["ready"] is False
     assert {"code": "DECISION_TRAIL_BROKEN", "count": 1} in produced["blockers"]
+
+
+def test_performance_materiality_is_the_engagements_rate_not_a_fixed_75():
+    """30 Sep 2026: performance materiality was fixed at 75% of materiality;
+    firms set it (commonly 50% to 75%)."""
+    import pytest
+    from decimal import Decimal
+    from assurance_domain.sad import performance_rate
+    assert performance_rate(None) == Decimal("0.75") and performance_rate("") == Decimal("0.75")
+    assert performance_rate("60") == performance_rate("60%") == performance_rate("0.6") \
+        == Decimal("0.6")
+    for bad in ("0", "100", "abc"):
+        with pytest.raises(ValueError, match="performance_materiality_pct"):
+            performance_rate(bad)
+    assert summary_of_differences([], materiality="15000")["performance_materiality"] == 11250
+    assert summary_of_differences([], materiality="15000", performance_pct=Decimal("0.6")
+                                  )["performance_materiality"] == 9000

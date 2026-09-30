@@ -155,4 +155,5 @@ def procedures_for_assertion(assertion: str) -> list[str]:
 # Policies a team may set that no contract *requires* (coverage does not gate
 # on them). Kept outside the contract dataclass because contract content is
 # frozen against the Phase 0 golden bundle.
-OPTIONAL_POLICIES: tuple[str, ...] = ("split_window_days", "clearly_trivial_pct")
+OPTIONAL_POLICIES: tuple[str, ...] = ("split_window_days", "clearly_trivial_pct",
+                                      "performance_materiality_pct")

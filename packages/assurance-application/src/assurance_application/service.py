@@ -29,7 +29,7 @@ from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
 from assurance_domain.readiness import blank_engagement, readiness
 from assurance_domain.sad import (
-    requires_concurrence, summary_of_differences, trivial_rate,
+    performance_rate, requires_concurrence, summary_of_differences, trivial_rate,
 )
 from assurance_persistence.database import utcnow
 from assurance_persistence.spine import run_command
@@ -93,6 +93,12 @@ FRAUD_TESTS: dict[str, tuple[str, str]] = {
     "payroll.register_tests": ("Ghost employees and payroll schemes",
                                "AU-C 240: payroll fraud"),
 }
+
+
+def _performance_rate(document: dict) -> Decimal:
+    """The engagement's performance-materiality rate (policy
+    performance_materiality_pct), or the 75% default when unset."""
+    return performance_rate((document.get("policies") or {}).get("performance_materiality_pct"))
 
 
 def _trivial_rate(document: dict) -> Decimal:
@@ -939,7 +945,7 @@ class WorkbenchService:
 
         document, _ = self.workflow_document(engagement_id)
         limits = thresholds(document["materiality"].get("amount") or 0,
-                            _trivial_rate(document))
+                            _trivial_rate(document), _performance_rate(document))
         current = self._tables(engagement_id)
         current_records = {role: list(t.engine_view().records)
                            for role, t in current.items()}
@@ -1548,6 +1554,8 @@ class WorkbenchService:
                     raise ValueError(str(exc)) from exc
             if name == "clearly_trivial_pct":  # checked now, not when the SAD is read
                 trivial_rate(values["value"])
+            if name == "performance_materiality_pct":
+                performance_rate(values["value"])
             if name == "misstatement_likely_basis":
                 from procedures_cycles.statements import LIKELY_BASES
                 if str(values["value"]).strip().lower() not in LIKELY_BASES:
@@ -1601,7 +1609,8 @@ class WorkbenchService:
                 if record else False,
             })
         summary = summary_of_differences(rows, materiality=materiality,
-                                         trivial_pct=_trivial_rate(document))
+                                         trivial_pct=_trivial_rate(document),
+                                         performance_pct=_performance_rate(document))
         # Above-trivial dispositions are proposals until concurred (AU-C
         # 220); the SAD refuses to conclude over unreviewed judgments. The
         # domain summary keeps its golden-tested shape — these keys ride on
@@ -1707,10 +1716,10 @@ class WorkbenchService:
         # Settings that belong to no one area (e.g. the firm's clearly-trivial
         # rate, used by the SAD whatever is in scope).
         from procedures_cycles.policy_text import policy_text
-        shown = {"clearly_trivial_pct"} | {p for a in areas
+        shown = {"clearly_trivial_pct", "performance_materiality_pct"} | {p for a in areas
                                            for p in a["required_policies"] + a["optional_policies"]}
         return {"areas": areas, "engagement_policies": list(ENGAGEMENT_POLICIES),
-                "general_policies": ["clearly_trivial_pct"],
+                "general_policies": ["performance_materiality_pct", "clearly_trivial_pct"],
                 "policy_text": {p: policy_text(p) for p in sorted(shown)}}
 
     def draft_opinion(self, engagement_id: str) -> dict:

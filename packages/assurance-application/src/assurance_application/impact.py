@@ -103,12 +103,13 @@ _SIGNIFICANCE_ORDER = ("none", "below_trivial", "not_measured",
                        "above_trivial", "above_performance")
 
 
-def thresholds(materiality, trivial_pct: Decimal = TRIVIAL_PCT) -> dict:
+def thresholds(materiality, trivial_pct: Decimal = TRIVIAL_PCT,
+               performance_pct: Decimal = PERFORMANCE_PCT) -> dict:
     """Clearly-trivial and performance materiality derived like the SAD."""
     overall = parse_amount(materiality) or Decimal("0")
     return {"materiality": overall,
             "clearly_trivial": trivial_pct * overall,
-            "performance": PERFORMANCE_PCT * overall}
+            "performance": performance_pct * overall}
 
 
 def significance(amount, limits: dict) -> str:

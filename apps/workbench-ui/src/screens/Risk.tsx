@@ -62,7 +62,7 @@ function MaterialityPanel({ client, eid, onError }: {
       </p>
       <p className="note">
         Performance materiality {amount(sad.performance_materiality)} · clearly
-        trivial {amount(sad.clearly_trivial)} (its rate is set on Scope &amp; Policies).
+        trivial {amount(sad.clearly_trivial)} (both rates are set on Scope &amp; Policies).
       </p>
       <form className="inline" onSubmit={save}>
         <input list="benchmarks" value={basis} placeholder="benchmark (e.g. total revenue)"
