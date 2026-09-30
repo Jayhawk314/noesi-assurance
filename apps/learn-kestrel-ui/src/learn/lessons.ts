@@ -9,7 +9,7 @@
 
 import { Coming, Lesson } from "./types";
 
-const DEMO_START = "Start the Workbench with the Kestrel demo: `python -m workbench_api --demo`, open the address it prints, paste the session token, and open **Kestrel Valley Cycle Supply (demo)**.";
+const DEMO_START = "Start the Workbench with the Kestrel demo: `python -m workbench_api --demo`, open the address it prints, and open **Kestrel Valley Cycle Supply (demo)**. (Without `--demo`, choose Kestrel under **load teaching case**.)";
 
 export const LESSONS: Lesson[] = [
   {
@@ -91,11 +91,12 @@ export const LESSONS: Lesson[] = [
       ],
     },
     inNoesi: {
-      procedures: ["Team", "Scope & Policies", "Sources & Mappings"],
+      procedures: ["Team", "Scope & Policies", "Planning & Risk", "Sources & Mappings"],
       steps: [
         DEMO_START,
         "**Team:** see the partner, preparer and reviewer, each a different login.",
-        "**Scope & Policies:** read materiality, the period start and end, the audit areas switched on, and every approved policy.",
+        "**Scope & Policies:** read the period start, the audit areas switched on, and every approved policy.",
+        "**Planning & Risk:** read materiality and its basis (SAD & Completion shows it too).",
         "**Sources & Mappings:** check that every file loaded and none was refused. Note which files say they were **prepared by hand from the QuickBooks export**: the trial balances are among them, because the Workbench does not yet read that report raw.",
       ],
     },
@@ -108,7 +109,7 @@ export const LESSONS: Lesson[] = [
         "Keeps the three chairs apart: a reviewer cannot approve their own mapping.",
         "Shows each file's provenance, including files prepared by hand from an export.",
       ],
-      where: ["Workbench → Team", "Workbench → Scope & Policies", "Workbench → Sources & Mappings"],
+      where: ["Workbench → Team", "Workbench → Scope & Policies", "Workbench → Planning & Risk", "Workbench → Sources & Mappings"],
       doesNot: [
         "It does not decide acceptance, independence or materiality; it records the partner's decisions.",
         "It has no engagement-letter or independence checklist.",
