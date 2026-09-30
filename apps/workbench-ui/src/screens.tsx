@@ -5,6 +5,7 @@ import {
   Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification, Blocker,
   ApControlBuilt, ApControlCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
+import { amountsInWords, cents } from "./lib/words";
 
 interface ScreenProps {
   client: Client;
@@ -173,15 +174,20 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   // suggestion. A file is done mapping *for a role* once an active spec maps
   // it as that role; it may still feed another role (one QuickBooks report
   // can hold bills and purchase orders).
+  // A file already mapped shows a role it is mapped as, never a fresh
+  // filename guess: "Transaction_List_by_Vendor" once guessed Vendors and
+  // "propose all" would have mapped it again (30 Sep 2026).
+  const activeSpecs = (data?.mapping_specs ?? []).filter((s) => s.status !== "superseded");
+  const mappedAs = new Set(activeSpecs.map((s) => `${s.artifact_id}|${s.role}`));
+  const rolesOf = (a: Artifact) =>
+    activeSpecs.filter((s) => s.artifact_id === a.artifact_id).map((s) => s.role);
   const chosenRole = (artifact: Artifact) =>
-    mapRole[artifact.artifact_id] ?? artifact.inferred_role ?? "";
-  const mappedAs = new Set(
-    (data?.mapping_specs ?? [])
-      .filter((s) => s.status !== "superseded")
-      .map((s) => `${s.artifact_id}|${s.role}`));
+    mapRole[artifact.artifact_id] ?? rolesOf(artifact)[0] ?? artifact.inferred_role ?? "";
   const mapped = (a: Artifact) => mappedAs.has(`${a.artifact_id}|${chosenRole(a)}`);
+  // The batch takes only files with no mapping yet; a second role for a mapped
+  // file is always a deliberate, one-at-a-time choice.
   const proposable = (data?.artifacts ?? []).filter(
-    (a) => a.state === "promoted" && !mapped(a) && chosenRole(a));
+    (a) => a.state === "promoted" && !mapped(a) && chosenRole(a) && !rolesOf(a).length);
   const proposedSpecs = (data?.mapping_specs ?? [])
     .filter((s) => s.status === "proposed");
   const normalizedSpecs = new Set(
@@ -217,7 +223,11 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                   {(data?.roles ?? ROLES).map((role) => (
                     <option key={role} value={role}>{role.replace(/_/g, " ")}</option>))}
                 </select>
-                {artifact.inferred_from === "columns" && !mapRole[artifact.artifact_id] && (
+                {rolesOf(artifact).length > 0 ? (
+                  <div className="note">
+                    mapped as {rolesOf(artifact).map((r) => r.replace(/_/g, " ")).join(", ")}
+                  </div>
+                ) : artifact.inferred_from === "columns" && !mapRole[artifact.artifact_id] && (
                   <div className="note">guessed from its columns: check it</div>
                 )}
               </td>
@@ -650,6 +660,10 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
 
   const executable = (data?.coverage.procedures ?? [])
     .filter((row) => row.status === "executable");
+  // Plain names from coverage; the code stays beside it, small.
+  const nameOf: Record<string, string> = {};
+  for (const row of data?.coverage.procedures ?? []) nameOf[row.procedure_id] = row.name;
+  const named = (pid: string) => nameOf[pid] ?? pid;
 
   // The latest completed run of each procedure: its findings are current;
   // an earlier run's are superseded by the rerun (hidden only while the box
@@ -702,7 +716,7 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
           <option value="">choose executable procedure…</option>
           {executable.map((row) => (
             <option key={row.procedure_id} value={row.procedure_id}>
-              {row.procedure_id}
+              {row.name}
             </option>
           ))}
         </select>
@@ -722,7 +736,7 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
         <tbody>
           {(data?.runs ?? []).map((run: Run) => (
             <tr key={run.run_id}>
-              <td><code>{run.procedure_id}</code></td>
+              <td><b>{named(run.procedure_id)}</b><br /><code>{run.procedure_id}</code></td>
               <td><span className={`status ${run.status}`}>{run.status}</span></td>
               <td><code>{run.executed_by}</code></td>
               <td><code>{run.reviewed_by || "—"}</code></td>
@@ -754,7 +768,7 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
       <form className="inline" onSubmit={(e) => e.preventDefault()}>
         <select value={onlyProc} onChange={(e) => { setOnlyProc(e.target.value); setPicked(new Set()); }}>
           <option value="">every procedure ({current.length})</option>
-          {procs.map(([pid, n]) => <option key={pid} value={pid}>{pid} ({n})</option>)}
+          {procs.map(([pid, n]) => <option key={pid} value={pid}>{named(pid)} ({n})</option>)}
         </select>
         <select value={onlyStatus} onChange={(e) => { setOnlyStatus(e.target.value); setPicked(new Set()); }}>
           <option value="">any disposition</option>
@@ -814,13 +828,13 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
                          return next;
                        })} />
               </td>
-              <td><code>{finding.procedure_id}</code>
+              <td><b>{named(finding.procedure_id)}</b><br /><code>{finding.procedure_id}</code>
                 {latestRun[finding.procedure_id] !== finding.run_id
                   && <div className="note">earlier run</div>}</td>
               <td>{finding.verdict.verdict}</td>
               <td><code>{finding.tags.assertion}</code></td>
               <td>{finding.tags.class}</td>
-              <td>{finding.verdict.reason}
+              <td>{amountsInWords(finding.verdict.reason)}
                 {Object.keys(finding.verdict.evidence ?? {}).length > 0 && (
                   <details className="run-details">
                     <summary>evidence</summary>
@@ -962,8 +976,8 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
           {sad.unadjusted.map((line) => (
             <tr key={line.finding_id}>
               <td><code>{line.finding_id}</code></td>
-              <td>{line.reason}</td>
-              <td>{line.amount.toLocaleString()}</td>
+              <td>{amountsInWords(line.reason)}</td>
+              <td>{cents(line.amount)}</td>
             </tr>
           ))}
         </tbody>
@@ -979,7 +993,7 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
               {Object.entries(sad.schedule.lines).map(([line, amount]) => (
                 <tr key={line}>
                   <td>{line.replace(/_/g, " ")}</td>
-                  <td>{Number(amount).toLocaleString()}</td>
+                  <td>{cents(amount)}</td>
                   <td className={`status ${sad.schedule!.material_lines.includes(line) ? "broken" : "ok"}`}>
                     {sad.schedule!.material_lines.includes(line) ? "at or above materiality" : ""}
                   </td>
@@ -1080,6 +1094,36 @@ const BLOCKERS: Record<string, [string, string | null]> = {
   DECISION_TRAIL_BROKEN: ["The journal's hash chain does not verify. Suspect the record; do not lock.", null],
 };
 
+/** The readiness gate's report implication, in words (an unknown code shows as it is). */
+const IMPLICATIONS: Record<string, string> = {
+  not_ready: "not ready: the items below are open",
+  qualified_or_disclaimer_consideration: "consider a qualified opinion or a disclaimer (scope limitation)",
+  qualified_or_adverse_consideration: "consider a qualified or adverse opinion (material misstatement)",
+  unmodified_opinion_candidate: "an unmodified opinion is possible",
+};
+
+/** A blocker's items in words. Findings arrive as internal keys
+ *  (`audit_procedure_run|["payroll.register_tests", "e16", ...]`); they are
+ *  counted by procedure, largest first, so the list says where the open work
+ *  is. Any other item shows as it is. */
+export function itemsInWords(items: string[]): string {
+  const byProcedure = new Map<string, number>();
+  const other: string[] = [];
+  for (const item of items) {
+    const match = /^[a-z_]+\|(\[.*\])$/.exec(item);
+    let procedure: unknown = null;
+    if (match) {
+      try { procedure = (JSON.parse(match[1]) as unknown[])[0]; } catch { procedure = null; }
+    }
+    if (typeof procedure === "string") byProcedure.set(procedure, (byProcedure.get(procedure) ?? 0) + 1);
+    else other.push(item);
+  }
+  const counted = [...byProcedure.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([procedure, n]) => `${procedure}: ${n}`);
+  return [...counted, ...other].join(", ");
+}
+
 export function BlockerList({ blockers, onNavigate }: {
   blockers: Blocker[];
   onNavigate?: (tab: string) => void;
@@ -1099,7 +1143,7 @@ export function BlockerList({ blockers, onNavigate }: {
                   ? <button className="action" onClick={() => onNavigate(tab)}>go to {tab}</button>
                   : <span className="note">—</span>}
               </td>
-              <td className="note">{(blocker.items ?? []).join(", ")}</td>
+              <td className="note">{itemsInWords(blocker.items ?? [])}</td>
             </tr>
           );
         })}
@@ -1184,7 +1228,10 @@ export function LockScreen({ client, engagement, onError, onChanged, onNavigate 
           </b>
           gate
         </span>
-        <span className="metric"><b>{readiness.report_implication}</b>implication</span>
+        <span className="metric">
+          <b>{IMPLICATIONS[readiness.report_implication] ?? readiness.report_implication}</b>
+          what it means for the report
+        </span>
       </div>
       {readiness.blockers.length > 0 && (
         <BlockerList blockers={readiness.blockers} onNavigate={onNavigate} />
@@ -1296,7 +1343,7 @@ export function LockScreen({ client, engagement, onError, onChanged, onNavigate 
                     {item.unlocked_at}<br />
                     by <code>{item.unlocked_by}</code>
                   </td>
-                  <td>{item.reason}</td>
+                  <td>{amountsInWords(item.reason)}</td>
                   <td>
                     <span className={`status ${item.manifest_ok
                       && item.signature_ok && item.journal_anchor_ok

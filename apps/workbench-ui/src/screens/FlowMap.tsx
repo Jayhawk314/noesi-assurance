@@ -55,10 +55,15 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
     return "missing";
   }, [data]);
 
+  // Every file loaded for the role counts (a year's journal plus July's, say),
+  // and so does every row set aside: "100 rows" alone hid 2 bills.
   const rowsFor = useCallback((role: string) => {
-    const set = data?.sources.datasets.find((entry) => entry.role === role);
-    return set ? set.rows_loaded : null;
+    const sets = data?.sources.datasets.filter((entry) => entry.role === role) ?? [];
+    return sets.length ? sets.reduce((n, set) => n + set.rows_loaded, 0) : null;
   }, [data]);
+  const asideFor = useCallback((role: string) =>
+    (data?.sources.datasets ?? []).filter((entry) => entry.role === role)
+      .reduce((n, set) => n + (set.rows_rejected ?? 0), 0), [data]);
 
   const linkState = useCallback((ids: string[]): ProcState | null => {
     const states = ids
@@ -120,6 +125,7 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
           map={map}
           roleState={roleState}
           rowsFor={rowsFor}
+          asideFor={asideFor}
           linkState={linkState}
           selected={selected}
           onSelect={setSelected}
@@ -202,6 +208,7 @@ interface DiagramProps {
   map: CycleMap;
   roleState: (role: string) => RoleState;
   rowsFor: (role: string) => number | null;
+  asideFor: (role: string) => number;
   linkState: (ids: string[]) => ProcState | null;
   selected: { kind: "node"; node: MapNode } | { kind: "edge"; edge: MapEdge } | null;
   onSelect: (
@@ -210,7 +217,7 @@ interface DiagramProps {
 }
 
 function Diagram(
-  { map, roleState, rowsFor, linkState, selected, onSelect }: DiagramProps,
+  { map, roleState, rowsFor, asideFor, linkState, selected, onSelect }: DiagramProps,
 ) {
   const arrowFor = (state: ProcState | null) =>
     `url(#fm-arrow-${state ?? "structural"})`;
@@ -280,7 +287,7 @@ function Diagram(
             <text className="fm-label" x="13" y="26">{node.label}</text>
             <text className="fm-sub" x="13" y="45">
               {state === "supplied"
-                ? `${(rows ?? 0).toLocaleString()} rows`
+                ? `${(rows ?? 0).toLocaleString()} rows${asideFor(node.role) ? `, ${asideFor(node.role)} set aside` : ""}`
                 : state === "empty" ? "0 rows — all set aside"
                 : state === "mapped" ? "mapped, not normalized" : "not supplied"}
             </text>

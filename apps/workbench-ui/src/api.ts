@@ -314,6 +314,8 @@ export interface CycleArea {
 }
 export interface CycleCatalog {
   areas: CycleArea[]; engagement_policies: string[]; general_policies: string[];
+  /** Each setting in words: label, kind of value (amount, percent, days...), meaning. */
+  policy_text?: Record<string, { label: string; kind: string; meaning: string }>;
 }
 
 /** The loaded trial balance's own labels and how they map to statement lines. */

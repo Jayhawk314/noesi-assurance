@@ -1704,8 +1704,12 @@ class WorkbenchService:
                 "required_policies": required, "optional_policies": optional})
         # Settings that belong to no one area (e.g. the firm's clearly-trivial
         # rate, used by the SAD whatever is in scope).
+        from procedures_cycles.policy_text import policy_text
+        shown = {"clearly_trivial_pct"} | {p for a in areas
+                                           for p in a["required_policies"] + a["optional_policies"]}
         return {"areas": areas, "engagement_policies": list(ENGAGEMENT_POLICIES),
-                "general_policies": ["clearly_trivial_pct"]}
+                "general_policies": ["clearly_trivial_pct"],
+                "policy_text": {p: policy_text(p) for p in sorted(shown)}}
 
     def draft_opinion(self, engagement_id: str) -> dict:
         """The opinion the evidence points to, with its basis and the

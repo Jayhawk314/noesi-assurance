@@ -8,6 +8,7 @@
 import { useCallback } from "react";
 import { Client, FraudTest, FraudView } from "../api";
 import { useResource } from "../lib/useResource";
+import { amountsInWords } from "../lib/words";
 
 const COVERAGE: Record<string, [string, string]> = {
   executable: ["ok", "can run"],
@@ -134,7 +135,7 @@ export function FraudScreen({ client, eid, onError: _onError }: {
                   <tbody>
                     {mine.map((f) => (
                       <tr key={f.finding_uid}>
-                        <td>{f.verdict.reason}</td>
+                        <td>{amountsInWords(f.verdict.reason)}</td>
                         <td>{f.verdict.score === null || f.verdict.score === undefined ? "—" : f.procedure_id === "ap.vendor_relational_twins" ? `similarity ${f.verdict.score}` : money(f.verdict.score)}</td>
                         <td><span className={`status ${f.disposition.status === "undisposed" || f.disposition.status === "follow_up" ? "pending" : "ok"}`}>
                           {f.disposition.status}</span>

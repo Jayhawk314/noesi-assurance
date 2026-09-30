@@ -258,7 +258,8 @@ function Workbench({ client }: { client: Client }) {
             <form className="inline" onSubmit={(e) => { e.preventDefault(); void create(); }}>
               <input value={newClient} placeholder="client name"
                      onChange={(e) => setNewClient(e.target.value)} />
-              <input value={newPeriod} placeholder="period end (YYYY-MM-DD)"
+              <span className="note">period end</span>
+              <input type="date" value={newPeriod} aria-label="period end" title="period end"
                      onChange={(e) => setNewPeriod(e.target.value)} />
               <button className="action" type="submit"
                       disabled={!newClient.trim() || !newPeriod.trim()}>
@@ -378,6 +379,7 @@ function ChairSwitcher({ acting, sessionPrincipal, team, onSwitch }: {
     <span className="who">
       acting as
       <input className="chair-input" list="chair-options" value={draft}
+             style={{ width: `${Math.max(13, Math.ceil(draft.length * 1.3) + 2)}ch` }}
              aria-label="acting principal"
              onChange={(e) => setDraft(e.target.value)}
              onBlur={() => (draft.trim() ? onSwitch(draft) : setDraft(acting))}

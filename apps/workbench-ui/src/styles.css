@@ -96,7 +96,8 @@ header.app .who {
   gap: 0.45rem;
 }
 header.app .chair-input {
-  width: 13ch;
+  min-width: 13ch;
+  max-width: 32ch;   /* grows with the name (see App.tsx), never clipped */
   font: inherit;
   font-weight: 650;
   padding: 0.15rem 0.4rem;

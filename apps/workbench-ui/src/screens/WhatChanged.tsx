@@ -9,6 +9,7 @@
 import { useCallback } from "react";
 import { Client, Impact, ImpactCard, Significance } from "../api";
 import { useResource } from "../lib/useResource";
+import { amountsInWords } from "../lib/words";
 
 const SIGNIFICANCE: Record<Significance, [string, string]> = {
   none: ["idle", "no dollar effect"],
@@ -82,13 +83,13 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
           {summary.stale_runs} stale run{summary.stale_runs === 1 ? "" : "s"} ·{" "}
           {summary.affected_findings} finding{summary.affected_findings === 1 ? "" : "s"} move ·{" "}
           <b>{summary.judgments_to_revisit}</b> judgment{summary.judgments_to_revisit === 1 ? "" : "s"} to revisit ·{" "}
-          SAD unadjusted would move {money(summary.sad_effect.unadjusted)}{" "}
-          <Sig level={summary.significance} />
+          SAD unadjusted would move {money(summary.sad_effect.unadjusted)} ·{" "}
+          largest single change: <Sig level={summary.significance} />
         </p>
         <p className="note">
           Thresholds: clearly trivial {money(thresholds.clearly_trivial)} ·
           performance {money(thresholds.performance)} · overall {money(thresholds.materiality)}
-          {!thresholds.materiality && " — set materiality on SAD & Completion; until then every change is treated as above trivial."}
+          {!thresholds.materiality && " — set materiality on Planning & Risk; until then every change is treated as above trivial."}
         </p>
       </div>
 
@@ -99,8 +100,8 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
             : <>{rev.before.file} → {rev.after.file}</>}</h3>
           <p className="note">
             {rev.diff.rows_before} → {rev.diff.rows_after} rows, matched on{" "}
-            {rev.diff.key_fields.join(" + ")} · net {money(rev.diff.net_amount_change)}{" "}
-            <Sig level={rev.diff.significance} />
+            {rev.diff.key_fields.join(" + ")} · net {money(rev.diff.net_amount_change)} ·{" "}
+            largest row: <Sig level={rev.diff.significance} />
           </p>
           <table>
             <thead><tr><th>Row</th><th>Change</th><th>Amount effect</th><th /></tr></thead>
@@ -166,7 +167,7 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
               <div>{money(card.amount_before)} → {money(card.amount_after)} · your judgment:{" "}
                 <b>{card.disposition}</b>{card.concurred && " (concurred)"}</div>
               <div><b>{ACTION_LABEL[card.action]}.</b> {card.what_it_means}</div>
-              {card.reason && <div className="note">{card.reason}</div>}
+              {card.reason && <div className="note">{amountsInWords(card.reason)}</div>}
             </div>
           </div>
         ))}

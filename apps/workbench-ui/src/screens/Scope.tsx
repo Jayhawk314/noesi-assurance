@@ -65,7 +65,16 @@ export function ScopeScreen({ client, eid, onError }: {
 
   const PolicyRow = ({ name, required }: { name: string; required: boolean }) => (
     <tr>
-      <td>{words(name)}{required && <span className="status pending"> required</span>}</td>
+      <td>
+        {catalog.data?.policy_text?.[name]?.label || words(name)}
+        {required && <span className="status pending"> required</span>}
+        {catalog.data?.policy_text?.[name]?.label && (
+          <div className="note">
+            {catalog.data.policy_text[name].meaning}{" "}
+            <i>({catalog.data.policy_text[name].kind})</i> · <code>{name}</code>
+          </div>
+        )}
+      </td>
       <td><code>{policies[name] ?? "—"}</code></td>
       <td>
         <input value={draft[name] ?? ""} placeholder="new value"
