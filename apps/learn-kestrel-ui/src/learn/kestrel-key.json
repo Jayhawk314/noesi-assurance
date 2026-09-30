@@ -1,0 +1,1968 @@
+{
+ "source": "finish_line_check.py against answer_key*.json; do not edit, re-run scripts/export_key.py",
+ "modules": {
+  "Engagement setup": [
+   {
+    "item": "materiality",
+    "status": "match",
+    "why": "",
+    "key": "15000",
+    "noesi": "15000.0"
+   },
+   {
+    "item": "period start",
+    "status": "match",
+    "why": "",
+    "key": "2025-07-01",
+    "noesi": "2025-07-01"
+   },
+   {
+    "item": "period end",
+    "status": "match",
+    "why": "",
+    "key": "2026-06-30",
+    "noesi": "2026-06-30"
+   },
+   {
+    "item": "team: partner, preparer, reviewer",
+    "status": "match",
+    "why": "",
+    "key": "partner, preparer, reviewer",
+    "noesi": "reviewer, preparer, partner"
+   },
+   {
+    "item": "every file loads (none refused)",
+    "status": "match",
+    "why": "",
+    "key": "0",
+    "noesi": "0"
+   }
+  ],
+  "Planning": [
+   {
+    "item": "PM allocated",
+    "status": "match",
+    "why": "",
+    "key": "33000.00",
+    "noesi": "33000.00"
+   },
+   {
+    "item": "PM cap (2.0 x materiality)",
+    "status": "match",
+    "why": "",
+    "key": "30000.0",
+    "noesi": "30000.00"
+   },
+   {
+    "item": "PM over the cap by",
+    "status": "match",
+    "why": "",
+    "key": "3000.00",
+    "noesi": "3000.00"
+   },
+   {
+    "item": "trial balance foots",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "trial balance debits",
+    "status": "match",
+    "why": "",
+    "key": "5024465.93",
+    "noesi": "5024465.93"
+   },
+   {
+    "item": "movements flagged (10% or 15,000)",
+    "status": "match",
+    "why": "",
+    "key": "10100, 10200, 10900, 11900, 12100, 15900, 20000, 23000, 32000, 40000, 40500, 50000, 51000, 60100, 64000, 65000, 66000, 68000, 69000",
+    "noesi": "10100, 10200, 10900, 11900, 12100, 15900, 20000, 23000, 32000, 40000, 40500, 50000, 51000, 60100, 64000, 65000, 66000, 68000, 69000"
+   },
+   {
+    "item": "2026 current ratio",
+    "status": "match",
+    "why": "",
+    "key": "1.13",
+    "noesi": "1.1291"
+   },
+   {
+    "item": "2026 quick ratio",
+    "status": "match",
+    "why": "",
+    "key": "1.01",
+    "noesi": "1.0071"
+   },
+   {
+    "item": "2026 gross margin %",
+    "status": "match",
+    "why": "",
+    "key": "27.7",
+    "noesi": "27.6600"
+   },
+   {
+    "item": "2026 net revenue",
+    "status": "match",
+    "why": "",
+    "key": "4225320.00",
+    "noesi": "4225320.00"
+   },
+   {
+    "item": "2026 pretax income",
+    "status": "match",
+    "why": "",
+    "key": "327827.50",
+    "noesi": "327827.50"
+   },
+   {
+    "item": "2025 current ratio",
+    "status": "match",
+    "why": "",
+    "key": "1.00",
+    "noesi": "1.0049"
+   },
+   {
+    "item": "2025 quick ratio",
+    "status": "match",
+    "why": "",
+    "key": "0.85",
+    "noesi": "0.8500"
+   },
+   {
+    "item": "2025 gross margin %",
+    "status": "match",
+    "why": "",
+    "key": "28.4",
+    "noesi": "28.3700"
+   },
+   {
+    "item": "2025 net revenue",
+    "status": "match",
+    "why": "",
+    "key": "3859890.00",
+    "noesi": "3859890.00"
+   },
+   {
+    "item": "2025 pretax income",
+    "status": "match",
+    "why": "",
+    "key": "326292.00",
+    "noesi": "326292.00"
+   },
+   {
+    "item": "2026 cost of sales",
+    "status": "match",
+    "why": "",
+    "key": "3056640.00",
+    "noesi": "3056640.0"
+   },
+   {
+    "item": "2026 inventory turnover (average inventory)",
+    "status": "match",
+    "why": "",
+    "key": "48.80",
+    "noesi": "48.8030"
+   },
+   {
+    "item": "2026 sales to year-end net receivables",
+    "status": "match",
+    "why": "",
+    "key": "16.41",
+    "noesi": "16.4069"
+   }
+  ],
+  "Journal entries": [
+   {
+    "item": "transactions in the Journal",
+    "status": "match",
+    "why": "",
+    "key": "461",
+    "noesi": "461"
+   },
+   {
+    "item": "lines in the Journal",
+    "status": "match",
+    "why": "",
+    "key": "1006",
+    "noesi": "1006"
+   },
+   {
+    "item": "posted after period end: entries",
+    "status": "match",
+    "why": "",
+    "key": "2026-06-30 Journal Entry 1066 Ridgeback Cycles",
+    "noesi": "2026-06-30 journal entry 1066 ridgeback cycles"
+   },
+   {
+    "item": "weekend or holiday: entries",
+    "status": "match",
+    "why": "",
+    "key": "2026-03-14 Journal Entry 1047, 2026-06-27 Bill Payment (Check) 4421 Tri-County Tool Rental",
+    "noesi": "2026-03-14 journal entry 1047, 2026-06-27 bill payment (check) 4421 tri-county tool rental"
+   },
+   {
+    "item": "round amount: entries",
+    "status": "match",
+    "why": "",
+    "key": "2025-10-01 Check 4039 First Prairie Bank, 2026-03-14 Journal Entry 1047, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Transfer (no num)",
+    "noesi": "2025-10-01 check 4039 first prairie bank, 2026-03-14 journal entry 1047, 2026-06-30 deposit (no num) checking, 2026-06-30 transfer (no num)"
+   },
+   {
+    "item": "unauthorized user: entries",
+    "status": "match",
+    "why": "",
+    "key": "2026-03-14 Journal Entry 1047",
+    "noesi": "2026-03-14 journal entry 1047"
+   },
+   {
+    "item": "seldom used account: entries",
+    "status": "match",
+    "why": "",
+    "key": "2025-07-01 Journal Entry 1000, 2025-08-12 Check 4014 Rocky Mountain Racking, 2025-10-01 Check 4039 First Prairie Bank, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Journal Entry 1063, 2026-06-30 Journal Entry 1064, 2026-06-30 Journal Entry 1065",
+    "noesi": "2025-07-01 journal entry 1000, 2025-08-12 check 4014 rocky mountain racking, 2025-10-01 check 4039 first prairie bank, 2026-06-30 deposit (no num) checking, 2026-06-30 journal entry 1063, 2026-06-30 journal entry 1064, 2026-06-30 journal entry 1065"
+   },
+   {
+    "item": "no description: count",
+    "status": "match",
+    "why": "",
+    "key": "177",
+    "noesi": "177"
+   },
+   {
+    "item": "manual entries without a description",
+    "status": "match",
+    "why": "",
+    "key": "journal entry 1052",
+    "noesi": "journal entry 1052"
+   },
+   {
+    "item": "seldom-used accounts",
+    "status": "match",
+    "why": "",
+    "key": "10900, 15000, 21000, 23000, 32000, 51000, 65000",
+    "noesi": "10900, 15000, 21000, 23000, 32000, 51000, 65000"
+   },
+   {
+    "item": "every account rolls forward",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "closed to",
+    "status": "match",
+    "why": "",
+    "key": "32000",
+    "noesi": "32000"
+   },
+   {
+    "item": "prior-year closing amount",
+    "status": "match",
+    "why": "",
+    "key": "-326292.00",
+    "noesi": "-326292.00"
+   }
+  ],
+  "Revenue and receivables": [
+   {
+    "item": "aging total",
+    "status": "match",
+    "why": "",
+    "key": "264883.70",
+    "noesi": "264883.70"
+   },
+   {
+    "item": "A/R per trial balance",
+    "status": "match",
+    "why": "",
+    "key": "261733.70",
+    "noesi": "261733.7"
+   },
+   {
+    "item": "aging to ledger difference found",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "credit balance: Summit Loop Racing",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "allowance required (aging as loaded)",
+    "status": "match",
+    "why": "",
+    "key": "6887.38",
+    "noesi": "6887.38"
+   },
+   {
+    "item": "allowance recorded",
+    "status": "match",
+    "why": "",
+    "key": "4200.00",
+    "noesi": "4200.0"
+   },
+   {
+    "item": "allowance short (aging as loaded)",
+    "status": "match",
+    "why": "",
+    "key": "2687.38",
+    "noesi": "2687.38"
+   },
+   {
+    "item": "key items",
+    "status": "match",
+    "why": "",
+    "key": "11",
+    "noesi": "11"
+   },
+   {
+    "item": "sample items",
+    "status": "match",
+    "why": "",
+    "key": "5",
+    "noesi": "5"
+   },
+   {
+    "item": "key-item misstatement",
+    "status": "match",
+    "why": "",
+    "key": "2250.00",
+    "noesi": "2250.0"
+   },
+   {
+    "item": "misstatements counted (timing and customer error left out)",
+    "status": "match",
+    "why": "",
+    "key": "big sky pedal co., bitterroot wheelworks",
+    "noesi": "big sky pedal co., bitterroot wheelworks"
+   },
+   {
+    "item": "sample book value",
+    "status": "match",
+    "why": "",
+    "key": "24207.30",
+    "noesi": "24207.30"
+   },
+   {
+    "item": "remainder book value (aging as loaded)",
+    "status": "match",
+    "why": "",
+    "key": "35702.30",
+    "noesi": "35702.30"
+   },
+   {
+    "item": "projected misstatement (aging as loaded)",
+    "status": "match",
+    "why": "",
+    "key": "914.41",
+    "noesi": "914.41"
+   },
+   {
+    "item": "total likely misstatement (aging as loaded)",
+    "status": "match",
+    "why": "",
+    "key": "3164.41",
+    "noesi": "3164.41"
+   },
+   {
+    "item": "below tolerable",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   }
+  ],
+  "Payables": [
+   {
+    "item": "vendors",
+    "status": "match",
+    "why": "",
+    "key": "16",
+    "noesi": "16"
+   },
+   {
+    "item": "vendor twins",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "bills (loaded + set aside)",
+    "status": "match",
+    "why": "",
+    "key": "102",
+    "noesi": "102"
+   },
+   {
+    "item": "bills without a number (set aside at load)",
+    "status": "match",
+    "why": "",
+    "key": "2",
+    "noesi": "2"
+   },
+   {
+    "item": "bill payments",
+    "status": "match",
+    "why": "",
+    "key": "115",
+    "noesi": "115"
+   },
+   {
+    "item": "bill payments total",
+    "status": "match",
+    "why": "",
+    "key": "3285040.78",
+    "noesi": "3285040.78"
+   },
+   {
+    "item": "duplicate bill MC-25009",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "split bills: Hyalite total",
+    "status": "match",
+    "why": "",
+    "key": "7325.00",
+    "noesi": "7325.0"
+   },
+   {
+    "item": "short payment on check 4425 (left open)",
+    "status": "match",
+    "why": "",
+    "key": "90.00",
+    "noesi": "90.00"
+   },
+   {
+    "item": "PO overrun: Summit Tire PO 1021",
+    "status": "not in Noesi",
+    "why": "QuickBooks' Transaction List by Vendor carries no PO link on a bill (the PO number is only in the memo), so voucher-to-PO tests are partial (partial); roadmap C",
+    "key": "yes",
+    "noesi": "—"
+   },
+   {
+    "item": "checks without bills: DM Consulting",
+    "status": "match",
+    "why": "",
+    "key": "4500.00",
+    "noesi": "4500.00"
+   },
+   {
+    "item": "A/P subledger ties to the ledger",
+    "status": "not in Noesi",
+    "why": "the A/P control schedule is built from Unpaid Bills and a General Ledger export; Kestrel has a trial balance, not a General Ledger export (blocked); roadmap C",
+    "key": "0.00",
+    "noesi": "—"
+   },
+   {
+    "item": "three-way match not testable",
+    "status": "match",
+    "why": "",
+    "key": "blocked",
+    "noesi": "blocked"
+   },
+   {
+    "item": "segregation of duties not testable",
+    "status": "match",
+    "why": "",
+    "key": "partial",
+    "noesi": "partial"
+   },
+   {
+    "item": "duplicate's misstatement",
+    "status": "match",
+    "why": "",
+    "key": "18432.50",
+    "noesi": "18432.50"
+   }
+  ],
+  "Cash": [
+   {
+    "item": "checking: statement ending",
+    "status": "match",
+    "why": "",
+    "key": "239107.60",
+    "noesi": "239107.60"
+   },
+   {
+    "item": "checking: book balance",
+    "status": "match",
+    "why": "",
+    "key": "188700.95",
+    "noesi": "188700.95"
+   },
+   {
+    "item": "checking: reconciliation refoots",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "payroll: statement ending",
+    "status": "match",
+    "why": "",
+    "key": "51340.00",
+    "noesi": "51340.00"
+   },
+   {
+    "item": "payroll: book balance",
+    "status": "match",
+    "why": "",
+    "key": "46500.00",
+    "noesi": "46500.00"
+   },
+   {
+    "item": "payroll: reconciliation refoots",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "check 4421 did not clear by 07-15",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "check 4425 cleared at another amount",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "deposits in transit cleared slowly",
+    "status": "match",
+    "why": "",
+    "key": "12650.00",
+    "noesi": "12650.00"
+   },
+   {
+    "item": "transfer T-0615",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "transfer T-0630",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "transfer T-0701",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   }
+  ],
+  "Inventory": [
+   {
+    "item": "listing total",
+    "status": "match",
+    "why": "",
+    "key": "66353.90",
+    "noesi": "66353.9"
+   },
+   {
+    "item": "tags (loaded + void set aside)",
+    "status": "match",
+    "why": "",
+    "key": "27",
+    "noesi": "27"
+   },
+   {
+    "item": "void tags set aside",
+    "status": "match",
+    "why": "",
+    "key": "1",
+    "noesi": "1"
+   },
+   {
+    "item": "quantity differences",
+    "status": "match",
+    "why": "",
+    "key": "KV-CHN-11",
+    "noesi": "kv-chn-11"
+   },
+   {
+    "item": "listed, not counted",
+    "status": "match",
+    "why": "",
+    "key": "KV-HUB-DT",
+    "noesi": "kv-hub-dt"
+   },
+   {
+    "item": "counted, not listed",
+    "status": "match",
+    "why": "",
+    "key": "KV-TUBE-29P",
+    "noesi": "kv-tube-29p"
+   },
+   {
+    "item": "pricing sample recorded",
+    "status": "match",
+    "why": "",
+    "key": "39116.50",
+    "noesi": "39116.50"
+   },
+   {
+    "item": "net overstatement in sample",
+    "status": "match",
+    "why": "",
+    "key": "195.00",
+    "noesi": "195.0"
+   },
+   {
+    "item": "items with differences",
+    "status": "match",
+    "why": "",
+    "key": "KV-DER-11S, KV-SAD-CMP",
+    "noesi": "kv-der-11s, kv-sad-cmp"
+   },
+   {
+    "item": "projected to the listing",
+    "status": "match",
+    "why": "",
+    "key": "330.78",
+    "noesi": "330.78"
+   }
+  ],
+  "Payroll": [
+   {
+    "item": "register gross",
+    "status": "match",
+    "why": "",
+    "key": "486300.00",
+    "noesi": "486300.00"
+   },
+   {
+    "item": "wages per ledger",
+    "status": "match",
+    "why": "",
+    "key": "486300.00",
+    "noesi": "486300.00"
+   },
+   {
+    "item": "difference",
+    "status": "match",
+    "why": "",
+    "key": "0.00",
+    "noesi": "0.00"
+   },
+   {
+    "item": "ghost employee E16: payments",
+    "status": "match",
+    "why": "",
+    "key": "24",
+    "noesi": "24"
+   },
+   {
+    "item": "paid after termination: E12",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "shared bank account: E03, E09",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "net pay error: E05",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "bookkeeper's address is a vendor's (E07, DM Consulting)",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   }
+  ],
+  "Property and equipment": [
+   {
+    "item": "beginning cost",
+    "status": "match",
+    "why": "",
+    "key": "198300.00",
+    "noesi": "198300.00"
+   },
+   {
+    "item": "additions",
+    "status": "match",
+    "why": "",
+    "key": "14500.00",
+    "noesi": "14500.00"
+   },
+   {
+    "item": "disposals",
+    "status": "match",
+    "why": "",
+    "key": "0.00",
+    "noesi": "0"
+   },
+   {
+    "item": "ending cost",
+    "status": "match",
+    "why": "",
+    "key": "212800.00",
+    "noesi": "212800.00"
+   },
+   {
+    "item": "accumulated",
+    "status": "match",
+    "why": "",
+    "key": "96450.00",
+    "noesi": "96450.00"
+   },
+   {
+    "item": "depreciation per register",
+    "status": "match",
+    "why": "",
+    "key": "18250.00",
+    "noesi": "18250.00"
+   },
+   {
+    "item": "FA-06 depreciation differs by",
+    "status": "match",
+    "why": "",
+    "key": "300.00",
+    "noesi": "300.00"
+   },
+   {
+    "item": "additions vouched in full, no exceptions",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   }
+  ],
+  "Debt, equity, accruals": [
+   {
+    "item": "loan beginning",
+    "status": "match",
+    "why": "",
+    "key": "200000.00",
+    "noesi": "200000.00"
+   },
+   {
+    "item": "loan ending",
+    "status": "match",
+    "why": "",
+    "key": "150000.00",
+    "noesi": "150000.00"
+   },
+   {
+    "item": "interest within tolerance (4.8% < 10%)",
+    "status": "match",
+    "why": "",
+    "key": "0",
+    "noesi": "0"
+   },
+   {
+    "item": "current-ratio covenant breached",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "members' capital does not tie",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "retained earnings ties",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "accruals and prepaids tie to the ledger",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "insurance premium recompute differs by",
+    "status": "match",
+    "why": "",
+    "key": "267.62",
+    "noesi": "267.62"
+   },
+   {
+    "item": "audit fee recompute differs by",
+    "status": "match",
+    "why": "",
+    "key": "2604.18",
+    "noesi": "2604.18"
+   },
+   {
+    "item": "not recomputed",
+    "status": "match",
+    "why": "",
+    "key": "Software and dues, Accrued payroll",
+    "noesi": "software and dues, accrued payroll"
+   },
+   {
+    "item": "stale accrual: Accrued payroll unchanged all year",
+    "status": "match",
+    "why": "",
+    "key": "accrued payroll",
+    "noesi": "accrued payroll"
+   }
+  ],
+  "Estimates and related parties": [
+   {
+    "item": "estimates missed beyond 20%",
+    "status": "match",
+    "why": "",
+    "key": "Allowance for doubtful accounts, Sales returns reserve, Inventory shrinkage reserve",
+    "noesi": "allowance for doubtful accounts, sales returns reserve, inventory shrinkage reserve"
+   },
+   {
+    "item": "bias indicator (all missed one way)",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "related party: Summit Loop Racing is a customer",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "related party: Jo Kestrel on the payroll (E01)",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "DM Consulting not findable by matching management's list",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   }
+  ],
+  "Completion": [
+   {
+    "item": "subsequent-event lead: JE 1071 settlement 30000.00",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "subsequent-event lead: check 4429 25000.00",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "subsequent-event lead: payroll funding transfer 40000.00",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "subsequent-event lead: deposit 33580.90",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "subsequent-event lead: deposit 27904.15",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "unrecorded liability: check 4433",
+    "status": "not in Noesi",
+    "why": "the search needs payments linked to bills and the auditor's inspection results (blocked); the July check is below the subsequent-events threshold; roadmap C",
+    "key": "6100.00",
+    "noesi": "—"
+   },
+   {
+    "item": "representation missing",
+    "status": "match",
+    "why": "",
+    "key": "related_parties",
+    "noesi": "related_parties"
+   },
+   {
+    "item": "letter not dated the report date",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "uncorrected misstatements: Current Assets",
+    "status": "match",
+    "why": "",
+    "key": "15650.37",
+    "noesi": "15650.37"
+   },
+   {
+    "item": "uncorrected misstatements: Noncurrent Assets",
+    "status": "match",
+    "why": "",
+    "key": "300.00",
+    "noesi": "300.00"
+   },
+   {
+    "item": "uncorrected misstatements: Current Liabilities",
+    "status": "match",
+    "why": "",
+    "key": "5335.82",
+    "noesi": "5335.82"
+   },
+   {
+    "item": "uncorrected misstatements: Noncurrent Liabilities",
+    "status": "match",
+    "why": "",
+    "key": "0.00",
+    "noesi": "0.00"
+   },
+   {
+    "item": "uncorrected misstatements: Income Before Taxes",
+    "status": "match",
+    "why": "",
+    "key": "10614.55",
+    "noesi": "10614.55"
+   },
+   {
+    "item": "above materiality on Current Assets",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "summary of misstatements (SAD) carries the schedule's largest line",
+    "status": "match",
+    "why": "",
+    "key": "15650.37",
+    "noesi": "15650.37"
+   },
+   {
+    "item": "summary of misstatements (SAD) lines at materiality",
+    "status": "match",
+    "why": "",
+    "key": "current_assets",
+    "noesi": "current_assets"
+   },
+   {
+    "item": "going concern: working capital",
+    "status": "match",
+    "why": "",
+    "key": "63220.93",
+    "noesi": "63220.93"
+   },
+   {
+    "item": "going concern: net income",
+    "status": "match",
+    "why": "",
+    "key": "327827.50",
+    "noesi": "327827.50"
+   },
+   {
+    "item": "going concern: equity",
+    "status": "match",
+    "why": "",
+    "key": "179570.93",
+    "noesi": "179570.93"
+   },
+   {
+    "item": "going concern: current ratio",
+    "status": "match",
+    "why": "",
+    "key": "1.1291",
+    "noesi": "1.1291"
+   },
+   {
+    "item": "going-concern indicator: current ratio below floor",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "adjusting entries balance",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "adjusted 10100 Checking - First Prairie",
+    "status": "match",
+    "why": "",
+    "key": "163700.95",
+    "noesi": "163700.95"
+   },
+   {
+    "item": "adjusted 10900 Transfers Clearing",
+    "status": "match",
+    "why": "",
+    "key": "0.00",
+    "noesi": "0.00"
+   },
+   {
+    "item": "adjusted 11900 Allowance for Doubtful Accounts",
+    "status": "match",
+    "why": "",
+    "key": "-5627.38",
+    "noesi": "-5627.38"
+   },
+   {
+    "item": "adjusted 12100 Inventory Asset",
+    "status": "match",
+    "why": "",
+    "key": "66182.90",
+    "noesi": "66182.90"
+   },
+   {
+    "item": "adjusted 51000 Inventory Shrinkage",
+    "status": "match",
+    "why": "",
+    "key": "6411.00",
+    "noesi": "6411.00"
+   },
+   {
+    "item": "adjusted 65000 Bad Debt Expense",
+    "status": "match",
+    "why": "",
+    "key": "9347.38",
+    "noesi": "9347.38"
+   }
+  ],
+  "The opinion": [
+   {
+    "item": "proposed opinion",
+    "status": "match",
+    "why": "",
+    "key": "disclaimer",
+    "noesi": "disclaimer"
+   },
+   {
+    "item": "basis: related-parties representation not provided",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "basis: misstatements above materiality on current assets",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "decision: going-concern conclusion (incl. covenant breach)",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "decision: re-date the representation letter",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   }
+  ]
+ },
+ "key": {
+  "part1": {
+   "case": "Kestrel Valley Cycle Supply, LLC",
+   "period_end": "2026-06-30",
+   "materiality": "15000",
+   "planning.performance_materiality": {
+    "allocated_total": "33000.00",
+    "cap": "30000.0",
+    "exceeds_cap_by": "3000.00",
+    "any_allocation_above_materiality": false,
+    "conclusion": "allocations total 33,000 against a 30,000 cap (2.0 x 15,000): over by 3,000; no single allocation exceeds materiality"
+   },
+   "fs.trial_balance_analytics": {
+    "tb_foots": true,
+    "definitions": {
+     "movement": "current minus prior per account; flagged when |pct| > 10 (or prior is zero and current is not) or |change| > 15,000",
+     "current_ratio": "(cash + AR net + inventory + other current assets) / (AP + accrued + line of credit)",
+     "sales_to_receivables": "net revenue / year-end net A/R (11000 less allowance 11900)",
+     "inventory_turnover": "cost of sales / average inventory (needs prior year)"
+    },
+    "movements_flagged": [
+     {
+      "account": "10100 Checking - First Prairie",
+      "current": "188700.95",
+      "prior": "151880.12",
+      "change": "36820.83",
+      "pct": "24.2",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "10200 Payroll Checking",
+      "current": "46500.00",
+      "prior": "8200.00",
+      "change": "38300.00",
+      "pct": "467.1",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "10900 Transfers Clearing",
+      "current": "-25000.00",
+      "prior": "0.00",
+      "change": "-25000.00",
+      "pct": null,
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "11900 Allowance for Doubtful Accounts",
+      "current": "-4200.00",
+      "prior": "-12800.00",
+      "change": "8600.00",
+      "pct": "67.2",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "12100 Inventory Asset",
+      "current": "66353.90",
+      "prior": "58910.60",
+      "change": "7443.30",
+      "pct": "12.6",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "15900 Accumulated Depreciation",
+      "current": "-96450.00",
+      "prior": "-78200.00",
+      "change": "-18250.00",
+      "pct": "23.3",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "20000 Accounts Payable (A/P)",
+      "current": "-287640.18",
+      "prior": "-241905.66",
+      "change": "-45734.52",
+      "pct": "18.9",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "23000 Line of Credit",
+      "current": "-150000.00",
+      "prior": "-200000.00",
+      "change": "50000.00",
+      "pct": "25.0",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "32000 Retained Earnings",
+      "current": "-62508.31",
+      "prior": "-20000.00",
+      "change": "-42508.31",
+      "pct": "212.5",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "40000 Sales",
+      "current": "-4286540.00",
+      "prior": "-3912300.00",
+      "change": "-374240.00",
+      "pct": "9.6",
+      "over_pct": false,
+      "over_amount": true
+     },
+     {
+      "account": "40500 Sales Returns and Allowances",
+      "current": "61220.00",
+      "prior": "52410.00",
+      "change": "8810.00",
+      "pct": "16.8",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "50000 Cost of Goods Sold",
+      "current": "3050400.00",
+      "prior": "2760150.00",
+      "change": "290250.00",
+      "pct": "10.5",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "51000 Inventory Shrinkage",
+      "current": "6240.00",
+      "prior": "4880.00",
+      "change": "1360.00",
+      "pct": "27.9",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "60100 Wages and Salaries",
+      "current": "486300.00",
+      "prior": "452800.00",
+      "change": "33500.00",
+      "pct": "7.4",
+      "over_pct": false,
+      "over_amount": true
+     },
+     {
+      "account": "64000 Depreciation Expense",
+      "current": "18250.00",
+      "prior": "16400.00",
+      "change": "1850.00",
+      "pct": "11.3",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "65000 Bad Debt Expense",
+      "current": "7920.00",
+      "prior": "6150.00",
+      "change": "1770.00",
+      "pct": "28.8",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "66000 Freight Out",
+      "current": "96480.00",
+      "prior": "71230.00",
+      "change": "25250.00",
+      "pct": "35.4",
+      "over_pct": true,
+      "over_amount": true
+     },
+     {
+      "account": "68000 Professional Fees",
+      "current": "22400.00",
+      "prior": "19800.00",
+      "change": "2600.00",
+      "pct": "13.1",
+      "over_pct": true,
+      "over_amount": false
+     },
+     {
+      "account": "69000 Interest Expense",
+      "current": "13750.00",
+      "prior": "15600.00",
+      "change": "-1850.00",
+      "pct": "11.9",
+      "over_pct": true,
+      "over_amount": false
+     }
+    ],
+    "ratios": {
+     "2026": {
+      "current_ratio": "1.13",
+      "quick_ratio": "1.01",
+      "gross_margin_pct": "27.7",
+      "net_revenue": "4225320.00",
+      "cost_of_sales": "3056640.00",
+      "pretax_income": "327827.50",
+      "sales_to_receivables": "16.41",
+      "inventory_turnover": "48.80"
+     },
+     "2025": {
+      "current_ratio": "1.00",
+      "quick_ratio": "0.85",
+      "gross_margin_pct": "28.4",
+      "net_revenue": "3859890.00",
+      "cost_of_sales": "2765030.00",
+      "pretax_income": "326292.00"
+     }
+    }
+   },
+   "ar.listing_tie": {
+    "figures_basis": "allowance figures are the re-run aging (after the Ridgeback write-off), the corrected scenario; as_loaded is the aging as exported",
+    "aging_total": "264883.70",
+    "tb_accounts_receivable": "261733.70",
+    "difference": "3150.00",
+    "difference_explained": "Ridgeback Cycles 3,150.00 written off by JE 1066, dated 06/30, entered 07/10 after the aging was exported on 07/08. Not a misstatement; obtain a re-run aging.",
+    "aging_foots": true,
+    "credit_balances": [
+     {
+      "customer": "Summit Loop Racing",
+      "amount": "-1840.00",
+      "note": "overpayment; reclassify to a liability"
+     }
+    ],
+    "allowance_required": "5627.38",
+    "allowance_basis": "approved rates on each customer's five buckets, debit-balance customers only, after the Ridgeback write-off",
+    "allowance_recorded": "4200.00",
+    "allowance_shortfall": "1427.38",
+    "as_loaded": {
+     "allowance_required": "6887.38",
+     "allowance_shortfall": "2687.38",
+     "basis": "the same rates on the aging as exported, Ridgeback Cycles included"
+    }
+   },
+   "ar.confirmations_nonstatistical": {
+    "figures_basis": "projection over the re-run aging (after the Ridgeback write-off), the corrected scenario; as_loaded is over the aging as exported",
+    "key_items": [
+     "Alpine Loop Bicycles",
+     "Basalt Ridge Bike Co.",
+     "Big Sky Pedal Co.",
+     "Bridger Cyclery",
+     "Crazy Mountain Cycles",
+     "Gallatin Gear Exchange",
+     "Hyalite Bike Shop",
+     "Madison Range Bicycle",
+     "Sawtooth Spoke & Chain",
+     "Spanish Peaks Pedal",
+     "Yellowstone Velo"
+    ],
+    "sample_items": [
+     "Bitterroot Wheelworks",
+     "Cottonwood Spokes",
+     "Grizzly Trail Outfitters",
+     "Paradise Valley Cycles",
+     "Sourdough Bike Collective"
+    ],
+    "key_known_misstatement": "2250.00",
+    "sample_misstatement": "620.00",
+    "sample_book": "24207.30",
+    "remainder_book": "32552.30",
+    "projected_remainder": "833.73",
+    "total_likely": "3083.73",
+    "as_loaded": {
+     "remainder_book": "35702.30",
+     "projected_remainder": "914.41",
+     "total_likely": "3164.41"
+    },
+    "tolerable": "9000",
+    "conclusion": "below tolerable; timing (Gallatin) and customer error (Yellowstone) are not misstatements"
+   },
+   "inventory.count_listing_trace": {
+    "listing_total": "66353.90",
+    "tb_inventory": "66353.90",
+    "tags_total": 27,
+    "void_tags": [
+     "1017"
+    ],
+    "tag_1016_sku_written_lowercase_with_space": true,
+    "quantity_differences": [
+     {
+      "sku": "KV-CHN-11",
+      "listed_qty": 240,
+      "counted_qty": 230,
+      "difference_qty": -10,
+      "value": "-171.00"
+     }
+    ],
+    "listed_not_counted": [
+     {
+      "sku": "KV-HUB-DT",
+      "listed_qty": 4,
+      "value": "850.00"
+     }
+    ],
+    "counted_not_listed": [
+     {
+      "sku": "KV-TUBE-29P",
+      "counted_qty": 36,
+      "value_at_invoice": "261.00"
+     }
+    ],
+    "explanations": {
+     "KV-CHN-11": "10 chains short; client books shrinkage (AJE-3)",
+     "KV-HUB-DT": "4 hubs shipped and invoiced 06/29, inventory not relieved: uncorrected misstatement 850.00",
+     "KV-TUBE-29P": "Moraine consignment stock, correctly excluded"
+    }
+   },
+   "inventory.pricing_projection": {
+    "sample_recorded": "39116.50",
+    "sample_audited": "38921.50",
+    "net_overstatement_in_sample": "195.00",
+    "items_with_differences": {
+     "KV-DER-11S": "231.00 over",
+     "KV-SAD-CMP": "36.00 under"
+    },
+    "projected_to_listing": "330.78",
+    "tolerable": "9000",
+    "conclusion": "below tolerable"
+   },
+   "cash.bank_reconciliation": {
+    "checking": {
+     "statement_ending": "239107.60",
+     "register_balance": "188700.95",
+     "tb_balance": "188700.95",
+     "refoots": true
+    },
+    "payroll": {
+     "statement_ending": "51340.00",
+     "register_balance": "46500.00",
+     "tb_balance": "46500.00",
+     "refoots": true
+    },
+    "outstanding_check_not_cleared_by_07-15": [
+     {
+      "check": "4421",
+      "amount": "3100.00"
+     }
+    ],
+    "outstanding_check_amount_differs": [
+     {
+      "check": "4425",
+      "per_rec": "1780.00",
+      "per_bank": "1870.00",
+      "misstatement": "90.00"
+     }
+    ],
+    "deposits_in_transit": [
+     {
+      "amount": "12650.00",
+      "cleared": "07/07/2026",
+      "days": 7,
+      "exceeds_dit_max_days": true
+     },
+     {
+      "amount": "4318.75",
+      "cleared": "07/01/2026",
+      "days": 1,
+      "exceeds_dit_max_days": false
+     }
+    ],
+    "transfer_outstanding_40000_clears_07-01": "proper outstanding item"
+   },
+   "cash.interbank_transfers": {
+    "T-0615": "no exception",
+    "T-0630": "no exception: on the checking reconciliation as an uncleared transfer",
+    "T-0701": "EXCEPTION: received per books 06/30, disbursed per books 07/01 - cash counted twice at year end; overstated 25,000.00 (AJE-1)"
+   },
+   "fs.adjusted_trial_balance": {
+    "entries_balance": true,
+    "changed_accounts": {
+     "10100 Checking - First Prairie": {
+      "unadjusted": "188700.95",
+      "adjusted": "163700.95"
+     },
+     "10900 Transfers Clearing": {
+      "unadjusted": "-25000.00",
+      "adjusted": "0.00"
+     },
+     "11900 Allowance for Doubtful Accounts": {
+      "unadjusted": "-4200.00",
+      "adjusted": "-5627.38"
+     },
+     "12100 Inventory Asset": {
+      "unadjusted": "66353.90",
+      "adjusted": "66182.90"
+     },
+     "51000 Inventory Shrinkage": {
+      "unadjusted": "6240.00",
+      "adjusted": "6411.00"
+     },
+     "65000 Bad Debt Expense": {
+      "unadjusted": "7920.00",
+      "adjusted": "9347.38"
+     }
+    },
+    "adjusted_tb_foots": true
+   },
+   "completion.uncorrected_misstatements": {
+    "sign_convention": "effect on the reported balance if corrected: negative means the balance is overstated now (assets and income fall when corrected); liabilities positive means they rise when corrected",
+    "totals": {
+     "current_assets": "-2514.51",
+     "noncurrent_assets": "0",
+     "current_liabilities": "1840.00",
+     "noncurrent_liabilities": "0",
+     "income_before_taxes": "-4354.51"
+    },
+    "largest_absolute": "4354.51",
+    "materiality": "15000",
+    "conclusion": "every line total is below materiality; the Summit Loop reclass nets to zero in income"
+   },
+   "summary": {
+    "tb_2026_debits": "5024465.93",
+    "aging_total": "264883.70",
+    "ar_per_tb": "261733.70",
+    "inventory_total": "66353.90",
+    "checking_book": "188700.95",
+    "payroll_book": "46500.00",
+    "allowance_required": "5627.38",
+    "allowance_shortfall": "1427.38",
+    "ar_projected": "833.73",
+    "inv_projected": "330.78",
+    "sum_totals": {
+     "current_assets": "-2514.51",
+     "noncurrent_assets": "0",
+     "current_liabilities": "1840.00",
+     "noncurrent_liabilities": "0",
+     "income_before_taxes": "-4354.51"
+    },
+    "pretax_2026": "327827.50",
+    "distributions": "270764.88"
+   }
+  },
+  "payables": {
+   "po_overrun": {
+    "vendor": "Summit Tire Import",
+    "po": "1021",
+    "po_amount": "90644.37",
+    "bill": "ST-25021",
+    "bill_amount": "101521.69"
+   },
+   "duplicate_bill": {
+    "vendor": "Moraine Cycle Components, Inc.",
+    "twin_of": "Moraine Cycle Components",
+    "invoice": "MC-25009",
+    "amount": "18432.50",
+    "original_date": "2026-03-06",
+    "duplicate_date": "2026-03-17"
+   },
+   "bills_without_number": [
+    {
+     "vendor": "Northwestern Energy",
+     "date": "2025-11-12",
+     "amount": "1284.33"
+    },
+    {
+     "vendor": "Northwestern Energy",
+     "date": "2026-04-13",
+     "amount": "1284.33"
+    }
+   ],
+   "split_bills": {
+    "vendor": "Hyalite Fabrication",
+    "approval_limit": "2500.00",
+    "bills": [
+     "2450.00",
+     "2475.00",
+     "2400.00"
+    ],
+    "total": "7325.00"
+   },
+   "checks_without_bills": {
+    "vendor": "DM Consulting",
+    "total": "4500.00",
+    "address_matches": "the bookkeeper's home address"
+   },
+   "no_description_entry": "1052",
+   "owner_entry": {
+    "num": "1047",
+    "date": "2026-03-14",
+    "weekday": "Saturday",
+    "amount": "25000.00",
+    "by": "Jo Kestrel"
+   },
+   "case_part": "1 of 3: payables and the journal",
+   "period": {
+    "start": "2025-07-01",
+    "end": "2026-06-30"
+   },
+   "vendors": {
+    "count": 16,
+    "twins": [
+     [
+      "Moraine Cycle Components",
+      "Moraine Cycle Components, Inc.",
+      "same address and phone"
+     ]
+    ]
+   },
+   "bills": {
+    "count": 102,
+    "total": "3330775.30"
+   },
+   "bill_payments": {
+    "count": 115,
+    "total": "3285040.78"
+   },
+   "ap_subledger_to_ledger": {
+    "unpaid_bills_total": "287640.18",
+    "tb_accounts_payable": "287640.18",
+    "difference": "0.00"
+   },
+   "short_payment": {
+    "vendor": "Alder & Finch CPAs",
+    "bill": "1870.00",
+    "check_4425": "1780.00",
+    "left_open": "90.00"
+   },
+   "purchase_orders": {
+    "count": 36,
+    "three_way_match": "not testable: QuickBooks Online records no receipts"
+   },
+   "segregation_of_duties": "not testable: the exports carry no approver",
+   "journal": {
+    "transactions": 461,
+    "lines": 1006,
+    "entry_identity": "(date, transaction type, num, name): Num alone is not unique and is blank for deposits, transfers and payroll"
+   },
+   "je_testing_policies": {
+    "je_authorized_users": "Dana Merritt",
+    "je_round_amount_threshold": "10000",
+    "je_round_unit": "1000",
+    "je_seldom_used_max": "1",
+    "je_holidays": "2025-07-04, 2025-09-01, 2025-11-27, 2025-12-25, 2026-01-01, 2026-05-25"
+   },
+   "je_testing": {
+    "posted_after_period_end": {
+     "count": 1,
+     "entries": [
+      "2026-06-30 Journal Entry 1066 Ridgeback Cycles"
+     ]
+    },
+    "weekend_or_holiday": {
+     "count": 2,
+     "entries": [
+      "2026-03-14 Journal Entry 1047",
+      "2026-06-27 Bill Payment (Check) 4421 Tri-County Tool Rental"
+     ]
+    },
+    "round_amount": {
+     "count": 4,
+     "entries": [
+      "2025-10-01 Check 4039 First Prairie Bank",
+      "2026-03-14 Journal Entry 1047",
+      "2026-06-30 Deposit (no num) Checking",
+      "2026-06-30 Transfer (no num)"
+     ]
+    },
+    "unauthorized_user": {
+     "count": 1,
+     "entries": [
+      "2026-03-14 Journal Entry 1047"
+     ]
+    },
+    "seldom_used_account": {
+     "count": 7,
+     "entries": [
+      "2025-07-01 Journal Entry 1000",
+      "2025-08-12 Check 4014 Rocky Mountain Racking",
+      "2025-10-01 Check 4039 First Prairie Bank",
+      "2026-06-30 Deposit (no num) Checking",
+      "2026-06-30 Journal Entry 1063",
+      "2026-06-30 Journal Entry 1064",
+      "2026-06-30 Journal Entry 1065"
+     ]
+    },
+    "no_description": {
+     "count": 177,
+     "entries": [
+      "2025-07-07 Invoice 88001 Basalt Ridge Bike Co.",
+      "2025-07-09 Invoice 88002 Bitterroot Wheelworks",
+      "2025-07-14 Invoice 88003 Cottonwood Spokes",
+      "2025-07-18 Bill Payment (Check) 4002 Alder & Finch CPAs",
+      "2025-07-18 Bill Payment (Check) 4003 Big Hole Insurance",
+      "2025-07-18 Bill Payment (Check) 4004 Big Timber Office Supply",
+      "2025-07-18 Bill Payment (Check) 4005 Granite Peak Properties",
+      "2025-07-18 Bill Payment (Check) 4006 Kinetic Drivetrain Co.",
+      "2025-07-18 Bill Payment (Check) 4007 Moraine Cycle Components",
+      "2025-07-18 Bill Payment (Check) 4008 Northwestern Energy",
+      "2025-07-18 Bill Payment (Check) 4009 Summit Tire Import",
+      "2025-07-18 Bill Payment (Check) 4010 Velo Freight Lines",
+      "2025-07-21 Invoice 88004 Flathead Pedalworks",
+      "2025-07-24 Invoice 88005 Grizzly Trail Outfitters",
+      "2025-08-04 Invoice 88006 Crazy Mountain Cycles",
+      "..."
+     ]
+    }
+   },
+   "je_seldom_used_accounts": [
+    "10900",
+    "15000",
+    "21000",
+    "23000",
+    "32000",
+    "51000",
+    "65000"
+   ],
+   "je_manual_entries_without_description": [
+    "Journal Entry 1052"
+   ],
+   "je_population_completeness": {
+    "every_account_rolls_forward": true,
+    "closed_to": "32000",
+    "prior_year_closing_amount": "-326292.00"
+   },
+   "misstatement_from_duplicate": {
+    "amount": "18432.50",
+    "effect": "purchases and cost of sales overstated; a refund is due"
+   }
+  },
+  "part2": {
+   "case_part": "2 of 3: payroll, PP&E, debt and equity, accruals",
+   "period": {
+    "start": "2025-07-01",
+    "end": "2026-06-30"
+   },
+   "policies": {
+    "payroll_expense_accounts": "60100",
+    "payroll_final_pay_days": "15",
+    "ppe_cost_accounts": "15000",
+    "ppe_accumulated_depreciation_accounts": "15900",
+    "ppe_depreciation_convention": "full_month",
+    "ppe_depreciation_accounts": "64000",
+    "debt_accounts": "23000",
+    "debt_interest_tolerance_pct": "10",
+    "debt_interest_accounts": "69000"
+   },
+   "payroll": {
+    "register_gross": "486300.00",
+    "tb_wages_60100": "486300.00",
+    "difference": "0.00",
+    "ghost_employee": {
+     "id": "E16",
+     "payments": 24,
+     "net_paid": "16941.52"
+    },
+    "paid_after_termination": {
+     "id": "E12",
+     "terminated": "2026-02-13",
+     "grace_days": 15,
+     "payments_beyond_grace": [
+      "2026-03-02"
+     ]
+    },
+    "shared_bank_account": [
+     "E03",
+     "E09"
+    ],
+    "net_pay_error": {
+     "id": "E05",
+     "date": "2025-10-15",
+     "over_by": "100.00"
+    },
+    "bookkeeper_address_is_a_vendor_address": {
+     "employee": "E07 Dana Merritt",
+     "vendor": "DM Consulting"
+    }
+   },
+   "ppe": {
+    "beginning_cost": "198300.00",
+    "additions": "14500.00",
+    "disposals": "0.00",
+    "ending_cost": "212800.00",
+    "depreciation_register": "18250.00",
+    "accumulated": "96450.00",
+    "convention": "full_month",
+    "depreciation_differs": {
+     "asset": "FA-06",
+     "recorded": "1657.14",
+     "recomputed": "1357.14",
+     "difference": "300.00"
+    },
+    "leasehold_salvage": "15044.60",
+    "additions_vouched": "FA-01 in full; no exceptions"
+   },
+   "debt_equity": {
+    "loan": {
+     "beginning": "200000.00",
+     "repaid": "50000.00",
+     "ending": "150000.00",
+     "interest_recorded": "13750.00",
+     "rate": "7.5%",
+     "interest_expected_avg_balance": "13125.00",
+     "interest_difference_pct": "4.8"
+    },
+    "covenant_current_ratio": {
+     "current_assets": "552988.55",
+     "current_liabilities": "489767.62",
+     "ratio": "1.1291",
+     "minimum": "1.20",
+     "breached": true
+    },
+    "equity": {
+     "members_capital": "schedule adds a 5,000 contribution the ledger does not have: foots (60,000 + 5,000 = 65,000) but does not tie (TB 60,000.00)",
+     "retained_earnings": "foots and ties"
+    }
+   },
+   "accruals": {
+    "ties": {
+     "13000": "18400.00",
+     "21000": "42315.00"
+    },
+    "insurance_recompute": {
+     "recorded": "7000.00",
+     "expected": "6732.38",
+     "difference": "267.62"
+    },
+    "audit_fee_recompute": {
+     "recorded": "11555.00",
+     "expected": "8950.82",
+     "difference": "2604.18"
+    },
+    "not_recomputed": [
+     "Software and dues",
+     "Accrued payroll"
+    ],
+    "stale": "Accrued payroll unchanged all year (30,760): ask why"
+   }
+  },
+  "part3": {
+   "case_part": "3 of 3: estimates, related parties, completion",
+   "policies": {
+    "estimates_hindsight_pct": "20",
+    "report_date": "2026-07-24",
+    "se_threshold": "10000",
+    "rep_signers": "Jo Kestrel",
+    "gc_current_ratio_floor": "1.20"
+   },
+   "estimates": {
+    "hindsight_threshold_pct": "20",
+    "items": [
+     {
+      "estimate": "Allowance for doubtful accounts",
+      "prior": "12800.00",
+      "outcome": "16520.00",
+      "miss_pct": "29.100",
+      "beyond_20pct": true
+     },
+     {
+      "estimate": "Sales returns reserve",
+      "prior": "5000.00",
+      "outcome": "6100.00",
+      "miss_pct": "22.000",
+      "beyond_20pct": true
+     },
+     {
+      "estimate": "Accrued audit fee",
+      "prior": "8000.00",
+      "outcome": "9350.00",
+      "miss_pct": "16.900",
+      "beyond_20pct": false
+     },
+     {
+      "estimate": "Inventory shrinkage reserve",
+      "prior": "4500.00",
+      "outcome": "6240.00",
+      "miss_pct": "38.700",
+      "beyond_20pct": true
+     }
+    ],
+    "all_missed_upward": true,
+    "bias_indicator": true
+   },
+   "related_parties": {
+    "listed": [
+     "Jo Kestrel",
+     "Kestrel Holdings LLC",
+     "Summit Loop Racing"
+    ],
+    "expected_matches": [
+     "Summit Loop Racing: customer on the A/R aging (credit balance -1,840.00)",
+     "Jo Kestrel: employee E01 at the same address (the owner on the payroll)"
+    ],
+    "undisclosed_not_findable_by_matching": {
+     "party": "DM Consulting",
+     "why": "not on management's list; its address is the bookkeeper's home (employee E07) and it was paid 4,500 by checks with no bills. Matching management's list cannot find it: the depth-pass item 'vendor sharing an address with an employee' would."
+    }
+   },
+   "subsequent_events": {
+    "report_date": "2026-07-24",
+    "threshold": "10000",
+    "expected_leads": [
+     "JE 1071 2026-07-08: 30,000 settlement of a dispute from March 2026 — a condition that existed at period end: adjust (recognize a liability)",
+     "check 4429 2026-07-01: 25,000 transfer (the T-0701 kiting item)",
+     "transfer 2026-07-01: 40,000 payroll funding (routine)",
+     "deposits 33,580.90 and 27,904.15: customer receipts (routine)"
+    ],
+    "unrecorded_liability": {
+     "check": "4433",
+     "amount": "6100.00",
+     "why": "June freight paid in July, not in June AP"
+    }
+   },
+   "representation_letter": {
+    "rep_signers": "Jo Kestrel",
+    "missing": [
+     "related_parties"
+    ],
+    "dated": "2026-07-20",
+    "report_date": "2026-07-24",
+    "not_dated_report_date": true,
+    "signed": true
+   },
+   "final_misstatements": {
+    "totals": {
+     "Current Assets": "15650.37",
+     "Noncurrent Assets": "300.00",
+     "Current Liabilities": "5335.82",
+     "Noncurrent Liabilities": "0.00",
+     "Income Before Taxes": "10614.55"
+    },
+    "largest_line": "Current Assets",
+    "largest": "15650.37",
+    "materiality": "15000.00",
+    "above_materiality": true
+   },
+   "going_concern": {
+    "working_capital": "63220.93",
+    "net_income": "327827.50",
+    "equity": "179570.93",
+    "current_ratio": "1.1291",
+    "floor": "1.20",
+    "indicators": [
+     "current_ratio_below_floor",
+     "debt covenant breached (part 2)"
+    ],
+    "note": "the engine's going-concern procedure needs its statement-line vocabulary; Kestrel's lead-schedule labels are refused (K8)"
+   },
+   "draft_opinion": {
+    "proposal": "disclaimer",
+    "why": "the related-parties representation is not provided (AU-C 580), which takes precedence over the uncorrected misstatements above materiality",
+    "also": [
+     "uncorrected misstatements exceed materiality on Current Assets (15650.37)",
+     "going-concern conclusion must be recorded (indicators present)",
+     "the letter must be re-dated as of the report date"
+    ]
+   }
+  }
+ }
+}

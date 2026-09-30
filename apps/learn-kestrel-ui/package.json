@@ -1,0 +1,24 @@
+{
+  "name": "learn-kestrel-ui",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "node scripts/check-lessons.mjs",
+    "build": "node scripts/check-lessons.mjs && tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}
