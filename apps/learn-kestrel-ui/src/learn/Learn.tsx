@@ -4,14 +4,18 @@
  *  key). The layout is the Harborline Learn app's (apps/studio-ui).
  *
  *  Routes (hash): #/learn (course home), #/learn/<n> (a module),
- *  #/learn/map (the course map). Static content; needs no session. Progress
+ *  #/learn/map (the course map), #/learn/documents, #/learn/trace,
+ *  #/learn/excel. Static content; needs no session. Progress
  *  is a per-browser convenience in localStorage and the page works without it. */
 
 import { Fragment, useEffect, useState } from "react";
+import { Documents } from "./Documents";
+import { ExcelAudit } from "./ExcelAudit";
 import { agrees, findRow, keyAt, moduleRows } from "./keyData";
 import { LessonVideo } from "./LessonVideo";
 import { COMING, LESSONS } from "./lessons";
 import { displayOrder } from "./shuffle";
+import { Trace } from "./Trace";
 import { Block, Coming, Lesson, Question } from "./types";
 
 type Entry = {
@@ -83,9 +87,15 @@ export function Learn({ route }: { route: string }) {
         <a className="brand" href="#/learn">Noesi <b>Learn</b></a>
         <span className="engagement-name">Kestrel Valley Cycle Supply, year ended June 30, 2026</span>
         <span className="spacer" />
+        <a className="to-workbench" href="#/learn/documents">The documents</a>
+        <a className="to-workbench" href="#/learn/trace">Follow a number</a>
+        <a className="to-workbench" href="#/learn/excel">Excel for audit</a>
         <a className="to-workbench" href="#/learn/map">Course map</a>
       </header>
       {target === "map" ? <CourseMap progress={progress} />
+        : target === "documents" ? <Documents />
+        : target === "trace" ? <Trace />
+        : target === "excel" ? <ExcelAudit />
         : lesson ? <LessonPage lesson={lesson} progress={progress[lesson.slug]}
                                onUpdate={(c) => update(lesson.slug, c)} />
         : <Home progress={progress} />}
@@ -108,7 +118,9 @@ function Home({ progress }: { progress: Progress }) {
           cannot do.</p>
         <div className="hero-actions">
           <a className="primary" href={`#/learn/${next.n}`}>{done ? `Continue with module ${next.n}` : `Start module ${LESSONS[0].n}`}</a>
-          <a className="secondary" href="#/learn/map">Course map</a>
+          <a className="secondary" href="#/learn/documents">See the documents</a>
+          <a className="secondary" href="#/learn/trace">Follow a number</a>
+          <a className="secondary" href="#/learn/excel">Excel for audit</a>
           <span className="muted">{done} of {LESSONS.length} modules complete · {COMING.length} coming</span>
         </div>
         <div className="progress big"><div style={{ width: `${(100 * done) / LESSONS.length}%` }} /></div>

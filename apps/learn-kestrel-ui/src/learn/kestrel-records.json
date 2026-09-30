@@ -1,0 +1,821 @@
+{
+ "source": "Kestrel case files (case-studies/kestrel-valley-cycle/data); do not edit, re-run scripts/export_records.py",
+ "company": "Kestrel Valley Cycle Supply, LLC",
+ "vendors": [
+  {
+   "name": "Alder & Finch CPAs",
+   "phone": "Phone:(406) 555-0188 ",
+   "email": null,
+   "contact": "Sam  Alder",
+   "address": "401 E Mendenhall St Bozeman MT 59715",
+   "account": null
+  },
+  {
+   "name": "Big Hole Insurance",
+   "phone": "Phone:(406) 555-0133 ",
+   "email": null,
+   "contact": "Ann  Cole",
+   "address": "70 W Park St Butte MT 59701",
+   "account": "BH-18830"
+  },
+  {
+   "name": "Big Timber Office Supply",
+   "phone": null,
+   "email": null,
+   "contact": null,
+   "address": "3 McLeod St Big Timber MT 59011",
+   "account": null
+  },
+  {
+   "name": "DM Consulting",
+   "phone": null,
+   "email": null,
+   "contact": null,
+   "address": "414 S Willson Ave Bozeman MT 59715",
+   "account": null
+  },
+  {
+   "name": "First Prairie Bank",
+   "phone": "Phone:(406) 555-0101 ",
+   "email": null,
+   "contact": null,
+   "address": "1 Main St Bozeman MT 59715",
+   "account": "LOC-2208"
+  },
+  {
+   "name": "Granite Peak Properties",
+   "phone": "Phone:(406) 555-0110 ",
+   "email": null,
+   "contact": "Tom  Beck",
+   "address": "12 Main St Bozeman MT 59715",
+   "account": "UNIT-4"
+  },
+  {
+   "name": "Hyalite Fabrication",
+   "phone": "Phone:(406) 555-0121 ",
+   "email": null,
+   "contact": null,
+   "address": "15 Rouse Ave Bozeman MT 59715",
+   "account": null
+  },
+  {
+   "name": "Idaho State Tax Commission",
+   "phone": null,
+   "email": null,
+   "contact": null,
+   "address": "PO Box 36 Boise ID 83722",
+   "account": null
+  },
+  {
+   "name": "Kinetic Drivetrain Co.",
+   "phone": "Phone:(303) 555-0167 ",
+   "email": "billing@kineticdt.com",
+   "contact": "Maria  Lund",
+   "address": "5500 Brighton Blvd Denver CO 80216",
+   "account": "KD-2093"
+  },
+  {
+   "name": "Moraine Cycle Components",
+   "phone": "Phone:(406) 555-0142 ",
+   "email": "orders@morainecycle.com",
+   "contact": "Lena  Voss",
+   "address": "220 Industrial Way Missoula MT 59808",
+   "account": "MC-7781"
+  },
+  {
+   "name": "Moraine Cycle Components, Inc.",
+   "phone": "Phone:(406) 555-0142 ",
+   "email": null,
+   "contact": null,
+   "address": "220 Industrial Way Missoula MT 59808",
+   "account": null
+  },
+  {
+   "name": "Northwestern Energy",
+   "phone": "Phone:(888) 555-0100 ",
+   "email": null,
+   "contact": null,
+   "address": "PO Box 9 Butte MT 59701",
+   "account": "556120"
+  },
+  {
+   "name": "Rocky Mountain Racking",
+   "phone": null,
+   "email": null,
+   "contact": null,
+   "address": "88 Gold Ave Billings MT 59101",
+   "account": null
+  },
+  {
+   "name": "Summit Tire Import",
+   "phone": "Phone:(208) 555-0199 ",
+   "email": "ar@summittire.com",
+   "contact": "Raj  Patel",
+   "address": "18 Harbor Rd Boise ID 83702",
+   "account": "ST-4410"
+  },
+  {
+   "name": "Tri-County Tool Rental",
+   "phone": null,
+   "email": null,
+   "contact": null,
+   "address": "77 Frontage Rd Belgrade MT 59714",
+   "account": null
+  },
+  {
+   "name": "Velo Freight Lines",
+   "phone": "Phone:(406) 555-0177 ",
+   "email": "ops@velofreight.com",
+   "contact": null,
+   "address": "900 Frontage Rd Belgrade MT 59714",
+   "account": "VF-331"
+  }
+ ],
+ "moraine": [
+  {
+   "vendor": "Moraine Cycle Components",
+   "date": "02/22/2026",
+   "type": "Purchase Order",
+   "num": "1009",
+   "memo": "",
+   "account": "20000 Accounts Payable (A/P)",
+   "split": "",
+   "amount": "18432.50"
+  },
+  {
+   "vendor": "Moraine Cycle Components",
+   "date": "03/06/2026",
+   "type": "Bill",
+   "num": "MC-25009",
+   "memo": "PO 1009",
+   "account": "20000 Accounts Payable (A/P)",
+   "split": "12100 Inventory Asset",
+   "amount": "18432.50"
+  },
+  {
+   "vendor": "Moraine Cycle Components",
+   "date": "03/18/2026",
+   "type": "Bill Payment (Check)",
+   "num": "4110",
+   "memo": "",
+   "account": "10100 Checking - First Prairie",
+   "split": "20000 Accounts Payable (A/P)",
+   "amount": "-133425.67"
+  },
+  {
+   "vendor": "Moraine Cycle Components, Inc.",
+   "date": "03/17/2026",
+   "type": "Bill",
+   "num": "MC-25009",
+   "memo": "",
+   "account": "20000 Accounts Payable (A/P)",
+   "split": "12100 Inventory Asset",
+   "amount": "18432.50"
+  },
+  {
+   "vendor": "Moraine Cycle Components, Inc.",
+   "date": "04/02/2026",
+   "type": "Bill Payment (Check)",
+   "num": "4117",
+   "memo": "",
+   "account": "10100 Checking - First Prairie",
+   "split": "20000 Accounts Payable (A/P)",
+   "amount": "-18432.50"
+  }
+ ],
+ "hyalite": [
+  {
+   "vendor": "Hyalite Fabrication",
+   "date": "11/03/2025",
+   "type": "Bill",
+   "num": "HF-301",
+   "memo": "Display fixtures",
+   "account": "20000 Accounts Payable (A/P)",
+   "split": "67000 Office Supplies",
+   "amount": "2450.00"
+  },
+  {
+   "vendor": "Hyalite Fabrication",
+   "date": "11/04/2025",
+   "type": "Bill",
+   "num": "HF-302",
+   "memo": "Display fixtures",
+   "account": "20000 Accounts Payable (A/P)",
+   "split": "67000 Office Supplies",
+   "amount": "2475.00"
+  },
+  {
+   "vendor": "Hyalite Fabrication",
+   "date": "11/06/2025",
+   "type": "Bill",
+   "num": "HF-303",
+   "memo": "Display fixtures",
+   "account": "20000 Accounts Payable (A/P)",
+   "split": "67000 Office Supplies",
+   "amount": "2400.00"
+  }
+ ],
+ "dm_checks": [
+  {
+   "vendor": "DM Consulting",
+   "date": "09/22/2025",
+   "type": "Check",
+   "num": "4036",
+   "memo": "Consulting",
+   "account": "10100 Checking - First Prairie",
+   "split": "68000 Professional Fees",
+   "amount": "-1500.00"
+  },
+  {
+   "vendor": "DM Consulting",
+   "date": "12/22/2025",
+   "type": "Check",
+   "num": "4077",
+   "memo": "Consulting",
+   "account": "10100 Checking - First Prairie",
+   "split": "68000 Professional Fees",
+   "amount": "-1500.00"
+  },
+  {
+   "vendor": "DM Consulting",
+   "date": "03/23/2026",
+   "type": "Check",
+   "num": "4114",
+   "memo": "Consulting",
+   "account": "10100 Checking - First Prairie",
+   "split": "68000 Professional Fees",
+   "amount": "-1500.00"
+  }
+ ],
+ "trial_balance": [
+  {
+   "account": "10100 Checking - First Prairie",
+   "debit": "188700.95",
+   "credit": ""
+  },
+  {
+   "account": "10200 Payroll Checking",
+   "debit": "46500.00",
+   "credit": ""
+  },
+  {
+   "account": "10300 Petty Cash",
+   "debit": "500.00",
+   "credit": ""
+  },
+  {
+   "account": "10900 Transfers Clearing",
+   "debit": "",
+   "credit": "25000.00"
+  },
+  {
+   "account": "11000 Accounts Receivable (A/R)",
+   "debit": "261733.70",
+   "credit": ""
+  },
+  {
+   "account": "11900 Allowance for Doubtful Accounts",
+   "debit": "",
+   "credit": "4200.00"
+  },
+  {
+   "account": "12100 Inventory Asset",
+   "debit": "66353.90",
+   "credit": ""
+  },
+  {
+   "account": "13000 Prepaid Expenses",
+   "debit": "18400.00",
+   "credit": ""
+  },
+  {
+   "account": "15000 Furniture and Equipment",
+   "debit": "212800.00",
+   "credit": ""
+  },
+  {
+   "account": "15900 Accumulated Depreciation",
+   "debit": "",
+   "credit": "96450.00"
+  },
+  {
+   "account": "20000 Accounts Payable (A/P)",
+   "debit": "",
+   "credit": "287640.18"
+  },
+  {
+   "account": "21000 Accrued Liabilities",
+   "debit": "",
+   "credit": "42315.00"
+  },
+  {
+   "account": "22000 Sales Tax Payable",
+   "debit": "",
+   "credit": "9812.44"
+  },
+  {
+   "account": "23000 Line of Credit",
+   "debit": "",
+   "credit": "150000.00"
+  },
+  {
+   "account": "30100 Members' Capital",
+   "debit": "",
+   "credit": "60000.00"
+  },
+  {
+   "account": "31000 Members' Distributions",
+   "debit": "270764.88",
+   "credit": ""
+  },
+  {
+   "account": "32000 Retained Earnings",
+   "debit": "",
+   "credit": "62508.31"
+  },
+  {
+   "account": "40000 Sales",
+   "debit": "",
+   "credit": "4286540.00"
+  },
+  {
+   "account": "40500 Sales Returns and Allowances",
+   "debit": "61220.00",
+   "credit": ""
+  },
+  {
+   "account": "50000 Cost of Goods Sold",
+   "debit": "3050400.00",
+   "credit": ""
+  },
+  {
+   "account": "51000 Inventory Shrinkage",
+   "debit": "6240.00",
+   "credit": ""
+  },
+  {
+   "account": "60100 Wages and Salaries",
+   "debit": "486300.00",
+   "credit": ""
+  },
+  {
+   "account": "60200 Payroll Taxes",
+   "debit": "41335.50",
+   "credit": ""
+  },
+  {
+   "account": "61000 Rent Expense",
+   "debit": "105000.00",
+   "credit": ""
+  },
+  {
+   "account": "62000 Utilities",
+   "debit": "15412.00",
+   "credit": ""
+  },
+  {
+   "account": "63000 Insurance",
+   "debit": "25260.00",
+   "credit": ""
+  },
+  {
+   "account": "64000 Depreciation Expense",
+   "debit": "18250.00",
+   "credit": ""
+  },
+  {
+   "account": "65000 Bad Debt Expense",
+   "debit": "7920.00",
+   "credit": ""
+  },
+  {
+   "account": "66000 Freight Out",
+   "debit": "96480.00",
+   "credit": ""
+  },
+  {
+   "account": "67000 Office Supplies",
+   "debit": "8745.00",
+   "credit": ""
+  },
+  {
+   "account": "68000 Professional Fees",
+   "debit": "22400.00",
+   "credit": ""
+  },
+  {
+   "account": "69000 Interest Expense",
+   "debit": "13750.00",
+   "credit": ""
+  },
+  {
+   "account": "TOTAL",
+   "debit": "5024465.93",
+   "credit": "5024465.93"
+  }
+ ],
+ "tb_total": [
+  "5024465.93",
+  "5024465.93"
+ ],
+ "checking": {
+  "title": "Checking - First Prairie, Period Ending 06/30/2026",
+  "reconciled": [
+   "Reconciled on: 07/13/2026",
+   "Reconciled by: Dana Merritt"
+  ],
+  "summary": {
+   "Statement beginning balance": "171904.88",
+   "Checks and payments cleared (9)": "-113005.18",
+   "Deposits and other credits cleared (5)": "180207.90",
+   "Statement ending balance": "239107.60",
+   "Uncleared transactions as of 06/30/2026": "-50406.65",
+   "Register balance as of 06/30/2026": "188700.95"
+  },
+  "uncleared": [
+   {
+    "section": "Uncleared checks and payments",
+    "date": "06/22/2026",
+    "type": "Bill Payment",
+    "ref": "4412",
+    "payee": "Velo Freight Lines",
+    "amount": "-2480.00"
+   },
+   {
+    "section": "Uncleared checks and payments",
+    "date": "06/26/2026",
+    "type": "Check",
+    "ref": "4418",
+    "payee": "Granite Peak Properties",
+    "amount": "-8750.00"
+   },
+   {
+    "section": "Uncleared checks and payments",
+    "date": "06/27/2026",
+    "type": "Check",
+    "ref": "4421",
+    "payee": "Tri-County Tool Rental",
+    "amount": "-3100.00"
+   },
+   {
+    "section": "Uncleared checks and payments",
+    "date": "06/29/2026",
+    "type": "Check",
+    "ref": "4425",
+    "payee": "Alder & Finch CPAs",
+    "amount": "-1780.00"
+   },
+   {
+    "section": "Uncleared checks and payments",
+    "date": "06/30/2026",
+    "type": "Bill Payment",
+    "ref": "4427",
+    "payee": "Moraine Cycle Components",
+    "amount": "-11265.40"
+   },
+   {
+    "section": "Uncleared checks and payments",
+    "date": "06/30/2026",
+    "type": "Transfer",
+    "ref": "",
+    "payee": "Payroll Checking",
+    "amount": "-40000.00"
+   },
+   {
+    "section": "Uncleared deposits and other credits",
+    "date": "06/30/2026",
+    "type": "Deposit",
+    "ref": "",
+    "payee": "Customer receipts",
+    "amount": "12650.00"
+   },
+   {
+    "section": "Uncleared deposits and other credits",
+    "date": "06/30/2026",
+    "type": "Deposit",
+    "ref": "",
+    "payee": "Customer receipts",
+    "amount": "4318.75"
+   }
+  ]
+ },
+ "unpaid_alder": [
+  {
+   "date": "06/26/2026",
+   "type": "Bill",
+   "num": "AF-2026-12",
+   "due": "07/26/2026",
+   "past_due": -26,
+   "amount": "1870.00",
+   "open": "90.00"
+  }
+ ],
+ "je_1071": [
+  {
+   "date": "07/08/2026",
+   "type": "Journal Entry",
+   "num": "1071",
+   "name": "Cycle Tech Legal",
+   "memo": "Settle distributor dispute (claim from March 2026)",
+   "account": "68000 Professional Fees",
+   "debit": "30000.00",
+   "credit": ""
+  },
+  {
+   "date": "",
+   "type": "",
+   "num": "",
+   "name": "",
+   "memo": "Settle distributor dispute (claim from March 2026)",
+   "account": "20000 Accounts Payable (A/P)",
+   "debit": "",
+   "credit": "30000.00"
+  }
+ ],
+ "representations": [
+  {
+   "Code": "fs_responsibility",
+   "Representation": "fs responsibility",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "internal_control",
+   "Representation": "internal control",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "all_information",
+   "Representation": "all information",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "all_transactions_recorded",
+   "Representation": "all transactions recorded",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "fraud",
+   "Representation": "fraud",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "fraud_allegations",
+   "Representation": "fraud allegations",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "laws_regulations",
+   "Representation": "laws regulations",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "uncorrected_misstatements",
+   "Representation": "uncorrected misstatements",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "litigation_claims",
+   "Representation": "litigation claims",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "estimates",
+   "Representation": "estimates",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  },
+  {
+   "Code": "subsequent_events",
+   "Representation": "subsequent events",
+   "Obtained": "yes",
+   "Dated": "2026-07-20",
+   "Signed By": "Jo Kestrel"
+  }
+ ],
+ "misstatements": [
+  {
+   "Description": "Big Sky invoice priced above contract",
+   "WP Reference": "AR-C",
+   "Identified": "2250.00",
+   "Likely": "0.00",
+   "Current Assets": "-2250.00",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-2250.00"
+  },
+  {
+   "Description": "AR confirmation sample: freight double-billed, projected",
+   "WP Reference": "AR-C",
+   "Identified": "620.00",
+   "Likely": "213.73",
+   "Current Assets": "-833.73",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-833.73"
+  },
+  {
+   "Description": "Inventory pricing test projection",
+   "WP Reference": "INV-P",
+   "Identified": "195.00",
+   "Likely": "135.78",
+   "Current Assets": "-330.78",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-330.78"
+  },
+  {
+   "Description": "Hubs shipped 06/29 not relieved from inventory",
+   "WP Reference": "INV-C",
+   "Identified": "850.00",
+   "Likely": "0.00",
+   "Current Assets": "-850.00",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-850.00"
+  },
+  {
+   "Description": "Check 4425 recorded at 1,780, cleared at 1,870",
+   "WP Reference": "CASH-R",
+   "Identified": "90.00",
+   "Likely": "0.00",
+   "Current Assets": "-90.00",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-90.00"
+  },
+  {
+   "Description": "Summit Loop credit balance not reclassified",
+   "WP Reference": "AR-L",
+   "Identified": "1840.00",
+   "Likely": "0.00",
+   "Current Assets": "1840.00",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "1840.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "0.00"
+  },
+  {
+   "Description": "Duplicate Moraine invoice paid twice (refund due)",
+   "WP Reference": "AP-D",
+   "Identified": "18432.50",
+   "Likely": "0.00",
+   "Current Assets": "18432.50",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "18432.50"
+  },
+  {
+   "Description": "Office furniture depreciation overstated",
+   "WP Reference": "PPE-D",
+   "Identified": "300.00",
+   "Likely": "0.00",
+   "Current Assets": "0.00",
+   "Noncurrent Assets": "300.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "300.00"
+  },
+  {
+   "Description": "Insurance prepaid over time proportion",
+   "WP Reference": "ACC-1",
+   "Identified": "267.62",
+   "Likely": "0.00",
+   "Current Assets": "-267.62",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "0.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-267.62"
+  },
+  {
+   "Description": "Audit fee over-accrued",
+   "WP Reference": "ACC-2",
+   "Identified": "2604.18",
+   "Likely": "0.00",
+   "Current Assets": "0.00",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "-2604.18",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "2604.18"
+  },
+  {
+   "Description": "June freight not accrued (check 4433)",
+   "WP Reference": "SE-1",
+   "Identified": "6100.00",
+   "Likely": "0.00",
+   "Current Assets": "0.00",
+   "Noncurrent Assets": "0.00",
+   "Current Liabilities": "6100.00",
+   "Noncurrent Liabilities": "0.00",
+   "Income Before Taxes": "-6100.00"
+  }
+ ],
+ "fa_06": {
+  "Asset ID": "FA-06",
+  "Description": "Office furniture",
+  "Placed in Service": "2020-05-01",
+  "Cost": "9500.00",
+  "Useful Life": "7",
+  "Salvage Value": "0.00",
+  "Method": "SL",
+  "Current Year Depreciation": "1657.14",
+  "Accumulated Depreciation": "8669.05"
+ },
+ "e07": {
+  "Employee ID": "E07",
+  "Name": "Dana Merritt",
+  "Status": "active",
+  "Hire Date": "2021-04-19",
+  "Termination Date": "",
+  "Direct Deposit Account": "BK-70455",
+  "Home Address": "414 S Willson Ave Bozeman MT 59715"
+ },
+ "master_ids": [
+  "E01",
+  "E02",
+  "E03",
+  "E04",
+  "E05",
+  "E06",
+  "E07",
+  "E08",
+  "E09",
+  "E10",
+  "E11",
+  "E12",
+  "E13",
+  "E14"
+ ],
+ "e16": {
+  "payments": 24,
+  "first": "2025-07-15",
+  "last": "2026-06-29",
+  "gross": "20660.32",
+  "net": "16941.52",
+  "sample": [
+   {
+    "Employee ID": "E16",
+    "Check Date": "2025-07-15",
+    "Gross Pay": "844.30",
+    "Taxes Withheld": "151.97",
+    "Net Pay": "692.33",
+    "Check Number": "DD-01-E16"
+   },
+   {
+    "Employee ID": "E16",
+    "Check Date": "2025-07-28",
+    "Gross Pay": "844.30",
+    "Taxes Withheld": "151.97",
+    "Net Pay": "692.33",
+    "Check Number": "DD-02-E16"
+   }
+  ]
+ },
+ "register_rows": 352,
+ "estimates": [
+  {
+   "Estimate": "Allowance for doubtful accounts",
+   "Prior Year Estimate": "12800.00",
+   "Actual Outcome": "16520.00"
+  },
+  {
+   "Estimate": "Sales returns reserve",
+   "Prior Year Estimate": "5000.00",
+   "Actual Outcome": "6100.00"
+  },
+  {
+   "Estimate": "Accrued audit fee",
+   "Prior Year Estimate": "8000.00",
+   "Actual Outcome": "9350.00"
+  },
+  {
+   "Estimate": "Inventory shrinkage reserve",
+   "Prior Year Estimate": "4500.00",
+   "Actual Outcome": "6240.00"
+  }
+ ]
+}

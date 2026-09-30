@@ -5,7 +5,10 @@
 //  - every number in a lesson's text (two or more digits, or with decimals)
 //    is a number in the key or in a line of the check. Standards references
 //    (AU-C 320, SAS 145, SQMS 1) are not figures and are skipped;
-//  - the modules written and the modules coming are the ones agreed.
+//  - the modules written and the modules coming are the ones agreed;
+//  - the documents, trace and Excel pages (papers.ts, traceData.ts,
+//    excelData.ts) hold no number that is not in the key or the case records
+//    (kestrel-records.json), and no value that failed to resolve.
 // Usage: node scripts/check-lessons.mjs   (runs in `npm run build`)
 import { build } from "esbuild";
 import { readFileSync } from "node:fs";
@@ -14,12 +17,18 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const data = JSON.parse(readFileSync(join(root, "src/learn/kestrel-key.json"), "utf-8"));
-const bundled = await build({
-  entryPoints: [join(root, "src/learn/lessons.ts")], bundle: true, write: false,
-  format: "esm", platform: "neutral",
-});
-const url = "data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64");
-const { LESSONS, COMING } = await import(url);
+const records = JSON.parse(readFileSync(join(root, "src/learn/kestrel-records.json"), "utf-8"));
+async function load(file) {
+  const bundled = await build({
+    entryPoints: [join(root, "src/learn", file)], bundle: true, write: false,
+    format: "esm", platform: "neutral",
+  });
+  return import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64"));
+}
+const { LESSONS, COMING } = await load("lessons.ts");
+const { PAPERS } = await load("papers.ts");
+const { STAGES, CORRECTION } = await load("traceData.ts");
+const { EXERCISES } = await load("excelData.ts");
 
 const problems = [];
 const numbers = new Set();
@@ -32,6 +41,8 @@ const collect = (v) => {
   }
 };
 collect(data);
+const lessonNumbers = new Set(numbers);   // lessons: the key only
+collect(records);                          // pages: the key and the case records
 
 const keyAt = (path) => path.split(".").reduce((at, p) => (at && typeof at === "object" ? at[p] : undefined), data.key);
 
@@ -64,8 +75,27 @@ for (const lesson of LESSONS) {
     for (const m of clean.matchAll(/\d[\d,]*(?:\.\d+)?/g)) {
       const raw = m[0].replace(/,$/, "");
       if (/^\d$/.test(raw)) continue;
-      if (!numbers.has(Number(raw.replace(/,/g, "")))) problems.push(`${where}: "${raw}" is not a number the key holds`);
+      if (!lessonNumbers.has(Number(raw.replace(/,/g, "")))) problems.push(`${where}: "${raw}" is not a number the key holds`);
     }
+  }
+}
+
+function strings(v, where, out = []) {
+  if (typeof v === "string") out.push([where, v]);
+  else if (Array.isArray(v)) v.forEach((x, i) => strings(x, `${where}[${i}]`, out));
+  else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) strings(x, `${where}.${k}`, out);
+  return out;
+}
+const pages = [...strings(PAPERS, "documents"), ...strings(STAGES, "trace"),
+  ...strings(CORRECTION, "trace correction"), ...strings(EXERCISES, "excel")];
+for (const [where, text] of pages) {
+  if (/undefined|NaN|missing from the key|\[object Object\]/.test(text)) problems.push(`${where}: a value did not resolve: "${text.slice(0, 80)}"`);
+  const clean = text.replace(/\b(AU-C|SAS|SQMS)\s+\d+/g, "").replace(/\b[\w-]+\.(csv|xlsx|md)\b/g, "")
+    .replace(/\b[A-Z]{1,2}\d+\b/g, "");  // spreadsheet cell and column references (K6, C2)
+  for (const m of clean.matchAll(/\d[\d,]*(?:\.\d+)?/g)) {
+    const raw = m[0].replace(/,$/, "");
+    if (/^\d$/.test(raw)) continue;
+    if (!numbers.has(Number(raw.replace(/,/g, "")))) problems.push(`${where}: "${raw}" is in neither the key nor the case records`);
   }
 }
 
@@ -79,4 +109,5 @@ if (problems.length) {
   process.exit(1);
 }
 const asks = LESSONS.reduce((n, l) => n + l.byHand.asks.length, 0);
-console.log(`check-lessons: ${LESSONS.length} modules, ${asks} answers, all tied to the key; ${COMING.length} coming`);
+console.log(`check-lessons: ${LESSONS.length} modules, ${asks} answers, all tied to the key; ${COMING.length} coming; ` +
+  `${PAPERS.length} documents, ${STAGES.length} trace stages, ${EXERCISES.length} Excel exercises, every number from the key or the case files`);
