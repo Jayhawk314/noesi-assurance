@@ -25,19 +25,19 @@ sign-offs, approvals or file management get built.
 
 | # | Module | Learn lesson | Video script | Silent preview |
 |---|---|---|---|---|
-| 1 | Engagement setup | written | yes | rebuilt today, checked by frames |
+| 1 | Engagement setup | written | yes | rebuilt 30 Sep on current screens; every paragraph checked by frames |
 | 2 | Planning | **coming**: waits for roadmap C | no | no |
 | 3 | Journal entries | **coming**: roadmap C | no | no |
 | 4 | Revenue and receivables | **coming**: roadmap C | no | no |
-| 5 | Payables | written | yes | rebuilt today, checked by frames |
+| 5 | Payables | written | yes | rebuilt 30 Sep on current screens; every paragraph checked by frames |
 | 6 | Cash | **coming**: roadmap C | no | no |
 | 7 | Inventory | **coming**: roadmap C | no | no |
-| 8 | Payroll | written | yes | built 29 Sep (you OK'd it); re-filming now |
-| 9 | Property and equipment | written | yes | built 29 Sep; re-filming now |
-| 10 | Debt, equity, accruals | written | yes | built; not reviewed |
-| 11 | Estimates and related parties | written | yes | built; not reviewed |
-| 12 | Completion | written | yes | built; not reviewed |
-| 13 | The opinion | written | yes | **not built** |
+| 8 | Payroll | written | yes | rebuilt 30 Sep; every paragraph checked by frames |
+| 9 | Property and equipment | written | yes | rebuilt 30 Sep; every paragraph checked by frames |
+| 10 | Debt, equity, accruals | written | yes | rebuilt 30 Sep; every paragraph checked by frames |
+| 11 | Estimates and related parties | written | yes | rebuilt 30 Sep; every paragraph checked by frames |
+| 12 | Completion | written | yes | rebuilt 30 Sep; every paragraph checked by frames |
+| 13 | The opinion | written | yes | built 30 Sep; every paragraph checked by frames |
 
 Voiced: none. Fact check on all 8 scripts: every figure passes
 (`check_facts.py`, today).
@@ -56,8 +56,7 @@ Voiced: none. Fact check on all 8 scripts: every figure passes
    line's wording changes to "on the Kestrel demo", or lessons gain a
    "load it yourself" step. Your call.
 3. ~~Oceanview full run~~ done today (see above).
-4. **Videos:** finish previews for 8-13, then your approval per module, then
-   voicing (about 900 credits a module; your OK each time).
+4. **Videos:** all 8 silent previews built and checked (30 Sep); m10 scene 5 opens on the top of the Runs list before the debt findings (a loose shot, nothing wrong on screen). Next: your approval per module, then voicing (about 900 credits a module; your OK each time).
 5. **Scripts, lessons and videos for modules 2, 3, 4, 6, 7**, after roadmap C.
 
 ## Decisions still yours
