@@ -20,6 +20,7 @@ finding -> disposition -> SAD / sign-off.
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 
 from assurance_domain.money import fnum, parse_amount
@@ -28,6 +29,33 @@ from assurance_domain.sad import PERFORMANCE_PCT, TRIVIAL_PCT
 # Fields that carry money in a normalized record, by precedence.
 _AMOUNT_FIELDS = ("voucher_amount", "payment_amount", "po_amount", "amount",
                   "received_amount", "subledger_balance", "gl_balance")
+
+# The money a row of each cycle record type carries. "debit-credit" means the
+# row's signed amount is its debit less its credit (when it has no amount).
+# A row with none of its type's fields has no dollar measure: its changes
+# are "not_measured", never "none".
+ROLE_AMOUNT_FIELDS: dict[str, tuple[str, ...]] = {
+    "Trial_balance": ("balance",),
+    "AR_listing": ("balance",),
+    "Confirmations": ("confirmed_value",),
+    "Inventory_listing": ("cost",),
+    "Pricing_tests": ("recorded_cost",),
+    "Bank_reconciliation": ("amount",),
+    "Cutoff_statement": ("amount",),
+    "Transfers": ("amount",),
+    "Direct_payments": ("payment_amount",),
+    "Payroll_register": ("gross",),
+    "Fixed_assets": ("cost",),
+    "Debt_schedule": ("ending_balance",),
+    "Equity_rollforward": ("ending",),
+    "Accrual_schedule": ("ending",),
+    "Misstatements": ("identified",),
+    "Performance_materiality": ("performance_materiality",),
+    "Journal_entries": ("amount", "debit-credit"),
+    "Adjusting_entries": ("amount", "debit-credit"),
+    "Sales_invoices": ("amount",),
+    "Credit_memos": ("amount",),
+}
 
 # How rows of each canonical role are matched across file versions.
 KEY_FIELDS: dict[str, tuple[str, ...]] = {
@@ -41,10 +69,38 @@ KEY_FIELDS: dict[str, tuple[str, ...]] = {
     "GL": ("gl_entry_id",),
     "AP_control_balance": ("period_end",),
     "Value_flows": ("source_entity", "target_entity"),
+    # the cycle record types (Kestrel and any case built like it)
+    "Trial_balance": ("account",),
+    "Journal_entries": ("entry_id", "line"),
+    "Adjusting_entries": ("entry_id", "account"),
+    "AR_listing": ("customer_number",),
+    "Confirmations": ("customer_number",),
+    "Inventory_listing": ("stock_number",),
+    "Inventory_count": ("tag_number",),
+    "Pricing_tests": ("stock_number",),
+    # No id of their own: account, kind and reference identify the item;
+    # the date and amount are what a corrected file changes.
+    "Bank_reconciliation": ("account", "item_type", "reference"),
+    "Cutoff_statement": ("account", "item_type", "reference"),
+    "Transfers": ("transfer_id",),
+    "Direct_payments": ("payment_number",),
+    "Payroll_master": ("employee_id",),
+    "Payroll_register": ("check_number",),
+    "Fixed_assets": ("asset_id",),
+    "Additions_vouching": ("asset_id",),
+    "Debt_schedule": ("loan_id",),
+    "Covenants": ("covenant",),
+    "Equity_rollforward": ("component",),
+    "Accrual_schedule": ("item",),
+    "Estimates": ("estimate",),
+    "Related_parties": ("party_name",),
+    "Representations": ("code",),
+    "Misstatements": ("reference", "description"),
+    "Performance_materiality": ("account",),
 }
 
-_SIGNIFICANCE_ORDER =("none", "below_trivial", "above_trivial",
-                       "above_performance")
+_SIGNIFICANCE_ORDER = ("none", "below_trivial", "not_measured",
+                       "above_trivial", "above_performance")
 
 
 def thresholds(materiality, trivial_pct: Decimal = TRIVIAL_PCT) -> dict:
@@ -77,19 +133,75 @@ def _worst(levels) -> str:
     return max(levels, key=_SIGNIFICANCE_ORDER.index, default="none")
 
 
-def _record_amount(record: dict):
-    for field in _AMOUNT_FIELDS:
-        if record.get(field) is not None:
+def _record_amount(record: dict, role: str | None = None):
+    for field in ROLE_AMOUNT_FIELDS.get(role or "", _AMOUNT_FIELDS):
+        if field == "debit-credit":
+            debit = parse_amount(record.get("debit"))
+            credit = parse_amount(record.get("credit"))
+            if debit is not None or credit is not None:
+                return (debit or Decimal("0")) - (credit or Decimal("0"))
+        elif record.get(field) not in (None, ""):
             return parse_amount(record[field])
     return None
+
+
+def _measure(amount, limits: dict) -> str:
+    """Significance of a row with a dollar measure; one without is unmeasured."""
+    return "not_measured" if amount is None else significance(amount, limits)
 
 
 def _key(record: dict, key_fields: tuple[str, ...]) -> str:
     return "|".join(str(record.get(field, "")) for field in key_fields)
 
 
+# Where a row came from, not what it says: two copies of the same line in
+# different files differ here, so they are left out of the content match.
+_LOCATION_FIELDS = ("source_hash", "source_row", "source_file")
+
+
+def _diff_by_content(old: list[dict], new: list[dict], limits: dict,
+                     role: str | None = None) -> dict:
+    """Rows matched as whole rows, for record types with no key field.
+
+    Without a key there is no honest way to say a row "changed", so a changed
+    row shows as one removed and one added; identical rows cancel out, counted
+    as many times as they occur.
+    """
+    from collections import Counter
+
+    def content(row):
+        return json.dumps({k: v for k, v in row.items() if k not in _LOCATION_FIELDS},
+                          sort_keys=True, default=str)
+    before, after = Counter(map(content, old)), Counter(map(content, new))
+    rows = {content(r): r for r in list(old) + list(new)}
+
+    def entries(counter):
+        out = []
+        for c, n in sorted(counter.items()):
+            amount = _record_amount(rows[c], role)
+            for _ in range(n):
+                out.append({"key": _describe(rows[c]),
+                            "amount": fnum(amount) if amount is not None else None,
+                            "significance": _measure(amount, limits)})
+        return out
+    added, removed = entries(after - before), entries(before - after)
+    net = sum((parse_amount(i["amount"]) or Decimal("0") for i in added), Decimal("0")) - sum(
+        (parse_amount(i["amount"]) or Decimal("0") for i in removed), Decimal("0"))
+    return {"key_fields": ["whole row"], "rows_before": len(old), "rows_after": len(new),
+            "added": added, "removed": removed, "changed": [], "duplicate_keys": [],
+            "net_amount_change": fnum(net),
+            "significance": _worst([i["significance"] for i in added + removed])}
+
+
+def _describe(row: dict) -> str:
+    """A short, readable label for a keyless row."""
+    parts = [str(v) for k, v in row.items() if k not in _LOCATION_FIELDS and v not in (None, "")]
+    return " · ".join(parts[:5])
+
+
 def diff_records(old: list[dict], new: list[dict],
-                 key_fields: tuple[str, ...], limits: dict) -> dict:
+                 key_fields: tuple[str, ...], limits: dict,
+                 role: str | None = None) -> dict:
     """Row-level difference between two versions of one client file.
 
     Rows are matched on the role's key fields. Duplicate keys are reported
@@ -106,35 +218,55 @@ def diff_records(old: list[dict], new: list[dict],
             out[key] = row
         return out, dupes
 
+    if not key_fields:
+        return _diff_by_content(old, new, limits, role)
+    # A key shared by several rows cannot say which old row became which new
+    # one. Those rows are compared whole (a change shows as removed + added),
+    # never dropped: keeping one row per key would hide the others' changes.
+    from collections import Counter
+    rows_before, rows_after = len(old), len(new)
+    counts = [Counter(_key(r, key_fields) for r in rows) for rows in (old, new)]
+    shared = {k for c in counts for k, n in c.items() if n > 1}
+    loose = _diff_by_content([r for r in old if _key(r, key_fields) in shared],
+                             [r for r in new if _key(r, key_fields) in shared],
+                             limits, role) if shared else None
+    old = [r for r in old if _key(r, key_fields) not in shared]
+    new = [r for r in new if _key(r, key_fields) not in shared]
     before, dupes_before = index(old)
     after, dupes_after = index(new)
-    added, removed, changed = [], [], []
+    dupes_before, dupes_after = sorted(shared), []
+    added, removed, changed = ([], [], []) if loose is None else (
+        list(loose["added"]), list(loose["removed"]), [])
     for key in sorted(after.keys() - before.keys()):
-        amount = _record_amount(after[key])
+        amount = _record_amount(after[key], role)
         added.append({"key": key, "amount": fnum(amount) if amount is not None
                       else None,
-                      "significance": significance(amount or 0, limits)})
+                      "significance": _measure(amount, limits)})
     for key in sorted(before.keys() - after.keys()):
-        amount = _record_amount(before[key])
+        amount = _record_amount(before[key], role)
         removed.append({"key": key, "amount": fnum(amount)
                         if amount is not None else None,
-                        "significance": significance(amount or 0, limits)})
+                        "significance": _measure(amount, limits)})
     for key in sorted(before.keys() & after.keys()):
         old_row, new_row = before[key], after[key]
         fields = sorted(field for field in set(old_row) | set(new_row)
                         if old_row.get(field) != new_row.get(field))
         if not fields:
             continue
-        old_amount, new_amount = _record_amount(old_row), _record_amount(new_row)
+        old_amount = _record_amount(old_row, role)
+        new_amount = _record_amount(new_row, role)
+        measured = old_amount is not None or new_amount is not None
         delta = ((new_amount or Decimal("0")) - (old_amount or Decimal("0"))
-                 if old_amount is not None or new_amount is not None
-                 else Decimal("0"))
+                 if measured else Decimal("0"))
+        # A row with no money field: the dollar test cannot see the change,
+        # so it is "not_measured", never "none".
+        level = significance(delta, limits) if measured else "not_measured"
         changed.append({
             "key": key,
             "fields": [{"field": field, "before": old_row.get(field),
                         "after": new_row.get(field)} for field in fields],
-            "amount_change": fnum(delta),
-            "significance": significance(delta, limits),
+            "amount_change": fnum(delta) if measured else None,
+            "significance": level,
         })
     net = sum((parse_amount(item["amount"]) or Decimal("0") for item in added),
               Decimal("0")) - sum(
@@ -144,8 +276,9 @@ def diff_records(old: list[dict], new: list[dict],
          for item in changed), Decimal("0"))
     return {
         "key_fields": list(key_fields),
-        "rows_before": len(old), "rows_after": len(new),
+        "rows_before": rows_before, "rows_after": rows_after,
         "added": added, "removed": removed, "changed": changed,
+        # compared whole rather than by key (see above); listed so it shows
         "duplicate_keys": sorted(set(dupes_before) | set(dupes_after)),
         "net_amount_change": fnum(net),
         "significance": _worst([item["significance"]

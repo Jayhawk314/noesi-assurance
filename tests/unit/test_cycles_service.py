@@ -174,7 +174,7 @@ def test_migration_8_keeps_existing_risks(tmp_path, monkeypatch):
                  "assertion, level, updated_at) VALUES ('t', 'e', 'r1', 'Cutoff', "
                  "'cutoff', 'high', '2026-01-01')")
     monkeypatch.undo()
-    assert db.migrate(conn) == [8, 9]
+    assert db.migrate(conn) == [8, 9, 10, 11]
     row = conn.execute("SELECT * FROM risk_assessment").fetchone()
     assert (row["risk_id"], row["assertion"], row["level"]) == ("r1", "cutoff", "high")
     conn.execute("INSERT INTO risk_assessment (tenant_id, engagement_id, risk_id, "

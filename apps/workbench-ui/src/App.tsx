@@ -6,6 +6,7 @@ import {
   TeamScreen,
 } from "./screens";
 import { FlowMapScreen } from "./screens/FlowMap";
+import { FraudScreen } from "./screens/Fraud";
 import { ManualScreen } from "./screens/Manual";
 import { OpinionScreen } from "./screens/Opinion";
 import { RiskScreen } from "./screens/Risk";
@@ -15,7 +16,7 @@ import { useTheme } from "./lib/theme";
 
 const TABS = [
   "Flow Map", "Team", "Scope & Policies", "Planning & Risk", "Sources & Mappings",
-  "Coverage", "Runs & Findings", "What Changed", "SAD & Completion", "Draft Opinion",
+  "Coverage", "Runs & Findings", "Fraud", "What Changed", "SAD & Completion", "Draft Opinion",
   "Lock & Export",
 ] as const;
 type Tab = (typeof TABS)[number];
@@ -58,10 +59,22 @@ function Workbench({ client }: { client: Client }) {
   const [acting, setActing] = useState("");
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [manualOpen, setManualOpen] = useState(false);
+  const [archived, setArchived] = useState<Engagement[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiving, setArchiving] = useState<string | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [deleting, setDeleting] = useState<Engagement | null>(null);
+  const [deleteName, setDeleteName] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [cases, setCases] = useState<{ case: string; title: string }[]>([]);
+  const [caseChoice, setCaseChoice] = useState("");
+  const [loadingCase, setLoadingCase] = useState(false);
   const refresh = useCallback(async () => {
     try {
       const { engagements: list } = await client.listEngagements();
       setEngagements(list);
+      const { engagements: gone } = await client.archivedEngagements();
+      setArchived(gone);
       setSelected((current) =>
         current
           ? list.find((e) => e.engagement_id === current.engagement_id) ?? null
@@ -72,6 +85,52 @@ function Workbench({ client }: { client: Client }) {
   }, [client]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    client.cases()
+      .then(({ cases: list }) => { setCases(list); setCaseChoice(list[0]?.case ?? ""); })
+      .catch(() => setCases([]));
+  }, [client]);
+
+  async function loadCase() {
+    try {
+      setError(""); setLoadingCase(true);
+      await client.loadCase(caseChoice);
+      await refresh();
+    } catch (exc) { report(exc); } finally { setLoadingCase(false); }
+  }
+
+  async function archive(eid: string) {
+    try {
+      setError("");
+      await client.archiveEngagement(eid, archiveReason.trim());
+      setArchiving(null); setArchiveReason("");
+      await refresh();
+    } catch (exc) { report(exc); }
+  }
+
+  const norm = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+
+  async function remove(e: Engagement) {
+    try {
+      setError("");
+      await client.deleteEngagement(e.engagement_id, deleteName, deleteReason.trim());
+      setDeleting(null); setDeleteName(""); setDeleteReason("");
+      await refresh();
+    } catch (exc) { report(exc); }
+  }
+
+  const deleteButton = (e: Engagement) => (
+    <button className="action" title="Delete this engagement and everything loaded into it"
+            onClick={() => { setDeleting(e); setDeleteName(""); setDeleteReason(""); setArchiving(null); }}>
+      delete
+    </button>
+  );
+
+  async function restore(eid: string) {
+    try { setError(""); await client.restoreEngagement(eid); await refresh(); }
+    catch (exc) { report(exc); }
+  }
 
   const report = (exc: unknown) =>
     setError(exc instanceof Error ? exc.message : String(exc));
@@ -167,7 +226,30 @@ function Workbench({ client }: { client: Client }) {
                       <button className="action"
                               onClick={() => { setSelected(engagement); setTab("Flow Map"); }}>
                         open
-                      </button>
+                      </button>{" "}
+                      {archiving === engagement.engagement_id ? (
+                        <form className="inline" style={{ display: "inline-flex" }}
+                              onSubmit={(e) => { e.preventDefault(); void archive(engagement.engagement_id); }}>
+                          <input value={archiveReason} autoFocus
+                                 placeholder="why archive? (10+ characters)"
+                                 onChange={(e) => setArchiveReason(e.target.value)} />
+                          <button className="action" type="submit"
+                                  disabled={archiveReason.trim().length < 10}>
+                            confirm archive
+                          </button>
+                          <button className="action" type="button"
+                                  onClick={() => { setArchiving(null); setArchiveReason(""); }}>
+                            cancel
+                          </button>
+                        </form>
+                      ) : (
+                        <button className="action"
+                                title="Take it off this list. Nothing is erased; restore brings it back."
+                                onClick={() => { setArchiving(engagement.engagement_id); setArchiveReason(""); }}>
+                          archive
+                        </button>
+                      )}{" "}
+                      {deleteButton(engagement)}
                     </td>
                   </tr>
                 ))}
@@ -183,6 +265,67 @@ function Workbench({ client }: { client: Client }) {
                 create engagement
               </button>
             </form>
+            {deleting && (() => {
+              const nameOk = norm(deleteName) === norm(deleting.client_name);
+              const reasonOk = deleteReason.trim().length >= 10;
+              return (
+              <form className="panel" onSubmit={(ev) => { ev.preventDefault(); void remove(deleting); }}>
+                <h3>Delete {deleting.client_name} (FYE {deleting.period_end})?</h3>
+                <p className="note">
+                  This removes the engagement and everything loaded into it: files, mappings,
+                  runs, findings, team and settings. It cannot be undone. The journal keeps a
+                  line saying who deleted it and why. To keep it but hide it, use archive instead.
+                  An engagement that was ever locked and signed cannot be deleted: signed audit
+                  files are kept, so archive it.
+                </p>
+                <p>To confirm, type the client name: <b>{deleting.client_name}</b></p>
+                <input value={deleteName} placeholder="type the name to delete" autoFocus style={{ minWidth: "22em" }}
+                       onChange={(ev) => setDeleteName(ev.target.value)} />{" "}
+                <input value={deleteReason} placeholder="why delete? (10+ characters)" style={{ minWidth: "22em" }}
+                       onChange={(ev) => setDeleteReason(ev.target.value)} />{" "}
+                <button className="action" type="submit" disabled={!nameOk || !reasonOk}>
+                  delete permanently
+                </button>{" "}
+                <button className="action" type="button" onClick={() => setDeleting(null)}>cancel</button>
+                {(!nameOk || !reasonOk) && (
+                  <p className="note">
+                    {!nameOk && "The name doesn't match yet. "}
+                    {!reasonOk && `The reason needs ${10 - deleteReason.trim().length} more characters.`}
+                  </p>
+                )}
+              </form>
+              );
+            })()}
+            {cases.length > 0 && (
+              <form className="inline" onSubmit={(e) => { e.preventDefault(); void loadCase(); }}>
+                <select value={caseChoice} onChange={(e) => setCaseChoice(e.target.value)}>
+                  {cases.map((c) => <option key={c.case} value={c.case}>{c.title}</option>)}
+                </select>
+                <button className="action" type="submit" disabled={!caseChoice || loadingCase}>
+                  {loadingCase ? "loading case…" : "load teaching case"}
+                </button>
+              </form>
+            )}
+            {archived.length > 0 && (
+              <>
+                <button className="action" onClick={() => setShowArchived((v) => !v)}>
+                  {showArchived ? "hide" : "show"} archived ({archived.length})
+                </button>
+                {showArchived && (
+                  <table className="dense">
+                    <thead><tr><th>Client</th><th>Period end</th><th /></tr></thead>
+                    <tbody>
+                      {archived.map((e) => (
+                        <tr key={e.engagement_id}>
+                          <td>{e.client_name}</td><td>{e.period_end}</td>
+                          <td><button className="action" onClick={() => void restore(e.engagement_id)}>restore</button>{" "}{deleteButton(e)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
             <p className="note">
               Creating an engagement makes the acting principal (top right)
               its partner. Preparing, reviewing, and approving are separate
@@ -268,6 +411,9 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
   onNavigate: (tab: Tab) => void;
 }) {
   const eid = engagement.engagement_id;
+  const goTo = (name: string) => {
+    if ((TABS as readonly string[]).includes(name)) onNavigate(name as Tab);
+  };
   switch (tab) {
     case "Flow Map":
       return <FlowMapScreen client={client} eid={eid} onError={onError}
@@ -284,14 +430,16 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
       return <CoverageScreen client={client} eid={eid} onError={onError} />;
     case "Runs & Findings":
       return <RunsScreen client={client} eid={eid} onError={onError} />;
+    case "Fraud":
+      return <FraudScreen client={client} eid={eid} onError={onError} />;
     case "What Changed":
       return <WhatChangedScreen client={client} eid={eid} onError={onError} />;
     case "SAD & Completion":
       return <SadScreen client={client} eid={eid} onError={onError} />;
     case "Draft Opinion":
-      return <OpinionScreen client={client} eid={eid} onError={onError} />;
+      return <OpinionScreen client={client} eid={eid} onError={onError} onNavigate={goTo} />;
     case "Lock & Export":
       return <LockScreen client={client} engagement={engagement}
-                         onError={onError} onChanged={onChanged} />;
+                         onError={onError} onChanged={onChanged} onNavigate={goTo} />;
   }
 }

@@ -92,8 +92,33 @@ inventory and bank rec are hand-prepared in the demo seed.
 
 ### D. Screens
 Checked: cycles and policies, period start, and the Draft Opinion screens
-exist. The Runs screen shows tests not performed (2026-09-29). Nothing
-further planned.
+exist. The Runs screen shows tests not performed (2026-09-29).
+
+Added 2026-09-30 (James), from `docs/WORKBENCH-GAPS-2026-09-30.md` items 1-4:
+what stops a learner finishing Kestrel in the Workbench.
+- D1. Coverage: exclude or include a procedure, with a required reason
+  (partner). Without it the lock cannot be reached from the screens.
+- D2. Lock & Export: readiness blockers in plain words, each linked to the
+  tab that clears it.
+- D3. Materiality on Planning & Risk: benchmark, percentage, amount and
+  reason; performance materiality and clearly trivial shown beside it.
+- D4. Completion checks and stages: a note for what was done, undo, and a
+  reviewer sign-off by someone other than the preparer.
+
+D1-D4 done 2026-09-30 (7cfb3fe). Added the same day (James: "complete the
+other roadmap things, toward the videos"):
+- D5. The accuracy check compares every line of the SAD's schedule (was the
+  largest only). Done: 157/160, 0 unexplained.
+- D6. SAD page: the headline counts disposed findings only, and says so
+  beside the schedule; an open conclusion is no longer shown green (gap 9).
+- D7. Runs & Findings: filter by procedure and disposition, latest run only
+  (earlier runs counted when hidden), select several and dispose each with
+  one note (concurrence still one by one), evidence per finding (gap 4).
+- D8. Working paper before the lock: a DRAFT, marked, unsigned, never an
+  export; saved as an HTML file, since a link cannot carry the session (gap 5).
+
+Still waiting for James: Flow Map (7), undo on Sources/Team (8), activity
+log (10), evidence request status (11), Kestrel's fraud risks (12).
 
 ### E. Close-out
 - E1. Push to GitHub (James approves).
@@ -103,7 +128,7 @@ further planned.
   round-tripped money): add those schemes to Kestrel, or keep those lessons
   on Harborline.
 
-**Order:** A and B now (no outside dependency) → E1 → C when exports arrive
+**Order:** A and B now (no outside dependency) → D1-D4 → E1 → C when exports arrive
 → E2/E3 alongside. Phase 1 is done when A, B, C and E are done.
 
 ### Done on 2026-09-29

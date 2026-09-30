@@ -306,7 +306,7 @@ def test_migration_5_rebuilds_lock_tables_without_losing_locks(tmp_path,
     conn.execute("COMMIT")
 
     monkeypatch.undo()
-    assert db.migrate(conn) == [5, 6, 7, 8, 9]
+    assert db.migrate(conn) == [5, 6, 7, 8, 9, 10, 11]
 
     row = conn.execute("SELECT * FROM lock_snapshot").fetchone()
     assert (row["snapshot_id"], row["sequence"], row["status"]) == \
@@ -334,7 +334,7 @@ def test_snapshot_manifest_content_is_complete(service):
     eid, outcome = _green_locked(service)
     manifest = json.loads(service._conn.execute(
         "SELECT manifest FROM lock_snapshot").fetchone()["manifest"])
-    assert manifest["schema"] == "noesi-lock-manifest-v1"
+    assert manifest["schema"] == "noesi-lock-manifest-v2"
     assert manifest["engagement"]["status"] == "locked"
     assert manifest["workflow"]["version"] >= 1
     assert {m["role"] for m in manifest["team"]} == {"partner"}

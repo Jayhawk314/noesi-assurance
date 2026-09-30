@@ -56,11 +56,17 @@ def main(argv: list[str] | None = None) -> int:
 
     demo_note = ""
     if args.demo:
-        from workbench_api.demo import seed_kestrel
-        outcome = seed_kestrel(service, args.principal)
-        demo_note = ("Kestrel Valley Cycle Supply: loaded and "
-                     f"{outcome.get('procedures_run', 0)} procedures run"
-                     if outcome["seeded"] else "Kestrel Valley Cycle Supply: already present")
+        from workbench_api.demo import CASES, seed_kestrel
+        k = CASES["kestrel"]
+        # an archived Kestrel stays archived: the partner put it away on purpose
+        if any(e["client_name"] == k["client"] and e["period_end"] == k["period_end"]
+               for e in service.list_engagements(archived=True)):
+            demo_note = "Kestrel Valley Cycle Supply: archived (restore it from the list)"
+        else:
+            outcome = seed_kestrel(service, args.principal)
+            demo_note = ("Kestrel Valley Cycle Supply: loaded and "
+                         f"{outcome.get('procedures_run', 0)} procedures run"
+                         if outcome["seeded"] else "Kestrel Valley Cycle Supply: already present")
     if args.demo_harborline is not None:
         from workbench_api.demo import seed_demo
         seed_demo(service, args.principal,

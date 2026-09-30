@@ -26,3 +26,6 @@ oceanview/
 
 # Local workbench runtime used for video capture (control.db, keys, vault) — never publish
 video/**/runtime/
+
+# Oceanview is a purchased case: anything named for it stays out of the public repo
+docs/OCEANVIEW*

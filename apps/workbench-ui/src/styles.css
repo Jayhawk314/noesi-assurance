@@ -123,7 +123,7 @@ nav.tabs {
   gap: 0.15rem;
   border-bottom: 1px solid var(--line);
   margin: 0.9rem 0 1.1rem;
-  overflow-x: auto;
+  flex-wrap: wrap;   /* every step stays visible; narrow screens get a second row */
 }
 nav.tabs button {
   border: none;

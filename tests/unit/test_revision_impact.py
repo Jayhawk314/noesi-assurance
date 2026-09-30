@@ -36,11 +36,13 @@ def test_diff_records_matches_on_key_and_reports_duplicates():
            {"voucher_number": "C", "voucher_amount": 30.0},
            {"voucher_number": "C", "voucher_amount": 30.0}]
     diff = diff_records(old, new, ("voucher_number",), LIMITS)
-    assert [row["key"] for row in diff["added"]] == ["C"]
+    # Both C rows count (30 + 30): a shared key is compared whole, never
+    # collapsed to one row (review 2026-09-30, second batch, finding 2).
+    assert len(diff["added"]) == 2 and all(r["amount"] == 30.0 for r in diff["added"])
     assert [row["key"] for row in diff["removed"]] == ["B"]
     assert diff["changed"][0]["amount_change"] == -10.0
     assert diff["duplicate_keys"] == ["C"]
-    assert diff["net_amount_change"] == -30.0
+    assert diff["net_amount_change"] == 0.0
 
 
 def test_compare_findings_names_the_action_not_a_conclusion():

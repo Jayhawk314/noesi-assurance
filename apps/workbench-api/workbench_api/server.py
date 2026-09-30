@@ -20,6 +20,7 @@ import re
 import secrets
 import threading
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
@@ -83,6 +84,8 @@ def _acting_principal(header_value: str | None, default: str) -> str:
 def _json_default(value):
     if isinstance(value, Decimal):
         return str(value)
+    if isinstance(value, (date, datetime)):   # e.g. What Changed on dated records
+        return value.isoformat()
     raise TypeError(f"not JSON serializable: {type(value).__name__}")
 
 
@@ -395,6 +398,11 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return render_chapter(default_manual_dir(), chapter)
                 case ["engagements"]:
                     return {"engagements": service.list_engagements()}
+                case ["engagements", "archived"]:
+                    return {"engagements": service.list_engagements(archived=True)}
+                case ["cases"]:
+                    from workbench_api.demo import available_cases
+                    return {"cases": available_cases()}
                 case ["cycles"]:
                     return service.cycle_catalog()
                 case ["engagements", eid, "team"]:
@@ -416,6 +424,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return {"findings": service.findings(eid)}
                 case ["engagements", eid, "risks"]:
                     return service.risks(eid)
+                case ["engagements", eid, "fraud"]:
+                    return service.fraud_view(eid)
                 case ["engagements", eid, "sad"]:
                     return service.sad(eid)
                 case ["engagements", eid, "impact"]:
@@ -536,7 +546,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                         level=str(body.get("level", "unassessed")),
                         rationale=str(body.get("rationale", "")),
                         response=str(body.get("response", "")),
-                        expected_version=int(body.get("expected_version", 0)))
+                        expected_version=int(body.get("expected_version", 0)),
+                        fraud=body.get("fraud"))
                 case ["engagements", eid, "risks", rid, "procedures"]:
                     body = self._read_json()
                     ids = body.get("procedure_ids")
@@ -567,6 +578,25 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.lock(
                         actor, eid,
                         expected_version=int(body["expected_version"]))
+                case ["engagements", eid, "archive"]:
+                    body = self._read_json()
+                    return service.archive_engagement(
+                        actor, eid, reason=str(body.get("reason", "")))
+                case ["engagements", eid, "delete"]:
+                    body = self._read_json()
+                    return service.delete_engagement(
+                        actor, eid, confirm_client_name=str(body.get("confirm_client_name", "")),
+                        reason=str(body.get("reason", "")))
+                case ["engagements", eid, "restore"]:
+                    self._read_json()
+                    return service.restore_engagement(actor, eid)
+                case ["cases", name, "load"]:
+                    self._read_json()
+                    from workbench_api.demo import load_case
+                    try:
+                        return load_case(service, name, actor)
+                    except KeyError as exc:
+                        raise ApiError(404, str(exc)) from exc
                 case ["engagements", eid, "unlock"]:
                     body = self._read_json()
                     return service.unlock(

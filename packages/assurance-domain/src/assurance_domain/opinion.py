@@ -138,7 +138,8 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     else:
         proposal = "unmodified"
         reasons.append(f"uncorrected misstatements ({largest}) are below materiality "
-                       f"({m}); no open scope limitation; representations obtained")
+                       f"({m}); no open scope limitation; no missing written "
+                       "representation recorded")
     if indicators and gc_concluded:
         reasons.append("going-concern conclusion recorded: "
                        + (gc_answer.replace("_", " ") if gc_answer

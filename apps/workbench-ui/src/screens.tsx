@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
-  Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification,
+  Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification, Blocker,
   ApControlBuilt, ApControlCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
 
@@ -430,16 +430,38 @@ function PolicySetter({ policy, onSet }: {
 }
 
 export function CoverageScreen({ client, eid, onError }: ScreenProps) {
-  const load = useCallback(() => client.coverage(eid), [client, eid]);
-  const { data, reload } = useLoader<Coverage>(load, onError);
+  const load = useCallback(async () => {
+    const [coverage, workflow] = await Promise.all([
+      client.coverage(eid), client.workflow(eid)]);
+    return { ...coverage, decisions: workflow.document.procedures ?? {} };
+  }, [client, eid]);
+  const { data, reload } = useLoader<Coverage & {
+    decisions: NonNullable<WorkflowDocument["procedures"]>;
+  }>(load, onError);
+  const [excluding, setExcluding] = useState("");
+  const [reason, setReason] = useState("");
   const setPolicy = (name: string, value: string) => {
     client.updateWorkflow(eid, "policy", { name, value })
       .then(reload).catch(onError);
   };
+  const choose = (procedureId: string, selected: boolean, rationale = "") => {
+    client.updateWorkflow(eid, "procedure_selection",
+                          { procedure_id: procedureId, selected, rationale })
+      .then(() => { setExcluding(""); setReason(""); reload(); })
+      .catch(onError);
+  };
   if (!data) return <p className="note">Compiling coverage…</p>;
+  const decision = (pid: string, fallback: boolean) =>
+    data.decisions[pid] ?? { selected: fallback, rationale: "", decided_by: "" };
   return (
     <>
       <h2>Procedure coverage</h2>
+      <p className="note">
+        A procedure that cannot run, or that the audit does not need (for example
+        the confirmation methods not chosen), is left out by the partner with a
+        reason. The reason goes into the signed record; the lock refuses a
+        procedure left out without one, and a blocked or partial one still included.
+      </p>
       <div className="panel">
         {(["executable", "partial", "blocked"] as const).map((state) => (
           <span key={state} className="metric">
@@ -454,18 +476,69 @@ export function CoverageScreen({ client, eid, onError }: ScreenProps) {
           </span>
         )}
         <span className="metric"><b>{data.summary.total ?? 0}</b>total</span>
+        <span className="metric">
+          <b>{data.procedures.filter((r) => !decision(r.procedure_id, r.selected).selected).length}</b>
+          left out
+        </span>
       </div>
       <table className="dense">
         <thead>
-          <tr><th>Procedure</th><th>Cycle</th><th>Status</th><th>Population</th>
-              <th>Missing</th><th>Limitations</th></tr>
+          <tr><th>Procedure</th><th>Cycle</th><th>Status</th><th>In the audit</th>
+              <th>Population</th><th>Missing</th><th>Limitations</th></tr>
         </thead>
         <tbody>
-          {data.procedures.map((row) => (
-            <tr key={row.procedure_id}>
+          {data.procedures.map((row) => {
+            const d = decision(row.procedure_id, row.selected);
+            return (
+            <tr key={row.procedure_id} className={d.selected ? "" : "skipped"}>
               <td><b>{row.name}</b><br /><code>{row.procedure_id}</code></td>
               <td>{row.cycle}</td>
               <td><span className={`status ${row.status}`}>{row.status}</span></td>
+              <td>
+                {d.selected ? (
+                  <span className="status ok">included</span>
+                ) : (
+                  <>
+                    <span className="status pending">left out</span>
+                    <div className="note">
+                      {d.rationale
+                        ? <>{d.rationale}{d.decided_by && <> ({d.decided_by})</>}</>
+                        : <b>no reason recorded yet: the lock needs one</b>}
+                    </div>
+                  </>
+                )}
+                {excluding === row.procedure_id ? (
+                  <form className="inline"
+                        onSubmit={(e) => { e.preventDefault(); choose(row.procedure_id, false, reason.trim()); }}>
+                    <input value={reason} autoFocus size={28}
+                           placeholder="why leave it out? (10+ characters)"
+                           onChange={(e) => setReason(e.target.value)} />
+                    <button className="action" type="submit"
+                            disabled={reason.trim().length < 10}>
+                      {d.selected ? "leave out" : "save reason"}
+                    </button>
+                    <button className="action" type="button"
+                            onClick={() => { setExcluding(""); setReason(""); }}>
+                      cancel
+                    </button>
+                  </form>
+                ) : (
+                  <div>
+                    <button className="action"
+                            title="Partner: leave this procedure out of the audit, with the reason"
+                            onClick={() => { setExcluding(row.procedure_id); setReason(d.rationale); }}>
+                      {d.selected ? "leave out…" : d.rationale ? "change reason" : "give reason"}
+                    </button>
+                    {!d.selected && (
+                      <>{" "}
+                        <button className="action" onClick={() => choose(row.procedure_id, true)}>
+                          include
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </td>
               <td>{row.population ?? "—"}</td>
               <td>
                 {row.unsupported_reason && (
@@ -481,7 +554,8 @@ export function CoverageScreen({ client, eid, onError }: ScreenProps) {
               </td>
               <td className="note">{row.limitations}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
       <h3>Evidence requests</h3>
@@ -562,6 +636,13 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
   const { data, reload } = useLoader(load, onError);
   const [procedureId, setProcedureId] = useState("");
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  const [onlyProc, setOnlyProc] = useState("");
+  const [onlyStatus, setOnlyStatus] = useState("");
+  const [latestOnly, setLatestOnly] = useState(true);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const act = (work: () => Promise<unknown>) => () => {
     work().then(reload).catch(onError);
@@ -569,6 +650,45 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
 
   const executable = (data?.coverage.procedures ?? [])
     .filter((row) => row.status === "executable");
+
+  // The latest completed run of each procedure: its findings are current;
+  // an earlier run's are superseded by the rerun (hidden only while the box
+  // is ticked, and counted when hidden).
+  const latestRun: Record<string, string> = {};
+  for (const run of data?.runs ?? []) {
+    if (run.status !== "error") latestRun[run.procedure_id] = run.run_id;
+  }
+  const all = data?.findings ?? [];
+  const fromLatest = all.filter((f) => latestRun[f.procedure_id] === f.run_id);
+  const current = latestOnly ? fromLatest : all;
+  const earlier = all.length - fromLatest.length;
+  const procs = Object.entries(current.reduce<Record<string, number>>((acc, f) => {
+    acc[f.procedure_id] = (acc[f.procedure_id] ?? 0) + 1; return acc;
+  }, {})).sort();
+  const isOpen = (f: Finding) => ["undisposed", "follow_up"].includes(f.disposition.status);
+  const shown = current.filter((f) => (!onlyProc || f.procedure_id === onlyProc)
+    && (!onlyStatus || (onlyStatus === "open" ? isOpen(f) : f.disposition.status === onlyStatus)));
+
+  async function disposeSelected() {
+    setBulkBusy(true);
+    const failed: string[] = [];
+    const done = new Set<string>();
+    for (const f of shown.filter((x) => picked.has(x.finding_uid))) {
+      if (done.has(f.finding_uid)) continue;
+      done.add(f.finding_uid);
+      try {
+        await client.setDisposition(eid, f.finding_uid, bulkStatus, bulkNote.trim(),
+                                    f.disposition.version);
+      } catch (exc) {
+        failed.push(`${f.procedure_id} ${f.verdict.reason.slice(0, 40)}: `
+                    + `${exc instanceof Error ? exc.message : exc}`);
+      }
+    }
+    setBulkBusy(false);
+    setPicked(new Set()); setBulkStatus(""); setBulkNote("");
+    if (failed.length) onError(new Error(`${failed.length} not saved: ${failed.join("; ")}`));
+    reload();
+  }
 
   return (
     <>
@@ -631,20 +751,82 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
       </table>
 
       <h3>Findings and dispositions</h3>
+      <form className="inline" onSubmit={(e) => e.preventDefault()}>
+        <select value={onlyProc} onChange={(e) => { setOnlyProc(e.target.value); setPicked(new Set()); }}>
+          <option value="">every procedure ({current.length})</option>
+          {procs.map(([pid, n]) => <option key={pid} value={pid}>{pid} ({n})</option>)}
+        </select>
+        <select value={onlyStatus} onChange={(e) => { setOnlyStatus(e.target.value); setPicked(new Set()); }}>
+          <option value="">any disposition</option>
+          <option value="open">open (undisposed or follow up)</option>
+          <option value="undisposed">undisposed</option>
+          {DISPOSITIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <label className="note">
+          <input type="checkbox" checked={latestOnly}
+                 onChange={(e) => { setLatestOnly(e.target.checked); setPicked(new Set()); }} /> latest run of each procedure only
+        </label>
+        <span className="note">
+          showing {shown.length} of {all.length}
+          {latestOnly && earlier > 0 && <> ({earlier} from earlier runs hidden)</>}
+        </span>
+      </form>
+      {picked.size > 0 && (
+        <form className="inline panel" onSubmit={(e) => { e.preventDefault(); void disposeSelected(); }}>
+          <b>{picked.size} selected:</b>
+          <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
+            <option value="">dispose as…</option>
+            {DISPOSITIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <input value={bulkNote} size={40} placeholder="note for each (10+ characters)"
+                 onChange={(e) => setBulkNote(e.target.value)} />
+          <button className="action" type="submit"
+                  disabled={!bulkStatus || bulkNote.trim().length < 10 || bulkBusy}>
+            {bulkBusy ? "saving…" : "apply to each"}
+          </button>
+          <button className="action" type="button" onClick={() => setPicked(new Set())}>clear</button>
+          <span className="note">
+            Each finding gets its own disposition, journaled as usual; any above
+            clearly trivial still needs a second person to concur, one by one.
+          </span>
+        </form>
+      )}
       <table className="dense">
         <thead>
-          <tr><th>Procedure</th><th>Verdict</th><th>Assertion</th><th>Class</th>
+          <tr><th>
+                <input type="checkbox" aria-label="select all shown"
+                       checked={shown.length > 0 && shown.every((f) => picked.has(f.finding_uid))}
+                       onChange={(e) => setPicked(e.target.checked
+                         ? new Set(shown.map((f) => f.finding_uid)) : new Set())} />
+              </th><th>Procedure</th><th>Verdict</th><th>Assertion</th><th>Class</th>
               <th>Reason</th><th>Magnitude</th><th>Disposition</th><th>Note</th>
               <th>Review</th><th /></tr>
         </thead>
         <tbody>
-          {(data?.findings ?? []).map((finding: Finding) => (
-            <tr key={finding.finding_uid}>
-              <td><code>{finding.procedure_id}</code></td>
+          {shown.map((finding: Finding) => (
+            <tr key={`${finding.run_id}/${finding.finding_uid}`}>
+              <td>
+                <input type="checkbox" checked={picked.has(finding.finding_uid)}
+                       onChange={() => setPicked((prev) => {
+                         const next = new Set(prev);
+                         if (next.has(finding.finding_uid)) next.delete(finding.finding_uid);
+                         else next.add(finding.finding_uid);
+                         return next;
+                       })} />
+              </td>
+              <td><code>{finding.procedure_id}</code>
+                {latestRun[finding.procedure_id] !== finding.run_id
+                  && <div className="note">earlier run</div>}</td>
               <td>{finding.verdict.verdict}</td>
               <td><code>{finding.tags.assertion}</code></td>
               <td>{finding.tags.class}</td>
-              <td>{finding.verdict.reason}</td>
+              <td>{finding.verdict.reason}
+                {Object.keys(finding.verdict.evidence ?? {}).length > 0 && (
+                  <details className="run-details">
+                    <summary>evidence</summary>
+                    <pre>{JSON.stringify(finding.verdict.evidence, null, 1)}</pre>
+                  </details>
+                )}</td>
               <td>{finding.verdict.score ?? "—"}</td>
               <td>
                 <select value={finding.disposition.status === "undisposed"
@@ -706,7 +888,6 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
     return { sad, workflow: workflow.document, readiness };
   }, [client, eid]);
   const { data, reload } = useLoader(load, onError);
-  const [materiality, setMateriality] = useState("");
   const [noDataReason, setNoDataReason] = useState("");
 
   const act = (work: () => Promise<unknown>) => () => {
@@ -726,8 +907,11 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
       <div className="panel">
         <span className="metric"><b>{sad.overall_materiality.toLocaleString()}</b>materiality</span>
         <span className="metric"><b>{sad.clearly_trivial.toLocaleString()}</b>clearly trivial</span>
-        <span className="metric"><b>{sad.total_unadjusted.toLocaleString()}</b>unadjusted</span>
-        <span className="metric"><b>{sad.total_adjusted.toLocaleString()}</b>adjusted</span>
+        <span className="metric">
+          <b>{sad.disposed} of {sad.candidates}</b>misstatement candidates disposed
+        </span>
+        <span className="metric"><b>{sad.total_unadjusted.toLocaleString()}</b>disposed as unadjusted</span>
+        <span className="metric"><b>{sad.total_adjusted.toLocaleString()}</b>disposed as adjusted</span>
         {sad.concurrence_pending_count > 0 && (
           <span className="metric">
             <b className="status pending">{sad.concurrence_pending_count}</b>
@@ -735,12 +919,22 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
           </span>
         )}
         <span className="metric">
-          <b className={`status ${sad.conclusion === "material" ? "broken" : "ok"}`}>
+          <b className={`status ${sad.conclusion === "material" ? "broken"
+            : sad.conclusion === "immaterial" ? "ok" : "pending"}`}>
             {sad.conclusion ?? "open"}
           </b>
           conclusion
         </span>
       </div>
+      <p className="note">
+        The figures above count only the misstatement candidates disposed so far
+        ({sad.disposed} of {sad.candidates}; other findings are on Runs &amp; Findings);
+        the conclusion stays open until every one is disposed and no waiver is
+        above clearly trivial.
+        {sad.schedule && <> The misstatement schedule below is a different
+          figure: the evaluated total by statement line, from the misstatement
+          procedure's last run.</>}
+      </p>
       {needsNoDataAssertion && (
         <form className="inline"
               onSubmit={(e) => {
@@ -802,79 +996,182 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
       )}
 
       <h3>Materiality</h3>
-      <form className="inline"
-            onSubmit={(e) => {
-              e.preventDefault();
-              act(() => client.updateWorkflow(eid, "materiality",
-                { amount: Number(materiality) }))();
-            }}>
-        <span>current: {workflow.materiality.amount.toLocaleString()}</span>
-        <input value={materiality} placeholder="new amount"
-               onChange={(e) => setMateriality(e.target.value)} />
-        <button className="action" type="submit" disabled={!Number(materiality)}>
-          set
-        </button>
-      </form>
+      <p>
+        {workflow.materiality.amount > 0
+          ? workflow.materiality.amount.toLocaleString() : "not set"}
+        {workflow.materiality.basis && <span className="note"> — {workflow.materiality.basis}</span>}
+        <span className="note"> (set on Planning &amp; Risk)</span>
+      </p>
 
       <h3>Stages</h3>
-      <table className="dense">
-        <thead><tr><th>Stage</th><th>Status</th><th /></tr></thead>
-        <tbody>
-          {Object.entries(workflow.stages).map(([name, stage]) => (
-            <tr key={name}>
-              <td>{name}</td>
-              <td className={`status ${stage.status === "complete" ? "ok" : "pending"}`}>
-                {stage.status}
-              </td>
-              <td>
-                {stage.status !== "complete" && (
-                  <button className="action"
-                          onClick={act(() => client.updateWorkflow(eid, "stage",
-                            { name, status: "complete" }))}>
-                    mark complete
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <SignoffTable kind="stage" rows={Object.entries(workflow.stages).map(([name, s]) => ({
+        name, done: s.status === "complete", note: s.note,
+        done_by: s.done_by, reviewed_by: s.reviewed_by }))}
+        onSave={(name, done, note) => act(() => client.updateWorkflow(eid, "stage",
+          { name, status: done ? "complete" : "not_started", note }))()}
+        onSignoff={(name) => act(() => client.updateWorkflow(eid, "signoff",
+          { kind: "stage", name }))()} />
 
       <h3>Completion checks ({readiness.completion_done}/{readiness.completion_total})</h3>
-      <table className="dense">
-        <thead><tr><th>Check</th><th>Done</th><th>Note</th><th /></tr></thead>
-        <tbody>
-          {Object.entries(workflow.completion).map(([name, check]) => (
-            <tr key={name}>
-              <td>{name}</td>
-              <td className={`status ${check.done ? "ok" : "pending"}`}>
-                {check.done ? "done" : "open"}
-              </td>
-              <td>{check.note}</td>
-              <td>
-                {!check.done && (
-                  <button className="action"
-                          onClick={act(() => client.updateWorkflow(eid, "completion",
-                            { name, done: true, note: "performed" }))}>
-                    mark done
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <SignoffTable kind="completion" rows={Object.entries(workflow.completion).map(([name, c]) => ({
+        name, done: c.done, note: c.note, done_by: c.done_by, reviewed_by: c.reviewed_by }))}
+        onSave={(name, done, note) => act(() => client.updateWorkflow(eid, "completion",
+          { name, done, note }))()}
+        onSignoff={(name) => act(() => client.updateWorkflow(eid, "signoff",
+          { kind: "completion", name }))()} />
+      <p className="note">
+        Say what was done before marking an item done. A reviewer or the partner
+        signs it off, never the person who marked it done; changing it afterwards
+        clears the sign-off. The lock needs every item done; the sign-off is kept
+        in the record but does not yet gate the lock.
+      </p>
     </>
+  );
+}
+
+interface SignoffRow {
+  name: string; done: boolean; note: string; done_by?: string; reviewed_by?: string;
+}
+
+/** Stages and completion checks: what was done, by whom, and who signed it off. */
+function SignoffTable({ kind, rows, onSave, onSignoff }: {
+  kind: "stage" | "completion";
+  rows: SignoffRow[];
+  onSave: (name: string, done: boolean, note: string) => void;
+  onSignoff: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState("");
+  const [note, setNote] = useState("");
+  return (
+    <table className="dense">
+      <thead><tr><th>{kind === "stage" ? "Stage" : "Check"}</th><th>Status</th>
+        <th>What was done</th><th>Sign-off</th><th /></tr></thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.name}>
+            <td>{row.name.replace(/_/g, " ")}</td>
+            <td className={`status ${row.done ? "ok" : "pending"}`}>
+              {row.done ? "done" : "open"}
+              {row.done_by && <div className="note">by {row.done_by}</div>}
+            </td>
+            <td>
+              {editing === row.name ? (
+                <form className="inline" onSubmit={(e) => {
+                  e.preventDefault(); onSave(row.name, true, note.trim()); setEditing("");
+                }}>
+                  <input value={note} autoFocus size={40}
+                         placeholder="what was done (10+ characters)"
+                         onChange={(e) => setNote(e.target.value)} />
+                  <button className="action" type="submit" disabled={note.trim().length < 10}>
+                    {row.done ? "save" : "mark done"}
+                  </button>
+                  <button className="action" type="button" onClick={() => setEditing("")}>cancel</button>
+                </form>
+              ) : (row.note || <span className="note">—</span>)}
+            </td>
+            <td>
+              {row.reviewed_by ? (
+                <span className="status ok">signed off by {row.reviewed_by}</span>
+              ) : row.done ? (
+                <button className="action"
+                        title="Reviewer or partner; not the person who marked it done"
+                        onClick={() => onSignoff(row.name)}>
+                  sign off
+                </button>
+              ) : <span className="note">—</span>}
+            </td>
+            <td>
+              {editing !== row.name && (
+                <button className="action"
+                        onClick={() => { setEditing(row.name); setNote(row.note); }}>
+                  {row.done ? "edit note" : "mark done…"}
+                </button>
+              )}{" "}
+              {row.done && editing !== row.name && (
+                <button className="action" title="Reopen: marks it open again and clears any sign-off"
+                        onClick={() => onSave(row.name, false, row.note)}>
+                  reopen
+                </button>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ---------------------------------------- readiness blockers, in plain words
+
+/** What each readiness code means, and the tab where it is cleared. A code
+ *  missing here still shows, by its code, so nothing is ever hidden. */
+const BLOCKERS: Record<string, [string, string | null]> = {
+  MATERIALITY_NOT_SET: ["Materiality is not set.", "Planning & Risk"],
+  TEAM_ASSIGNMENTS_INCOMPLETE: ["The team needs a preparer and a reviewer.", "Team"],
+  RISK_ASSESSMENT_NOT_COMPLETE: ["The risk assessment stage is not marked complete.", "SAD & Completion"],
+  CONTROLS_NOT_COMPLETE: ["The controls stage is not marked complete.", "SAD & Completion"],
+  RISKS_UNASSESSED: ["Some risks have no level assessed.", "Planning & Risk"],
+  HIGH_RISKS_WITHOUT_RESPONSE: ["A high or significant risk has no planned response.", "Planning & Risk"],
+  HIGH_RISKS_WITHOUT_PROCEDURE: ["A high or significant risk has no procedure linked to answer it.", "Planning & Risk"],
+  RISKS_AWAITING_CONCURRENCE: ["A high or significant risk waits for a second person to concur.", "Planning & Risk"],
+  CONTROLS_UNASSESSED: ["Some controls are not assessed (no screen for this yet).", null],
+  CONTROL_RELIANCE_UNSUPPORTED: ["Reliance is placed on a control not assessed as effective (no screen for this yet).", null],
+  SELECTED_PROCEDURES_BLOCKED: ["Procedures in the audit cannot run: data missing. Load it, or leave them out with a reason.", "Coverage"],
+  SELECTED_PROCEDURES_PARTIAL: ["Procedures in the audit can run only in part. Supply what is missing, or leave them out with a reason.", "Coverage"],
+  SELECTED_PROCEDURES_PENDING_RUN: ["Procedures in the audit have not run yet.", "Runs & Findings"],
+  PROCEDURE_RUN_REVIEW_PENDING: ["Runs wait for review and approval.", "Runs & Findings"],
+  PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE: ["Procedures are left out with no reason recorded.", "Coverage"],
+  EVIDENCE_REVIEW_PENDING: ["Evidence received waits for review (no screen for this yet).", null],
+  EXTRACTION_APPROVAL_PENDING: ["Source extractions wait for approval (no screen for this yet).", null],
+  TRANSFORMATION_APPROVAL_PENDING: ["Source transformations wait for approval (no screen for this yet).", null],
+  MISSTATEMENTS_UNRESOLVED: ["Misstatements are not yet disposed.", "Runs & Findings"],
+  SUBSTANTIVE_ITEMS_UNRESOLVED: ["Review items are not yet disposed.", "Runs & Findings"],
+  FINDINGS_OPEN: ["Findings are undisposed or marked for follow-up.", "Runs & Findings"],
+  DISPOSITIONS_AWAITING_CONCURRENCE: ["Dispositions above clearly trivial wait for a second person to concur.", "Runs & Findings"],
+  WAIVERS_ABOVE_TRIVIAL_THRESHOLD: ["Findings above clearly trivial are waived; waiving is only for trivial amounts.", "Runs & Findings"],
+  SCOPE_ITEMS_UNRESOLVED: ["Scope refusals are not yet resolved (no screen for this yet).", null],
+  COMPLETION_PROCEDURES_INCOMPLETE: ["Completion checks are still open.", "SAD & Completion"],
+  COMPLETION_EVIDENCE_MISSING: ["Completion checks are marked done with no note or evidence.", "SAD & Completion"],
+  NO_DATA_WITHOUT_PARTNER_ASSERTION: ["No data is loaded; the partner must say why no data-dependent procedure applies.", "SAD & Completion"],
+  DECISION_TRAIL_BROKEN: ["The journal's hash chain does not verify. Suspect the record; do not lock.", null],
+};
+
+export function BlockerList({ blockers, onNavigate }: {
+  blockers: Blocker[];
+  onNavigate?: (tab: string) => void;
+}) {
+  return (
+    <table className="dense">
+      <thead><tr><th>Still open</th><th>Count</th><th>Where</th><th>Items</th></tr></thead>
+      <tbody>
+        {blockers.map((blocker) => {
+          const [text, tab] = BLOCKERS[blocker.code] ?? [blocker.code, null];
+          return (
+            <tr key={blocker.code}>
+              <td>{text}<div className="note"><code>{blocker.code}</code></div></td>
+              <td>{blocker.count}</td>
+              <td>
+                {tab && onNavigate
+                  ? <button className="action" onClick={() => onNavigate(tab)}>go to {tab}</button>
+                  : <span className="note">—</span>}
+              </td>
+              <td className="note">{(blocker.items ?? []).join(", ")}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
 // ---------------------------------------------- screen 6: lock and export
 
-export function LockScreen({ client, engagement, onError, onChanged }: {
+export function LockScreen({ client, engagement, onError, onChanged, onNavigate }: {
   client: Client;
   engagement: Engagement;
   onError: (exc: unknown) => void;
   onChanged: () => Promise<void>;
+  onNavigate?: (tab: string) => void;
 }) {
   const eid = engagement.engagement_id;
   const load = useCallback(async () => {
@@ -916,6 +1213,18 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
     } catch (exc) { onError(exc); }
   }
 
+  async function saveWorkpaper() {
+    try {
+      const html = await client.workpaperHtml(eid);
+      const locked = engagement.status === "locked";
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      link.download = `${locked ? "workpaper" : "DRAFT-workpaper"}-${engagement.client_name}-${engagement.period_end}.html`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (exc) { onError(exc); }
+  }
+
   if (!data) return <p className="note">Deriving readiness…</p>;
   const { readiness, lock } = data as {
     readiness: Readiness; lock: LockVerification;
@@ -934,18 +1243,7 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
         <span className="metric"><b>{readiness.report_implication}</b>implication</span>
       </div>
       {readiness.blockers.length > 0 && (
-        <table className="dense">
-          <thead><tr><th>Blocker</th><th>Count</th><th>Items</th></tr></thead>
-          <tbody>
-            {readiness.blockers.map((blocker) => (
-              <tr key={blocker.code}>
-                <td><code>{blocker.code}</code></td>
-                <td>{blocker.count}</td>
-                <td className="note">{(blocker.items ?? []).join(", ")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <BlockerList blockers={readiness.blockers} onNavigate={onNavigate} />
       )}
 
       <h3>Lock</h3>
@@ -958,6 +1256,14 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
           <button className="action" disabled={!readiness.ready}
                   onClick={() => void lockNow()}>
             lock engagement
+          </button>
+          <h3>Working paper</h3>
+          <p className="note">
+            A draft from the record as it stands, marked DRAFT: not locked, not
+            signed, and not an export. The signed working paper comes with the lock.
+          </p>
+          <button className="action" onClick={() => void saveWorkpaper()}>
+            save DRAFT working paper (HTML)
           </button>
         </>
       ) : (
@@ -1000,16 +1306,10 @@ export function LockScreen({ client, engagement, onError, onChanged }: {
             <button className="action" onClick={() => void download()}>
               download evidence packet (JSON)
             </button>
-            <a className="action" style={{ textDecoration: "none", padding: "3px 10px" }}
-               href={`/api/engagements/${eid}/workpaper`} target="_blank"
-               rel="noreferrer">
-              open workpaper
-            </a>
+            <button className="action" onClick={() => void saveWorkpaper()}>
+              save working paper (HTML)
+            </button>
           </form>
-          <p className="note">
-            The workpaper link requires the bearer session; if it opens
-            unauthorized, download the packet here and render offline.
-          </p>
 
           <h3>Reopen (supersede the lock)</h3>
           <p className="note">

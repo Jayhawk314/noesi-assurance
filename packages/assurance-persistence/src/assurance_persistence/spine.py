@@ -342,17 +342,17 @@ class RiskRepository:
 
     def assess(self, engagement_id: str, risk_id: str, *, title: str,
                assertion: str, level: str, rationale: str, response: str,
-               expected_version: int, proposed_by: str) -> int:
+               expected_version: int, proposed_by: str, fraud: bool = False) -> int:
         if expected_version == 0:
             try:
                 self._uow.execute(
                     """INSERT INTO risk_assessment (tenant_id, engagement_id,
                        risk_id, title, assertion, level, rationale, response,
-                       proposed_by, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       proposed_by, updated_at, fraud)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (self._uow.command.tenant_id, engagement_id, risk_id,
                      title, assertion, level, rationale, response,
-                     proposed_by, utcnow()))
+                     proposed_by, utcnow(), int(fraud)))
             except sqlite3.IntegrityError as exc:
                 raise ConflictError("risk_assessment",
                                     f"{engagement_id}/{risk_id}", 0) from exc
@@ -361,10 +361,11 @@ class RiskRepository:
             cursor = self._uow.execute(
                 """UPDATE risk_assessment SET title = ?, assertion = ?,
                    level = ?, rationale = ?, response = ?, proposed_by = ?,
-                   concurred_by = '', version = version + 1, updated_at = ?
+                   concurred_by = '', version = version + 1, updated_at = ?,
+                   fraud = ?
                    WHERE engagement_id = ? AND risk_id = ? AND version = ?""",
                 (title, assertion, level, rationale, response, proposed_by,
-                 utcnow(), engagement_id, risk_id, expected_version))
+                 utcnow(), int(fraud), engagement_id, risk_id, expected_version))
             if cursor.rowcount == 0:
                 raise ConflictError("risk_assessment",
                                     f"{engagement_id}/{risk_id}",
@@ -375,7 +376,7 @@ class RiskRepository:
             event_type="risk.assessed",
             before_version=expected_version or None, after_version=after,
             payload={"assertion": assertion, "level": level,
-                     "proposed_by": proposed_by},
+                     "proposed_by": proposed_by, "fraud": bool(fraud)},
             engagement_id=engagement_id)
         return after
 

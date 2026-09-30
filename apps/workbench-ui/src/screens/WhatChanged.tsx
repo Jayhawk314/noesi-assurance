@@ -13,6 +13,7 @@ import { useResource } from "../lib/useResource";
 const SIGNIFICANCE: Record<Significance, [string, string]> = {
   none: ["idle", "no dollar effect"],
   below_trivial: ["ok", "below clearly trivial"],
+  not_measured: ["pending", "changed, no dollar measure"],
   above_trivial: ["pending", "above clearly trivial"],
   above_performance: ["bad", "above performance materiality"],
 };
@@ -71,7 +72,13 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
       <div className="panel">
         <h3>What changed <button className="small" onClick={reload}>refresh</button></h3>
         <p className="note">
-          {summary.revised_files} revised file{summary.revised_files === 1 ? "" : "s"} ·{" "}
+          {(() => {
+            const added = revisions.filter((r) => r.load_mode === "add").length;
+            const replaced = revisions.length - added;
+            return <>{replaced > 0 && `${replaced} replaced file${replaced === 1 ? "" : "s"} · `}
+              {added > 0 && `${added} added file${added === 1 ? "" : "s"} · `}
+              {revisions.length === 0 && "no files replaced or added · "}</>;
+          })()}
           {summary.stale_runs} stale run{summary.stale_runs === 1 ? "" : "s"} ·{" "}
           {summary.affected_findings} finding{summary.affected_findings === 1 ? "" : "s"} move ·{" "}
           <b>{summary.judgments_to_revisit}</b> judgment{summary.judgments_to_revisit === 1 ? "" : "s"} to revisit ·{" "}
@@ -98,12 +105,12 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
           <table>
             <thead><tr><th>Row</th><th>Change</th><th>Amount effect</th><th /></tr></thead>
             <tbody>
-              {rev.diff.added.map((row) => (
-                <tr key={`a${row.key}`}><td>{row.key}</td><td>added</td>
+              {rev.diff.added.map((row, i) => (
+                <tr key={`a${i}-${row.key}`}><td>{row.key}</td><td>added</td>
                   <td>{money(row.amount)}</td><td><Sig level={row.significance} /></td></tr>
               ))}
-              {rev.diff.removed.map((row) => (
-                <tr key={`r${row.key}`}><td>{row.key}</td><td>removed</td>
+              {rev.diff.removed.map((row, i) => (
+                <tr key={`r${i}-${row.key}`}><td>{row.key}</td><td>removed</td>
                   <td>{money(row.amount)}</td><td><Sig level={row.significance} /></td></tr>
               ))}
               {rev.diff.changed.map((row) => (
@@ -116,7 +123,7 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
           </table>
           {rev.diff.duplicate_keys.length > 0 && (
             <div className="error-bar">
-              Duplicate keys in a version: {rev.diff.duplicate_keys.join(", ")}
+              Rows sharing a key ({rev.diff.duplicate_keys.join(", ")}) are compared as whole rows: a change to one shows as removed and added.
             </div>
           )}
         </div>
@@ -124,6 +131,7 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
 
       <div className="panel">
         <h3>Runs built on the old file</h3>
+        {stale_runs.length === 0 ? <p className="note">None: every run already used the current files.</p> : (
         <table>
           <thead><tr><th>Procedure</th><th>Input that moved</th><th>Findings</th><th>Status</th><th>What to do</th></tr></thead>
           <tbody>
@@ -138,6 +146,7 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       <div className="panel">

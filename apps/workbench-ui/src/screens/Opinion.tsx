@@ -7,6 +7,7 @@
 import { useCallback, useState } from "react";
 import { Client, DraftOpinion } from "../api";
 import { useResource } from "../lib/useResource";
+import { BlockerList } from "../screens";
 
 const LABEL: Record<string, string> = {
   unmodified: "Unmodified (clean)",
@@ -20,10 +21,11 @@ const LABEL: Record<string, string> = {
 
 const words = (name: string) => name.replace(/_/g, " ");
 
-export function OpinionScreen({ client, eid, onError }: {
+export function OpinionScreen({ client, eid, onError, onNavigate }: {
   client: Client;
   eid: string;
   onError: (exc: unknown) => void;
+  onNavigate?: (tab: string) => void;
 }) {
   const load = useCallback(() => client.draftOpinion(eid), [client, eid]);
   const { data, error, reload } = useResource<DraftOpinion>(load);
@@ -33,6 +35,9 @@ export function OpinionScreen({ client, eid, onError }: {
   if (!data) return <p className="note">Loading…</p>;
   const ready = data.status === "draft_for_partner";
   const settled = data.opinion ?? data.proposed_opinion;
+  // "Opinion" only when the file is ready and the partner's judgments are
+  // recorded; before that it is a draft, whatever the ladder settles to.
+  const final = !!data.opinion && ready;
 
   function record(decision: string) {
     client.updateWorkflow(eid, "opinion_decision", {
@@ -44,7 +49,7 @@ export function OpinionScreen({ client, eid, onError }: {
     <>
       <div className="panel">
         <h3>
-          {data.opinion ? "Opinion" : "Draft opinion"}: {LABEL[settled] ?? words(settled)}
+          {final ? "Opinion" : "Draft opinion"}: {LABEL[settled] ?? words(settled)}
           {data.going_concern_section && " — with a going-concern section"}{" "}
           <button className="small" onClick={reload}>refresh</button>{" "}
           <button className="small" onClick={() => window.print()}>print</button>
@@ -111,11 +116,7 @@ export function OpinionScreen({ client, eid, onError }: {
       {data.readiness_blockers.length > 0 && (
         <div className="panel">
           <h3>Still open before the engagement can close</h3>
-          <ul>
-            {data.readiness_blockers.map((b) => (
-              <li key={b.code}><code>{b.code}</code>{b.count ? ` (${b.count})` : ""}</li>
-            ))}
-          </ul>
+          <BlockerList blockers={data.readiness_blockers} onNavigate={onNavigate} />
         </div>
       )}
     </>

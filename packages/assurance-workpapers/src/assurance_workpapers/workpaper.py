@@ -44,27 +44,40 @@ code { font-size: 0.75rem; word-break: break-all; }
 
 def render_workpaper(packet: dict) -> str:
     engagement = packet["engagement"]
-    lock = packet["lock"]
+    draft = bool(packet.get("draft"))
+    # A draft has no lock: it reads the live record's manifest instead.
+    lock = packet["lock"] or {"manifest": packet.get("draft_manifest") or {}}
     seal = packet.get("seal", {})
     sad = packet.get("summary_of_audit_differences", {})
 
-    sections = [f"""
-<h1>Assurance workpaper — {_esc(engagement['client_name'])}
- (FYE {_esc(engagement['period_end'])})</h1>
-<p class="meta">
-Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
- · software {_esc(packet['software'])}<br>
+    if draft:
+        provenance = f"""
+<div class="limits"><b>DRAFT — not locked, not signed.</b> Rendered from the
+ live record at {_esc(packet['generated'])}. Anything here can still change;
+ it is not the audit file and proves nothing about it. The signed working
+ paper exists only after the lock.</div>"""
+    else:
+        provenance = f"""
 Lock signed by <b>{_esc(lock['signature']['signer_principal'])}</b>
  (key <code>{_esc(lock['signature']['key_id'][:16])}…</code>,
  {_esc(lock['signature']['algorithm'])}) at
  {_esc(lock['signature']['signed_at'])}<br>
 Lock manifest digest <code>{_esc(lock['digest'])}</code><br>
-Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>
+Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>"""
+
+    sections = [f"""
+<h1>{'DRAFT working paper' if draft else 'Assurance workpaper'} — {_esc(engagement['client_name'])}
+ (FYE {_esc(engagement['period_end'])})</h1>
+<p class="meta">
+Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
+ · software {_esc(packet['software'])}<br>{provenance}
 </p>"""]
 
     opinion = packet.get("opinion")
     if opinion:
-        settled = opinion.get("opinion")
+        # "Opinion" only once the file is ready and the partner's judgments
+        # are recorded; before that it is a draft, whatever it settles to.
+        settled = opinion.get("opinion") if opinion.get("status") != "not_ready" else None
         label = (settled or opinion.get("proposed_opinion", "")).replace("_", " ")
         recorded = opinion.get("recorded_decisions") or {}
         open_decisions = opinion.get("decisions_required") or []
@@ -92,6 +105,19 @@ Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>
                          f"{_esc(d['why'])}</li>" for d in open_decisions) + "</ul>"
                if open_decisions else "")
             + f"<p class='meta'>{_esc(opinion.get('note', ''))}</p>")
+        if opinion.get("status") == "not_ready":
+            # Before the file is ready no opinion is supported yet, whatever the
+            # ladder proposes: say so above everything else in the section.
+            blockers = opinion.get("readiness_blockers") or []
+            sections[-1] = sections[-1].replace(
+                "<h2>Opinion</h2>",
+                "<h2>Opinion</h2><div class='limits'><b>NOT READY.</b> The evidence "
+                "does not yet support any opinion; what follows is where the "
+                "record points so far. Still open: "
+                + (_esc(", ".join(f"{b.get('code')} ({b.get('count')})"
+                                  for b in blockers))
+                   or "the partner's decisions listed under Still to decide")
+                + ".</div>", 1)
 
     scope = packet.get("scope")
     if scope:
@@ -188,10 +214,24 @@ Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>
          ["Total adjusted", sad.get("total_adjusted")],
          ["Conclusion", sad.get("conclusion")]]))
 
-    sections.append(
-        "<h2>Limitations</h2>"
-        f"<div class='limits'>{_esc(packet.get('limits', ''))}<br><br>"
-        f"{_esc(lock['manifest'].get('limits', ''))}</div>")
+    if draft:
+        sections.append(
+            "<h2>Limitations</h2><div class='limits'>This draft is not signed, "
+            "sealed or locked: nothing in it is protected against change, and it "
+            "cannot be verified later. It shows the record as it stood when it "
+            "was rendered. It does not prove the accounting source was complete "
+            "or authentic.</div>")
+    else:
+        sections.append(
+            "<h2>Limitations</h2>"
+            f"<div class='limits'>{_esc(packet.get('limits', ''))}<br><br>"
+            f"{_esc(lock['manifest'].get('limits', ''))}</div>")
+
+    if draft:
+        return ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                f"<title>DRAFT working paper — {_esc(engagement['client_name'])}</title>"
+                f"<style>{_STYLE}</style></head><body>"
+                + "".join(sections) + "</body></html>")
 
     sections.append(
         "<h2>Verification</h2><p class='meta'>Reperform every integrity "

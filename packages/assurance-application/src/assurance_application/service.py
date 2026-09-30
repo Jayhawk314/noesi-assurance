@@ -17,7 +17,7 @@ import io
 import json
 import re
 import sqlite3
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from assurance_artifacts import xlsx
 from assurance_artifacts.intake import store_artifact
@@ -31,6 +31,7 @@ from assurance_domain.readiness import blank_engagement, readiness
 from assurance_domain.sad import (
     requires_concurrence, summary_of_differences, trivial_rate,
 )
+from assurance_persistence.database import utcnow
 from assurance_persistence.spine import run_command
 from procedures_ap.coverage import compile_coverage, inventory_from_tables
 from procedures_ap import quickbooks
@@ -62,6 +63,33 @@ def _finding_uid(verdict: dict) -> str:
 
 
 SCHEDULE_PROCEDURE = "completion.uncorrected_misstatements"
+
+# The procedures that test for a fraud scheme, with the scheme they look for
+# and the standard behind them (AU-C 240). The fraud view gathers these.
+FRAUD_TESTS: dict[str, tuple[str, str]] = {
+    "ap.vendor_relational_twins": ("Shell or duplicate vendors",
+                                   "AU-C 240: fictitious or duplicate suppliers"),
+    "ap.duplicate_bills": ("The same invoice paid twice",
+                           "AU-C 240: misappropriation by duplicate payment"),
+    "ap.payments_without_bills": ("Payments with no bill behind them",
+                                  "AU-C 240: disbursement fraud"),
+    "ap.payment_voucher_reference": ("Payments not tied to an approved voucher",
+                                     "AU-C 240: disbursement fraud"),
+    "ap.document_chain": ("Broken order-to-payment chain",
+                          "AU-C 240: disbursement fraud"),
+    "ap.split_payment_review": ("Purchases split to stay under an approval limit",
+                                "AU-C 240: override of approval controls"),
+    "ap.segregation_of_duties": ("One person enters and approves",
+                                 "AU-C 240: opportunity from incompatible duties"),
+    "forensic.closed_value_flow": ("Money that goes round in a circle",
+                                   "AU-C 240: round-tripping"),
+    "je.journal_entry_testing": ("Management override through journal entries",
+                                 "AU-C 240.32: journal entry testing"),
+    "je.population_completeness": ("A complete population for journal testing",
+                                   "AU-C 240.32: the population tested is complete"),
+    "payroll.register_tests": ("Ghost employees and payroll schemes",
+                               "AU-C 240: payroll fraud"),
+}
 
 
 def _trivial_rate(document: dict) -> Decimal:
@@ -119,10 +147,29 @@ class WorkbenchService:
                 f"action requires one of {sorted(roles)} on this engagement")
 
     def _require_unlocked(self, engagement_id: str) -> None:
-        if self._engagement(engagement_id)["status"] == "locked":
+        info = self._engagement(engagement_id)
+        if info["archived_at"]:
+            raise EngagementLockedError(
+                "the engagement is archived; restore it before changing its record")
+        if info["status"] == "locked":
             raise EngagementLockedError(
                 "the engagement is locked; unlock (with supersession) before "
                 "changing its record")
+
+    def _require_not_archived(self, engagement_id: str) -> None:
+        if self._engagement(engagement_id)["archived_at"]:
+            raise EngagementLockedError(
+                "the engagement is archived; restore it first")
+
+    def _set_archived(self, uow, engagement_id: str, expected_version: int,
+                      when: str | None) -> None:
+        """Set or clear the archive flag, leaving status and version alone."""
+        cursor = uow.execute(
+            """UPDATE engagement SET archived_at = ?
+               WHERE engagement_id = ? AND tenant_id = ? AND version = ?""",
+            (when, engagement_id, self._tenant, expected_version))
+        if cursor.rowcount == 0:
+            raise ConflictError("engagement", engagement_id, expected_version)
 
     # ----------------------------------------------- screen 1: engagement
 
@@ -136,12 +183,130 @@ class WorkbenchService:
             self._conn, self._command(actor, "engagement.create"),
             handler).result
 
-    def list_engagements(self) -> list[dict]:
+    def list_engagements(self, *, archived: bool = False) -> list[dict]:
+        """Open and locked engagements; with ``archived``, only the archived ones."""
         rows = self._conn.execute(
-            """SELECT engagement_id, client_name, period_end, status, version
+            f"""SELECT engagement_id, client_name, period_end, status, version
                FROM engagement WHERE tenant_id = ?
+               AND archived_at IS {'NOT NULL' if archived else 'NULL'}
                ORDER BY client_name, period_end""", (self._tenant,)).fetchall()
         return [dict(row) for row in rows]
+
+    def archive_engagement(self, actor: str, engagement_id: str, *,
+                           reason: str) -> dict:
+        """Take an engagement off the list without erasing its record.
+
+        Partner only, with a specific reason. Nothing is deleted: the journal,
+        sources, runs and any lock stay as they were. Archiving sets its own
+        flag and never the status or version a signed lock covers, so a
+        locked engagement stays locked and its lock still verifies. While
+        archived, nothing in it can change.
+        """
+        if len(reason.strip()) < 10:
+            raise ValueError("archiving requires a specific reason (ten characters or more)")
+        info = self._engagement(engagement_id)
+        if info["archived_at"]:
+            raise ValueError("the engagement is already archived")
+
+        def handler(uow):
+            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("only the partner archives an engagement")
+            self._set_archived(uow, engagement_id, info["version"], utcnow())
+            uow.emit(entity_type="engagement", entity_id=engagement_id,
+                     event_type="engagement.archived",
+                     payload={"reason": reason.strip(), "previous_status": info["status"]},
+                     engagement_id=engagement_id)
+            return {"engagement_id": engagement_id, "archived": True,
+                    "version": info["version"]}
+        return run_command(
+            self._conn, self._command(actor, "engagement.archive", engagement_id),
+            handler).result
+
+    def delete_engagement(self, actor: str, engagement_id: str, *,
+                          confirm_client_name: str, reason: str) -> dict:
+        """Delete an engagement and everything loaded into it.
+
+        Partner only; the exact client name must be typed back, with a reason.
+        Every row that belongs to the engagement goes (sources, mappings,
+        datasets, runs, dispositions, workflow, team, risks, locks), and each
+        uploaded file whose bytes no other engagement uses. The journal keeps
+        its lines for the engagement, plus one naming who deleted it and why:
+        the journal is one hash chain across all engagements, and cutting lines
+        out of it would break the trail check every other engagement relies on.
+        """
+        info = self._engagement(engagement_id)
+        norm = lambda text: " ".join(text.split()).casefold()  # noqa: E731
+        if norm(confirm_client_name) != norm(info["client_name"]):
+            raise ValueError("type the client name exactly to confirm the delete")
+        if len(reason.strip()) < 10:
+            raise ValueError("deleting requires a specific reason (ten characters or more)")
+        # A signed file is audit documentation (AU-C 230 keeps it after
+        # assembly): once any lock was signed, archive it; never delete it.
+        if self._conn.execute("SELECT 1 FROM lock_snapshot WHERE engagement_id = ? LIMIT 1",
+                              (engagement_id,)).fetchone():
+            raise ValueError("this engagement has a signed lock (current or superseded); "
+                             "signed audit files are kept. Archive it instead")
+        tables = [r["name"] for r in self._conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")
+            if r["name"] not in ("engagement", "domain_event")
+            and any(c["name"] == "engagement_id"
+                    for c in self._conn.execute(f"PRAGMA table_info('{r['name']}')"))]
+        shas = [r["sha256"] for r in self._conn.execute(
+            "SELECT sha256 FROM artifact WHERE engagement_id = ?", (engagement_id,))]
+
+        def handler(uow):
+            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("only the partner deletes an engagement")
+            # A lock's signature hangs off its snapshot, not the engagement.
+            uow.execute("""DELETE FROM lock_signature WHERE snapshot_id IN
+                           (SELECT snapshot_id FROM lock_snapshot WHERE engagement_id = ?)""",
+                        (engagement_id,))
+            pending = list(tables)
+            for _ in range(len(pending) + 1):          # children before parents
+                left = []
+                for table in pending:
+                    try:
+                        uow.execute(f"DELETE FROM {table} WHERE engagement_id = ?", (engagement_id,))
+                    except sqlite3.IntegrityError:
+                        left.append(table)
+                if not left:
+                    break
+                pending = left
+            else:
+                raise RuntimeError(f"could not delete rows in {pending}")
+            uow.execute("DELETE FROM engagement WHERE engagement_id = ? AND tenant_id = ?",
+                        (engagement_id, self._tenant))
+            uow.emit(entity_type="engagement", entity_id=engagement_id,
+                     event_type="engagement.deleted",
+                     payload={"client_name": info["client_name"], "period_end": info["period_end"],
+                              "reason": reason.strip(), "files": len(shas)},
+                     engagement_id=engagement_id)
+            return {"engagement_id": engagement_id, "deleted": True}
+        result = run_command(
+            self._conn, self._command(actor, "engagement.delete", engagement_id), handler).result
+        for sha in shas:                               # bytes no other engagement uses
+            if not self._conn.execute("SELECT 1 FROM artifact WHERE sha256 = ? LIMIT 1", (sha,)).fetchone():
+                self._vault.remove_blob(sha)
+        return result
+
+    def restore_engagement(self, actor: str, engagement_id: str) -> dict:
+        """Bring an archived engagement back; its status never changed."""
+        info = self._engagement(engagement_id)
+        if not info["archived_at"]:
+            raise ValueError("the engagement is not archived")
+
+        def handler(uow):
+            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
+                raise AuthorizationError("only the partner restores an engagement")
+            self._set_archived(uow, engagement_id, info["version"], None)
+            uow.emit(entity_type="engagement", entity_id=engagement_id,
+                     event_type="engagement.restored", payload={},
+                     engagement_id=engagement_id)
+            return {"engagement_id": engagement_id, "status": info["status"],
+                    "version": info["version"]}
+        return run_command(
+            self._conn, self._command(actor, "engagement.restore", engagement_id),
+            handler).result
 
     def assign_team(self, actor: str, engagement_id: str,
                     principal_id: str, role: str) -> dict:
@@ -805,7 +970,7 @@ class WorkbenchService:
                 "diff": diff_records(
                     list(old_table.engine_view().records),
                     current_records.get(role, []),
-                    KEY_FIELDS.get(role, ()), limits),
+                    KEY_FIELDS.get(role, ()), limits, role),
             })
 
         needs = {p.procedure_id: set(p.required_fields)
@@ -881,7 +1046,7 @@ class WorkbenchService:
                 "significance": max(
                     [card["significance"] for card in cards]
                     + [rev["diff"]["significance"] for rev in revisions],
-                    key=("none", "below_trivial", "above_trivial",
+                    key=("none", "below_trivial", "not_measured", "above_trivial",
                          "above_performance").index, default="none"),
                 "sad_effect": sad_effect(cards),
             },
@@ -896,8 +1061,13 @@ class WorkbenchService:
     def assess_risk(self, actor: str, engagement_id: str, *,
                     risk_id: str | None = None, title: str, assertion: str,
                     level: str = "unassessed", rationale: str = "",
-                    response: str = "", expected_version: int = 0) -> dict:
+                    response: str = "", expected_version: int = 0,
+                    fraud: bool | None = None) -> dict:
         """Record (or re-assess) a risk at the assertion level.
+
+        ``fraud`` left out (None) keeps a re-assessed risk's flag as it was
+        (a new risk starts unflagged); a value that is not true/false is
+        refused rather than guessed.
 
         The judgment is the auditor's: this stores it, names the proposer, and
         voids any prior concurrence on a re-assessment. It computes nothing —
@@ -913,13 +1083,21 @@ class WorkbenchService:
         if level not in RISK_LEVELS:
             raise ValueError(
                 f"unknown risk level {level!r}; one of {list(RISK_LEVELS)}")
+        if fraud is not None and not isinstance(fraud, bool):
+            raise ValueError("fraud must be true or false")
+        if fraud is None:
+            row = self._conn.execute(
+                "SELECT fraud FROM risk_assessment WHERE engagement_id = ? "
+                "AND risk_id = ?", (engagement_id, risk_id)).fetchone()                 if risk_id else None
+            fraud = bool(row["fraud"]) if row else False
         rid = risk_id or new_id()
 
         def handler(uow):
             version = uow.risks.assess(
                 engagement_id, rid, title=title, assertion=assertion,
                 level=level, rationale=rationale, response=response,
-                expected_version=expected_version, proposed_by=actor)
+                expected_version=expected_version, proposed_by=actor,
+                fraud=fraud)
             return {"risk_id": rid, "version": version}
         return run_command(
             self._conn, self._command(actor, "risk.assess", engagement_id),
@@ -1001,6 +1179,7 @@ class WorkbenchService:
                 "title": r["title"],
                 "assertion": r["assertion"],
                 "level": r["level"],
+                "fraud": bool(r.get("fraud")),
                 "rationale": r["rationale"],
                 "response": r["response"],
                 "procedure_ids": r["procedure_ids"],
@@ -1018,6 +1197,73 @@ class WorkbenchService:
             })
         return {"risks": rows, "assertions": list(ASSERTIONS),
                 "levels": list(RISK_LEVELS)}
+
+    def fraud_view(self, engagement_id: str) -> dict:
+        """AU-C 240 in one place: the fraud tests, the fraud risks, and what
+        the tests found. It gathers; it concludes nothing. Every test says
+        whether it could run on these records, so a scheme nobody could test
+        shows as untested, never as clean."""
+        coverage = {row["procedure_id"]: row
+                    for row in self.coverage(engagement_id)["procedures"]}
+        latest, current = {}, {}
+        for run in self.runs(engagement_id):
+            latest[run["procedure_id"]] = run
+            if run["status"] != "error":
+                current[run["procedure_id"]] = run["run_id"]
+        # Only the latest completed run's findings: an older run's findings
+        # are superseded by the rerun, never counted twice.
+        findings = [f for f in self.findings(engagement_id)
+                    if f["procedure_id"] in FRAUD_TESTS
+                    and f["run_id"] == current.get(f["procedure_id"])
+                    and f["verdict"]["verdict"] != "AGREE"]
+        tests = []
+        for pid, (scheme, basis) in FRAUD_TESTS.items():
+            row = coverage.get(pid)
+            mine = [f for f in findings if f["procedure_id"] == pid]
+            run = latest.get(pid)
+            missing = []
+            if row:
+                missing = list(row.get("missing_roles") or []) + sorted(
+                    f"{role}.{field}"
+                    for role, fields in (row.get("missing_fields") or {}).items()
+                    for field in fields)
+            tests.append({
+                "procedure_id": pid, "scheme": scheme, "basis": basis,
+                "name": row["name"] if row else pid,
+                "coverage": row["status"] if row else "not_available",
+                "in_scope": bool(row and row.get("selected")),
+                "missing": missing,
+                "limitations": (row.get("limitations") or "") if row else "",
+                "last_run": ({"status": run["status"], "at": run["created_at"],
+                              "run_id": run["run_id"]} if run else None),
+                "findings": len(mine),
+                "open": sum(1 for f in mine
+                            if f["disposition"]["status"] in ("undisposed", "follow_up")),
+            })
+        risks = [r for r in self.risks(engagement_id)["risks"] if r["fraud"]]
+        return {
+            "tests": tests,
+            "risks": risks,
+            "findings": findings,
+            "summary": {
+                "tests": len(tests),
+                # a run that ended in error ran nothing: not counted as run
+                "run": sum(1 for t in tests if t["last_run"]
+                           and t["last_run"]["status"] != "error"),
+                "cannot_run": sum(1 for t in tests if t["coverage"]
+                                  in ("blocked", "unsupported", "not_available")),
+                "partly": sum(1 for t in tests if t["coverage"] == "partial"),
+                "findings": len(findings),
+                "open_findings": sum(t["open"] for t in tests),
+                "fraud_risks": len(risks),
+            },
+            "presumed_risks": [
+                "Revenue recognition is presumed a fraud risk (AU-C 240.26): record it, "
+                "or document why the presumption is rebutted.",
+                "Management override of controls is a fraud risk in every audit "
+                "(AU-C 240.31): journal entry testing responds to it.",
+            ],
+        }
 
     def _risk_records(self, engagement_id: str) -> list[dict]:
         """Active (non-archived) risks, procedure_ids decoded to a list."""
@@ -1047,28 +1293,105 @@ class WorkbenchService:
                         section: str, values: dict) -> dict:
         """Constrained workflow updates: materiality, stages, completion."""
         self._require_unlocked(engagement_id)
-        self._require(engagement_id, actor, "preparer", "partner")
+        if section == "signoff":
+            # A sign-off is the reviewer's (or partner's), never the preparer's.
+            self._require(engagement_id, actor, "reviewer", "partner")
+        else:
+            self._require(engagement_id, actor, "preparer", "partner")
         document, version = self.workflow_document(engagement_id)
         if section == "materiality":
+            # Given a benchmark amount and a percentage, the amount is their
+            # product (to the cent); a stated amount that disagrees is refused
+            # rather than silently replaced.
+            amount = values.get("amount", 0)
+            benchmark_amount = values.get("benchmark_amount")
+            percentage = values.get("percentage")
+            given = [v not in (None, "") for v in (benchmark_amount, percentage)]
+            if any(given) and not all(given):
+                raise ValueError("give both the benchmark amount and the "
+                                 "percentage, or neither")
+            if all(given):
+                try:
+                    base = Decimal(str(benchmark_amount))
+                    rate = Decimal(str(percentage))
+                except ArithmeticError:
+                    raise ValueError("benchmark amount and percentage must be "
+                                     "numbers") from None
+                if not (base.is_finite() and rate.is_finite()):
+                    raise ValueError("benchmark amount and percentage must be "
+                                     "numbers")
+                if base <= 0 or not Decimal("0") < rate <= Decimal("100"):
+                    raise ValueError("the benchmark amount must be above zero and "
+                                     "the percentage between 0 and 100")
+                try:
+                    computed = (base * rate / 100).quantize(Decimal("0.01"),
+                                                            rounding=ROUND_HALF_UP)
+                except ArithmeticError:
+                    raise ValueError("the benchmark amount is too large") from None
+                if amount not in (None, "", 0) and \
+                        Decimal(str(amount)).quantize(
+                            Decimal("0.01"), rounding=ROUND_HALF_UP) != computed:
+                    raise ValueError(
+                        f"materiality {amount} is not {rate}% of {base} "
+                        f"({computed})")
+                amount = computed
             document["materiality"].update({
-                "amount": float(values.get("amount", 0)),
+                "amount": float(amount or 0),
                 "basis": str(values.get("basis", "")),
+                "benchmark_amount": str(benchmark_amount) if all(given) else "",
+                "percentage": str(percentage) if all(given) else "",
                 "rationale": str(values.get("rationale", ""))})
         elif section == "stage":
             name = values["name"]
             if name not in document["stages"]:
                 raise ValueError(f"unknown stage {name!r}")
+            status = str(values.get("status", "not_started"))
+            if status not in ("not_started", "complete"):
+                raise ValueError("a stage is 'not_started' or 'complete'")
+            # A new status or note is new work: any earlier sign-off lapses.
             document["stages"][name] = {
-                "status": str(values.get("status", "not_started")),
-                "note": str(values.get("note", ""))}
+                "status": status,
+                "note": " ".join(str(values.get("note", "")).split()),
+                "done_by": actor if status == "complete" else ""}
         elif section == "completion":
             name = values["name"]
             if name not in document["completion"]:
                 raise ValueError(f"unknown completion check {name!r}")
+            done = bool(values.get("done", False))
+            note = " ".join(str(values.get("note", "")).split())
+            if done and not note:
+                raise ValueError(f"say what was done for {name!r} before "
+                                 "marking it done")
             document["completion"][name] = {
-                "done": bool(values.get("done", False)),
-                "note": str(values.get("note", "")),
-                "evidence": list(values.get("evidence", []))}
+                "done": done, "note": note,
+                "evidence": list(values.get("evidence", [])),
+                "done_by": actor if done else ""}
+        elif section == "signoff":
+            # The reviewer's sign-off on a completed stage or completion
+            # check. Separation of duties: whoever marked it done cannot
+            # sign it off. Changing the item afterwards clears the sign-off.
+            kind = str(values.get("kind", ""))
+            name = str(values.get("name", ""))
+            items = {"stage": document["stages"],
+                     "completion": document["completion"]}.get(kind)
+            if items is None:
+                raise ValueError("sign off a 'stage' or a 'completion' check")
+            if name not in items:
+                raise ValueError(f"unknown {kind} {name!r}")
+            item = items[name]
+            finished = (item.get("status") == "complete" if kind == "stage"
+                        else bool(item.get("done")))
+            if not finished:
+                raise ValueError(f"{name!r} is not done yet; nothing to sign off")
+            if not item.get("done_by"):
+                # Marked done before who-did-it was recorded: the separation
+                # of duties cannot be checked, so it cannot be signed off yet.
+                raise ValueError(f"who marked {name!r} done is not recorded; reopen "
+                                 "it and mark it done again before signing it off")
+            if item.get("done_by") == actor:
+                raise SeparationOfDutiesError(
+                    "the person who marked it done cannot also sign it off")
+            item["reviewed_by"] = actor
         elif section == "line_mapping":
             # The client's own trial-balance label (or one account) mapped to
             # a statement line the procedures read (K8). The preparer or the
@@ -1203,9 +1526,18 @@ class WorkbenchService:
                 raise ValueError(
                     f"{procedure_id} belongs to the "
                     f"{SCOPE_OF[procedure_id]!r} cycle, which is not in scope")
+            # Leaving a procedure out is a scope decision: the partner's, and
+            # never without the reason that goes into the signed record.
+            self._require(engagement_id, actor, "partner")
+            selected = bool(values.get("selected", True))
+            rationale = " ".join(str(values.get("rationale", "")).split())
+            if not selected and len(rationale) < 10:
+                raise ValueError(
+                    f"say why {procedure_id} is left out (ten characters or "
+                    "more); the reason becomes part of the signed record")
             document.setdefault("procedures", {})[procedure_id] = {
-                "selected": bool(values.get("selected", True)),
-                "rationale": str(values.get("rationale", ""))}
+                "selected": selected, "rationale": rationale,
+                "decided_by": actor}
         elif section == "no_data_assertion":
             # Tracker 3.4: an engagement with zero normalized datasets skips
             # every procedure gate, so a lock could silently attest to no
@@ -1524,6 +1856,7 @@ class WorkbenchService:
         binds the partner's device key to exactly that byte set. What it
         proves is stated inside the manifest itself.
         """
+        self._require_not_archived(engagement_id)
         state = self.readiness(engagement_id)
         if not state["ready"]:
             return {"locked": False,
@@ -1581,6 +1914,7 @@ class WorkbenchService:
             raise ValueError(
                 "unlocking requires a specific reason (ten characters or "
                 "more); it becomes a permanent part of the engagement record")
+        self._require_not_archived(engagement_id)
         if self._engagement(engagement_id)["status"] != "locked":
             raise ValueError("the engagement is not locked")
 
@@ -1598,7 +1932,8 @@ class WorkbenchService:
             self._command(actor, "engagement.unlock", engagement_id),
             handler).result
 
-    def _lock_manifest(self, engagement_id: str, query) -> dict:
+    def _lock_manifest(self, engagement_id: str, query,
+                       schema: str = "noesi-lock-manifest-v2") -> dict:
         """Deterministic snapshot of every entity the lock covers.
 
         A re-lock names its predecessor: the superseded snapshot's digest and
@@ -1606,6 +1941,9 @@ class WorkbenchService:
         signature covers the amendment record itself (AU-C 230's reason /
         who / when for changes after assembly). A first lock has no such
         section and keeps the original v1 byte shape.
+
+        v2 (2026-09-30) adds each risk's fraud flag. A lock is always
+        re-verified in the schema it was signed in, so v1 locks still verify.
         """
         def rows(sql: str) -> list[dict]:
             return [dict(row) for row in query(sql, (engagement_id,))]
@@ -1635,7 +1973,7 @@ class WorkbenchService:
         }
         import hashlib
         return {
-            "schema": "noesi-lock-manifest-v1",
+            "schema": schema,
             **supersession,
             "engagement": engagement,
             "workflow": {
@@ -1666,8 +2004,9 @@ class WorkbenchService:
                 "WHERE engagement_id = ? ORDER BY finding_uid"),
             "risks": rows(
                 "SELECT risk_id, assertion, level, response, procedure_ids, "
-                "proposed_by, concurred_by, archived, version "
-                "FROM risk_assessment WHERE engagement_id = ? "
+                "proposed_by, concurred_by, archived, version"
+                + (", fraud" if schema != "noesi-lock-manifest-v1" else "")
+                + " FROM risk_assessment WHERE engagement_id = ? "
                 "ORDER BY risk_id"),
             "team": rows(
                 "SELECT principal_id, role FROM principal_assignment "
@@ -1736,7 +2075,8 @@ class WorkbenchService:
 
         stored_manifest = json.loads(snapshot["manifest"])
         current_manifest = self._lock_manifest(
-            engagement_id, self._conn.execute)
+            engagement_id, self._conn.execute,
+            schema=stored_manifest.get("schema", "noesi-lock-manifest-v1"))
         drift = sorted(
             section for section in stored_manifest
             if stored_manifest[section] != current_manifest.get(section))
@@ -1777,38 +2117,10 @@ class WorkbenchService:
 
     # ------------------------------------------------- screen 6b: export
 
-    def export_packet(self, actor: str, engagement_id: str) -> dict:
-        """Build, sign, and journal an evidence packet from the frozen lock.
-
-        Export refuses unless the lock fully verifies right now — a drifted
-        or broken engagement cannot produce a packet that pretends
-        otherwise.
-        """
-        from assurance_artifacts.signing import ALGORITHM
-        from assurance_workpapers.packet import (
-            PACKET_LIMITS, PACKET_VERSION, packet_digest, seal_packet,
-        )
-
-        self._require(engagement_id, actor,
-                      "preparer", "reviewer", "partner")
-        verification = self.verify_lock(engagement_id)
-        if not verification.get("verified"):
-            raise ValueError(
-                "export refused: the lock does not verify "
-                f"(drift={verification.get('drift')}, "
-                f"signature_ok={verification.get('signature_ok')}, "
-                f"journal_ok={verification.get('journal_ok')})")
-        if self._keystore is None:
-            raise RuntimeError(
-                "export is a signed operation; no key store is configured")
-
-        snapshot = self._conn.execute(
-            """SELECT * FROM lock_snapshot WHERE engagement_id = ?
-               AND status = 'active'""",
-            (engagement_id,)).fetchone()
-        signature = self._conn.execute(
-            "SELECT * FROM lock_signature WHERE snapshot_id = ?",
-            (snapshot["snapshot_id"],)).fetchone()
+    def _packet_body(self, engagement_id: str, lock: dict | None) -> dict:
+        """The evidence packet's contents, sealed or not. ``lock`` is the
+        signed lock block, or None for a draft working paper."""
+        from assurance_workpapers.packet import PACKET_LIMITS, PACKET_VERSION
         info = self._engagement(engagement_id)
 
         # Superseded locks travel whole — manifest, signature, reason — so
@@ -1873,7 +2185,8 @@ class WorkbenchService:
             decision = selections.get(contract.procedure_id, {})
             reason = ("deselected: " + decision.get("rationale", "")
                       if decision.get("selected") is False
-                      else "not executed before lock")
+                      else "not executed before lock" if lock
+                      else "not executed yet")
             not_run.append({"procedure_id": contract.procedure_id,
                             "reason": reason})
 
@@ -1896,20 +2209,7 @@ class WorkbenchService:
                 "period_end": info["period_end"],
                 "status": info["status"],
             },
-            "lock": {
-                "manifest": json.loads(snapshot["manifest"]),
-                "digest": snapshot["digest"],
-                "journal_head_seq": snapshot["journal_head_seq"],
-                "journal_head_hash": snapshot["journal_head_hash"],
-                "signature": {
-                    "signer_principal": signature["signer_principal"],
-                    "key_id": signature["key_id"],
-                    "algorithm": signature["algorithm"],
-                    "public_key_pem": signature["public_key_pem"],
-                    "signature_hex": signature["signature_hex"],
-                    "signed_at": signature["signed_at"],
-                },
-            },
+            "lock": lock,
             "lock_history": lock_history,
             "runs": runs,
             "procedures_not_run": not_run,
@@ -1933,6 +2233,54 @@ class WorkbenchService:
             "opinion": self.draft_opinion(engagement_id),
             "limits": PACKET_LIMITS,
         }
+        return packet
+
+    def export_packet(self, actor: str, engagement_id: str) -> dict:
+        """Build, sign, and journal an evidence packet from the frozen lock.
+
+        Export refuses unless the lock fully verifies right now — a drifted
+        or broken engagement cannot produce a packet that pretends
+        otherwise.
+        """
+        from assurance_artifacts.signing import ALGORITHM
+        from assurance_workpapers.packet import (
+            PACKET_LIMITS, PACKET_VERSION, packet_digest, seal_packet,
+        )
+
+        self._require(engagement_id, actor,
+                      "preparer", "reviewer", "partner")
+        verification = self.verify_lock(engagement_id)
+        if not verification.get("verified"):
+            raise ValueError(
+                "export refused: the lock does not verify "
+                f"(drift={verification.get('drift')}, "
+                f"signature_ok={verification.get('signature_ok')}, "
+                f"journal_ok={verification.get('journal_ok')})")
+        if self._keystore is None:
+            raise RuntimeError(
+                "export is a signed operation; no key store is configured")
+
+        snapshot = self._conn.execute(
+            """SELECT * FROM lock_snapshot WHERE engagement_id = ?
+               AND status = 'active'""",
+            (engagement_id,)).fetchone()
+        signature = self._conn.execute(
+            "SELECT * FROM lock_signature WHERE snapshot_id = ?",
+            (snapshot["snapshot_id"],)).fetchone()
+        packet = self._packet_body(engagement_id, {
+            "manifest": json.loads(snapshot["manifest"]),
+            "digest": snapshot["digest"],
+            "journal_head_seq": snapshot["journal_head_seq"],
+            "journal_head_hash": snapshot["journal_head_hash"],
+            "signature": {
+                "signer_principal": signature["signer_principal"],
+                "key_id": signature["key_id"],
+                "algorithm": signature["algorithm"],
+                "public_key_pem": signature["public_key_pem"],
+                "signature_hex": signature["signature_hex"],
+                "signed_at": signature["signed_at"],
+            },
+        })
         identity = self._keystore.identity(actor)
         digest = packet_digest(packet)
         seal_packet(
@@ -1956,8 +2304,22 @@ class WorkbenchService:
         return packet
 
     def workpaper_html(self, actor: str, engagement_id: str) -> str:
+        """The working paper: from the signed packet once locked; before
+        that, a draft from the live record, marked as such, unsigned."""
         from assurance_workpapers.workpaper import render_workpaper
-        return render_workpaper(self.export_packet(actor, engagement_id))
+        if self._engagement(engagement_id)["status"] == "locked":
+            return render_workpaper(self.export_packet(actor, engagement_id))
+        return render_workpaper(self.draft_packet(actor, engagement_id))
+
+    def draft_packet(self, actor: str, engagement_id: str) -> dict:
+        """The packet's contents as they stand now: not locked, not signed,
+        not an export. For reading the file while the work goes on."""
+        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
+        packet = self._packet_body(engagement_id, None)
+        packet["draft"] = True
+        packet["draft_manifest"] = self._lock_manifest(
+            engagement_id, self._conn.execute)
+        return packet
 
     # ------------------------------------------------------------ helpers
 

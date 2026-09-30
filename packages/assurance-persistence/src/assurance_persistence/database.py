@@ -352,6 +352,32 @@ ALTER TABLE risk_assessment_v8 RENAME TO risk_assessment;
 ALTER TABLE normalized_dataset ADD COLUMN load_mode TEXT NOT NULL DEFAULT 'replace'
     CHECK (load_mode IN ('first', 'replace', 'add'));
 """),
+    (10, "risk-fraud-flag", """
+-- AU-C 240: a fraud risk is its own kind of risk, discussed and responded to
+-- separately. The flag is the auditor's judgment, like the level.
+ALTER TABLE risk_assessment ADD COLUMN fraud INTEGER NOT NULL DEFAULT 0
+    CHECK (fraud IN (0, 1));
+"""),
+    (11, "engagement-archive-flag", """
+-- Archiving used to set status = 'archived', which changed the engagement
+-- row a signed lock covers (status and version), so a locked engagement
+-- archived and restored no longer verified (review 2026-09-30, finding 2).
+-- Archived is now its own column, outside the signed fields; status keeps
+-- what the engagement is (open or locked). Rows archived the old way get
+-- back the status they had, from their latest archive event.
+ALTER TABLE engagement ADD COLUMN archived_at TEXT;
+UPDATE engagement SET
+    archived_at = COALESCE((SELECT created_at FROM domain_event d
+        WHERE d.engagement_id = engagement.engagement_id
+        AND d.event_type = 'engagement.archived'
+        ORDER BY d.event_seq DESC LIMIT 1), '1970-01-01T00:00:00+00:00'),
+    status = COALESCE((SELECT json_extract(d.payload, '$.previous_status')
+        FROM domain_event d
+        WHERE d.engagement_id = engagement.engagement_id
+        AND d.event_type = 'engagement.archived'
+        ORDER BY d.event_seq DESC LIMIT 1), 'open')
+WHERE status = 'archived';
+"""),
 )
 
 

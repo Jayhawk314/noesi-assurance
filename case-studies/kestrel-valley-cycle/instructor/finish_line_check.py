@@ -474,6 +474,13 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("summary of misstatements (SAD) carries the schedule's largest line", fm["largest"],
       abs(_dec((schedule.get("lines") or {}).get(largest, "0")))
       if schedule else NOT_IN)
+    # Every line of the SAD's schedule, not only the largest: this schedule
+    # is what the SAD screen (and video m01) shows.
+    for line, amount in fm["totals"].items():
+        key = line.lower().replace(" ", "_")
+        c(f"summary of misstatements (SAD) schedule: {line}", _dec(amount),
+          _dec((schedule.get("lines") or {}).get(key, "nan"))
+          if schedule and key in (schedule.get("lines") or {}) else NOT_IN)
     c("summary of misstatements (SAD) lines at materiality", [largest],
       schedule.get("material_lines", NOT_IN) if schedule else NOT_IN)
     gc = K3["going_concern"]

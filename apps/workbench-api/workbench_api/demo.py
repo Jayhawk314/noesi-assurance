@@ -10,6 +10,7 @@ part worth experiencing first-hand.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 DEMO_CLIENT = "Harborline Marine Group (demo)"
@@ -125,3 +126,70 @@ def seed_demo(service, partner: str,
     return {"engagement_id": eid, "seeded": True, "rows_loaded": loaded,
             "team": {"partner": partner, "preparer": DEMO_PREPARER,
                      "reviewer": DEMO_REVIEWER}}
+
+
+# ------------------------------------------------------------------ load a case from the Workbench
+
+CASES = {
+    "kestrel": {"title": "Kestrel Valley Cycle Supply (FYE 2026-06-30)",
+                "client": "Kestrel Valley Cycle Supply (demo)", "period_end": "2026-06-30",
+                "present": lambda: (kestrel_case_dir() / "instructor" / "workbench_seed.py").is_file(),
+                "load": seed_kestrel},
+    "harborline": {"title": "Harborline Marine Group (FYE 2026-12-31)",
+                   "client": DEMO_CLIENT, "period_end": DEMO_PERIOD,
+                   "present": lambda: (default_case_dir() / "vendors.csv").is_file(),
+                   "load": seed_demo},
+    # Oceanview is a purchased case: its files and loader live only in the
+    # git-ignored oceanview/ folder, so this entry appears only where the
+    # case has been installed. Nothing of the case is in this repository.
+    # Its client name and year end come from the private loader when used.
+    "oceanview": {"title": "Oceanview Marine (private case)",
+                  "client": None, "period_end": None,
+                  "present": lambda: _oceanview_loader().is_file(),
+                  "load": lambda service, partner: _load_oceanview(service, partner)},
+}
+
+
+def _oceanview_loader() -> Path:
+    return Path(__file__).resolve().parents[3] / "oceanview" / "adapter" / "load_workbench.py"
+
+
+def _oceanview_module():
+    """The private case's own loader, imported from the git-ignored folder."""
+    import importlib.util
+    path = _oceanview_loader()
+    adapter = str(path.parent)
+    if adapter not in sys.path:
+        sys.path.insert(0, adapter)          # its loader imports its siblings
+    spec = importlib.util.spec_from_file_location("oceanview_load_workbench", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_oceanview(service, partner: str) -> dict:
+    """Run the private case's own loader in this server's store."""
+    return _oceanview_module().load(service, partner)
+
+
+def available_cases() -> list[dict]:
+    """The teaching cases this installation can load (their files are present)."""
+    return [{"case": name, "title": c["title"]} for name, c in CASES.items() if c["present"]()]
+
+
+def load_case(service, name: str, partner: str) -> dict:
+    """Load a teaching case as a new engagement (or return the one already open)."""
+    case = CASES.get(name)
+    if case is None or not case["present"]():
+        raise KeyError(f"case {name!r} is not available here")
+    client, period_end = case["client"], case["period_end"]
+    if name == "oceanview":                  # private: known only to its loader
+        module = _oceanview_module()
+        client, period_end = module.CLIENT, module.PERIOD
+    # an archived copy comes back rather than blocking a new one
+    archived = next((e for e in service.list_engagements(archived=True)
+                     if e["client_name"] == client and e["period_end"] == period_end), None)
+    if archived:
+        service.restore_engagement(partner, archived["engagement_id"])
+        return {"engagement_id": archived["engagement_id"], "seeded": False, "restored": True}
+    return case["load"](service, partner)

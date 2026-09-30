@@ -146,6 +146,7 @@ export interface CoverageRow {
   cycle: string;
   status: "executable" | "partial" | "blocked" | "unsupported";
   selected: boolean;
+  default_selected?: boolean;
   missing_roles: string[];
   missing_fields: Record<string, string[]>;
   missing_policies: string[];
@@ -219,6 +220,8 @@ export interface Risk {
   title: string;
   assertion: string;
   level: "unassessed" | "low" | "moderate" | "high" | "significant";
+  /** The auditor marked this a fraud risk (AU-C 240). */
+  fraud: boolean;
   rationale: string;
   response: string;
   procedure_ids: string[];
@@ -229,6 +232,23 @@ export interface Risk {
   version: number;
   requires_concurrence: boolean;
   awaiting_concurrence: boolean;
+}
+
+/** One fraud test and whether it could run on these records. */
+export interface FraudTest {
+  procedure_id: string; scheme: string; basis: string; name: string;
+  coverage: string; in_scope: boolean; missing: string[]; limitations: string;
+  last_run: { status: string; at: string; run_id: string } | null;
+  findings: number; open: number;
+}
+
+export interface FraudView {
+  tests: FraudTest[];
+  risks: Risk[];
+  findings: Finding[];
+  summary: { tests: number; run: number; cannot_run: number; partly: number; findings: number;
+             open_findings: number; fraud_risks: number };
+  presumed_risks: string[];
 }
 
 export interface RiskRegister {
@@ -275,10 +295,11 @@ export interface Readiness {
 }
 
 export interface WorkflowDocument {
-  materiality: { amount: number; basis: string; rationale: string };
-  stages: Record<string, { status: string; note: string }>;
-  completion: Record<string, { done: boolean; note: string }>;
-  procedures?: Record<string, { selected: boolean; rationale: string }>;
+  materiality: { amount: number; basis: string; rationale: string;
+                 benchmark_amount?: string; percentage?: string };
+  stages: Record<string, { status: string; note: string; done_by?: string; reviewed_by?: string }>;
+  completion: Record<string, { done: boolean; note: string; done_by?: string; reviewed_by?: string }>;
+  procedures?: Record<string, { selected: boolean; rationale: string; decided_by?: string }>;
   policies?: Record<string, string>;
   cycles?: string[];
   period?: { start: string };
@@ -355,12 +376,12 @@ export interface LockHistoryEntry {
   reason: string;
 }
 
-export type Significance = "none" | "below_trivial" | "above_trivial" | "above_performance";
+export type Significance = "none" | "below_trivial" | "not_measured" | "above_trivial" | "above_performance";
 
 export interface RowChange {
   key: string;
   amount?: number | null;
-  amount_change?: number;
+  amount_change?: number | null;
   fields?: { field: string; before: unknown; after: unknown }[];
   significance: Significance;
 }
@@ -444,6 +465,20 @@ export class Client {
     return data as T;
   }
 
+  /** The working paper as HTML: signed once locked, a marked draft before. */
+  workpaperHtml = async (eid: string): Promise<string> => {
+    const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
+    if (this.actingAs) headers["X-Acting-Principal"] = this.actingAs;
+    const response = await fetch(`/api/engagements/${eid}/workpaper`, { headers });
+    const text = await response.text();
+    if (!response.ok) {
+      let message = response.statusText;
+      try { message = (JSON.parse(text) as { error?: string }).error ?? message; } catch { /* html */ }
+      throw new ApiError(response.status, message);
+    }
+    return text;
+  };
+
   session = () =>
     this.request<{ principal_id: string }>("GET", "/api/session");
 
@@ -458,6 +493,18 @@ export class Client {
     this.request<{ engagements: Engagement[] }>("GET", "/api/engagements");
   createEngagement = (client_name: string, period_end: string) =>
     this.request<{ engagement_id: string }>("POST", "/api/engagements", { client_name, period_end });
+  archivedEngagements = () =>
+    this.request<{ engagements: Engagement[] }>("GET", "/api/engagements/archived");
+  archiveEngagement = (eid: string, reason: string) =>
+    this.request("POST", `/api/engagements/${eid}/archive`, { reason });
+  deleteEngagement = (eid: string, confirm_client_name: string, reason: string) =>
+    this.request("POST", `/api/engagements/${eid}/delete`, { confirm_client_name, reason });
+  restoreEngagement = (eid: string) =>
+    this.request("POST", `/api/engagements/${eid}/restore`, {});
+  cases = () =>
+    this.request<{ cases: { case: string; title: string }[] }>("GET", "/api/cases");
+  loadCase = (name: string) =>
+    this.request<{ engagement_id: string; seeded: boolean }>("POST", `/api/cases/${name}/load`, {});
 
   team = (eid: string) =>
     this.request<{ team: TeamMember[] }>("GET", `/api/engagements/${eid}/team`);
@@ -518,11 +565,14 @@ export class Client {
       "POST", `/api/engagements/${eid}/dispositions/concur`,
       { finding_uid, expected_version });
 
+  fraud = (eid: string) =>
+    this.request<FraudView>("GET", `/api/engagements/${eid}/fraud`);
   risks = (eid: string) =>
     this.request<RiskRegister>("GET", `/api/engagements/${eid}/risks`);
   assessRisk = (eid: string, risk: {
     risk_id?: string; title: string; assertion: string; level: string;
     rationale?: string; response?: string; expected_version?: number;
+    fraud?: boolean;
   }) =>
     this.request<{ risk_id: string; version: number }>(
       "POST", `/api/engagements/${eid}/risks`, risk);
