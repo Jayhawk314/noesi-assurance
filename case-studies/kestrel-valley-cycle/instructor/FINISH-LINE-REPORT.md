@@ -2,14 +2,14 @@
 
 *Written by `finish_line_check.py` (ROADMAP step 0). It seeds the Workbench demo through the real service path, as `--demo` does, and compares each Learn module with `answer_key*.json`. Do not edit by hand; re-run the script.*
 
-**157 match, 0 differ, 3 not in Noesi** (31 procedures run).
+**159 match, 0 differ, 3 not in Noesi** (31 procedures run).
 
 | # | Module | Match | Differ | Not in Noesi |
 |---|---|---|---|---|
-| 1 | Engagement setup | 5 | 0 | 0 |
+| 1 | Engagement setup | 6 | 0 | 0 |
 | 2 | Planning | 19 | 0 | 0 |
 | 3 | Journal entries | 13 | 0 | 0 |
-| 4 | Revenue and receivables | 16 | 0 | 0 |
+| 4 | Revenue and receivables | 17 | 0 | 0 |
 | 5 | Payables | 13 | 0 | 2 |
 | 6 | Cash | 12 | 0 | 0 |
 | 7 | Inventory | 10 | 0 | 0 |
@@ -22,7 +22,7 @@
 
 ## 1. Engagement setup
 
-Matches: materiality; period start; period end; team: partner, preparer, reviewer; every file loads (none refused).
+Matches: every procedure run is in the audit; materiality; period start; period end; team: partner, preparer, reviewer; every file loads (none refused).
 
 ## 2. Planning
 
@@ -34,7 +34,7 @@ Matches: transactions in the Journal; lines in the Journal; posted after period 
 
 ## 4. Revenue and receivables
 
-Matches: aging total; A/R per trial balance; aging to ledger difference found; credit balance: Summit Loop Racing; allowance required (aging as loaded); allowance recorded; allowance short (aging as loaded); key items; sample items; key-item misstatement; misstatements counted (timing and customer error left out); sample book value; remainder book value (aging as loaded); projected misstatement (aging as loaded); total likely misstatement (aging as loaded); below tolerable.
+Matches: aging total; A/R per trial balance; aging to ledger difference found; credit balance: Summit Loop Racing; allowance required (aging as loaded); allowance recorded; allowance short (aging as loaded); confirmation method in the audit: nonstatistical; key items; sample items; key-item misstatement; misstatements counted (timing and customer error left out); sample book value; remainder book value (aging as loaded); projected misstatement (aging as loaded); total likely misstatement (aging as loaded); below tolerable.
 
 ## 5. Payables
 

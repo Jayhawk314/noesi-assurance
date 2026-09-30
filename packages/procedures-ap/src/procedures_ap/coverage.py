@@ -12,6 +12,7 @@ build can run it").
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 
@@ -108,7 +109,7 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
 
 def apply_selections(coverage: dict, selections: dict) -> dict:
     """Overlay auditor selection/rationale without mutating compiled coverage."""
-    result = json.loads(json.dumps(coverage))
+    result = copy.deepcopy(coverage)   # money stays Decimal; a JSON round trip refuses it
     for row in result.get("procedures", []):
         decision = selections.get(row["procedure_id"], {})
         row["selected"] = bool(decision.get("selected", row.get("selected", True)))

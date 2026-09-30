@@ -33,7 +33,8 @@ from assurance_domain.sad import (
 )
 from assurance_persistence.database import utcnow
 from assurance_persistence.spine import run_command
-from procedures_ap.coverage import compile_coverage, inventory_from_tables
+from procedures_ap.coverage import (apply_selections, compile_coverage,
+                                    inventory_from_tables)
 from procedures_ap import quickbooks
 from procedures_ap.engines import ENGINE_VERSION
 from procedures_cycles import engines as cycle_engines
@@ -699,9 +700,12 @@ class WorkbenchService:
         # An AP-only engagement (no scope) compiles exactly as it always has.
         policies = (self._engagement_policies(engagement_id, document)
                     if document.get("cycles") else document.get("policies"))
-        return compile_coverage(inventory_from_tables(tables),
-                                policies=policies or None, contracts=contracts,
-                                executors=cycle_engines.registered_procedures())
+        compiled = compile_coverage(inventory_from_tables(tables),
+                                    policies=policies or None, contracts=contracts,
+                                    executors=cycle_engines.registered_procedures())
+        # The auditor's choices (a procedure included or left out, and why)
+        # apply here, so every screen and every caller sees the same audit.
+        return apply_selections(compiled, document.get("procedures") or {})
 
     # ---------------------------------------- screen 4: runs and findings
 

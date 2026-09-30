@@ -181,9 +181,21 @@ def seed(service, partner: str) -> dict:
     service.update_workflow(PREPARER, eid, "line_mapping",
                             {"account": "11900", "line": "allowance"})
 
+    # The three confirmation evaluations start left out: the auditor picks
+    # one. Kestrel's team evaluates its confirmations nonstatistically (the
+    # key's ar.confirmations_nonstatistical), so the partner includes that
+    # method and records why the other two are not used.
+    service.update_workflow(partner, eid, "procedure_selection", {
+        "procedure_id": "ar.confirmations_nonstatistical", "selected": True})
+    for pid in ("ar.confirmations_mus", "ar.confirmations_difference"):
+        service.update_workflow(partner, eid, "procedure_selection", {
+            "procedure_id": pid, "selected": False,
+            "rationale": "the confirmations are evaluated nonstatistically; "
+                         "this method is not the one chosen for the audit"})
+
     runs = 0
     for row in service.coverage(eid)["procedures"]:
-        if row["status"] == "executable":
+        if row["status"] == "executable" and row.get("selected", True):
             service.run_procedure(PREPARER, eid, procedure_id=row["procedure_id"])
             runs += 1
     return {"engagement_id": eid, "seeded": True, "procedures_run": runs,

@@ -12,7 +12,7 @@
 
 import { Lesson } from "./types";
 
-const DEMO_START = "Start the Workbench with the Kestrel demo: `python -m workbench_api --demo`, open the address it prints, paste the session token, and open **Kestrel Valley Cycle Supply (demo)**.";
+const DEMO_START = "Start the Workbench with the Kestrel demo: `python -m workbench_api --demo`, open the address it prints, and open **Kestrel Valley Cycle Supply (demo)**. (Without `--demo`, choose Kestrel under **load teaching case**.)";
 const JOURNAL_NOTE = "The demo loads the QuickBooks Journal prepared by hand from its export (roadmap C); **Sources & Mappings** says so.";
 const PAYABLES = "Payables", PAYROLL = "Payroll", JOURNAL = "Journal entries", CASH = "Cash";
 const ESTIMATES = "Estimates and related parties", COMPLETION = "Completion";

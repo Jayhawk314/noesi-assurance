@@ -3,6 +3,13 @@
  "modules": {
   "Engagement setup": [
    {
+    "item": "every procedure run is in the audit",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
     "item": "materiality",
     "status": "match",
     "why": "",
@@ -28,7 +35,7 @@
     "status": "match",
     "why": "",
     "key": "partner, preparer, reviewer",
-    "noesi": "partner, preparer, reviewer"
+    "noesi": "reviewer, preparer, partner"
    },
    {
     "item": "every file loads (none refused)",
@@ -315,6 +322,13 @@
     "why": "",
     "key": "2687.38",
     "noesi": "2687.38"
+   },
+   {
+    "item": "confirmation method in the audit: nonstatistical",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
    },
    {
     "item": "key items",
@@ -982,6 +996,41 @@
     "why": "",
     "key": "15650.37",
     "noesi": "15650.37"
+   },
+   {
+    "item": "summary of misstatements (SAD) schedule: Current Assets",
+    "status": "match",
+    "why": "",
+    "key": "15650.37",
+    "noesi": "15650.37"
+   },
+   {
+    "item": "summary of misstatements (SAD) schedule: Noncurrent Assets",
+    "status": "match",
+    "why": "",
+    "key": "300.00",
+    "noesi": "300.00"
+   },
+   {
+    "item": "summary of misstatements (SAD) schedule: Current Liabilities",
+    "status": "match",
+    "why": "",
+    "key": "5335.82",
+    "noesi": "5335.82"
+   },
+   {
+    "item": "summary of misstatements (SAD) schedule: Noncurrent Liabilities",
+    "status": "match",
+    "why": "",
+    "key": "0.00",
+    "noesi": "0.00"
+   },
+   {
+    "item": "summary of misstatements (SAD) schedule: Income Before Taxes",
+    "status": "match",
+    "why": "",
+    "key": "10614.55",
+    "noesi": "10614.55"
    },
    {
     "item": "summary of misstatements (SAD) lines at materiality",
