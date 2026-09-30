@@ -6,11 +6,14 @@ import {
   ApControlBuilt, ApControlCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
 import { amountsInWords, cents } from "./lib/words";
+import { csvName, downloadCsv } from "./lib/csv";
 
 interface ScreenProps {
   client: Client;
   eid: string;
   onError: (exc: unknown) => void;
+  /** The client's name, for file names of downloads. */
+  clientName?: string;
 }
 
 function useLoader<T>(load: () => Promise<T>, onError: (e: unknown) => void) {
@@ -439,7 +442,7 @@ function PolicySetter({ policy, onSet }: {
   );
 }
 
-export function CoverageScreen({ client, eid, onError }: ScreenProps) {
+export function CoverageScreen({ client, eid, onError, clientName = "" }: ScreenProps) {
   const load = useCallback(async () => {
     const [coverage, workflow] = await Promise.all([
       client.coverage(eid), client.workflow(eid)]);
@@ -490,6 +493,22 @@ export function CoverageScreen({ client, eid, onError }: ScreenProps) {
           <b>{data.procedures.filter((r) => !decision(r.procedure_id, r.selected).selected).length}</b>
           left out
         </span>
+        <button className="action" type="button"
+                title="every procedure: in the audit or left out, whether it could run, and why not"
+                onClick={() => downloadCsv(csvName(clientName, "coverage"),
+                  ["Procedure", "Procedure id", "Cycle", "Status", "In the audit",
+                   "Reason left out", "Population", "Missing data", "Missing fields",
+                   "Missing settings", "Limitations"],
+                  data.procedures.map((r) => {
+                    const d = decision(r.procedure_id, r.selected);
+                    return [r.name, r.procedure_id, r.cycle, r.status,
+                      d.selected ? "included" : "left out", d.rationale, r.population,
+                      r.missing_roles.join("; "),
+                      Object.entries(r.missing_fields ?? {}).map(([role, fs]) => `${role}: ${fs.join(", ")}`).join("; "),
+                      r.missing_policies.join("; "), r.limitations];
+                  }))}>
+          download (CSV)
+        </button>
       </div>
       <table className="dense">
         <thead>
@@ -636,7 +655,7 @@ function RunDetails({ summary }: { summary: Record<string, unknown> }) {
   );
 }
 
-export function RunsScreen({ client, eid, onError }: ScreenProps) {
+export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProps) {
   const load = useCallback(async () => {
     const [{ runs }, { findings }, coverage] = await Promise.all([
       client.runs(eid), client.findings(eid), client.coverage(eid),
@@ -784,6 +803,20 @@ export function RunsScreen({ client, eid, onError }: ScreenProps) {
           showing {shown.length} of {all.length}
           {latestOnly && earlier > 0 && <> ({earlier} from earlier runs hidden)</>}
         </span>
+        <button className="action" type="button" disabled={!shown.length}
+                title="the findings shown, with the filters above, for your own working papers"
+                onClick={() => downloadCsv(csvName(clientName, "findings"),
+                  ["Procedure", "Procedure id", "Verdict", "Assertion", "Class", "Finding",
+                   "Magnitude", "Disposition", "Note", "Proposed by", "Concurred by",
+                   "Run", "Earlier run", "Receipt", "Evidence"],
+                  shown.map((f) => [named(f.procedure_id), f.procedure_id, f.verdict.verdict,
+                    f.tags.assertion, f.tags.class, f.verdict.reason, f.verdict.score,
+                    f.disposition.status, f.disposition.note, f.disposition.proposed_by,
+                    f.disposition.concurred_by, f.run_id,
+                    latestRun[f.procedure_id] !== f.run_id ? "yes" : "", f.verdict.receipt_id,
+                    JSON.stringify(f.verdict.evidence ?? {})]))}>
+          download shown (CSV)
+        </button>
       </form>
       {picked.size > 0 && (
         <form className="inline panel" onSubmit={(e) => { e.preventDefault(); void disposeSelected(); }}>

@@ -427,9 +427,11 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
     case "Sources & Mappings":
       return <SourcesScreen client={client} eid={eid} onError={onError} />;
     case "Coverage":
-      return <CoverageScreen client={client} eid={eid} onError={onError} />;
+      return <CoverageScreen client={client} eid={eid} onError={onError}
+                             clientName={engagement.client_name} />;
     case "Runs & Findings":
-      return <RunsScreen client={client} eid={eid} onError={onError} />;
+      return <RunsScreen client={client} eid={eid} onError={onError}
+                         clientName={engagement.client_name} />;
     case "Fraud":
       return <FraudScreen client={client} eid={eid} onError={onError} />;
     case "What Changed":
