@@ -104,6 +104,10 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
     "search_systematic_count": (
         "Unrecorded liabilities search: most smaller payments to pick", COUNT,
         "The largest number of smaller payments picked."),
+    "ap_control_accounts": (
+        "Accounts payable control accounts in the trial balance", ACCOUNTS,
+        "When no General Ledger export is loaded, the A/P tie takes the ledger side "
+        "from these trial-balance accounts (their credit balance)."),
     # payroll
     "payroll_expense_accounts": (
         "Wage accounts in the ledger", ACCOUNTS,

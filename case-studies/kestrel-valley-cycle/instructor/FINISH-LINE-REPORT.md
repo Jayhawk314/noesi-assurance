@@ -2,7 +2,7 @@
 
 *Written by `finish_line_check.py` (ROADMAP step 0). It seeds the Workbench demo through the real service path, as `--demo` does, and compares each Learn module with `answer_key*.json`. Do not edit by hand; re-run the script.*
 
-**159 match, 0 differ, 3 not in Noesi** (31 procedures run).
+**162 match, 0 differ, 2 not in Noesi** (32 procedures run).
 
 | # | Module | Match | Differ | Not in Noesi |
 |---|---|---|---|---|
@@ -10,7 +10,7 @@
 | 2 | Planning | 19 | 0 | 0 |
 | 3 | Journal entries | 13 | 0 | 0 |
 | 4 | Revenue and receivables | 17 | 0 | 0 |
-| 5 | Payables | 13 | 0 | 2 |
+| 5 | Payables | 16 | 0 | 1 |
 | 6 | Cash | 12 | 0 | 0 |
 | 7 | Inventory | 10 | 0 | 0 |
 | 8 | Payroll | 8 | 0 | 0 |
@@ -38,11 +38,9 @@ Matches: aging total; A/R per trial balance; aging to ledger difference found; c
 
 ## 5. Payables
 
-Matches: vendors; vendor twins; bills (loaded + set aside); bills without a number (set aside at load); bill payments; bill payments total; duplicate bill MC-25009; split bills: Hyalite total; short payment on check 4425 (left open); checks without bills: DM Consulting; three-way match not testable; segregation of duties not testable; duplicate's misstatement.
+Matches: vendors; vendor twins; bills (loaded + set aside); bills without a number (set aside at load); bill payments; bill payments total; duplicate bill MC-25009; split bills: Hyalite total; short payment on check 4425 (left open); checks without bills: DM Consulting; A/P subledger (Unpaid Bills total); A/P ledger (trial balance account 20000); A/P subledger ties to the ledger; three-way match not testable; segregation of duties not testable; duplicate's misstatement.
 
 - **not in Noesi: PO overrun: Summit Tire PO 1021.** Key True; Workbench —. Why: QuickBooks' Transaction List by Vendor carries no PO link on a bill (the PO number is only in the memo), so voucher-to-PO tests are partial (partial); roadmap C.
-
-- **not in Noesi: A/P subledger ties to the ledger.** Key 0.00; Workbench —. Why: the A/P control schedule is built from Unpaid Bills and a General Ledger export; Kestrel has a trial balance, not a General Ledger export (blocked); roadmap C.
 
 ## 6. Cash
 

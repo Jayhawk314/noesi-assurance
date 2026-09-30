@@ -317,6 +317,58 @@ def test_ap_subledger_ties_to_the_ledger_through_the_review_path(service):
             if f["procedure_id"] == "ap.subledger_gl_balance_tie"] == []
 
 
+def test_ap_subledger_ties_to_the_trial_balance_when_no_ledger_export(service):
+    """No General Ledger export: the ledger side comes from the loaded trial
+    balance, from the accounts the team names (invented figures)."""
+    svc, eid = service
+    svc.update_workflow(PARTNER, eid, "cycles", {"cycles": ["payables"]})
+    sub = svc.store_source(PREPARER, eid, content=UNPAID, media_type=XLSX_TYPE,
+                           original_name="Unpaid Bills.xlsx")
+    # Without a trial balance there is no ledger side to offer.
+    assert svc.ap_control_candidates(eid)["ledger"] == []
+    tb = svc.store_source(PREPARER, eid, media_type="text/csv", original_name="tb.csv",
+                          content=(b"Account,Account Name,Balance,Side\n"
+                                   b"1000,Checking,5000.00,Dr\n"
+                                   b"2000,Accounts Payable,1502.67,Cr\n"
+                                   b"2010,Accounts Payable - other,100.00,Cr\n"
+                                   b"3000,Equity,3397.33,Cr\n"))
+    spec = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+                                      artifact_id=tb["artifact_id"])
+    svc.approve_source_mapping(REVIEWER, eid, spec["spec_id"])
+    svc.normalize_source(PREPARER, eid, spec["spec_id"])
+    assert {"artifact_id": "trial_balance",
+            "original_name": "the loaded trial balance (A/P control accounts setting)"} \
+        in svc.ap_control_candidates(eid)["ledger"]
+
+    with pytest.raises(ValueError, match="set 'ap_control_accounts'"):
+        svc.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=sub["artifact_id"],
+                                     ledger_artifact_id="trial_balance")
+    svc.update_workflow(PARTNER, eid, "policy", {"name": "ap_control_accounts", "value": "2000, 2999"})
+    with pytest.raises(ValueError, match="no account 2999"):
+        svc.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=sub["artifact_id"],
+                                     ledger_artifact_id="trial_balance")
+
+    # One account short of the subledger: the difference is reported, not hidden.
+    svc.update_workflow(PARTNER, eid, "policy", {"name": "ap_control_accounts", "value": "2000"})
+    short = svc.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=sub["artifact_id"],
+                                         ledger_artifact_id="trial_balance")
+    assert (short["subledger_balance"], short["gl_balance"], short["difference"]) == \
+           ("1602.67", "1502.67", "100.00")
+
+    svc.update_workflow(PARTNER, eid, "policy", {"name": "ap_control_accounts", "value": "2000;2010"})
+    built = svc.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=sub["artifact_id"],
+                                         ledger_artifact_id="trial_balance")
+    assert (built["gl_balance"], built["difference"], built["period_end"]) == \
+           ("1602.67", "0.00", "2026-12-31")
+    [item] = svc.propose_source_mappings(
+        PREPARER, eid, [{"artifact_id": built["artifact_id"]}])["results"]
+    assert item["role"] == "AP_control_balance"
+    svc.approve_source_mapping(REVIEWER, eid, item["spec_id"])
+    svc.normalize_source(PREPARER, eid, item["spec_id"])
+    run = svc.run_procedure(PREPARER, eid, procedure_id="ap.subledger_gl_balance_tie")
+    assert run["status"] == "completed"
+
+
 def test_quickbooks_reports_without_a_recipe_are_named_not_guessed(service):
     svc, eid = service
     gl = svc.store_source(PREPARER, eid, content=LEDGER, media_type=XLSX_TYPE,

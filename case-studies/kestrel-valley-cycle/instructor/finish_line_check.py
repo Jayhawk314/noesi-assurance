@@ -128,7 +128,9 @@ def gather(svc, eid) -> dict:
     return {"runs": runs, "findings": findings, "datasets": datasets,
             "coverage": coverage, "opinion": svc.draft_opinion(eid),
             "workflow": svc.workflow_document(eid)[0], "team": svc.team(eid),
-            "sad": svc.sad(eid)}
+            "sad": svc.sad(eid),
+            "ap_control": [dict(r) for r in (svc._tables(eid).get("AP_control_balance").engine_view().records
+                                             if svc._tables(eid).get("AP_control_balance") else [])]}
 
 
 def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top to bottom
@@ -307,11 +309,18 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("checks without bills: DM Consulting", KP["checks_without_bills"]["total"],
       next((v["evidence"]["total"] for v in fnd.get("ap.payments_without_bills", [])
             if v["key"][1] == "dm consulting"), NOT_IN))
+    # Unpaid Bills against the trial balance's A/P account (no General Ledger
+    # export): the tie reports a finding carrying the difference when it is
+    # off by more than a cent, and nothing when it agrees.
+    tie = fnd.get("ap.subledger_gl_balance_tie", [])
+    apc = (d.get("ap_control") or [{}])[0]
+    c("A/P subledger (Unpaid Bills total)", KP["ap_subledger_to_ledger"]["unpaid_bills_total"],
+      apc.get("subledger_balance", NOT_IN))
+    c("A/P ledger (trial balance account 20000)", KP["ap_subledger_to_ledger"]["tb_accounts_payable"],
+      apc.get("gl_balance", NOT_IN))
     c("A/P subledger ties to the ledger", KP["ap_subledger_to_ledger"]["difference"],
-      NOT_IN if not ran("ap.subledger_gl_balance_tie") else "0.00",
-      "the A/P control schedule is built from Unpaid Bills and a General Ledger "
-      "export; Kestrel has a trial balance, not a General Ledger export "
-      f"({status('ap.subledger_gl_balance_tie')}); roadmap C", expect=NOT_IN)
+      NOT_IN if not ran("ap.subledger_gl_balance_tie")
+      else (tie[0]["evidence"]["difference"] if tie else "0.00"))
     c("three-way match not testable", "blocked", status("ap.three_way_receipt_match"))
     c("segregation of duties not testable", "partial", status("ap.segregation_of_duties"))
     c("duplicate's misstatement", KP["misstatement_from_duplicate"]["amount"],

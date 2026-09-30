@@ -64,6 +64,8 @@ def _finding_uid(verdict: dict) -> str:
 
 
 SCHEDULE_PROCEDURE = "completion.uncorrected_misstatements"
+# The A/P tie's ledger side taken from the loaded trial balance (no GL export).
+TB_LEDGER = "trial_balance"
 
 # The procedures that test for a fraud scheme, with the scheme they look for
 # and the standard behind them (AU-C 240). The fraud view gathers these.
@@ -2382,6 +2384,12 @@ class WorkbenchService:
                 subledger.append(entry)
             elif quickbooks.is_general_ledger(book["rows"]):
                 ledger.append(entry)
+        # Without a General Ledger export, the loaded trial balance can give
+        # the ledger side (the accounts named in ap_control_accounts).
+        if "Trial_balance" in self._tables(engagement_id):
+            ledger.append({"artifact_id": TB_LEDGER,
+                           "original_name": "the loaded trial balance "
+                                            "(A/P control accounts setting)"})
         return {"subledger": subledger, "ledger": ledger}
 
     def build_ap_control_balance(self, actor: str, engagement_id: str, *,
@@ -2400,7 +2408,11 @@ class WorkbenchService:
         self._require_unlocked(engagement_id)
         self._require(engagement_id, actor, "preparer")
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
-        sub, gl = books.get(subledger_artifact_id), books.get(ledger_artifact_id)
+        sub = books.get(subledger_artifact_id)
+        if ledger_artifact_id == TB_LEDGER:
+            gl = self._tb_ledger(engagement_id)
+        else:
+            gl = books.get(ledger_artifact_id)
         if sub is None or gl is None:
             raise KeyError("both files must be .xlsx exports in this engagement")
         if not any(m["recipe"] == "qbo.unpaid_bills.vouchers"
@@ -2417,7 +2429,8 @@ class WorkbenchService:
                            if t["column"] == "Open balance"), None)
         if open_total is None:
             raise ValueError("Unpaid Bills has no grand TOTAL of open balances")
-        ledger = quickbooks.gl_account_balance(gl["rows"])
+        ledger = (gl["balance"] if ledger_artifact_id == TB_LEDGER
+                  else quickbooks.gl_account_balance(gl["rows"]))
         if ledger["as_of"] is None:
             raise ValueError(f"the ledger's period {ledger['period']!r} names no end date")
 
@@ -2466,6 +2479,41 @@ class WorkbenchService:
         return {**artifact, "period_end": ledger["as_of"],
                 "subledger_balance": str(subledger), "gl_balance": str(control),
                 "difference": str(subledger - control), "notes": notes}
+
+    def _tb_ledger(self, engagement_id: str) -> dict:
+        """The A/P ledger balance from the loaded trial balance: the credit
+        balance of the accounts the team named in ap_control_accounts, as of
+        the engagement's period end. Shaped like a ledger for the builder."""
+        document, _ = self.workflow_document(engagement_id)
+        named = [a.strip() for a in str((document.get("policies") or {})
+                                        .get("ap_control_accounts") or "")
+                 .replace(";", ",").split(",") if a.strip()]
+        if not named:
+            raise ValueError("set 'ap_control_accounts' on Scope & Policies: the trial "
+                             "balance accounts that hold accounts payable")
+        table = self._tables(engagement_id).get("Trial_balance")
+        if table is None:
+            raise KeyError("no trial balance is loaded")
+        from procedures_cycles.common import key_text
+        from procedures_cycles.statements import _signed
+        rows = {key_text(r.get("account")): r for r in table.engine_view().records}
+        missing = [a for a in named if key_text(a) not in rows]
+        if missing:
+            raise ValueError(f"the trial balance has no account {', '.join(missing)}")
+        debit_positive = sum((_signed(rows[key_text(a)]) or Decimal("0") for a in named),
+                             Decimal("0"))
+        period_end = self._conn.execute(
+            "SELECT period_end FROM engagement WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()["period_end"]
+        datasets = [d for d in self.sources(engagement_id)["datasets"]
+                    if d["role"] == "Trial_balance"]
+        latest = datasets[-1]
+        return {"artifact_id": TB_LEDGER, "sha256": latest["output_digest"],
+                "original_name": "trial balance (loaded)",
+                "balance": {"as_of": period_end, "ending": str(-debit_positive),
+                            "period": f"as of {period_end}", "basis": "trial balance",
+                            "account": ", ".join(named), "beginning": None,
+                            "activity": None, "checks": {"accounts": named}}}
 
     def workbook_preview(self, engagement_id: str, artifact_id: str) -> dict:
         """Sheets, first rows and suggested header rows of an uploaded workbook."""

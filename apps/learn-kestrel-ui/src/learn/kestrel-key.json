@@ -35,7 +35,7 @@
     "status": "match",
     "why": "",
     "key": "partner, preparer, reviewer",
-    "noesi": "reviewer, preparer, partner"
+    "noesi": "partner, reviewer, preparer"
    },
    {
     "item": "every file loads (none refused)",
@@ -473,11 +473,25 @@
     "noesi": "4500.00"
    },
    {
+    "item": "A/P subledger (Unpaid Bills total)",
+    "status": "match",
+    "why": "",
+    "key": "287640.18",
+    "noesi": "287640.18"
+   },
+   {
+    "item": "A/P ledger (trial balance account 20000)",
+    "status": "match",
+    "why": "",
+    "key": "287640.18",
+    "noesi": "287640.18"
+   },
+   {
     "item": "A/P subledger ties to the ledger",
-    "status": "not in Noesi",
-    "why": "the A/P control schedule is built from Unpaid Bills and a General Ledger export; Kestrel has a trial balance, not a General Ledger export (blocked); roadmap C",
+    "status": "match",
+    "why": "",
     "key": "0.00",
-    "noesi": "—"
+    "noesi": "0.00"
    },
    {
     "item": "three-way match not testable",

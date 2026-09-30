@@ -181,6 +181,22 @@ def seed(service, partner: str) -> dict:
     service.update_workflow(PREPARER, eid, "line_mapping",
                             {"account": "11900", "line": "allowance"})
 
+    # The A/P tie: Unpaid Bills (the subledger) against the trial balance's
+    # Accounts Payable account (the ledger), built, reviewed and loaded like
+    # any other schedule. Kestrel has no General Ledger export.
+    service.update_workflow(partner, eid, "policy", {"name": "ap_control_accounts",
+                                                     "value": "20000"})
+    unpaid = service.store_source(
+        PREPARER, eid, content=(DATA / "quickbooks/Unpaid_Bills.xlsx").read_bytes(),
+        media_type=XLSX, original_name="Unpaid_Bills.xlsx",
+        provenance="Kestrel Valley case: quickbooks/Unpaid_Bills.xlsx")["artifact_id"]
+    built = service.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=unpaid,
+                                             ledger_artifact_id="trial_balance")
+    [item] = service.propose_source_mappings(
+        PREPARER, eid, [{"artifact_id": built["artifact_id"]}])["results"]
+    service.approve_source_mapping(REVIEWER, eid, item["spec_id"])
+    service.normalize_source(PREPARER, eid, item["spec_id"])
+
     # The three confirmation evaluations start left out: the auditor picks
     # one. Kestrel's team evaluates its confirmations nonstatistically (the
     # key's ar.confirmations_nonstatistical), so the partner includes that
