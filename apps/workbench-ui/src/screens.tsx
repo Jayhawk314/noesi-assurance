@@ -1148,8 +1148,11 @@ export function itemsInWords(items: string[]): string {
     if (match) {
       try { procedure = (JSON.parse(match[1]) as unknown[])[0]; } catch { procedure = null; }
     }
-    if (typeof procedure === "string") byProcedure.set(procedure, (byProcedure.get(procedure) ?? 0) + 1);
-    else other.push(item);
+    // Only a real procedure id ("payroll.register_tests") is grouped; any
+    // other key shape shows as it is, so nothing is miscounted.
+    if (typeof procedure === "string" && /^[a-z_]+\.[a-z_]+$/.test(procedure)) {
+      byProcedure.set(procedure, (byProcedure.get(procedure) ?? 0) + 1);
+    } else other.push(item);
   }
   const counted = [...byProcedure.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -1376,7 +1379,7 @@ export function LockScreen({ client, engagement, onError, onChanged, onNavigate 
                     {item.unlocked_at}<br />
                     by <code>{item.unlocked_by}</code>
                   </td>
-                  <td>{amountsInWords(item.reason)}</td>
+                  <td>{item.reason}</td>
                   <td>
                     <span className={`status ${item.manifest_ok
                       && item.signature_ok && item.journal_anchor_ok

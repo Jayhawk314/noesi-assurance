@@ -163,7 +163,7 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     # ---- 1 Engagement setup
     c.module = MODULES[0]
     c("every procedure run is in the audit", True,
-      all((cov.get(pid) or {}).get("selected", True) for pid in runs))
+      all((cov.get(pid) or {}).get("selected", False) for pid in runs))   # unknown = not in
     wf = d["workflow"]
     mat = (wf.get("materiality") or {})
     c("materiality", K1["materiality"], mat.get("amount", NOT_IN))

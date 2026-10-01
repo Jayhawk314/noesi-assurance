@@ -360,6 +360,8 @@ def test_ap_subledger_ties_to_the_trial_balance_when_no_ledger_export(service):
                                          ledger_artifact_id="trial_balance")
     assert (built["gl_balance"], built["difference"], built["period_end"]) == \
            ("1602.67", "0.00", "2026-12-31")
+    # A trial balance has no date of its own: the schedule says so.
+    assert any("carries no date of its own" in n for n in built["notes"])
     [item] = svc.propose_source_mappings(
         PREPARER, eid, [{"artifact_id": built["artifact_id"]}])["results"]
     assert item["role"] == "AP_control_balance"
@@ -367,6 +369,35 @@ def test_ap_subledger_ties_to_the_trial_balance_when_no_ledger_export(service):
     svc.normalize_source(PREPARER, eid, item["spec_id"])
     run = svc.run_procedure(PREPARER, eid, procedure_id="ap.subledger_gl_balance_tie")
     assert run["status"] == "completed"
+
+
+def test_the_trial_balance_ledger_counts_every_row_and_refuses_a_blank(service):
+    """Reviewer, 30 Sep 2026: one row per account was kept (a second loaded
+    file dropped part of the balance) and a blank balance counted as zero."""
+    svc, eid = service
+    svc.update_workflow(PARTNER, eid, "cycles", {"cycles": ["payables"]})
+    sub = svc.store_source(PREPARER, eid, content=UNPAID, media_type=XLSX_TYPE,
+                           original_name="Unpaid Bills.xlsx")
+
+    def load_tb(name, body, mode=None):
+        tb = svc.store_source(PREPARER, eid, media_type="text/csv", original_name=name,
+                              content=body)
+        spec = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+                                          artifact_id=tb["artifact_id"])
+        svc.approve_source_mapping(REVIEWER, eid, spec["spec_id"])
+        svc.normalize_source(PREPARER, eid, spec["spec_id"], **({"mode": mode} if mode else {}))
+
+    load_tb("tb1.csv", b"Account,Balance,Side\n2000,1000.00,Cr\n")
+    load_tb("tb2.csv", b"Account,Balance,Side\n2000,602.67,Cr\n", "add")
+    svc.update_workflow(PARTNER, eid, "policy", {"name": "ap_control_accounts", "value": "2000"})
+    built = svc.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=sub["artifact_id"],
+                                         ledger_artifact_id="trial_balance")
+    assert (built["gl_balance"], built["difference"]) == ("1602.67", "0.00")
+
+    load_tb("tb3.csv", b"Account,Balance,Side\n2000,,Cr\n", "add")
+    with pytest.raises(ValueError, match="no balance"):
+        svc.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=sub["artifact_id"],
+                                     ledger_artifact_id="trial_balance")
 
 
 def test_quickbooks_reports_without_a_recipe_are_named_not_guessed(service):

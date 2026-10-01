@@ -2451,7 +2451,7 @@ class WorkbenchService:
         period_end = self._conn.execute(
             "SELECT period_end FROM engagement WHERE engagement_id = ?",
             (engagement_id,)).fetchone()["period_end"]
-        notes = []
+        notes = [gl["note"]] if gl.get("note") else []
         if ledger["as_of"] != period_end:
             notes.append(f"the ledger runs to {ledger['as_of']}, not the "
                          f"engagement's period end {period_end}")
@@ -2491,8 +2491,11 @@ class WorkbenchService:
 
     def _tb_ledger(self, engagement_id: str) -> dict:
         """The A/P ledger balance from the loaded trial balance: the credit
-        balance of the accounts the team named in ap_control_accounts, as of
-        the engagement's period end. Shaped like a ledger for the builder."""
+        balance of the accounts the team named in ap_control_accounts. Every
+        row of a named account counts (an account may appear in more than one
+        loaded file); a named account with no balance is refused. A trial
+        balance carries no date of its own, so the schedule says so rather than
+        claim one. Shaped like a ledger for the builder."""
         document, _ = self.workflow_document(engagement_id)
         named = [a.strip() for a in str((document.get("policies") or {})
                                         .get("ap_control_accounts") or "")
@@ -2505,24 +2508,33 @@ class WorkbenchService:
             raise KeyError("no trial balance is loaded")
         from procedures_cycles.common import key_text
         from procedures_cycles.statements import _signed
-        rows = {key_text(r.get("account")): r for r in table.engine_view().records}
+        rows: dict[str, list[dict]] = {}
+        for r in table.engine_view().records:
+            rows.setdefault(key_text(r.get("account")), []).append(r)
         missing = [a for a in named if key_text(a) not in rows]
         if missing:
             raise ValueError(f"the trial balance has no account {', '.join(missing)}")
-        debit_positive = sum((_signed(rows[key_text(a)]) or Decimal("0") for a in named),
-                             Decimal("0"))
+        debit_positive = Decimal("0")
+        for a in named:
+            for r in rows[key_text(a)]:
+                amount = _signed(r)
+                if amount is None:
+                    raise ValueError(f"trial balance account {a} has a row with no balance")
+                debit_positive += amount
         period_end = self._conn.execute(
             "SELECT period_end FROM engagement WHERE engagement_id = ?",
             (engagement_id,)).fetchone()["period_end"]
-        datasets = [d for d in self.sources(engagement_id)["datasets"]
-                    if d["role"] == "Trial_balance"]
-        latest = datasets[-1]
-        return {"artifact_id": TB_LEDGER, "sha256": latest["output_digest"],
+        digests = [d["output_digest"] for d in self.sources(engagement_id)["datasets"]
+                   if d["role"] == "Trial_balance"]
+        return {"artifact_id": TB_LEDGER, "sha256": ";".join(digests),
                 "original_name": "trial balance (loaded)",
+                "note": (f"the trial balance carries no date of its own: confirm it is "
+                         f"the one as of {period_end}"),
                 "balance": {"as_of": period_end, "ending": str(-debit_positive),
-                            "period": f"as of {period_end}", "basis": "trial balance",
-                            "account": ", ".join(named), "beginning": None,
-                            "activity": None, "checks": {"accounts": named}}}
+                            "period": f"taken as of {period_end} (not stated in the file)",
+                            "basis": "trial balance", "account": ", ".join(named),
+                            "beginning": None, "activity": None,
+                            "checks": {"accounts": named, "datasets": digests}}}
 
     def workbook_preview(self, engagement_id: str, artifact_id: str) -> dict:
         """Sheets, first rows and suggested header rows of an uploaded workbook."""

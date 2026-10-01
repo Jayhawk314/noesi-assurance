@@ -158,3 +158,11 @@ def test_performance_materiality_is_the_engagements_rate_not_a_fixed_75():
     assert summary_of_differences([], materiality="15000")["performance_materiality"] == 11250
     assert summary_of_differences([], materiality="15000", performance_pct=Decimal("0.6")
                                   )["performance_materiality"] == 9000
+
+
+def test_a_bare_one_is_not_read_as_one_percent_performance_materiality():
+    import pytest
+    from assurance_domain.sad import performance_rate
+    for bad in ("1", "0.5%", "5"):
+        with pytest.raises(ValueError, match="from 10%"):
+            performance_rate(bad)

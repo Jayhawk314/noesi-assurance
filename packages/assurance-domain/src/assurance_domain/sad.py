@@ -119,9 +119,10 @@ def performance_rate(value) -> Decimal:
         raise ValueError(f"performance_materiality_pct {value!r} is not a number")
     if rate >= 1 or raw.endswith("%"):
         rate = rate / 100
-    if not Decimal("0") < rate < Decimal("1"):
-        raise ValueError("performance_materiality_pct must be above 0% and below 100% "
-                         "of materiality")
+    # A bare "1" reads as 1%, which no firm uses: refuse it rather than guess.
+    if not Decimal("0.10") <= rate < Decimal("1"):
+        raise ValueError("performance_materiality_pct must be from 10% to below 100% "
+                         "of materiality (for example 60 or 60%)")
     return rate
 
 

@@ -134,6 +134,9 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
         {summary.unsupported > 0 && (
           <span className="pill bad">{summary.unsupported} unsupported</span>
         )}
+        {summary.not_selected > 0 && (
+          <span className="pill idle">{summary.not_selected} left out by the partner</span>
+        )}
       </div>
       <p className="note" style={{ marginBottom: "0.7rem" }}>{map.caption}</p>
 

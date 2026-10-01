@@ -4,7 +4,8 @@
  *
  *  A cell that begins with = + - @ (or a tab or return) is prefixed with an
  *  apostrophe, so client data can never run as a spreadsheet formula
- *  (CSV injection). Negative amounts are written as numbers, not text. */
+ *  (CSV injection); also a leading space or line break, "|" and full-width
+ *  signs. Negative amounts are written as numbers, not text. */
 
 type Cell = string | number | boolean | null | undefined;
 
@@ -12,7 +13,11 @@ function cell(value: Cell): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
   let text = String(value);
-  if (/^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) text = `'${text}`;
+  // Leading space or line break, "|" and full-width signs are covered too; a
+  // plain number, with or without thousands commas, stays a number.
+  if (/^[\s=+\-@|＝＋－＠]/.test(text) && !/^-?\d{1,3}(,\d{3})*(\.\d+)?$|^-?\d+(\.\d+)?$/.test(text)) {
+    text = `'${text}`;
+  }
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

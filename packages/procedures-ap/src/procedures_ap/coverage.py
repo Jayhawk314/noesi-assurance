@@ -114,7 +114,9 @@ def apply_selections(coverage: dict, selections: dict) -> dict:
         decision = selections.get(row["procedure_id"], {})
         row["selected"] = bool(decision.get("selected", row.get("selected", True)))
         row["selection_rationale"] = str(decision.get("rationale", ""))
-        row["effective_status"] = row["status"] if row["selected"] else "not_selected"
+        # Leaving a procedure out never hides that Noesi cannot run it at all.
+        row["effective_status"] = (row["status"] if row["selected"]
+                                   or row["status"] == "unsupported" else "not_selected")
     result["summary"] = _summary(result.get("procedures", []), effective=True)
     result["evidence_requests"] = evidence_requests(result.get("procedures", []))
     return result

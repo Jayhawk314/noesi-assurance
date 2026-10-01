@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import { Client, DraftOpinion } from "../api";
 import { useResource } from "../lib/useResource";
 import { BlockerList } from "../screens";
-import { amountsInWords } from "../lib/words";
+import { amountsInWords, cents } from "../lib/words";
 
 const LABEL: Record<string, string> = {
   unmodified: "Unmodified (clean)",
@@ -65,9 +65,9 @@ export function OpinionScreen({ client, eid, onError, onNavigate }: {
         <h3>Basis</h3>
         <ul>{data.basis.map((b) => <li key={b}>{amountsInWords(b)}</li>)}</ul>
         <p className="note">
-          Uncorrected misstatements: {amountsInWords(String(data.misstatements.amount ?? ""))} on{" "}
+          Uncorrected misstatements: {cents(data.misstatements.amount)} on{" "}
           {words(data.misstatements.largest_line)} against materiality{" "}
-          {amountsInWords(String(data.materiality ?? ""))}. Source: {data.misstatements.source}.
+          {cents(data.materiality)}. Source: {data.misstatements.source}.
         </p>
       </div>
 
