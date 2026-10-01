@@ -14,18 +14,37 @@ claims more than it can prove. It is calibrated on two full audits,
 **never fitted to either**: what a case exposes is fixed generically and
 tested on invented data.
 
-**What it is for now (Claude's determination, 2026-09-29):** the realistic
-near-term use is teaching. So "finish the Workbench" has a concrete finish
-line, not "any audit":
+**The goal (James, 2026-09-30; this replaces "Claude's determination" of
+29 Sep that the goal was teaching):** Noesi-Assurance is finished software
+that supplements a complete human audit, with a fraud and forensic
+accounting module. The Workbench is that software. The case studies
+(Kestrel, Oceanview, Harborline), the Learn apps and the videos are means to
+that end: the cases calibrate the Workbench, Kestrel is also the public case
+the Learn app and videos teach on. Videos come only after the Workbench is
+finished.
+
+The measurable check on the way there stays the same:
 
 > **Every one of the 13 Kestrel Learn modules (LEARN-KESTREL-PLAN) runs in
 > the Workbench and matches the answer key, from files as a learner would
 > load them. Oceanview runs privately as the check that nothing is fitted
 > to Kestrel.**
 
-Work that does not move that line goes to the parking lot, however useful.
-Real-client readiness (PRODUCTION-READINESS P0: logins, encryption,
-archives) is not on this path yet.
+That check must stay green, but it is not the whole goal: work that makes
+the Workbench a more complete audit supplement (coverage of the audit, the
+fraud and forensic module, what it shows and what it says it could not
+test) is on the path. Real-client readiness (PRODUCTION-READINESS P0:
+logins, encryption, archives) is James's call when the Workbench is done.
+
+**30 Sep 2026, page-by-page check of every tab (Claude):** fixed and
+committed: coverage applies the auditor's include/leave-out choices
+everywhere (the confirmation method Kestrel uses showed as "left out");
+readable open items, amounts, procedure names and settings; A/P tie from the
+trial balance (no GL export needed); performance materiality as a setting;
+CSV downloads of findings and coverage; Flow Map for every cycle; findings
+tagged with the assertion their procedure states. Accuracy check 162 of 164
+(the 2 left wait on real QuickBooks exports). Open, needing James: see
+docs/FULL-SYSTEM-STATUS-2026-09-30.md, "Decisions still yours".
 
 1. **Phase 1: finish the Workbench** to the finish line above.
 2. **Phase 2: the Kestrel Learn app** (a copy of the Streamlit Learn app),
