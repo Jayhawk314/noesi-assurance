@@ -66,6 +66,7 @@ def _finding_uid(verdict: dict) -> str:
 SCHEDULE_PROCEDURE = "completion.uncorrected_misstatements"
 # The A/P tie's ledger side taken from the loaded trial balance (no GL export).
 TB_LEDGER = "trial_balance"
+TB_RECIPE = "qbo.trial_balance.trial_balance"
 
 # The procedures that test for a fraud scheme, with the scheme they look for
 # and the standard behind them (AU-C 240). The fraud view gathers these.
@@ -701,6 +702,29 @@ class WorkbenchService:
             policies.setdefault("materiality", str(amount))
         return policies
 
+    @staticmethod
+    def _inventory(tables: dict, document: dict) -> dict:
+        """What each loaded role holds, for coverage. A trial balance's
+        statement line comes either from a column of the file or from the
+        engagement's line mapping (by label or by account): a QuickBooks
+        trial balance has no line column at all, so a mapping supplies it.
+        The run applies the same mapping first and sets aside any account it leaves
+        without a line, listing its sheet rows; the line counts only when the
+        mapping reaches at least one loaded account."""
+        inventory = inventory_from_tables(tables)
+        tb = inventory.get("Trial_balance")
+        mapping = document.get("line_mapping") or {}
+        if tb is not None and mapping and "line" not in tb["fields"]:
+            from procedures_cycles.common import key_text
+            rows = tables["Trial_balance"].engine_view().records
+            # Only when the mapping gives at least one loaded account a line:
+            # a mapping that reaches none of them supplies nothing.
+            if any(mapping.get(f"account:{key_text(r.get('account'))}")
+                   or mapping.get(f"label:{' '.join(str(r.get('line') or '').split()).lower()}")
+                   for r in rows):
+                tb["fields"] = sorted({*tb["fields"], "line"})
+        return inventory
+
     def coverage(self, engagement_id: str) -> dict:
         tables = self._tables(engagement_id)
         document, _ = self.workflow_document(engagement_id)
@@ -708,7 +732,7 @@ class WorkbenchService:
         # An AP-only engagement (no scope) compiles exactly as it always has.
         policies = (self._engagement_policies(engagement_id, document)
                     if document.get("cycles") else document.get("policies"))
-        compiled = compile_coverage(inventory_from_tables(tables),
+        compiled = compile_coverage(self._inventory(tables, document),
                                     policies=policies or None, contracts=contracts,
                                     executors=cycle_engines.registered_procedures())
         # The auditor's choices (a procedure included or left out, and why)
@@ -749,7 +773,7 @@ class WorkbenchService:
         # otherwise a sealed record could say "completed, 0 findings" over a
         # population that was never there.
         compiled = compile_coverage(
-            inventory_from_tables(self._tables(engagement_id)),
+            self._inventory(self._tables(engagement_id), document),
             policies=effective_policies or None,
             contracts=self._contracts(document),
             executors=cycle_engines.registered_procedures())
@@ -2488,6 +2512,96 @@ class WorkbenchService:
         return {**artifact, "period_end": ledger["as_of"],
                 "subledger_balance": str(subledger), "gl_balance": str(control),
                 "difference": str(subledger - control), "notes": notes}
+
+    def trial_balance_candidates(self, engagement_id: str) -> dict:
+        """Uploaded QuickBooks Trial Balance exports, with the date each is as of."""
+        out = []
+        for book in self._qbo_workbooks(engagement_id):
+            if any(m["recipe"] == TB_RECIPE for m in quickbooks.recognize(book["rows"])):
+                block = quickbooks.title_block(book["rows"])
+                out.append({"artifact_id": book["artifact_id"],
+                            "original_name": book["original_name"],
+                            "as_of": quickbooks.last_date(block["period"]),
+                            "period": block["period"]})
+        return {"trial_balances": out}
+
+    def build_trial_balance(self, actor: str, engagement_id: str, *,
+                            current_artifact_id: str,
+                            prior_artifact_id: str | None = None) -> dict:
+        """Prepare the trial balance from QuickBooks Trial Balance exports:
+        this period's, and optionally the prior period's for the comparative
+        column. QuickBooks exports one date per report, so the two are joined
+        by account here. Each export is footed against its TOTAL first and a
+        report that does not foot is refused. The schedule is stored as an
+        ordinary source file whose provenance names both exports by SHA-256,
+        then goes through propose, approve and normalize like any other file.
+        """
+        self._require_unlocked(engagement_id)
+        self._require(engagement_id, actor, "preparer")
+        books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
+        chosen = {"current": books.get(current_artifact_id)}
+        if prior_artifact_id:
+            chosen["prior"] = books.get(prior_artifact_id)
+        if any(b is None for b in chosen.values()):
+            raise KeyError("the trial balances must be .xlsx exports in this engagement")
+        read: dict[str, dict] = {}
+        for side, book in chosen.items():
+            if not any(m["recipe"] == TB_RECIPE for m in quickbooks.recognize(book["rows"])):
+                raise ValueError(f"{book['original_name']!r} is not QuickBooks' standard "
+                                 f"Trial Balance export")
+            extraction, headers, rows = xlsx.extract(book["content"], sheet=book["sheet"])
+            _, flat, _, report = quickbooks.apply(TB_RECIPE, headers, rows,
+                                                  extraction["header_row"] + 1)
+            if report["totals_disagreeing"]:
+                raise ValueError(f"{book['original_name']!r} does not foot: "
+                                 f"{report['totals_disagreeing']}")
+            block = quickbooks.title_block(book["rows"])
+            read[side] = {"rows": flat, "report": report,
+                          "as_of": quickbooks.last_date(block["period"]),
+                          "period": block["period"], "book": book}
+        period_end = self._conn.execute(
+            "SELECT period_end FROM engagement WHERE engagement_id = ?",
+            (engagement_id,)).fetchone()["period_end"]
+        notes = []
+        if read["current"]["as_of"] != period_end:
+            notes.append(f"this period's trial balance is as of "
+                         f"{read['current']['as_of'] or read['current']['period']!r}, "
+                         f"not the engagement's period end {period_end}")
+        if "prior" in read:
+            cur, pri = read["current"]["as_of"], read["prior"]["as_of"]
+            if not (cur and pri and pri < cur):
+                raise ValueError(f"the prior trial balance ({pri or 'undated'}) must be "
+                                 f"dated before this period's ({cur or 'undated'})")
+            expected = f"{int(cur[:4]) - 1}{cur[4:]}".replace("-02-29", "-02-28")
+            if pri != expected:
+                notes.append(f"the prior trial balance is as of {pri}, not one year "
+                             f"before ({expected})")
+        schedule = quickbooks.combine_trial_balances(
+            read["current"]["rows"], read["prior"]["rows"] if "prior" in read else None)
+        columns = ["Account", "Description", "Balance"] + (
+            ["Prior Balance"] if "prior" in read else [])
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, lineterminator="\n")
+        writer.writerow(columns)
+        for item in schedule:
+            writer.writerow([item[c] for c in columns])
+        provenance = json.dumps({
+            "prepared_by": "noesi build_trial_balance",
+            "recipe": TB_RECIPE, "recipe_version": quickbooks.RECIPE_VERSION,
+            **{side: {"artifact_id": r["book"]["artifact_id"],
+                      "sha256": r["book"]["sha256"], "as_of": r["as_of"],
+                      "grand_total": r["report"]["grand_total"]}
+               for side, r in read.items()},
+            "notes": notes,
+        }, sort_keys=True)
+        artifact = self.store_source(
+            actor, engagement_id, content=buffer.getvalue().encode("utf-8"),
+            media_type="text/csv",
+            original_name=f"Trial balance {read['current']['as_of']} - QuickBooks.csv",
+            provenance=provenance)
+        return {**artifact, "as_of": read["current"]["as_of"],
+                "prior_as_of": read.get("prior", {}).get("as_of"),
+                "accounts": len(schedule), "notes": notes}
 
     def _tb_ledger(self, engagement_id: str) -> dict:
         """The A/P ledger balance from the loaded trial balance: the credit

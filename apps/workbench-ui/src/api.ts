@@ -110,6 +110,17 @@ export interface ApControlBuilt {
   gl_balance: string; difference: string; notes: string[];
 }
 
+/** Uploaded QuickBooks Trial Balance exports, each with the date it is as of. */
+export interface TrialBalanceCandidates {
+  trial_balances: { artifact_id: string; original_name: string; as_of: string | null;
+                    period: string }[];
+}
+
+export interface TrialBalanceBuilt {
+  artifact_id: string; as_of: string | null; prior_as_of: string | null;
+  accounts: number; notes: string[];
+}
+
 export type LoadMode = "replace" | "add";
 
 export interface Dataset {
@@ -527,6 +538,12 @@ export class Client {
   buildApControl = (eid: string, subledger_artifact_id: string, ledger_artifact_id: string) =>
     this.request<ApControlBuilt>("POST", `/api/engagements/${eid}/ap-control`,
       { subledger_artifact_id, ledger_artifact_id });
+  trialBalanceCandidates = (eid: string) =>
+    this.request<TrialBalanceCandidates>(
+      "GET", `/api/engagements/${eid}/trial-balance/candidates`);
+  buildTrialBalance = (eid: string, current_artifact_id: string, prior_artifact_id: string) =>
+    this.request<TrialBalanceBuilt>("POST", `/api/engagements/${eid}/trial-balance`,
+      { current_artifact_id, prior_artifact_id: prior_artifact_id || null });
   workbookPreview = (eid: string, artifact_id: string) =>
     this.request<WorkbookPreview>("GET", `/api/engagements/${eid}/artifacts/${artifact_id}/sheets`);
   approveMapping = (eid: string, spec_id: string) =>

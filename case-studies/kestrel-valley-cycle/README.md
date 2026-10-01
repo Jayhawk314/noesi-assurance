@@ -48,19 +48,22 @@ Payables and controls are out of scope; Harborline covers payables.
 | `data/bank/first_prairie_…csv` | bank | cutoff statement 07/01–07/15, signed amounts, check number column |
 | `data/auditor/*.csv` | engagement team | line mapping for the trial balance, confirmations, pricing tests, interbank transfer schedule, performance materiality, adjusting entries, uncorrected misstatements |
 
-**About the QuickBooks shapes.** The real exports in `tests/fixtures/quickbooks/`
-cover payables reports only. The five QBO files here follow those exports'
-conventions: one sheet named `Sheet1`, company / title / date lines, a blank
-row, the header, a timestamp footer, and "Total" rows. Their column layouts
-follow QuickBooks Online's standard reports. Two differences from a real
-export:
+**About the QuickBooks shapes.** The trial balances, A/R aging, inventory
+valuation and Journal files follow real QuickBooks Online exports of the same
+reports (`tests/fixtures/quickbooks/kestrel_qbo/`, exported 2026-09-30 from a
+QuickBooks Online Accountant company holding a few invented transactions) and
+load through the Workbench's QuickBooks recipes. Known differences and gaps:
 
-- Total rows hold plain numbers where QuickBooks writes a formula with a
-  cached value.
-- These layouts have not been checked against a real export of the same four
-  reports.
-
-Exporting those four reports from the same QBO sandbox would settle both.
+- Total rows hold plain numbers where QuickBooks writes a formula with the
+  value saved (openpyxl cannot save the value); they read the same.
+- The inventory items carry no categories: a real export with categories was
+  not seen, so the case does not use that layout and the recipe refuses it.
+- Account names start with the account number ("10100 Checking - First
+  Prairie"). In the real company the number was typed into the name; how
+  QuickBooks prints names with its account-number setting on was not checked.
+- The two Reconciliation Reports are still modeled. QuickBooks gives a
+  reconciliation report only as PDF (no Excel export), so they load
+  hand-prepared.
 
 ## Policies (approved by the partner)
 
@@ -132,8 +135,10 @@ This builds five more QuickBooks files. Four follow the layouts of the real
 exports in `tests/fixtures/quickbooks/`: `Vendor_Contact_List`,
 `Transaction_List_by_Vendor` (POs, bills, bill payments, checks),
 `Bill_Payment_List` and `Unpaid_Bills`. The fifth, a full-year `Journal`
-report, uses a modeled layout, with Create date and Created by as added
-columns.
+report, follows the real Journal export customized to add Created on and
+Created by (`tests/fixtures/quickbooks/kestrel_qbo/journal_created_by.xlsx`):
+each transaction's lines under its QuickBooks transaction ID, with a "Total
+for" row.
 
 They are consistent with the frozen files:
 - The journal rolls every account from the prior-year trial balance to the

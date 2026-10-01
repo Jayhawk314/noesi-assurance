@@ -99,6 +99,33 @@ Tests 499 -> 505. Oceanview pass 2: findings unchanged.
 lock, export, archive, delete) were not clicked; Harborline and Oceanview
 were not opened in the Workbench screens.
 
+## Late evening, 30 Sep: real QuickBooks exports (roadmap C, Claude)
+
+Made-up Kestrel-style data entered in James's QuickBooks Online Accountant
+company ("xx"): account 10100, 2 customers, 1 vendor, 2 inventory items, 3
+invoices (Apr/May/Jun), 1 bill, 2 checks, 1 deposit, 1 journal entry,
+checking reconciled at 6/30 with check 2002 uncleared. Each checked by
+reading the saved form or register.
+
+| Item | Status | How checked |
+|---|---|---|
+| Real exports saved | Trial Balance, A/R Aging Summary, Inventory Valuation Summary, Journal (default and with Created on/by), General Ledger in `tests/fixtures/quickbooks/kestrel_qbo/` | each opened and read back; totals tie to the trial balance |
+| Reconciliation Report | **no Excel export exists** (View report: Print only); on-screen text saved as `reconciliation_report_screen.txt`, not a real file | QuickBooks Reconcile history menu |
+| New recipes | trial balance, A/R aging, inventory valuation, Journal (2 layouts); trial balance builder (this year + prior) with API route and a Sources panel | 11 tests on the real files; panel seen in a scratch `--demo` (text read; screenshots timed out); builder route called as preparer |
+| Bug found on the real files | Excel titles abbreviate months and whole-month periods name no day, so a real General Ledger read as undated and the A/P tie refused it. Fixed | tests |
+| Coverage gap found | a QuickBooks trial balance has no statement-line column, so ratio, movement and A/R tie tests showed "partial" even with every account mapped. Coverage now counts the line mapping (only when it reaches a loaded account; the run applies it and sets aside unmapped accounts, listing their sheet rows) | finish-line check |
+| Kestrel files | trial balances, aging, inventory, both Journals regenerated in the real layouts; answer keys and every CSV unchanged | `git diff`; cell-by-cell comparison of what the new imports read vs the old hand-prepared loads: every figure equal; `check_key.py` 16/16 |
+| Demo seed | those files load raw through the recipes; bank reconciliations, cutoff and auditor files still hand-prepared | seed refused list empty |
+| Finish-line check | **162 of 164, 0 unexplained** (unchanged) | `finish_line_check.py` |
+| Tests | **518 pass** (507 + 11) | pytest |
+| Oceanview pass 2 | results byte-identical to the last committed run | `git diff` in the private repo: empty |
+
+Not done / not checked: the reconciliation import (needs a PDF); the
+category layout of Inventory Valuation and sub-customers in the aging (not
+seen, refused); how QuickBooks prints account names with its account-number
+setting on; the Learn app's lesson text still names the old Journal column
+"Memo/Description" (real: "Description"). Not committed, not pushed.
+
 ## Decisions still yours
 
 - Approval-workflow features against the supplement rule: chairs (preparer,

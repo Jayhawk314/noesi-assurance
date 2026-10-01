@@ -1,0 +1,64 @@
+xx
+10100 Checking - First Prairie, Period Ending 06/30/2026
+
+
+RECONCILIATION REPORT
+
+Reconciled on: 09/30/2026
+
+Reconciled by: James Hawkins
+
+Any changes made to transactions after this date aren't included in this report.
+
+Summary
+USD
+
+Statement beginning balance
+25,000.00
+
+Checks and payments cleared (2)
+-675.00
+
+Deposits and other credits cleared (1)
+5,000.00
+
+Statement ending balance
+29,325.00
+
+
+
+
+Uncleared transactions as of 06/30/2026
+-410.00
+
+Register balance as of 06/30/2026
+28,915.00
+
+Details
+
+Checks and payments cleared (2)
+
+DATE	TYPE	REF NO.	PAYEE	AMOUNT (USD)
+06/05/2026	Check	2001	Moraine Cycle Components	-640.00
+06/30/2026	Journal	1		-35.00
+
+Total
+-675.00
+
+Deposits and other credits cleared (1)
+
+DATE	TYPE	REF NO.	PAYEE	AMOUNT (USD)
+06/12/2026	Deposit			5,000.00
+
+Total
+5,000.00
+
+Additional Information
+
+Uncleared checks and payments as of 06/30/2026
+
+DATE	TYPE	REF NO.	PAYEE	AMOUNT (USD)
+06/28/2026	Check	2002	Moraine Cycle Components	-410.00
+
+Total
+-410.00

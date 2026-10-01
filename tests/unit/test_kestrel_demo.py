@@ -2,9 +2,6 @@
 """The Workbench demo is the Kestrel Valley case: loaded and run through the
 real service path, idempotent, and landing on the key's draft opinion."""
 
-import csv
-import importlib.util
-import io
 from pathlib import Path
 
 import pytest
@@ -17,24 +14,22 @@ from assurance_persistence.legacy_import import ensure_tenant
 CASE = Path(__file__).resolve().parents[2] / "case-studies" / "kestrel-valley-cycle"
 
 
-def load_seed_module():
-    seeder = CASE / "instructor" / "workbench_seed.py"
-    spec = importlib.util.spec_from_file_location("kestrel_seed_test", seeder)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.mark.skipif(not CASE.is_dir(), reason="case data not in tree")
-def test_prepared_journal_keeps_same_day_unnumbered_deposits_separate():
-    module = load_seed_module()
-    rows = list(csv.DictReader(io.StringIO(
-        module.prep_journal("Journal.xlsx")().decode("utf-8"))))
-    entry_ids = {row["Entry ID"] for row in rows}
-    assert len(entry_ids) == 461
+def test_the_journal_recipe_keeps_same_day_unnumbered_deposits_separate():
+    # Two 6/30 deposits with no Num and no name would share one name; the
+    # Journal export's own transaction IDs keep them two entries.
+    from assurance_artifacts import xlsx
+    from procedures_ap import quickbooks as qb
+    content = (CASE / "data" / "quickbooks" / "Journal.xlsx").read_bytes()
+    extraction, headers, rows = xlsx.extract(content)
+    _, rows, _, report = qb.apply("qbo.journal_created.journal_entries", headers, rows,
+                                  extraction["header_row"] + 1)
+    assert report["totals_disagreeing"] == []
+    entry_ids = {row["Entry"] for row in rows}
+    assert len(entry_ids) == 461 and len(rows) == 1006
     assert sum(row["Line"] == "1" for row in rows) == 461
-    assert "2026-06-30 Deposit (no num)" in entry_ids
-    assert "2026-06-30 Deposit (no num) [2]" in entry_ids
+    deposits = sorted(e for e in entry_ids if e.startswith("2026-06-30 Deposit (no num) [txn"))
+    assert len(deposits) == 2
 
 
 @pytest.mark.skipif(not CASE.is_dir(), reason="case data not in tree")

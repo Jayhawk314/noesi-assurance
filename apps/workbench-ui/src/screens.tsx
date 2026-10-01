@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
   Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification, Blocker,
-  ApControlBuilt, ApControlCandidates, Extraction, RecipeReport, WorkbookPreview,
+  ApControlBuilt, ApControlCandidates, TrialBalanceBuilt, TrialBalanceCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
 import { amountsInWords, cents } from "./lib/words";
 import { csvName, downloadCsv } from "./lib/csv";
@@ -297,6 +297,8 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         evidence with its SHA-256 fingerprint; it is not mapped.
       </p>
 
+      <TrialBalancePanel client={client} eid={eid} onError={onError} onBuilt={reload}
+                         artifactCount={data?.artifacts.length ?? 0} />
       <ApControlPanel client={client} eid={eid} onError={onError} onBuilt={reload}
                       artifactCount={data?.artifacts.length ?? 0} />
 
@@ -1500,6 +1502,72 @@ function RecipeSummary({ report }: { report: RecipeReport }) {
       ))}
       {leftOut.length > 0 && <div className="note">Left out: {leftOut.join(", ")}.</div>}
       {signs.length > 0 && <div className="note">Amount signs as exported ({signs.join("; ")}); loaded as positive paid amounts.</div>}
+    </div>
+  );
+}
+
+/** The trial balance from QuickBooks Trial Balance exports: QuickBooks gives
+ *  one date per report, so this period's and the prior period's are joined
+ *  by account into one schedule with a Prior Balance column. Building it
+ *  stores the schedule as an ordinary source file, then proposed, approved
+ *  and loaded like any other. Shown only when a Trial Balance export exists. */
+function TrialBalancePanel({ client, eid, onError, onBuilt, artifactCount }: {
+  client: Client; eid: string; onError: (e: Error) => void;
+  onBuilt: () => void; artifactCount: number;
+}) {
+  const [found, setFound] = useState<TrialBalanceCandidates | null>(null);
+  const [current, setCurrent] = useState("");
+  const [prior, setPrior] = useState("");
+  const [built, setBuilt] = useState<TrialBalanceBuilt | null>(null);
+  const reportError = useRef(onError);
+  reportError.current = onError;
+  useEffect(() => {
+    client.trialBalanceCandidates(eid).then((c) => {
+      setFound(c);
+      // Newest date first as this period; the next one back as the prior.
+      const byDate = [...c.trial_balances].sort((a, b) => (b.as_of ?? "").localeCompare(a.as_of ?? ""));
+      setCurrent((prev) => prev || byDate[0]?.artifact_id || "");
+      setPrior((prev) => prev || byDate[1]?.artifact_id || "");
+    }).catch((e) => reportError.current(e));
+  }, [client, eid, artifactCount]);
+  if (!found || !found.trial_balances.length) return null;
+  const label = (a: TrialBalanceCandidates["trial_balances"][number]) =>
+    `${a.original_name} (${a.as_of ?? a.period ?? "undated"})`;
+  const build = () => client.buildTrialBalance(eid, current, prior)
+    .then((result) => { setBuilt(result); onBuilt(); }).catch(onError);
+  return (
+    <div className="ap-control">
+      <h3>Trial balance from QuickBooks</h3>
+      <p className="note">
+        QuickBooks exports a trial balance for one date. Choose this period's
+        export and, for prior-year comparisons, last year's; each is footed
+        against its TOTAL first. The result is saved as a "Trial balance"
+        source file, which you then propose, approve and load like any other,
+        and map its accounts to statement lines under "Trial balance lines" on
+        Scope &amp; Policies.
+      </p>
+      <form className="inline" onSubmit={(e) => { e.preventDefault(); void build(); }}>
+        <label>This period{" "}
+          <select value={current} onChange={(e) => setCurrent(e.target.value)}>
+            {found.trial_balances.map((a) => <option key={a.artifact_id} value={a.artifact_id}>{label(a)}</option>)}
+          </select>
+        </label>{" "}
+        <label>Prior period{" "}
+          <select value={prior} onChange={(e) => setPrior(e.target.value)}>
+            <option value="">none</option>
+            {found.trial_balances.filter((a) => a.artifact_id !== current).map((a) =>
+              <option key={a.artifact_id} value={a.artifact_id}>{label(a)}</option>)}
+          </select>
+        </label>{" "}
+        <button className="action" type="submit">build trial balance</button>
+      </form>
+      {built && (
+        <div className="recipe-summary">
+          {built.accounts} accounts as of {built.as_of}
+          {built.prior_as_of ? `, with prior balances as of ${built.prior_as_of}` : ", no prior column"}.
+          {built.notes.map((n) => <div key={n} className="note">Check: {n}.</div>)}
+        </div>
+      )}
     </div>
   );
 }

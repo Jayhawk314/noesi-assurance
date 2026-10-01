@@ -130,31 +130,13 @@ def write_unpaid_bills(open_list):
 
 
 def write_journal(b):
-    """QuickBooks Online Journal report (modeled): each transaction's first
-    line carries its date, type, num and name; a debit/credit subtotal closes
-    it; Create date and Created by are the customized columns."""
-    body = []
+    """QuickBooks Online Journal report, customized with Created on and
+    Created by, in the real export's layout (generate.journal_body)."""
     txs = sorted(b.tx, key=lambda t: (t["date"], t["type"], str(t["num"] or ""),
                                       t["name"]))
-    for t in txs:
-        for i, (n, amount) in enumerate(t["lines"]):
-            debit = amount if amount > 0 else None
-            credit = -amount if amount < 0 else None
-            if i == 0:
-                body.append((None, t["date"].strftime("%m/%d/%Y"), t["type"],
-                             t["num"] or "", t["name"], t["memo"], NAMES[n], debit, credit,
-                             t["created"].strftime("%m/%d/%Y"), t["by"]))
-            else:
-                body.append((None, None, None, None, None, t["memo"], NAMES[n], debit,
-                             credit, None, None))
-        dr = sum(a for _, a in t["lines"] if a > 0)
-        body.append((None, None, None, None, None, None, None, dr, dr, None, None))
-    total = sum(sum(a for _, a in t["lines"] if a > 0) for t in txs)
-    body.append(("TOTAL", None, None, None, None, None, None, total, total, None, None))
-    g.write_report(g.QBO / "Journal.xlsx", "Journal", "July 1, 2025-June 30, 2026",
-                   [None, "Date", "Transaction type", "Num", "Name", "Memo/Description",
-                    "Account", "Debit", "Credit", "Create date", "Created by"], body,
-                   stamp=STAMP)
+    body, _ = g.journal_body(b.tx, NAMES, first_id=101)
+    g.write_report(g.QBO / "Journal.xlsx", "Journal", "July 2025-June 2026",
+                   g.JOURNAL_HEADER, body, stamp=STAMP)
     return txs
 
 

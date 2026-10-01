@@ -5,10 +5,13 @@ demo.
 Everything goes through the real service path, as a team would do it: the
 partner sets materiality, period, audit areas and settings; the preparer
 uploads and maps each file; the reviewer approves each mapping; the
-preparer loads the data and runs every executable procedure. Files the
-Workbench cannot yet take raw from QuickBooks (trial balance, aging,
-reconciliation, inventory, the Journal; findings K1-K14 and J1-J4) go in
-hand-prepared, as in run_noesi.py pass B, and say so in their provenance.
+preparer loads the data and runs every executable procedure. The QuickBooks
+exports go in raw through their recipes (trial balance, A/R aging, inventory
+valuation, the Journal, the payables reports), built on real QuickBooks
+Online exports. Files the Workbench cannot yet take raw (the bank
+reconciliation reports, which QuickBooks gives only as PDF; the bank cutoff
+statement; auditor schedules) go in hand-prepared, as in run_noesi.py pass B,
+and say so in their provenance.
 """
 
 from __future__ import annotations
@@ -49,52 +52,12 @@ def _policies() -> dict:
             **k2["policies"], **k3["policies"]}
 
 
-def prep_journal(name: str):
-    """The QuickBooks Journal report, one row per line (J1-J4 in the run
-    findings): date, type, Num and name print only on a transaction's first
-    line, so they are carried down; an entry is identified as the key
-    identifies it (date, type, Num, name), because Num alone is blank for
-    deposits and transfers and repeats across types."""
-    def prep() -> bytes:
-        rows, entry, header_seen, line, occurrences = [], None, False, 0, {}
-        for r in run_noesi._sheet(name):
-            cells = list(r[1:11]) + [None] * (10 - len(r[1:11]))
-            date, kind, num, who, memo, account, debit, credit, created, by = cells
-            if not header_seen:
-                header_seen = date == "Date"
-                continue
-            if date:  # a transaction's first line
-                base_id = " ".join(x for x in (
-                    f"{date[6:]}-{date[:2]}-{date[3:5]}", kind, num or "(no num)",
-                    who or "") if x).strip()
-                occurrence = occurrences.get(base_id, 0) + 1
-                occurrences[base_id] = occurrence
-                # QuickBooks can emit separate same-day deposits with no Num
-                # or name. Preserve the familiar key for the first, and give
-                # later occurrences a stable discriminator instead of merging
-                # distinct entries in the journal engine.
-                entry_id = base_id if occurrence == 1 else f"{base_id} [{occurrence}]"
-                entry = {"id": entry_id,
-                         "date": date, "kind": kind, "created": created, "by": by}
-                line = 0
-            if entry is None or not account:
-                continue  # a transaction's total row, or the footer
-            line += 1
-            rows.append((entry["id"], line, entry["date"], entry["kind"],
-                         str(account).split(" ", 1)[0], debit if debit is not None else "",
-                         credit if credit is not None else "", entry["created"],
-                         entry["by"], memo or ""))
-        return run_noesi._csv(["Entry ID", "Line", "Entry Date", "Transaction Type",
-                               "Account", "Debit", "Credit", "Posted Date", "Posted By",
-                               "Description"], rows)
-    return prep
-
-
 # (file or prepared label, role, prep function, QuickBooks recipe, load mode)
 LOADS = [
-    ("trial_balance_prepared.csv", "Trial_balance", run_noesi.prep_trial_balance, None, None),
-    ("ar_aging_prepared.csv", "AR_listing", run_noesi.prep_aging, None, None),
-    ("inventory_listing_prepared.csv", "Inventory_listing", run_noesi.prep_inventory, None, None),
+    ("quickbooks/AR_Aging_Summary.xlsx", "AR_listing", None,
+     "qbo.ar_aging_summary.ar_listing", None),
+    ("quickbooks/Inventory_Valuation_Summary.xlsx", "Inventory_listing", None,
+     "qbo.inventory_valuation_summary.inventory_listing", None),
     ("inventory_count_prepared.csv", "Inventory_count", run_noesi.prep_count, None, None),
     ("bank_reconciliation_prepared.csv", "Bank_reconciliation",
      run_noesi.prep_reconciliation, None, None),
@@ -115,9 +78,10 @@ LOADS = [
      "qbo.bill_payment_list.payments", None),
     ("quickbooks/Transaction_List_by_Vendor.xlsx", "Direct_payments", None,
      "qbo.transaction_list_by_vendor.direct_payments", None),
-    ("journal_prepared.csv", "Journal_entries", prep_journal("Journal.xlsx"), None, None),
-    ("journal_2026-07_prepared.csv", "Journal_entries", prep_journal("Journal_2026-07.xlsx"),
-     None, "add"),
+    ("quickbooks/Journal.xlsx", "Journal_entries", None,
+     "qbo.journal_created.journal_entries", None),
+    ("quickbooks/Journal_2026-07.xlsx", "Journal_entries", None,
+     "qbo.journal_created.journal_entries", "add"),
     ("client/payroll_register_FY2026.csv", "Payroll_register", None, None, None),
     ("client/employee_master.csv", "Payroll_master", None, None, None),
     ("client/fixed_asset_register.csv", "Fixed_assets", None, None, None),
@@ -152,6 +116,25 @@ def seed(service, partner: str) -> dict:
 
     stored: dict[str, str] = {}
     refused = []
+
+    # The trial balance: QuickBooks exports one date per report, so this
+    # year's and last year's Trial Balance exports are built into one
+    # schedule (Balance, Prior Balance), then mapped, approved and loaded.
+    for label in ("quickbooks/Trial_Balance_2026-06-30.xlsx",
+                  "quickbooks/Trial_Balance_2025-06-30.xlsx"):
+        stored[label] = service.store_source(
+            PREPARER, eid, content=(DATA / label).read_bytes(), media_type=XLSX,
+            original_name=Path(label).name,
+            provenance=f"Kestrel Valley case: {label}")["artifact_id"]
+    built_tb = service.build_trial_balance(
+        PREPARER, eid, current_artifact_id=stored["quickbooks/Trial_Balance_2026-06-30.xlsx"],
+        prior_artifact_id=stored["quickbooks/Trial_Balance_2025-06-30.xlsx"])
+    [item] = service.propose_source_mappings(
+        PREPARER, eid, [{"artifact_id": built_tb["artifact_id"], "role": "Trial_balance"}]
+    )["results"]
+    service.approve_source_mapping(REVIEWER, eid, item["spec_id"])
+    service.normalize_source(PREPARER, eid, item["spec_id"])
+
     for label, role, prep, recipe, mode in LOADS:
         try:
             if label not in stored:
@@ -171,13 +154,18 @@ def seed(service, partner: str) -> dict:
         except (ValueError, KeyError) as exc:
             refused.append({"file": label, "role": role, "reason": str(exc)})
 
-    # Map the client's own lead-schedule labels to statement lines, as the
-    # preparer would: confirm each suggestion, and file the allowance
-    # account (labelled "Accounts receivable") on the allowance line.
-    for item in service.trial_balance_lines(eid)["labels"]:
-        if not item["recognized"] and item["suggestion"]:
+    # Map each account to a statement line, as the preparer would: a
+    # QuickBooks trial balance carries no line, so the auditor's lead-schedule
+    # mapping (auditor/tb_line_mapping.csv) gives each account's label and the
+    # preparer confirms the line it suggests; the allowance account (labelled
+    # "Accounts receivable") goes on the allowance line.
+    from procedures_cycles.statements import suggest_line
+    for row in run_noesi._read_csv("auditor/tb_line_mapping.csv"):
+        line = suggest_line(row["Lead Schedule Line"])
+        if line:
             service.update_workflow(PREPARER, eid, "line_mapping",
-                                    {"label": item["label"], "line": item["suggestion"]})
+                                    {"account": row["Account"].split(" ", 1)[0],
+                                     "line": line})
     service.update_workflow(PREPARER, eid, "line_mapping",
                             {"account": "11900", "line": "allowance"})
 

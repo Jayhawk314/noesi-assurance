@@ -89,24 +89,12 @@ def subsequent_period(key):
         (date(2026, 7, 14), "Deposit", "", "", "Customer receipts",
          [("10100", m("27904.15")), ("11000", -m("27904.15"))], date(2026, 7, 14)),
     ]
-    import openpyxl
-    body = []
-    for when, kind, num, name, memo, lines, created in sorted(tx, key=lambda t: t[0]):
-        for i, (n, a) in enumerate(lines):
-            dr, cr = (a, None) if a > 0 else (None, -a)
-            body.append((None, when.strftime("%m/%d/%Y") if i == 0 else None,
-                         kind if i == 0 else None, num if i == 0 else None,
-                         name if i == 0 else None, memo, NAMES[n], dr, cr,
-                         created.strftime("%m/%d/%Y") if i == 0 else None,
-                         "Dana Merritt" if i == 0 else None))
-        total = sum(a for _, a in lines if a > 0)
-        body.append((None,) * 7 + (total, total, None, None))
-    grand = sum(sum(a for _, a in t[5] if a > 0) for t in tx)
-    body.append(("TOTAL",) + (None,) * 6 + (grand, grand, None, None))
+    entered = [{"date": when, "type": kind, "num": num, "name": name, "memo": memo,
+                "lines": lines, "created": created, "by": "Dana Merritt"}
+               for when, kind, num, name, memo, lines, created in tx]
+    body, _ = g.journal_body(entered, NAMES, first_id=1101)
     g.write_report(g.QBO / "Journal_2026-07.xlsx", "Journal", "July 1-24, 2026",
-                   [None, "Date", "Transaction type", "Num", "Name", "Memo/Description",
-                    "Account", "Debit", "Credit", "Create date", "Created by"], body,
-                   stamp="Friday, July 24, 2026 09:05 AM GMTZ")
+                   g.JOURNAL_HEADER, body, stamp="Friday, July 24, 2026 09:05 AM GMTZ")
     key["subsequent_events"] = {
         "report_date": REPORT_DATE.isoformat(), "threshold": "10000",
         "expected_leads": [

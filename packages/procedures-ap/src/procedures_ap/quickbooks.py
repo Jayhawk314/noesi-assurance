@@ -25,9 +25,17 @@ A recipe turns one such report into ordinary rows for one canonical role:
   counts the signs seen per account;
 - every row keeps its real sheet row number.
 
+List reports (trial balance, A/R aging, inventory valuation) have no
+groups: their TOTAL row is recomputed and compared the same way, a row's own
+total is footed against its parts, and a nested row (a category or parent
+customer heading) is refused, since that layout was not seen in a real
+export. Some recipes add columns computed from the exported ones (an account
+number, a signed balance, an entry name and line number); the originals stay.
+
 Recognition is exact: the report name in the title block and the heading
 row must match the standard layout the recipe was built from (verified
-against real QuickBooks Online exports, tests/fixtures/quickbooks/). A
+against real QuickBooks Online exports, tests/fixtures/quickbooks/ and
+tests/fixtures/quickbooks/kestrel_qbo/). A
 report with customized columns is not recognized and falls back to the
 ordinary header mapping, which the reviewer checks as usual. A recipe is
 a proposal like any other mapping; the reviewer approves it, and its id is
@@ -41,8 +49,9 @@ side by side, in no consistent order). Rows missing a required key are
 quarantined by normalization with the reason.
 
 Not yet covered: the General Ledger export nests sub-accounts inside
-accounts and opens each with a Beginning Balance row; it needs its own
-structure, not this one.
+accounts and opens each with a Beginning Balance row; it is read for one
+account's balance (the A/P tie), not mapped as a table. The Reconciliation
+Report has no Excel export at all (QuickBooks offers it as PDF only).
 """
 
 from __future__ import annotations
@@ -52,7 +61,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from procedures_ap.ingest import _REQUIRED, parse_decimal
+from procedures_ap.ingest import _REQUIRED, parse_date_text, parse_decimal
 
 RECIPE_VERSION = "qbo-v1"
 GROUP_HEADER = "Column A"     # the reader's name for the blank first heading
@@ -78,10 +87,20 @@ class Recipe:
     paid_amount: bool = False
     sign_account_column: str | None = None   # None: the group is the account
     note: str = ""
+    label_column: str = ""          # flat list whose first heading is blank: its name
+    totals: bool = False            # flat list closed by a TOTAL row, checked
+    row_total: tuple[str, tuple[str, ...]] | None = None   # per-row footing check
+    derive: str = ""                # columns computed from the as-exported ones
+    blank_amounts: bool = False     # a blank amount is zero (debit/credit columns)
 
     @property
     def grouped(self) -> bool:
         return bool(self.group_column)
+
+    @property
+    def blank_first(self) -> bool:
+        """The heading row opens with an empty cell (groups or row labels)."""
+        return bool(self.group_column or self.label_column)
 
     @property
     def label(self) -> str:
@@ -94,6 +113,25 @@ _BILL_PAYMENTS = ("Bill Payment (Check)", "Bill Payment (Credit Card)")
 _NO_BILL_NUMBER = ("Bills are identified by Num, which QuickBooks leaves blank "
                    "unless the vendor's invoice number was typed in; bills "
                    "without one are quarantined, not numbered for you.")
+
+# Columns a recipe computes from the as-exported ones (the originals stay).
+ACCOUNT = "Account"            # account number, or the full name when it has none
+BALANCE = "Balance"            # Debit - Credit
+ENTRY = "Entry"                # date, type, num and name: how an auditor names an entry
+LINE = "Line"
+CREATED_DATE = "Created date"
+TRANSACTION_ID = "Transaction ID"
+_JOURNAL = ("Transaction date", "Transaction type", "Num", "Name", "Description",
+            "Account Name", "Debit", "Credit")
+_JOURNAL_MAP = {"entry_id": ENTRY, "line": LINE, "entry_date": "Transaction date",
+                "account": ACCOUNT, "debit": "Debit", "credit": "Credit",
+                "description": "Description", "source": "Transaction type"}
+_JOURNAL_NOTE = ("QuickBooks groups each transaction's lines under its own "
+                 "transaction ID and closes it with a debit/credit total, checked here. "
+                 "An entry is named by date, type, Num and name (Num alone repeats "
+                 "across types and is blank for deposits); two transactions that "
+                 "would share a name are told apart by their transaction ID.")
+_ACCOUNT_NUMBER = re.compile(r"^(\d[\d.\-]*)\s+\S")
 
 RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
     Recipe(
@@ -166,6 +204,58 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
         note="QuickBooks identifies vendors by display name, so the name "
              "is also the vendor key. 'Account #' is your account number "
              "with the vendor, not a vendor id."),
+    Recipe(
+        recipe_id="qbo.trial_balance.trial_balance", report="Trial Balance",
+        role="Trial_balance", headers=("Account Name", "Debit", "Credit"),
+        amount_columns=("Debit", "Credit"), totals=True, derive="trial_balance",
+        column_map={"account": ACCOUNT, "description": "Account Name",
+                    "balance": BALANCE},
+        note="One period only, with no statement line: map the lines on the "
+             "line-mapping screen, and build the trial balance from two exports "
+             "(this year and last) for prior-year balances. 'Account' is the "
+             "account number when the name starts with one, else the full name; "
+             "'Balance' is Debit minus Credit."),
+    Recipe(
+        recipe_id="qbo.ar_aging_summary.ar_listing", report="A/R Aging Summary Report",
+        role="AR_listing", label_column="Customer",
+        headers=("CURRENT", "1 - 30", "31 - 60", "61 - 90", "91 AND OVER", "Total"),
+        amount_columns=("CURRENT", "1 - 30", "31 - 60", "61 - 90", "91 AND OVER",
+                        "Total"),
+        totals=True, row_total=("Total", ("CURRENT", "1 - 30", "31 - 60", "61 - 90",
+                                          "91 AND OVER")),
+        column_map={"customer_number": "Customer", "customer_name": "Customer",
+                    "balance": "Total", "current": "CURRENT", "days_1_30": "1 - 30",
+                    "days_31_60": "31 - 60", "days_61_90": "61 - 90",
+                    "days_over_90": "91 AND OVER"},
+        note="QuickBooks identifies customers by display name, so the name is also "
+             "the customer key. Buckets count days past due, not days since the "
+             "invoice date. Sub-customers (nested rows) are not read yet."),
+    Recipe(
+        recipe_id="qbo.inventory_valuation_summary.inventory_listing",
+        report="Inventory Valuation Summary", role="Inventory_listing",
+        label_column="Item", headers=("SKU", "Qty", "Asset Value", "Calc. Avg"),
+        amount_columns=("Qty", "Asset Value"), totals=True,
+        column_map={"stock_number": "SKU", "description": "Item", "quantity": "Qty",
+                    "unit_cost": "Calc. Avg", "cost": "Asset Value"},
+        note="'Calc. Avg' is QuickBooks' average cost, the unit cost it carries the "
+             "item at. Items grouped under categories are not read yet."),
+    Recipe(
+        recipe_id="qbo.journal.journal_entries", report="Journal",
+        role="Journal_entries", headers=_JOURNAL, group_column=TRANSACTION_ID,
+        amount_columns=("Debit", "Credit"), derive="journal", blank_amounts=True,
+        column_map=_JOURNAL_MAP,
+        note=_JOURNAL_NOTE + " This layout has no 'Created on' or 'Created by': "
+             "posted-after-period-end and unauthorized-user tests need the report "
+             "customized to add them."),
+    Recipe(
+        recipe_id="qbo.journal_created.journal_entries", report="Journal",
+        role="Journal_entries", headers=(*_JOURNAL, "Created on", "Created by"),
+        group_column=TRANSACTION_ID, amount_columns=("Debit", "Credit"),
+        derive="journal", blank_amounts=True,
+        column_map={**_JOURNAL_MAP, "posted_date": CREATED_DATE,
+                    "posted_by": "Created by"},
+        note=_JOURNAL_NOTE + " 'Created on' is a timestamp; 'Created date' is its "
+             "date, read by the posted-date tests."),
 )}
 
 
@@ -174,7 +264,7 @@ def _heading_row(rows: list[list[str]], recipe: Recipe) -> int | None:
         cells = [c.strip() for c in row]
         while cells and not cells[-1]:
             cells.pop()
-        if recipe.grouped:
+        if recipe.blank_first:
             if cells and not cells[0] and tuple(cells[1:]) == recipe.headers:
                 return index
         elif tuple(cells) == recipe.headers:
@@ -216,23 +306,16 @@ def apply(recipe_id: str, headers: list[str], records: list[dict],
     departs, so a wrong recipe cannot quietly produce plausible rows.
     """
     recipe = get(recipe_id)
-    expected = [GROUP_HEADER, *recipe.headers] if recipe.grouped else list(recipe.headers)
+    expected = ([GROUP_HEADER, *recipe.headers] if recipe.blank_first
+                else list(recipe.headers))
     if headers != expected:
-        shown = ["", *recipe.headers] if recipe.grouped else list(recipe.headers)
+        shown = ["", *recipe.headers] if recipe.blank_first else list(recipe.headers)
         raise RecipeError(
             f"the headings {headers} are not QuickBooks' standard "
             f"{recipe.report} layout {shown}; a customized report needs an "
             f"ordinary mapping instead of this recipe")
     if not recipe.grouped:
-        rows = [dict(r) for r in records]
-        report = {"recipe": recipe.recipe_id, "version": RECIPE_VERSION,
-                  "report": recipe.report, "role": recipe.role,
-                  "rows_kept": len(rows), "subtotals_checked": 0,
-                  "grand_total": None, "totals_disagreeing": [],
-                  "missing_required": _missing_required(recipe, rows),
-                  "note": recipe.note}
-        return (list(headers), rows,
-                list(range(first_row, first_row + len(rows))), report)
+        return _apply_flat(recipe, headers, records, first_row)
 
     detail = list(recipe.headers)
     zero = {c: Decimal("0") for c in recipe.amount_columns}
@@ -282,7 +365,9 @@ def apply(recipe_id: str, headers: list[str], records: list[dict],
         if group is None:
             raise RecipeError(f"{where}: a detail row outside any group")
         for column in recipe.amount_columns:
-            value = parse_decimal(raw.get(column))
+            blank = not (raw.get(column) or "").strip()
+            value = Decimal("0") if blank and recipe.blank_amounts else parse_decimal(
+                raw.get(column))
             if value is None:
                 raise RecipeError(f"{where}: {column} {raw.get(column)!r} is not a number")
             group_sum[column] += value
@@ -309,6 +394,8 @@ def apply(recipe_id: str, headers: list[str], records: list[dict],
     if group is not None:
         raise RecipeError(f"group {group!r} has no 'Total for {group}' row")
     out_headers = [recipe.group_column, *detail] + ([PAID_AMOUNT] if recipe.paid_amount else [])
+    if recipe.derive:
+        out_headers, kept = _DERIVE[recipe.derive](out_headers, kept, source_rows)
     report = {
         "recipe": recipe.recipe_id, "version": RECIPE_VERSION,
         "report": recipe.report, "role": recipe.role,
@@ -324,6 +411,161 @@ def apply(recipe_id: str, headers: list[str], records: list[dict],
     if recipe.paid_amount:
         report["amount_signs_by_account"] = signs
     return out_headers, kept, source_rows, report
+
+
+def _apply_flat(recipe: Recipe, headers: list[str], records: list[dict],
+                first_row: int) -> tuple[list[str], list[dict], list[int], dict]:
+    """A list report: one row per item, optionally closed by a TOTAL row.
+
+    The TOTAL is recomputed from the rows for every amount column; a row's own
+    total (the aging's Total) is footed against its buckets. Nested rows (a
+    category or parent customer heading, or a 'Total for' subtotal) are a
+    layout this reader was not built on, and are refused rather than flattened.
+    """
+    label_col = recipe.label_column
+    detail = list(recipe.headers)
+    grand = {c: Decimal("0") for c in recipe.amount_columns}
+    grand_totals: list[dict] = []
+    row_checks: list[dict] = []
+    kept: list[dict] = []
+    source_rows: list[int] = []
+    for sheet_row, raw in enumerate(records, first_row):
+        where = f"sheet row {sheet_row}"
+        first = ((raw.get(GROUP_HEADER) if label_col else raw.get(detail[0])) or "").strip()
+        rest = detail if label_col else detail[1:]
+        filled = any((raw.get(h) or "").strip() for h in rest)
+        if not first and not filled:
+            continue
+        if grand_totals:
+            raise RecipeError(f"{where}: rows continue after the grand TOTAL")
+        if recipe.totals and first == "TOTAL":
+            grand_totals = [_check("TOTAL", c, sheet_row, grand[c],
+                                   parse_decimal(raw.get(c)))
+                            for c in recipe.amount_columns]
+            continue
+        if first.startswith("Total for ") or (label_col and first and not filled):
+            raise RecipeError(
+                f"{where}: {first!r} is a nested heading or subtotal; this "
+                f"{recipe.report} layout (sub-items or categories) is not read yet")
+        if not first:
+            raise RecipeError(f"{where}: a row with values but no "
+                              f"{label_col or detail[0]}")
+        for column in recipe.amount_columns:
+            value = parse_decimal(raw.get(column)) if (raw.get(column) or "").strip() \
+                else Decimal("0")
+            if value is None:
+                raise RecipeError(f"{where}: {column} {raw.get(column)!r} is not a number")
+            grand[column] += value
+        if recipe.row_total:
+            total_col, parts = recipe.row_total
+            computed = sum((parse_decimal(raw.get(p)) or Decimal("0")) for p in parts)
+            row_checks.append(_check(first, total_col, sheet_row, computed,
+                                     parse_decimal(raw.get(total_col)) or Decimal("0")))
+        row = ({label_col: first} if label_col else {}) | {h: raw.get(h, "") for h in detail}
+        kept.append(row)
+        source_rows.append(sheet_row)
+    if recipe.totals and not grand_totals:
+        raise RecipeError(f"the {recipe.report} has no grand TOTAL row")
+    out_headers = ([label_col] if label_col else []) + detail
+    if recipe.derive:
+        out_headers, kept = _DERIVE[recipe.derive](out_headers, kept, source_rows)
+    report = {"recipe": recipe.recipe_id, "version": RECIPE_VERSION,
+              "report": recipe.report, "role": recipe.role,
+              "rows_kept": len(kept), "subtotals_checked": 0,
+              "rows_footed": len(row_checks),
+              "grand_total": grand_totals or None,
+              "totals_disagreeing": [t for t in row_checks + grand_totals
+                                     if not t["agrees"]],
+              "missing_required": _missing_required(recipe, kept),
+              "note": recipe.note}
+    return out_headers, kept, source_rows, report
+
+
+def account_key(name: str) -> str:
+    """The account number a QuickBooks account name starts with ("10100
+    Checking" -> "10100"), else the whole name: QuickBooks without account
+    numbers names accounts only by name."""
+    name = " ".join((name or "").split())
+    match = _ACCOUNT_NUMBER.match(name)
+    return match.group(1) if match else name
+
+
+def _derive_trial_balance(headers, rows, source_rows):
+    seen: dict[str, int] = {}
+    for row, sheet_row in zip(rows, source_rows):
+        key = account_key(row["Account Name"])
+        if key in seen:
+            raise RecipeError(f"sheet row {sheet_row}: account {key!r} also appears on "
+                              f"sheet row {seen[key]}")
+        seen[key] = sheet_row
+        debit = parse_decimal(row.get("Debit")) or Decimal("0")
+        credit = parse_decimal(row.get("Credit")) or Decimal("0")
+        row[ACCOUNT] = key
+        row[BALANCE] = str((debit - credit).quantize(_CENT))
+    return [*headers, ACCOUNT, BALANCE], rows
+
+
+def _derive_journal(headers, rows, source_rows):
+    """Name each transaction as the auditor would, number its lines, and give
+    each line the account number. Date, type, Num and name repeat on every
+    line of a transaction; a line that disagrees is refused."""
+    first: dict[str, dict] = {}
+    names: dict[str, set] = {}
+    for row, sheet_row in zip(rows, source_rows):
+        txn = row[TRANSACTION_ID]
+        ident = tuple((row.get(h) or "").strip() for h in
+                      ("Transaction date", "Transaction type", "Num", "Name"))
+        if txn in first and first[txn]["ident"] != ident:
+            raise RecipeError(f"sheet row {sheet_row}: transaction {txn} changes its "
+                              f"date, type, Num or name between lines")
+        if txn not in first:
+            when = parse_date_text(ident[0])
+            if when is None:
+                raise RecipeError(f"sheet row {sheet_row}: transaction date "
+                                  f"{ident[0]!r} is not a date")
+            label = " ".join(x for x in (when.isoformat(), ident[1],
+                                         ident[2] or "(no num)", ident[3]) if x)
+            first[txn] = {"ident": ident, "label": label, "lines": 0}
+            names.setdefault(label, set()).add(txn)
+    created = "Created on" in headers
+    for row, sheet_row in zip(rows, source_rows):
+        entry = first[row[TRANSACTION_ID]]
+        entry["lines"] += 1
+        shared = len(names[entry["label"]]) > 1
+        row[ENTRY] = (f"{entry['label']} [txn {row[TRANSACTION_ID]}]" if shared
+                      else entry["label"])
+        row[LINE] = str(entry["lines"])
+        row[ACCOUNT] = account_key(row.get("Account Name", ""))
+        if created:
+            stamp = (row.get("Created on") or "").strip()
+            row[CREATED_DATE] = stamp.split(" ", 1)[0]
+            if stamp and parse_date_text(row[CREATED_DATE]) is None:
+                raise RecipeError(f"sheet row {sheet_row}: Created on {stamp!r} "
+                                  f"does not start with a date")
+    return [*headers, ENTRY, LINE, ACCOUNT] + ([CREATED_DATE] if created else []), rows
+
+
+_DERIVE = {"trial_balance": _derive_trial_balance, "journal": _derive_journal}
+
+
+def combine_trial_balances(current: list[dict], prior: list[dict] | None) -> list[dict]:
+    """This year's and last year's Trial Balance exports (each flattened by the
+    trial-balance recipe) as one schedule: Account, Description, Balance,
+    Prior Balance. An account on only one side is 0.00 on the other, which is
+    what QuickBooks' omission of a zero-balance account means."""
+    out: dict[str, dict] = {}
+    for row in current:
+        out[row[ACCOUNT]] = {"Account": row[ACCOUNT], "Description": row["Account Name"],
+                             "Balance": row[BALANCE], "Prior Balance": "0.00"}
+    for row in prior or []:
+        item = out.setdefault(row[ACCOUNT], {"Account": row[ACCOUNT],
+                                             "Description": row["Account Name"],
+                                             "Balance": "0.00"})
+        item["Prior Balance"] = row[BALANCE]
+    if prior is None:
+        for item in out.values():
+            item.pop("Prior Balance")
+    return list(out.values())
 
 
 def _missing_required(recipe: Recipe, rows: list[dict]) -> list[dict]:
@@ -359,9 +601,17 @@ GL_REPORT = "General Ledger"
 GL_HEADERS = ("Distribution account", "Transaction date", "Transaction type", "Num",
               "Name", "Description", "Split", "Amount", "Balance")
 AP_ACCOUNT = "Accounts Payable (A/P)"
-_MONTHS = ("January|February|March|April|May|June|July|August|September|"
-           "October|November|December")
+# Full names on screen and in PDF titles; QuickBooks' Excel titles abbreviate
+# ("As of Jun 30, 2026").
+_MONTHS = (r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|"
+           r"Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?(?![A-Za-z])")
 _PERIOD = re.compile(rf"(?:({_MONTHS})\s+)?(\d{{1,2}}),\s*(\d{{4}})")
+_WHOLE_MONTH = re.compile(rf"({_MONTHS}),?\s+(\d{{4}})")
+
+
+def _month_number(name: str) -> int:
+    return ("jan feb mar apr may jun jul aug sep oct nov dec".split()
+            .index(name.strip(".")[:3].lower()) + 1)
 
 
 def _cells(row: list[str]) -> list[str]:
@@ -383,21 +633,28 @@ def last_date(text: str) -> str | None:
     """The last date a QuickBooks period or footer line names, as ISO.
 
     "September 1-23, 2026" -> 2026-09-23; "January 1-September 23, 2026" ->
-    2026-09-23; "As of June 30, 2026" -> 2026-06-30. A range's end day has
-    no month of its own, so the nearest month named before it applies.
+    2026-09-23; "As of June 30, 2026" and "As of Jun 30, 2026" -> 2026-06-30.
+    A range's end day has no month of its own, so the nearest month named
+    before it applies. A period of whole months names no day ("April-June,
+    2026", "August 2026"): it ends on the last day of its last month.
     """
-    months = _MONTHS.split("|")
-    found = list(_PERIOD.finditer(text or ""))
+    text = text or ""
+    found = list(_PERIOD.finditer(text))
     if not found:
-        return None
+        whole = list(_WHOLE_MONTH.finditer(text))
+        if not whole:
+            return None
+        year, month = int(whole[-1].group(2)), _month_number(whole[-1].group(1))
+        following = date(year + month // 12, month % 12 + 1, 1)
+        return date.fromordinal(following.toordinal() - 1).isoformat()
     match = found[-1]
     month = match.group(1)
     if month is None:
-        named = re.findall(rf"({_MONTHS})", text[:match.start()])
+        named = re.findall(_MONTHS, text[:match.start()])
         if not named:
             return None
         month = named[-1]
-    return date(int(match.group(3)), months.index(month) + 1,
+    return date(int(match.group(3)), _month_number(month),
                 int(match.group(2))).isoformat()
 
 

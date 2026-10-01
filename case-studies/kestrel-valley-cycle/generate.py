@@ -59,6 +59,8 @@ DIT_MAX_DAYS = 3
 ALLOWANCE_RATES = {"Current": D("0.01"), "1 - 30": D("0.02"), "31 - 60": D("0.05"),
                    "61 - 90": D("0.15"), "91 and over": D("0.40")}
 BUCKETS = list(ALLOWANCE_RATES)
+# The bucket captions as QuickBooks Online's A/R Aging Summary prints them.
+AGING_CAPTIONS = ["CURRENT", "1 - 30", "31 - 60", "61 - 90", "91 AND OVER"]
 
 # ------------------------------------------------------------------ A/R aging
 # Exported 07/08/2026, before the client's 6/30-dated write-off of Ridgeback
@@ -293,7 +295,13 @@ def build_tb(ar_total, inventory_total, checking_book, payroll_book):
 def write_report(path, title, dateline, header, body, footer_basis=True,
                  stamp="Wednesday, July 15, 2026 10:42 AM GMTZ"):
     """QuickBooks Online export layout: company, title, date line, blank,
-    header row, body, three blank rows, basis + timestamp footer."""
+    header row, body, three blank rows, basis + timestamp footer.
+
+    Checked against real QuickBooks Online exports (tests/fixtures/quickbooks/
+    and kestrel_qbo/): the Excel title abbreviates the month ("As of Jun 30,
+    2026"). One difference is kept on purpose: QuickBooks writes its totals as
+    formulas with the computed value saved; openpyxl cannot save that value,
+    so the totals here are the numbers themselves, which read the same."""
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Sheet1"  # QuickBooks exports use one sheet named Sheet1
@@ -312,6 +320,37 @@ def write_report(path, title, dateline, header, body, footer_basis=True,
                 c.number_format = '"$"#,##0.00'
     path.parent.mkdir(parents=True, exist_ok=True)
     save(wb, path)
+
+
+JOURNAL_HEADER = [None, "Transaction date", "Transaction type", "Num", "Name",
+                  "Description", "Account Name", "Debit", "Credit", "Created on",
+                  "Created by"]
+
+
+def journal_body(txs, names, first_id):
+    """QuickBooks Online Journal, customized to add Created on and Created by,
+    as the real export lays it out (tests/fixtures/quickbooks/kestrel_qbo/
+    journal_created_by.xlsx): each transaction's lines under a heading row
+    holding its QuickBooks transaction ID, date, type, Num and name repeated
+    on every line, Created on as a timestamp, then 'Total for <ID>' and a
+    grand TOTAL. IDs count up in the order the transactions were entered;
+    the report lists them by date. Returns the rows and the grand total."""
+    ids = {id(t): first_id + i for i, t in enumerate(txs)}
+    body, grand = [], D("0")
+    for t in sorted(txs, key=lambda t: (t["date"], t["type"], str(t["num"] or ""),
+                                       t["name"])):
+        txn = ids[id(t)]
+        body.append((str(txn),) + (None,) * 10)
+        for n, amount in t["lines"]:
+            body.append((None, t["date"].strftime("%m/%d/%Y"), t["type"], t["num"] or "",
+                         t["name"] or "", t["memo"] or "", names[n],
+                         amount if amount > 0 else None, -amount if amount < 0 else None,
+                         t["created"].strftime("%m/%d/%Y") + " 10:15:00 AM", t["by"]))
+        debits = sum(a for _, a in t["lines"] if a > 0)
+        body.append((f"Total for {txn}",) + (None,) * 6 + (debits, debits, None, None))
+        grand += debits
+    body.append(("TOTAL",) + (None,) * 6 + (grand, grand, None, None))
+    return body, grand
 
 
 def fixed_dates(wb):
@@ -362,26 +401,24 @@ def main():
     bucket_totals = [sum(a[i] for _, a, _ in rows) for i in range(5)]
     body = [(name, *[blank(v) for v in amounts], total) for name, amounts, total in rows]
     body.append(("TOTAL", *bucket_totals, aging_total))
-    write_report(QBO / "AR_Aging_Summary.xlsx", "A/R Aging Summary",
-                 "As of June 30, 2026", [None, *BUCKETS, "Total"], body,
+    write_report(QBO / "AR_Aging_Summary.xlsx", "A/R Aging Summary Report",
+                 "As of Jun 30, 2026", ["", *AGING_CAPTIONS, "Total"], body,
                  footer_basis=False, stamp="Wednesday, July 8, 2026 04:17 PM GMTZ")
     ar_per_tb = aging_total - WRITE_OFF[1]
 
     # --- inventory ------------------------------------------------------
+    # Items with no category, by name, as the real export lists them; the
+    # TOTAL carries the overall average cost. (The layout with categories was
+    # not seen in a real export, so the case does not use it.)
     inv = [(cat, name, sku, qty, m(val)) for cat, name, sku, qty, val in INVENTORY]
-    body, inventory_total = [], D("0")
-    for cat in dict.fromkeys(c for c, *_ in inv):
-        items = [i for i in inv if i[0] == cat]
-        body.append((cat, None, None, None, None))
-        for _, name, sku, qty, val in items:
-            body.append((f"   {name}", sku, qty, val, float(val / qty)))
-        qty_sum = sum(i[3] for i in items)
-        val_sum = sum(i[4] for i in items)
-        body.append((f"Total {cat}", None, qty_sum, val_sum, None))
-        inventory_total += val_sum
-    body.append(("TOTAL", None, sum(i[3] for i in inv), inventory_total, None))
+    inventory_total = sum(i[4] for i in inv)
+    total_qty = sum(i[3] for i in inv)
+    body = [(name, sku, qty, val, float(val / qty))
+            for _, name, sku, qty, val in sorted(inv, key=lambda i: i[1])]
+    body.append(("TOTAL", None, total_qty, inventory_total,
+                 float(inventory_total / total_qty)))
     write_report(QBO / "Inventory_Valuation_Summary.xlsx", "Inventory Valuation Summary",
-                 "As of June 30, 2026", [None, "SKU", "Qty", "Asset Value", "Calc. Avg"],
+                 "As of Jun 30, 2026", ["", "SKU", "Qty", "Asset Value", "Calc. Avg"],
                  body)
 
     CLIENT.mkdir(parents=True, exist_ok=True)
@@ -418,9 +455,9 @@ def main():
     current, prior, prior_ni = build_tb(ar_per_tb, inventory_total, checking_book,
                                         payroll_book)
     for which, bal, dateline, stamp in (
-            ("Trial_Balance_2026-06-30.xlsx", current, "As of June 30, 2026",
+            ("Trial_Balance_2026-06-30.xlsx", current, "As of Jun 30, 2026",
              "Wednesday, July 15, 2026 10:42 AM GMTZ"),
-            ("Trial_Balance_2025-06-30.xlsx", prior, "As of June 30, 2025",
+            ("Trial_Balance_2025-06-30.xlsx", prior, "As of Jun 30, 2025",
              "Wednesday, July 15, 2026 10:44 AM GMTZ")):
         body = []
         for n, name, *_ in TB:
@@ -432,7 +469,7 @@ def main():
         credits = -sum(v for v in bal.values() if v < 0)
         assert debits == credits, (which, debits, credits)
         body.append(("TOTAL", debits, credits))
-        write_report(QBO / which, "Trial Balance", dateline, [None, "Debit", "Credit"],
+        write_report(QBO / which, "Trial Balance", dateline, ["Account Name", "Debit", "Credit"],
                      body, stamp=stamp)
     write_csv(AUDITOR / "tb_line_mapping.csv", ["Account", "Lead Schedule Line"],
               [(f"{n} {name}", line) for n, name, line, *_ in TB])

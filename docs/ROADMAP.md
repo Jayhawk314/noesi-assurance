@@ -101,13 +101,31 @@ From the private friction log and CYCLES-ROLLOUT §6.
 | ~~B2~~ done | The SAD carries the evaluated misstatement schedule (signed, by line) and cannot conclude "immaterial" while a line reaches materiality; the schedule's "material" verdict is no longer counted as one more misstatement. |
 | ~~B3~~ done | Role `Prior_statements` (line, amount as reported): prior ratios and averages (inventory turnover) without a comparative TB; given both, disagreements are flagged. Limit: account movements still need the TB's prior column, and revision impact does not yet mark analytics stale when this file changes. |
 
-### C. QuickBooks imports (waits for James's real exports)
-Checked: only payables recipes exist today (bill payments, transactions by
-vendor, unpaid bills, vendor list). Kestrel's Journal, trial balance, aging,
-inventory and bank rec are hand-prepared in the demo seed.
+### C. QuickBooks imports
+30 Sep 2026 (Claude): real exports taken from James's QuickBooks Online
+Accountant company, holding a few invented Kestrel-style transactions
+(`tests/fixtures/quickbooks/kestrel_qbo/`). Not committed or pushed yet.
 
-- C1. A real QuickBooks Journal export, then the Journal import built to it.
-- C2. Recipes for trial balance, A/R aging, inventory valuation, bank reconciliation.
+- ~~C1~~ done (local). Journal recipes, default layout and with Created on /
+  Created by, built on the real export; entries named by date, type, Num and
+  name, told apart by QuickBooks' transaction ID when two would share a name.
+- C2. Trial balance, A/R aging summary and inventory valuation recipes done
+  (local), plus a builder joining this year's and last year's Trial Balance
+  exports (QuickBooks exports one date per report). Kestrel's files
+  regenerated in the real layouts and loaded raw by the demo seed: the
+  finish-line check is 162/164, 0 unexplained, as before.
+  **Open:** the bank reconciliation. QuickBooks offers the Reconciliation
+  Report only as PDF (no Excel), so its import needs the PDF (James to save
+  one from the reconciled checking account) and stays hand-prepared.
+- Found on the real files and fixed: QuickBooks' Excel titles abbreviate
+  months ("As of Jun 30, 2026") and whole-month periods name no day
+  ("April-June, 2026"); both read as undated, so a real General Ledger was
+  refused by the A/P tie. Coverage now counts a trial balance's statement line
+  as supplied by the line mapping (a QuickBooks trial balance has no line
+  column).
+- Still open from C: PO overrun and unrecorded liability (the 2 finish-line
+  lines): they need bills linked to POs and payments, which none of these
+  reports carry.
 
 ### D. Screens
 Checked: cycles and policies, period start, and the Draft Opinion screens
