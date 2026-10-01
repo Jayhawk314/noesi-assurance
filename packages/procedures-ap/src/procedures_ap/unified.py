@@ -88,6 +88,12 @@ def _phase_of(cls: str, v: Receipt, cycle: str) -> str:
 
 def _assertion_of(cls: str, v: Receipt) -> str:
     """Best-effort financial-statement assertion (a review aid, not an opinion)."""
+    # A procedure that knows the assertion says so in its evidence (inventory
+    # existence and completeness, cash cutoff, movements by account type);
+    # that beats any guess from the wording below.
+    stated = v.evidence.get("assertion")
+    if isinstance(stated, str) and stated:
+        return stated
     pol, key = v.policy, str(v.key).lower()
     reason = (v.reason or "").lower()
     fc = v.evidence.get("finding_class", "")

@@ -35,6 +35,37 @@ LINES = (
 _CREDIT_NORMAL = {"allowance", "current_liabilities", "noncurrent_liabilities", "equity",
                   "sales", "other_income"}
 
+
+def movement_assertion(line: str, change: Decimal,
+                       balance: Decimal | None = None) -> str | None:
+    """The assertion an unusual movement puts at risk, from the account's
+    statement line and the direction it moved (debit-positive change): an
+    asset that grew may not exist, one that shrank may be incomplete;
+    liabilities are at risk of being understated; revenue that grew may not
+    have occurred, and so may expenses; shrinking income or expense may be
+    incomplete. An asset-line account carrying a credit balance is a contra
+    account (accumulated depreciation): its risk is valuation. A review aid for
+    where to look, not a conclusion."""
+    line = (line or "").lower()
+    if line in ("cash", "receivables", "inventory", "other_current_assets",
+                "noncurrent_assets"):
+        if balance is not None and balance < 0:
+            return "valuation"
+        return "existence" if change > 0 else "completeness"
+    if line == "allowance":
+        return "valuation"
+    if line in ("current_liabilities", "noncurrent_liabilities"):
+        return "completeness"
+    if line == "equity":
+        return "presentation"
+    if line in ("sales", "other_income"):          # credit-normal: growth is a credit
+        return "occurrence" if change < 0 else "completeness"
+    if line == "sales_returns":
+        return "cutoff"
+    if line in ("cost_of_sales", "operating_expense", "other_expense", "income_tax"):
+        return "occurrence" if change > 0 else "completeness"
+    return None
+
 # Words in a client's own lead-schedule label that suggest one of LINES.
 # A suggestion only: the preparer confirms every mapping (finding K8).
 _LINE_HINTS: tuple[tuple[str, str], ...] = (
@@ -267,6 +298,7 @@ def trial_balance_analytics(tables: dict, policies: dict):
                     f"{change} ({'new' if pct is None else f'{pct:.1%}'}) — obtain and "
                     "corroborate an explanation",
                     {"finding_class": "CONJECTURE", "kind": "risk", "cycle": "planning",
+                     "assertion": movement_assertion(text(r.get("line")), change, cy),
                      "current": cy, "prior": py, "change": change,
                      "source_rows": [source_ref("Trial_balance", r, "account")],
                      "limits": "an unusual movement is a question for inquiry, "

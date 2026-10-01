@@ -64,3 +64,29 @@ def test_the_performance_rate_setting_reaches_the_sad(tmp_path):
                                 {"name": "performance_materiality_pct", "value": "120"})
     finally:
         conn.close()
+
+
+def test_a_movement_names_the_assertion_its_account_and_direction_put_at_risk():
+    """30 Sep 2026: every trial-balance movement was tagged "occurrence",
+    cash and payables included."""
+    from decimal import Decimal as D
+    from procedures_ap.unified import _assertion_of
+    from procedures_cycles.statements import movement_assertion
+    assert movement_assertion("cash", D("100")) == "existence"
+    assert movement_assertion("inventory", D("-5")) == "completeness"
+    assert movement_assertion("current_liabilities", D("-45734.52")) == "completeness"
+    assert movement_assertion("sales", D("-374240")) == "occurrence"      # revenue grew
+    assert movement_assertion("sales", D("1000")) == "completeness"
+    assert movement_assertion("operating_expense", D("25250")) == "occurrence"
+    assert movement_assertion("allowance", D("8600")) == "valuation"
+    # accumulated depreciation: on the asset line, credit balance
+    assert movement_assertion("noncurrent_assets", D("-18250"), D("-96500")) == "valuation"
+    assert movement_assertion("noncurrent_assets", D("14500"), D("212800")) == "existence"
+    assert movement_assertion("nonsense", D("1")) is None
+
+    class V:                       # the fields the tagger reads
+        policy, key, reason = "p", ("movement", "10100"), "account 10100 moved 1.00"
+        evidence = {"assertion": "existence"}
+    assert _assertion_of("risk", V) == "existence"
+    V.evidence = {}
+    assert _assertion_of("risk", V) == "occurrence"     # no stated assertion: the old guess
