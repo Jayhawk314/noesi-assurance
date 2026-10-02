@@ -181,11 +181,11 @@ export const FRAUD_LESSONS: Lesson[] = [
       files: ["quickbooks/Journal.xlsx"],
       intro: "Test the year's journal for the traits of override.",
       steps: [
-        "QuickBooks prints date, type, number and name only on a transaction's first line: fill them down so every line carries its entry.",
+        "QuickBooks groups each transaction's lines under its transaction ID, closed by a **Total for** row; date, type, number and name repeat on every line, so each line already carries its entry.",
         "Filter **Created by** for anyone other than the authorized user.",
         "Add a weekday column (`=WEEKDAY(date)`) and filter for Saturday and Sunday.",
         "Filter amounts at or above the round-amount threshold that are exact multiples of the round unit.",
-        "Filter manual journal entries with a blank **Memo/Description**.",
+        "Filter manual journal entries with a blank **Description**.",
       ],
       asks: [
         { label: "Who posted an entry outside the authorized user?", row: "unauthorized user: entries", module: JOURNAL, key: "payables.owner_entry.by" },

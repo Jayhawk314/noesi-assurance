@@ -522,10 +522,10 @@
    "credit": ""
   },
   {
-   "date": "",
-   "type": "",
-   "num": "",
-   "name": "",
+   "date": "07/08/2026",
+   "type": "Journal Entry",
+   "num": "1071",
+   "name": "Cycle Tech Legal",
    "memo": "Settle distributor dispute (claim from March 2026)",
    "account": "20000 Accounts Payable (A/P)",
    "debit": "",
