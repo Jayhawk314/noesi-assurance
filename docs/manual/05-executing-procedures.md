@@ -19,9 +19,9 @@ changes how you read results:
   Recognizing shared root causes — and not double-counting the exposure —
   is judgment no engine exercises for you.
 
-Every run of a procedure is itself audit work, so it walks the same
-lifecycle as any workpaper: prepared, reviewed, approved, by three
-different people.
+Every run of a procedure is itself audit work, so its record says who ran
+it, when, on which data and with which settings. Reviewing and approving the
+work is your firm's process; Noesi asks for no sign-off.
 
 ## In the workbench
 
@@ -31,10 +31,6 @@ link). What a run records: a frozen **job manifest** (procedure and engine
 versions, a digest of every input table, the effective policies) and a
 sealed result. Re-running later is *reperformance* — a new job with its
 own sequence number, never an overwrite.
-
-Review lifecycle: the preparer's completed run is **reviewed** by the
-reviewer chair, then **approved** by the partner (who must not be the
-reviewer). Completion blocks on any run left unapproved.
 
 The live catalog on Coverage is the source of truth; it grows as a tested
 cycle earns a contract and executor. Read it in families rather than
@@ -58,8 +54,7 @@ identified by the hash of its own content. Chapter 6 is about judging them.
 ## In Kestrel
 
 The demo has already run every executable selected procedure. Open the runs
-as the preparer, then move through reviewer and partner approval while
-reconciling each result to your own work. Useful anchors:
+and reconcile each result to your own work. Useful anchors:
 
 - Journal-entry testing identifies the post-closing entry and the unusual
   round, weekend entry posted by someone outside the authorized-user policy.

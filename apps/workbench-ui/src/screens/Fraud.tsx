@@ -73,7 +73,7 @@ export function FraudScreen({ client, eid, onError: _onError }: {
         ) : (
           <table className="dense">
             <thead><tr><th>Risk</th><th>Assertion</th><th>Level</th>
-              <th>Responding procedures</th><th>Concurrence</th></tr></thead>
+              <th>Responding procedures</th></tr></thead>
             <tbody>
               {risks.map((r) => (
                 <tr key={r.risk_id}>
@@ -83,8 +83,6 @@ export function FraudScreen({ client, eid, onError: _onError }: {
                   <td>{r.procedure_ids.length
                     ? r.procedure_ids.map((p) => <div key={p}><code>{p}</code></div>)
                     : <span className="status bad">none linked</span>}</td>
-                  <td>{r.concurred_by ? `concurred by ${r.concurred_by}`
-                    : r.requires_concurrence ? <span className="status pending">awaiting</span> : "—"}</td>
                 </tr>
               ))}
             </tbody>

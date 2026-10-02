@@ -29,7 +29,7 @@ from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
 from assurance_domain.readiness import blank_engagement, readiness
 from assurance_domain.sad import (
-    performance_rate, requires_concurrence, summary_of_differences, trivial_rate,
+    performance_rate, summary_of_differences, trivial_rate,
 )
 from assurance_persistence.database import utcnow
 from assurance_persistence.spine import run_command
@@ -851,25 +851,10 @@ class WorkbenchService:
             self._conn, self._command(actor, "run.execute", engagement_id),
             handler).result
 
-    def review_run(self, actor: str, engagement_id: str, run_id: str, *,
-                   target: str, expected_version: int) -> dict:
-        role_needed = "reviewer" if target == "reviewed" else "partner"
-        self._require_unlocked(engagement_id)
-
-        def handler(uow):
-            if role_needed not in uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError(f"{target} requires a {role_needed}")
-            version = uow.runs.advance_review(
-                run_id, target, expected_version=expected_version)
-            return {"run_id": run_id, "status": target, "version": version}
-        return run_command(
-            self._conn, self._command(actor, f"run.{target}", engagement_id),
-            handler).result
-
     def runs(self, engagement_id: str) -> list[dict]:
         rows = self._conn.execute(
             """SELECT run_id, procedure_id, job_id, status, summary, error,
-               executed_by, reviewed_by, approved_by, version, created_at
+               executed_by, version, created_at
                FROM procedure_run WHERE engagement_id = ?
                ORDER BY created_at, rowid""", (engagement_id,)).fetchall()
         out = []
@@ -883,14 +868,10 @@ class WorkbenchService:
         dispositions = {
             row["finding_uid"]: {"status": row["status"], "note": row["note"],
                                  "version": row["version"],
-                                 "proposed_by": row["proposed_by"],
-                                 "concurred_by": row["concurred_by"]}
+                                 "proposed_by": row["proposed_by"]}
             for row in self._conn.execute(
                 "SELECT * FROM disposition WHERE engagement_id = ?",
                 (engagement_id,))}
-        document, _ = self.workflow_document(engagement_id)
-        clearly_trivial = _trivial_rate(document) * (
-            Decimal(str(document["materiality"].get("amount") or 0)))
         out = []
         for run in self._conn.execute(
                 """SELECT run_id, procedure_id, status, findings
@@ -902,11 +883,7 @@ class WorkbenchService:
                 uid = _finding_uid(verdict)
                 disposition = dispositions.get(
                     uid, {"status": "undisposed", "note": "", "version": 0,
-                          "proposed_by": "", "concurred_by": ""})
-                needs = requires_concurrence(
-                    {"score": verdict.get("score"),
-                     "evidence": verdict.get("evidence", {}),
-                     "verdict": verdict["verdict"]}, clearly_trivial)
+                          "proposed_by": ""})
                 out.append({
                     "finding_uid": uid,
                     "run_id": run["run_id"],
@@ -914,12 +891,6 @@ class WorkbenchService:
                     "verdict": verdict,
                     "tags": _tags(verdict),
                     "disposition": disposition,
-                    "requires_concurrence": needs,
-                    "awaiting_concurrence": (
-                        needs
-                        and disposition["status"] not in ("undisposed",
-                                                          "follow_up")
-                        and not disposition["concurred_by"]),
                 })
         return out
 
@@ -948,31 +919,6 @@ class WorkbenchService:
         return run_command(
             self._conn,
             self._command(actor, "disposition.set", engagement_id),
-            handler).result
-
-    def concur_disposition(self, actor: str, engagement_id: str, *,
-                           finding_uid: str, expected_version: int) -> dict:
-        """A reviewer (or partner) concurs with a proposed disposition.
-
-        Mirrors the run-review lifecycle: the proposer's judgment stands
-        alone below the clearly-trivial threshold, but above it the record
-        shows who judged and who concurred — and the two must differ.
-        """
-        self._require_unlocked(engagement_id)
-
-        def handler(uow):
-            roles = uow.principals.roles_for(engagement_id, actor)
-            if not roles & {"reviewer", "partner"}:
-                raise AuthorizationError(
-                    "disposition concurrence requires a reviewer or partner")
-            version = uow.dispositions.concur(
-                engagement_id, finding_uid, concurred_by=actor,
-                expected_version=expected_version)
-            return {"finding_uid": finding_uid, "concurred_by": actor,
-                    "version": version}
-        return run_command(
-            self._conn,
-            self._command(actor, "disposition.concur", engagement_id),
             handler).result
 
     # ----------------------------- screen 4c: revised evidence and its reach
@@ -1038,10 +984,9 @@ class WorkbenchService:
                    ORDER BY created_at, rowid""", (engagement_id,)):
             latest_runs[run["procedure_id"]] = run
         dispositions = {
-            row["finding_uid"]: {"status": row["status"],
-                                 "concurred_by": row["concurred_by"]}
+            row["finding_uid"]: {"status": row["status"]}
             for row in self._conn.execute(
-                "SELECT finding_uid, status, concurred_by FROM disposition "
+                "SELECT finding_uid, status FROM disposition "
                 "WHERE engagement_id = ?", (engagement_id,))}
         effective_policies = document.get("policies") or {}
 
@@ -1076,9 +1021,7 @@ class WorkbenchService:
                 "changed_inputs": changed_roles,
                 "findings_before": len(old), "findings_after": len(new),
                 "rerun_error": rerun.error,
-                "action": ("rerun, then re-review and re-approve"
-                           if run["status"] in ("reviewed", "approved")
-                           else "rerun"),
+                "action": "rerun",
             })
 
         actions: dict[str, int] = {}
@@ -1126,9 +1069,8 @@ class WorkbenchService:
         (a new risk starts unflagged); a value that is not true/false is
         refused rather than guessed.
 
-        The judgment is the auditor's: this stores it, names the proposer, and
-        voids any prior concurrence on a re-assessment. It computes nothing —
-        the engine never grades a risk.
+        The judgment is the auditor's: this stores it and names who made it.
+        It computes nothing — the engine never grades a risk.
         """
         from procedures_ap.contracts import RISK_LEVELS
         from procedures_cycles.contracts import REGISTER_ASSERTIONS as ASSERTIONS
@@ -1187,26 +1129,6 @@ class WorkbenchService:
             self._command(actor, "risk.link_procedures", engagement_id),
             handler).result
 
-    def concur_risk(self, actor: str, engagement_id: str, *, risk_id: str,
-                    expected_version: int) -> dict:
-        """A reviewer or partner concurs with a proposed risk assessment —
-        and must not be the principal who proposed it (AU-C 315/220)."""
-        self._require_unlocked(engagement_id)
-
-        def handler(uow):
-            roles = uow.principals.roles_for(engagement_id, actor)
-            if not roles & {"reviewer", "partner"}:
-                raise AuthorizationError(
-                    "risk concurrence requires a reviewer or partner")
-            version = uow.risks.concur(
-                engagement_id, risk_id, concurred_by=actor,
-                expected_version=expected_version)
-            return {"risk_id": risk_id, "concurred_by": actor,
-                    "version": version}
-        return run_command(
-            self._conn, self._command(actor, "risk.concur", engagement_id),
-            handler).result
-
     def archive_risk(self, actor: str, engagement_id: str, *, risk_id: str,
                      expected_version: int) -> dict:
         self._require_unlocked(engagement_id)
@@ -1222,7 +1144,7 @@ class WorkbenchService:
 
     def risks(self, engagement_id: str) -> dict:
         """The risk register for screen 4b: each risk with its response
-        linkage and concurrence state, plus the procedures that *could*
+        linkage, plus the procedures that *could*
         respond to each assertion (candidates), so the UI can suggest."""
         from procedures_ap.contracts import RISK_LEVELS
         from procedures_cycles.contracts import REGISTER_ASSERTIONS as ASSERTIONS
@@ -1230,7 +1152,6 @@ class WorkbenchService:
         contracts = self._contracts(document)
         rows = []
         for r in self._risk_records(engagement_id):
-            requires = r["level"] in ("high", "significant")
             rows.append({
                 "risk_id": r["risk_id"],
                 "title": r["title"],
@@ -1245,12 +1166,7 @@ class WorkbenchService:
                     if r["assertion"] in contract.assertions
                 ],
                 "proposed_by": r["proposed_by"],
-                "concurred_by": r["concurred_by"],
                 "version": r["version"],
-                "requires_concurrence": requires,
-                "awaiting_concurrence": bool(
-                    requires and r["proposed_by"] and r["response"]
-                    and r["procedure_ids"] and not r["concurred_by"]),
             })
         return {"risks": rows, "assertions": list(ASSERTIONS),
                 "levels": list(RISK_LEVELS)}
@@ -1394,21 +1310,6 @@ class WorkbenchService:
                 "benchmark_amount": str(benchmark_amount) if all(given) else "",
                 "percentage": str(percentage) if all(given) else "",
                 "rationale": str(values.get("rationale", ""))})
-        elif section == "stage":
-            name = values["name"]
-            if name not in document["stages"]:
-                raise ValueError(f"unknown stage {name!r}")
-            document["stages"][name] = {
-                "status": str(values.get("status", "not_started")),
-                "note": str(values.get("note", ""))}
-        elif section == "completion":
-            name = values["name"]
-            if name not in document["completion"]:
-                raise ValueError(f"unknown completion check {name!r}")
-            document["completion"][name] = {
-                "done": bool(values.get("done", False)),
-                "note": str(values.get("note", "")),
-                "evidence": list(values.get("evidence", []))}
         elif section == "line_mapping":
             # The client's own trial-balance label (or one account) mapped to
             # a statement line the procedures read (K8). The preparer or the
@@ -1645,7 +1546,7 @@ class WorkbenchService:
         dispositions = {
             row["finding_uid"]: row
             for row in self._conn.execute(
-                "SELECT finding_uid, status, concurred_by FROM disposition "
+                "SELECT finding_uid, status FROM disposition "
                 "WHERE engagement_id = ?", (engagement_id,))}
         rows = []
         for item in self.findings(engagement_id):
@@ -1668,22 +1569,10 @@ class WorkbenchService:
                 "reason": verdict.get("reason", ""),
                 "evidence": verdict.get("evidence", {}),
                 "disposition": record["status"] if record else "undisposed",
-                "disposition_concurred": bool(record["concurred_by"])
-                if record else False,
             })
         summary = summary_of_differences(rows, materiality=materiality,
                                          trivial_pct=_trivial_rate(document),
                                          performance_pct=_performance_rate(document))
-        # Above-trivial dispositions are proposals until concurred (AU-C
-        # 220); the SAD refuses to conclude over unreviewed judgments. The
-        # domain summary keeps its golden-tested shape — these keys ride on
-        # top, and readiness turns the count into a lock blocker.
-        pending = sorted({
-            row["finding_uid"] for row in rows
-            if row["disposition"] not in ("undisposed", "follow_up")
-            and not row["disposition_concurred"]
-            and requires_concurrence(row, summary["clearly_trivial"])})
-        summary["concurrence_pending"] = pending
         # Findings that are not dollar misstatements (leads, refusals-to-
         # evaluate, control deviations) never reach the SAD, but they still
         # need a decision: one left undisposed, or marked follow-up, is an
@@ -1695,7 +1584,6 @@ class WorkbenchService:
             and row["disposition"] in ("undisposed", "follow_up")})
         summary["open_findings"] = open_findings
         summary["open_findings_count"] = len(open_findings)
-        summary["concurrence_pending_count"] = len(pending)
         # B2: one summary. The misstatement schedule, once evaluated by
         # completion.uncorrected_misstatements, is the signed, projected,
         # by-statement-line view; it rides on the SAD, and the SAD cannot
@@ -1704,8 +1592,6 @@ class WorkbenchService:
         summary["schedule"] = schedule
         if schedule and schedule["material_lines"] and summary["conclusion"] == "immaterial":
             summary["conclusion"] = "material"
-        if pending:
-            summary["conclusion"] = None
         return summary
 
     def _misstatement_schedule(self, engagement_id: str) -> dict | None:
@@ -1841,8 +1727,8 @@ class WorkbenchService:
                 team[slot] = member["principal_id"]
         document["team"] = team
 
-        # Assessed risks live in their own table (judgment, versioned and
-        # concurred like dispositions); overlay them into the document shape
+        # Assessed risks live in their own table (judgment, versioned like
+        # dispositions); overlay them into the document shape
         # the readiness gates already read, so the risk→procedure linkage is
         # what a lock is refused over.
         document["risks"] = {
@@ -1851,7 +1737,6 @@ class WorkbenchService:
                 "assertion": r["assertion"], "level": r["level"],
                 "response": r["response"], "procedure_ids": r["procedure_ids"],
                 "proposed_by": r["proposed_by"],
-                "concurred_by": r["concurred_by"],
             }
             for r in self._risk_records(engagement_id)}
 
@@ -1891,12 +1776,7 @@ class WorkbenchService:
                 row["execution_status"] = "error"
             else:
                 row["execution_status"] = "completed"
-                row["procedure_run"] = {
-                    "run_id": run["run_id"], "status": "completed",
-                    "review_status": ("approved"
-                                      if run["status"] == "approved"
-                                      else "pending"),
-                }
+                row["procedure_run"] = {"run_id": run["run_id"], "status": "completed"}
         return coverage
 
     # ----------------------------------------------- screen 6: lock

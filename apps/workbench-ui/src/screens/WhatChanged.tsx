@@ -165,7 +165,7 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
             </div>
             <div className="impact-body">
               <div>{money(card.amount_before)} → {money(card.amount_after)} · your judgment:{" "}
-                <b>{card.disposition}</b>{card.concurred && " (concurred)"}</div>
+                <b>{card.disposition}</b></div>
               <div><b>{ACTION_LABEL[card.action]}.</b> {card.what_it_means}</div>
               {card.reason && <div className="note">{amountsInWords(card.reason)}</div>}
             </div>

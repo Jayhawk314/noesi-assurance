@@ -191,12 +191,11 @@ export interface Run {
   run_id: string;
   procedure_id: string;
   job_id: string;
+  /** "reviewed" and "approved" appear only on runs from before 1 Oct 2026. */
   status: "completed" | "error" | "reviewed" | "approved";
   summary: Record<string, unknown>;
   error: string;
   executed_by: string;
-  reviewed_by: string;
-  approved_by: string;
   version: number;
   created_at: string;
 }
@@ -220,11 +219,8 @@ export interface Finding {
   tags: { cycle: string; class: string; phase: string; assertion: string };
   disposition: {
     status: string; note: string; version: number;
-    proposed_by: string; concurred_by: string;
+    proposed_by: string;
   };
-  /** Above clearly-trivial: the disposition needs a second person's concurrence. */
-  requires_concurrence: boolean;
-  awaiting_concurrence: boolean;
 }
 
 /** One assessed risk: auditor judgment, tracked like a disposition. */
@@ -241,10 +237,7 @@ export interface Risk {
   /** Procedures whose contract addresses this risk's assertion. */
   candidate_procedures: string[];
   proposed_by: string;
-  concurred_by: string;
   version: number;
-  requires_concurrence: boolean;
-  awaiting_concurrence: boolean;
 }
 
 /** One fraud test and whether it could run on these records. */
@@ -281,8 +274,6 @@ export interface Sad {
   disposed: number;
   open_count: number;
   invalid_waiver_count: number;
-  concurrence_pending: string[];
-  concurrence_pending_count: number;
   conclusion: "immaterial" | "material" | null;
   schedule: {
     run_id: string; materiality: string; lines: Record<string, string>;
@@ -302,16 +293,12 @@ export interface Readiness {
   status: string;
   report_implication: string;
   blockers: Blocker[];
-  completion_done: number;
-  completion_total: number;
   workpaper_locked: boolean;
 }
 
 export interface WorkflowDocument {
   materiality: { amount: number; basis: string; rationale: string;
                  benchmark_amount?: string; percentage?: string };
-  stages: Record<string, { status: string; note: string }>;
-  completion: Record<string, { done: boolean; note: string }>;
   procedures?: Record<string, { selected: boolean; rationale: string; decided_by?: string }>;
   policies?: Record<string, string>;
   cycles?: string[];
@@ -431,7 +418,7 @@ export interface ImpactCard {
   change: "amount_changed" | "resolved_by_revision" | "new_after_revision";
   amount_before: number | null; amount_after: number | null;
   amount_change: number; significance: Significance;
-  disposition: string; concurred: boolean;
+  disposition: string;
   action: "dispose" | "revisit_disposition" | "reassess_disposition" | "none_after_rerun";
   what_it_means: string;
 }
@@ -575,19 +562,12 @@ export class Client {
   runProcedure = (eid: string, procedure_id: string, policies: Record<string, string>) =>
     this.request<{ run_id: string; status: string; findings: number; error: string }>(
       "POST", `/api/engagements/${eid}/runs`, { procedure_id, policies });
-  reviewRun = (eid: string, run_id: string, target: "reviewed" | "approved", expected_version: number) =>
-    this.request<{ version: number }>(
-      "POST", `/api/engagements/${eid}/runs/${run_id}/review`, { target, expected_version });
 
   findings = (eid: string) =>
     this.request<{ findings: Finding[] }>("GET", `/api/engagements/${eid}/findings`);
   setDisposition = (eid: string, finding_uid: string, status: string, note: string, expected_version: number) =>
     this.request("POST", `/api/engagements/${eid}/dispositions`,
                  { finding_uid, status, note, expected_version });
-  concurDisposition = (eid: string, finding_uid: string, expected_version: number) =>
-    this.request<{ concurred_by: string; version: number }>(
-      "POST", `/api/engagements/${eid}/dispositions/concur`,
-      { finding_uid, expected_version });
 
   fraud = (eid: string) =>
     this.request<FraudView>("GET", `/api/engagements/${eid}/fraud`);
@@ -605,10 +585,6 @@ export class Client {
     this.request<{ version: number }>(
       "POST", `/api/engagements/${eid}/risks/${risk_id}/procedures`,
       { procedure_ids, expected_version });
-  concurRisk = (eid: string, risk_id: string, expected_version: number) =>
-    this.request<{ concurred_by: string; version: number }>(
-      "POST", `/api/engagements/${eid}/risks/${risk_id}/concur`,
-      { expected_version });
   archiveRisk = (eid: string, risk_id: string, expected_version: number) =>
     this.request<{ archived: boolean; version: number }>(
       "POST", `/api/engagements/${eid}/risks/${risk_id}/archive`,

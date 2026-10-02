@@ -765,9 +765,8 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
       </form>
       <table className="dense">
         <thead>
-          <tr><th>Procedure</th><th>Status</th><th>Executed by</th>
-              <th>Reviewed by</th><th>Approved by</th><th>Error</th><th>Details</th>
-              <th /></tr>
+          <tr><th>Procedure</th><th>Status</th><th>Run by</th>
+              <th>Error</th><th>Details</th></tr>
         </thead>
         <tbody>
           {(data?.runs ?? []).map((run: Run) => (
@@ -775,26 +774,8 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
               <td><b>{named(run.procedure_id)}</b><br /><code>{run.procedure_id}</code></td>
               <td><span className={`status ${run.status}`}>{run.status}</span></td>
               <td><code>{run.executed_by}</code></td>
-              <td><code>{run.reviewed_by || "—"}</code></td>
-              <td><code>{run.approved_by || "—"}</code></td>
               <td className="note">{run.error || "—"}</td>
               <td><RunDetails summary={run.summary ?? {}} /></td>
-              <td>
-                {run.status === "completed" && (
-                  <button className="action"
-                          onClick={act(() => client.reviewRun(
-                            eid, run.run_id, "reviewed", run.version))}>
-                    mark reviewed
-                  </button>
-                )}
-                {run.status === "reviewed" && (
-                  <button className="action"
-                          onClick={act(() => client.reviewRun(
-                            eid, run.run_id, "approved", run.version))}>
-                    approve
-                  </button>
-                )}
-              </td>
             </tr>
           ))}
         </tbody>
@@ -824,12 +805,12 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
                 title="the findings shown, with the filters above, for your own working papers"
                 onClick={() => downloadCsv(csvName(clientName, "findings"),
                   ["Procedure", "Procedure id", "Verdict", "Assertion", "Class", "Finding",
-                   "Magnitude", "Disposition", "Note", "Proposed by", "Concurred by",
+                   "Magnitude", "Disposition", "Note", "Disposed by",
                    "Run", "Earlier run", "Receipt", "Evidence"],
                   shown.map((f) => [named(f.procedure_id), f.procedure_id, f.verdict.verdict,
                     f.tags.assertion, f.tags.class, f.verdict.reason, f.verdict.score,
                     f.disposition.status, f.disposition.note, f.disposition.proposed_by,
-                    f.disposition.concurred_by, f.run_id,
+                    f.run_id,
                     latestRun[f.procedure_id] !== f.run_id ? "yes" : "", f.verdict.receipt_id,
                     JSON.stringify(f.verdict.evidence ?? {})]))}>
           download shown (CSV)
@@ -850,8 +831,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           </button>
           <button className="action" type="button" onClick={() => setPicked(new Set())}>clear</button>
           <span className="note">
-            Each finding gets its own disposition, journaled as usual; any above
-            clearly trivial still needs a second person to concur, one by one.
+            Each finding gets its own disposition, journaled as usual.
           </span>
         </form>
       )}
@@ -864,7 +844,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
                          ? new Set(shown.map((f) => f.finding_uid)) : new Set())} />
               </th><th>Procedure</th><th>Verdict</th><th>Assertion</th><th>Class</th>
               <th>Reason</th><th>Magnitude</th><th>Disposition</th><th>Note</th>
-              <th>Review</th><th /></tr>
+              <th /></tr>
         </thead>
         <tbody>
           {shown.map((finding: Finding) => (
@@ -909,35 +889,11 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
                        onChange={(e) => setNoteDraft({
                          ...noteDraft, [finding.finding_uid]: e.target.value })} />
               </td>
-              <td>
-                {finding.awaiting_concurrence ? (
-                  <button className="action"
-                          title="Above clearly-trivial: a second person must concur (reviewer or partner chair)"
-                          onClick={act(() => client.concurDisposition(
-                            eid, finding.finding_uid,
-                            finding.disposition.version))}>
-                    concur
-                  </button>
-                ) : finding.requires_concurrence
-                    && finding.disposition.concurred_by ? (
-                  <span className="status ok"
-                        title={`concurred by ${finding.disposition.concurred_by}`}>
-                    concurred
-                  </span>
-                ) : (
-                  <span className="note">—</span>
-                )}
-              </td>
               <td><code>{short(finding.verdict.receipt_id)}</code></td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="note">
-        Dispositions above the clearly-trivial threshold are proposals until
-        a second person concurs — the same preparer/reviewer separation as
-        runs and mappings. Changing a disposition voids its concurrence.
-      </p>
     </>
   );
 }
@@ -976,12 +932,6 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
         </span>
         <span className="metric"><b>{sad.total_unadjusted.toLocaleString()}</b>disposed as unadjusted</span>
         <span className="metric"><b>{sad.total_adjusted.toLocaleString()}</b>disposed as adjusted</span>
-        {sad.concurrence_pending_count > 0 && (
-          <span className="metric">
-            <b className="status pending">{sad.concurrence_pending_count}</b>
-            awaiting concurrence
-          </span>
-        )}
         <span className="metric">
           <b className={`status ${sad.conclusion === "material" ? "broken"
             : sad.conclusion === "immaterial" ? "ok" : "pending"}`}>
@@ -1067,45 +1017,7 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
         <span className="note"> (set on Planning &amp; Risk)</span>
       </p>
 
-      <h3>Stages</h3>
-      <DoneTable label="Stage" rows={Object.entries(workflow.stages).map(([name, s]) => ({
-        name, done: s.status === "complete", note: s.note }))}
-        onSet={(name, done) => act(() => client.updateWorkflow(eid, "stage",
-          { name, status: done ? "complete" : "not_started" }))()} />
-
-      <h3>Completion checks ({readiness.completion_done}/{readiness.completion_total})</h3>
-      <DoneTable label="Check" rows={Object.entries(workflow.completion).map(([name, c]) => ({
-        name, done: c.done, note: c.note }))}
-        onSet={(name, done) => act(() => client.updateWorkflow(eid, "completion",
-          { name, done, note: done ? "performed" : "" }))()} />
     </>
-  );
-}
-
-/** Stages and completion checks: done or open, with a way back. */
-function DoneTable({ label, rows, onSet }: {
-  label: string;
-  rows: { name: string; done: boolean; note: string }[];
-  onSet: (name: string, done: boolean) => void;
-}) {
-  return (
-    <table className="dense">
-      <thead><tr><th>{label}</th><th>Status</th><th>Note</th><th /></tr></thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.name}>
-            <td>{row.name.replace(/_/g, " ")}</td>
-            <td className={`status ${row.done ? "ok" : "pending"}`}>{row.done ? "done" : "open"}</td>
-            <td>{row.note}</td>
-            <td>
-              <button className="action" onClick={() => onSet(row.name, !row.done)}>
-                {row.done ? "reopen" : "mark done"}
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }
 
@@ -1116,18 +1028,14 @@ function DoneTable({ label, rows, onSet }: {
 const BLOCKERS: Record<string, [string, string | null]> = {
   MATERIALITY_NOT_SET: ["Materiality is not set.", "Planning & Risk"],
   TEAM_ASSIGNMENTS_INCOMPLETE: ["The team needs a preparer and a reviewer.", "Team"],
-  RISK_ASSESSMENT_NOT_COMPLETE: ["The risk assessment stage is not marked complete.", "SAD & Completion"],
-  CONTROLS_NOT_COMPLETE: ["The controls stage is not marked complete.", "SAD & Completion"],
   RISKS_UNASSESSED: ["Some risks have no level assessed.", "Planning & Risk"],
   HIGH_RISKS_WITHOUT_RESPONSE: ["A high or significant risk has no planned response.", "Planning & Risk"],
   HIGH_RISKS_WITHOUT_PROCEDURE: ["A high or significant risk has no procedure linked to answer it.", "Planning & Risk"],
-  RISKS_AWAITING_CONCURRENCE: ["A high or significant risk waits for a second person to concur.", "Planning & Risk"],
   CONTROLS_UNASSESSED: ["Some controls are not assessed (no screen for this yet).", null],
   CONTROL_RELIANCE_UNSUPPORTED: ["Reliance is placed on a control not assessed as effective (no screen for this yet).", null],
   SELECTED_PROCEDURES_BLOCKED: ["Procedures in the audit cannot run: data missing. Load it, or leave them out with a reason.", "Coverage"],
   SELECTED_PROCEDURES_PARTIAL: ["Procedures in the audit can run only in part. Supply what is missing, or leave them out with a reason.", "Coverage"],
   SELECTED_PROCEDURES_PENDING_RUN: ["Procedures in the audit have not run yet.", "Runs & Findings"],
-  PROCEDURE_RUN_REVIEW_PENDING: ["Runs wait for review and approval.", "Runs & Findings"],
   PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE: ["Procedures are left out with no reason recorded.", "Coverage"],
   EVIDENCE_REVIEW_PENDING: ["Evidence received waits for review (no screen for this yet).", null],
   EXTRACTION_APPROVAL_PENDING: ["Source extractions wait for approval (no screen for this yet).", null],
@@ -1135,11 +1043,8 @@ const BLOCKERS: Record<string, [string, string | null]> = {
   MISSTATEMENTS_UNRESOLVED: ["Misstatements are not yet disposed.", "Runs & Findings"],
   SUBSTANTIVE_ITEMS_UNRESOLVED: ["Review items are not yet disposed.", "Runs & Findings"],
   FINDINGS_OPEN: ["Findings are undisposed or marked for follow-up.", "Runs & Findings"],
-  DISPOSITIONS_AWAITING_CONCURRENCE: ["Dispositions above clearly trivial wait for a second person to concur.", "Runs & Findings"],
   WAIVERS_ABOVE_TRIVIAL_THRESHOLD: ["Findings above clearly trivial are waived; waiving is only for trivial amounts.", "Runs & Findings"],
   SCOPE_ITEMS_UNRESOLVED: ["Scope refusals are not yet resolved (no screen for this yet).", null],
-  COMPLETION_PROCEDURES_INCOMPLETE: ["Completion checks are still open.", "SAD & Completion"],
-  COMPLETION_EVIDENCE_MISSING: ["Completion checks are marked done with no note or evidence.", "SAD & Completion"],
   NO_DATA_WITHOUT_PARTNER_ASSERTION: ["No data is loaded; the partner must say why no data-dependent procedure applies.", "SAD & Completion"],
   DECISION_TRAIL_BROKEN: ["The journal's hash chain does not verify. Suspect the record; do not lock.", null],
 };

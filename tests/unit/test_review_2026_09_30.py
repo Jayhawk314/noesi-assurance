@@ -13,7 +13,6 @@ from assurance_application.service import (
 )
 from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
-from assurance_domain.readiness import COMPLETION_CHECKS
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 
@@ -32,12 +31,6 @@ def svc(tmp_path):
 def _locked(svc, name="Zenith"):
     eid = svc.create_engagement(PA, name, "2025-06-30")["engagement_id"]
     svc.update_workflow(PA, eid, "materiality", {"amount": 10000.0})
-    for stage in ("risk_assessment", "controls"):
-        svc.update_workflow(PA, eid, "stage", {"name": stage, "status": "complete",
-                                               "note": "done for the fixture"})
-    for check in COMPLETION_CHECKS:
-        svc.update_workflow(PA, eid, "completion", {"name": check, "done": True,
-                                                    "note": "done for the fixture"})
     svc.update_workflow(PA, eid, "no_data_assertion",
                         {"asserted": True, "reason": "unit fixture, no client data"})
     assert svc.lock(PA, eid, expected_version=1)["locked"] is True
@@ -143,12 +136,6 @@ def test_4_changing_a_fraud_flag_after_the_lock_breaks_verification(svc):
     svc.assess_risk(PA, eid, title="Override", assertion="occurrence",
                     level="moderate", fraud=True)
     svc.update_workflow(PA, eid, "materiality", {"amount": 10000.0})
-    for stage in ("risk_assessment", "controls"):
-        svc.update_workflow(PA, eid, "stage", {"name": stage, "status": "complete",
-                                               "note": "done for the fixture"})
-    for check in COMPLETION_CHECKS:
-        svc.update_workflow(PA, eid, "completion", {"name": check, "done": True,
-                                                    "note": "done for the fixture"})
     svc.update_workflow(PA, eid, "no_data_assertion",
                         {"asserted": True, "reason": "unit fixture, no client data"})
     assert svc.lock(PA, eid, expected_version=1)["locked"] is True

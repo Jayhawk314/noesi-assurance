@@ -26,10 +26,12 @@ outlives any later amendment.
 
 ## In the workbench
 
-**Readiness** (SAD & Completion tab) derives every blocker by name:
-unapproved runs, undisposed findings, incomplete stages, missing
-materiality, unexplained deselections, the six completion checks (each
-needing a note or evidence, not just a tick), and a broken decision trail.
+**Readiness** (SAD & Completion tab) derives every blocker by name, each a
+fact about the data, the procedures and the findings: undisposed findings,
+procedures in the audit that could not run or have not run, missing
+materiality, unexplained deselections, and a broken decision trail. There
+are no boxes to tick: the completion work (subsequent events, going
+concern, representations) is done through its procedures.
 Red readiness is the gate working, not an error — each blocker names
 exactly what is outstanding.
 
@@ -55,9 +57,9 @@ static HTML rendering of the same packet.
 chair and a *specific written reason* (ten characters minimum — it becomes
 a permanent part of the record, inside the journal's hash chain). The
 superseded lock keeps its manifest, signature, and journal anchor forever
-and is re-verified on every read. Work after reopening flows through the
-same review gates — a reperformed procedure is a new run that must be
-reviewed and approved again — and the next lock signs a manifest that
+and is re-verified on every read. Work after reopening passes the same
+readiness gates — a reperformed procedure is a new run, kept beside the
+old one — and the next lock signs a manifest that
 **names its predecessor and the reason it was set aside**. The packet and
 workpaper carry the full amendment history. This is AU-C 230's
 post-assembly rule, made structural.
@@ -66,20 +68,20 @@ post-assembly rule, made structural.
 
 1. Review the adjusted trial balance, the final misstatement schedule, the
    July transaction leads, going-concern indicators, and the representation
-   letter. Record evidence-backed notes for all six completion checks.
+   letter, through their procedures' results.
 2. Read the draft opinion as a proposal. The missing representation drives
    its current direction, while pervasiveness and the going-concern conclusion
    remain explicit partner decisions. Do not resolve either by editing the
    case data to make the screen green.
-3. Clear or follow up every finding, review and approve every selected run,
+3. Clear or follow up every finding, run every selected procedure,
    record the partner decisions, and watch readiness explain what remains.
    Lock only when the evidence truly supports it; export the packet and find
    the scope limitations, policies, line mapping, dispositions, and opinion
    decisions in the final record.
 4. **Then practice supersession in a scratch copy.** Reopen with a specific
-   reason, reperform one procedure after changing a source or mapping, and try
-   to lock before reviewing the rerun. The refusal, followed by a second
-   reviewed lock whose history names the first, is the lesson.
+   reason, reperform one procedure after changing a source or mapping, and
+   lock again. The second lock, whose history names the first and the reason
+   it was set aside, is the lesson.
 
 One caution to carry back to practice: the lock proves the *file's*
 integrity, not the audit's quality. A signed archive of thin work is

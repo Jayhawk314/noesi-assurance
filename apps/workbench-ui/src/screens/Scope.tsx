@@ -247,8 +247,8 @@ export function ScopeScreen({ client, eid, onError }: {
           <h3>Engagement-wide settings</h3>
           <p className="note">
             Two rates of materiality: performance materiality (75% when unset) and
-            clearly trivial (5% when unset). The summary of misstatements, What
-            Changed and second-person concurrence use them.
+            clearly trivial (5% when unset). The summary of misstatements and
+            What Changed use them.
           </p>
           <table className="dense">
             <thead><tr><th>Setting</th><th>Current</th><th>Change</th></tr></thead>

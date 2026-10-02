@@ -52,13 +52,12 @@ def test_compare_findings_names_the_action_not_a_conclusion():
     new = {"moved": {"domain": "d", "key": ["moved"], "score": 150.0},
            "same": {"domain": "d", "key": ["same"], "score": 7.0},
            "fresh": {"domain": "d", "key": ["fresh"], "score": 20.0}}
-    dispositions = {"gone": {"status": "unadjusted", "concurred_by": "rev"},
-                    "moved": {"status": "cleared", "concurred_by": ""}}
+    dispositions = {"gone": {"status": "unadjusted"},
+                    "moved": {"status": "cleared"}}
     cards = {c["finding_uid"]: c
              for c in compare_findings(old, new, dispositions, LIMITS)}
     assert set(cards) == {"gone", "moved", "fresh"}  # "same" is untouched
     assert cards["gone"]["action"] == "revisit_disposition"
-    assert "voids the reviewer's concurrence" in cards["gone"]["what_it_means"]
     assert cards["moved"]["action"] == "reassess_disposition"
     assert cards["fresh"]["action"] == "dispose"
     assert sad_effect(list(cards.values())) == {"unadjusted": -500.0,

@@ -9,7 +9,6 @@ import pytest
 from assurance_application.service import WorkbenchService
 from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
-from assurance_domain.readiness import COMPLETION_CHECKS
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 from assurance_workpapers.packet import verify_packet
@@ -42,7 +41,7 @@ def service(tmp_path):
 
 @pytest.fixture()
 def locked_engagement(service):
-    """A fully worked engagement: data, runs, reviews, dispositions, lock."""
+    """A fully worked engagement: data, runs, dispositions, lock."""
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
     service.assign_team(ALICE, eid, BOB, "preparer")
     service.assign_team(ALICE, eid, CAROL, "reviewer")
@@ -64,25 +63,15 @@ def locked_engagement(service):
             ("ap.subledger_gl_balance_tie", {})):
         run = service.run_procedure(BOB, eid, procedure_id=procedure_id,
                                     policies=policies)
-        reviewed = service.review_run(CAROL, eid, run["run_id"],
-                                      target="reviewed", expected_version=1)
-        service.review_run(ALICE, eid, run["run_id"], target="approved",
-                           expected_version=reviewed["version"])
         executed[procedure_id] = run
 
-    # Judge the findings; the reviewer concurs with judgments above
-    # clearly-trivial (the lock blocks on unconcurred ones).
+    # Judge the findings.
     for item in service.findings(eid):
         status = ("unadjusted" if item["verdict"]["verdict"] == "CLASH"
                   else "cleared")
         service.set_disposition(BOB, eid, finding_uid=item["finding_uid"],
                                 status=status,
                                 note="reviewed with client")
-    for item in service.findings(eid):
-        if item["awaiting_concurrence"]:
-            service.concur_disposition(
-                CAROL, eid, finding_uid=item["finding_uid"],
-                expected_version=item["disposition"]["version"])
 
     # Deselect everything the data cannot support, with rationale.
     for contract in PROCEDURES:
@@ -97,13 +86,6 @@ def locked_engagement(service):
     service.update_workflow(ALICE, eid, "policy",
                             {"name": "split_threshold", "value": "10000"})
     service.update_workflow(ALICE, eid, "materiality", {"amount": 10000.0})
-    for stage in ("risk_assessment", "controls"):
-        service.update_workflow(ALICE, eid, "stage",
-                                {"name": stage, "status": "complete"})
-    for check in COMPLETION_CHECKS:
-        service.update_workflow(ALICE, eid, "completion",
-                                {"name": check, "done": True,
-                                 "note": "performed"})
     outcome = service.lock(ALICE, eid, expected_version=1)
     assert outcome["locked"] is True, outcome.get("blockers")
     return eid
@@ -137,13 +119,11 @@ def test_export_produces_an_offline_verifiable_packet(service,
         packet["seal"]["packet_digest"]
 
 
-def test_review_chain_travels_with_every_run(service, locked_engagement):
+def test_every_run_carries_who_ran_it(service, locked_engagement):
     packet = service.export_packet(CAROL, locked_engagement)
     for run in packet["runs"]:
         assert run["executed_by"] == BOB
-        assert run["reviewed_by"] == CAROL
-        assert run["approved_by"] == ALICE
-        assert run["status"] == "approved"
+        assert run["status"] == "completed"
 
 
 def test_tampering_with_a_packet_is_named_not_hidden(service,
@@ -190,8 +170,7 @@ def test_reopened_work_is_regated_before_relock(service, locked_engagement):
 
     Reperformance of the same procedure on the same data is the normal
     post-reopening event (AU-C 230 changes after assembly), so the rerun
-    must mint a distinct job, and the re-lock must refuse until the new run
-    is reviewed and approved like any other.
+    must mint a distinct job; the re-lock takes it as it stands.
     """
     eid = locked_engagement
     service.unlock(
@@ -205,28 +184,18 @@ def test_reopened_work_is_regated_before_relock(service, locked_engagement):
         BOB, eid, procedure_id="ap.subledger_gl_balance_tie")
     assert rerun["status"] == "completed"
 
-    attempt = service.lock(ALICE, eid, expected_version=3)
-    assert attempt["locked"] is False
-    codes = {b["code"] for b in attempt["blockers"]}
-    assert "PROCEDURE_RUN_REVIEW_PENDING" in codes
-
-    reviewed = service.review_run(CAROL, eid, rerun["run_id"],
-                                  target="reviewed", expected_version=1)
-    service.review_run(ALICE, eid, rerun["run_id"], target="approved",
-                       expected_version=reviewed["version"])
-
     relock = service.lock(ALICE, eid, expected_version=3)
     assert relock["locked"] is True, relock.get("blockers")
     verification = service.verify_lock(eid)
     assert verification["verified"] is True
     assert verification["sequence"] == 2
-    # Both generations of the tie run are in the packet, review chains intact.
+    # Both generations of the tie run are in the packet.
     packet = service.export_packet(CAROL, eid)
     tie_runs = [run for run in packet["runs"]
                 if run["procedure_id"] == "ap.subledger_gl_balance_tie"]
     assert len(tie_runs) == 2
     assert tie_runs[0]["job_id"] != tie_runs[1]["job_id"]
-    assert all(run["approved_by"] == ALICE for run in tie_runs)
+    assert all(run["executed_by"] == BOB for run in tie_runs)
 
 
 def test_workpaper_renders_conclusions_with_lineage(service,

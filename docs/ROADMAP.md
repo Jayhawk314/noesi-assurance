@@ -169,6 +169,12 @@ against the finish line before the next:
    `requires_concurrence`), and "mark done" on stages and completion checks:
    out of the service, API and screens. Who ran each test, and when, stays
    on record. The lock's readiness gates that read them go too.
+   **Done 1 Oct 2026:** service, API, readiness, persistence, screens,
+   manual and tests (530 pass; finish line 162/164). Seen on screen: Runs &
+   Findings, SAD & Completion, Planning & Risk (the risk table with rows was
+   not seen: the demo records no risks). DB columns (reviewed_by,
+   approved_by, concurred_by) stay unused so old records still read; runs
+   reviewed or approved before today keep that status.
 2. The signed lock, unlock and signed packet (`lock`, `unlock`,
    `verify_lock`, `_require_unlocked` everywhere): removed. The engagement
    record stays downloadable, unsigned. Evidence digests (files and

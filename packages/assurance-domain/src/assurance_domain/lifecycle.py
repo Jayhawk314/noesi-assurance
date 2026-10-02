@@ -31,10 +31,12 @@ PROCEDURE_RUN_TRANSITIONS: dict[str, frozenset[str]] = {
     "executable": frozenset({"queued", "planned"}),   # planning can regress
     "queued": frozenset({"running"}),
     "running": frozenset({"completed", "error"}),
-    "completed": frozenset({"reviewed"}),
+    "completed": frozenset(),                         # terminal: no sign-off follows
     "error": frozenset({"queued"}),                   # rerun after correction
-    "reviewed": frozenset({"approved", "queued"}),    # reviewer may send back
-    "approved": frozenset(),                          # terminal
+    # Legacy: runs reviewed or approved before review was removed (1 Oct 2026)
+    # keep their status, and nothing moves a run there now.
+    "reviewed": frozenset(),
+    "approved": frozenset(),
 }
 
 EVIDENCE_STATES = (

@@ -253,8 +253,8 @@ class DispositionRepository:
     def set(self, engagement_id: str, finding_uid: str, status: str,
             note: str = "", expected_version: int = 0,
             migration_note: str = "", proposed_by: str = "") -> int:
-        # A set (or re-set) is the proposer's judgment: any prior
-        # concurrence is void, because it concurred with a different one.
+        # concurred_by is a legacy column (concurrence removed 1 Oct 2026);
+        # a set clears any value left from before.
         if expected_version == 0:
             try:
                 self._uow.execute(
@@ -290,41 +290,6 @@ class DispositionRepository:
             engagement_id=engagement_id)
         return after
 
-    def concur(self, engagement_id: str, finding_uid: str, *,
-               concurred_by: str, expected_version: int) -> int:
-        """A second person concurs with the proposed disposition.
-
-        Separation is enforced against the recorded proposer, exactly as
-        mapping approval enforces it against the mapping's proposer.
-        """
-        from assurance_domain.lifecycle import require_separation
-        row = self._uow.execute(
-            """SELECT status, proposed_by FROM disposition
-               WHERE engagement_id = ? AND finding_uid = ?""",
-            (engagement_id, finding_uid)).fetchone()
-        if row is None:
-            raise NotFoundError(f"disposition {engagement_id}/{finding_uid}")
-        require_separation(prepared_by=row["proposed_by"],
-                           approved_by=concurred_by)
-        cursor = self._uow.execute(
-            """UPDATE disposition SET concurred_by = ?,
-               version = version + 1, updated_at = ?
-               WHERE engagement_id = ? AND finding_uid = ? AND version = ?""",
-            (concurred_by, utcnow(), engagement_id, finding_uid,
-             expected_version))
-        if cursor.rowcount == 0:
-            raise ConflictError("disposition",
-                                f"{engagement_id}/{finding_uid}",
-                                expected_version)
-        self._uow.emit(
-            entity_type="disposition", entity_id=finding_uid,
-            event_type="disposition.concurred",
-            before_version=expected_version,
-            after_version=expected_version + 1,
-            payload={"status": row["status"], "concurred_by": concurred_by},
-            engagement_id=engagement_id)
-        return expected_version + 1
-
     def list_for(self, engagement_id: str) -> list[sqlite3.Row]:
         return self._uow.execute(
             "SELECT * FROM disposition WHERE engagement_id = ? ORDER BY finding_uid",
@@ -333,9 +298,8 @@ class DispositionRepository:
 
 class RiskRepository:
     """Assessed risks: the auditor's planning judgment, tracked like a
-    disposition. A re-assessment or a change of response voids any prior
-    concurrence (it concurred a different judgment); concurrence itself
-    enforces separation against the recorded proposer."""
+    disposition. (concurred_by is a legacy column, cleared on each change:
+    concurrence was removed on 1 Oct 2026.)"""
 
     def __init__(self, uow: UnitOfWork):
         self._uow = uow
@@ -382,8 +346,7 @@ class RiskRepository:
 
     def link_procedures(self, engagement_id: str, risk_id: str, *,
                         procedure_ids: list[str], expected_version: int) -> int:
-        """Record which procedures respond to this risk. Changing the response
-        voids concurrence, since the concurrer concurred a different plan."""
+        """Record which procedures respond to this risk."""
         cursor = self._uow.execute(
             """UPDATE risk_assessment SET procedure_ids = ?, concurred_by = '',
                version = version + 1, updated_at = ?
@@ -398,33 +361,6 @@ class RiskRepository:
             event_type="risk.procedures_linked",
             before_version=expected_version, after_version=expected_version + 1,
             payload={"procedure_ids": sorted(set(procedure_ids))},
-            engagement_id=engagement_id)
-        return expected_version + 1
-
-    def concur(self, engagement_id: str, risk_id: str, *,
-               concurred_by: str, expected_version: int) -> int:
-        from assurance_domain.lifecycle import require_separation
-        row = self._uow.execute(
-            """SELECT level, proposed_by FROM risk_assessment
-               WHERE engagement_id = ? AND risk_id = ?""",
-            (engagement_id, risk_id)).fetchone()
-        if row is None:
-            raise NotFoundError(f"risk_assessment {engagement_id}/{risk_id}")
-        require_separation(prepared_by=row["proposed_by"],
-                           approved_by=concurred_by)
-        cursor = self._uow.execute(
-            """UPDATE risk_assessment SET concurred_by = ?,
-               version = version + 1, updated_at = ?
-               WHERE engagement_id = ? AND risk_id = ? AND version = ?""",
-            (concurred_by, utcnow(), engagement_id, risk_id, expected_version))
-        if cursor.rowcount == 0:
-            raise ConflictError("risk_assessment",
-                                f"{engagement_id}/{risk_id}", expected_version)
-        self._uow.emit(
-            entity_type="risk_assessment", entity_id=risk_id,
-            event_type="risk.concurred",
-            before_version=expected_version, after_version=expected_version + 1,
-            payload={"level": row["level"], "concurred_by": concurred_by},
             engagement_id=engagement_id)
         return expected_version + 1
 
@@ -704,42 +640,6 @@ class ProcedureRunRepository:
             """SELECT * FROM procedure_run WHERE engagement_id = ?
                ORDER BY created_at, rowid""",
             (engagement_id,)).fetchall()
-
-    def advance_review(self, run_id: str, target: str, *,
-                       expected_version: int) -> int:
-        """Move a run along completed -> reviewed -> approved.
-
-        Transition legality comes from the domain state machine; separation
-        (executor may not review, reviewer may not approve their own review)
-        is enforced here, server-side.
-        """
-        from assurance_domain.lifecycle import advance, require_separation
-        row = self.get(run_id)
-        advance("procedure_run", row["status"], target)
-        actor = self._uow.command.actor
-        if target == "reviewed":
-            require_separation(prepared_by=row["executed_by"],
-                               approved_by=actor)
-            extra_sql, extra_val = "reviewed_by = ?", actor
-        elif target == "approved":
-            require_separation(prepared_by=row["reviewed_by"],
-                               approved_by=actor)
-            extra_sql, extra_val = "approved_by = ?", actor
-        else:
-            raise ValueError(f"review can only reach reviewed/approved, not {target!r}")
-        cursor = self._uow.execute(
-            f"""UPDATE procedure_run SET status = ?, {extra_sql},
-               version = version + 1 WHERE run_id = ? AND version = ?""",
-            (target, extra_val, run_id, expected_version))
-        if cursor.rowcount == 0:
-            raise ConflictError("procedure_run", run_id, expected_version)
-        self._uow.emit(
-            entity_type="procedure_run", entity_id=run_id,
-            event_type=f"run.{target}", before_version=expected_version,
-            after_version=expected_version + 1,
-            payload={"by": actor}, engagement_id=row["engagement_id"])
-        return expected_version + 1
-
 
 class LockSnapshotRepository:
     """Frozen lock manifests and the signatures bound to them."""

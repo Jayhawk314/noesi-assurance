@@ -1,6 +1,10 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Completion readiness: the gates that decide whether an engagement can close.
 
+Supplement, not audit-management software (James, 1 Oct 2026): no gate here
+waits on a sign-off, a concurrence, a review or a ticked box. Each gate is a
+fact about the data, the procedures and the findings.
+
 Faithful port of the prototype's readiness derivation — blocker codes,
 ordering, and the report-implication ladder are unchanged and shadow-tested
 against the Phase 0 golden. One consequence of divergence D1 surfaces here
@@ -16,16 +20,6 @@ import json
 from decimal import Decimal
 
 from assurance_domain.money import parse_amount
-
-COMPLETION_CHECKS = (
-    "final_analytical_review",
-    "subsequent_events",
-    "going_concern",
-    "management_representations",
-    "evidence_sufficiency",
-    "engagement_review",
-)
-
 
 def scope_id(item: dict) -> str:
     """Stable identity for a refusal/scope item without mutating the item."""
@@ -52,16 +46,11 @@ def blank_engagement(report: dict) -> dict:
         "company": report.get("company", "engagement"),
         "fye": report.get("fye", ""),
         "materiality": {"amount": 0.0, "basis": "", "rationale": ""},
-        "stages": {
-            "risk_assessment": {"status": "not_started", "note": ""},
-            "controls": {"status": "not_started", "note": ""},
-        },
         "risks": {},
         "controls": {},
         "procedures": {},
         "procedure_runs": {},
         "procedure_run_history": {},
-        "procedure_run_reviews": {},
         "rerun_requests": {},
         "evidence_requests": {},
         "team": {"preparer": "", "reviewer": "", "engagement_partner": ""},
@@ -69,10 +58,6 @@ def blank_engagement(report: dict) -> dict:
         "workpaper_lock": {"status": "unlocked"},
         "lock_history": [],
         "scope": {},
-        "completion": {
-            name: {"done": False, "note": "", "evidence": []}
-            for name in COMPLETION_CHECKS
-        },
     }
 
 
@@ -93,11 +78,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if amount <= 0:
         blockers.append({"code": "MATERIALITY_NOT_SET", "count": 1})
 
-    for phase in ("risk_assessment", "controls"):
-        stage = engagement.get("stages", {}).get(phase, {})
-        if stage.get("status") != "complete":
-            blockers.append({"code": f"{phase.upper()}_NOT_COMPLETE", "count": 1})
-
     risk_items = _phase_items(report, "risk_assessment")
     risk_ids = [legacy_report_finding_id(report, item) for item in risk_items]
     risk_ids.extend(
@@ -108,7 +88,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
     unassessed_risks = []
     missing_responses = []
     missing_procedure_links = []
-    awaiting_risk_concurrence = []
     have_procedure_contracts = bool(
         (report.get("procedure_coverage") or {}).get("procedures"))
     if have_procedure_contracts:
@@ -128,16 +107,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
         if (have_procedure_contracts and level in ("high", "significant")
                 and not assessment.get("procedure_ids")):
             missing_procedure_links.append(fid)
-        # A fully-specified high/significant risk is a significant judgment
-        # (AU-C 315/220): it stands as a proposal until a second person
-        # concurs, exactly as an above-trivial disposition does. Only risks
-        # carrying a proposer travel this gate, so legacy documents (and the
-        # report-derived risk items, which have no proposer) are unaffected.
-        if (level in ("high", "significant") and assessment.get("proposed_by")
-                and assessment.get("response")
-                and assessment.get("procedure_ids")
-                and not assessment.get("concurred_by")):
-            awaiting_risk_concurrence.append(fid)
     if unassessed_risks:
         blockers.append({"code": "RISKS_UNASSESSED", "count": len(unassessed_risks)})
     if missing_responses:
@@ -146,10 +115,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if missing_procedure_links:
         blockers.append({"code": "HIGH_RISKS_WITHOUT_PROCEDURE",
                          "count": len(missing_procedure_links)})
-    if awaiting_risk_concurrence:
-        blockers.append({"code": "RISKS_AWAITING_CONCURRENCE",
-                         "count": len(awaiting_risk_concurrence),
-                         "items": awaiting_risk_concurrence})
 
     control_items = _phase_items(report, "controls")
     control_ids = [legacy_report_finding_id(report, item)
@@ -185,7 +150,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
     selected_blocked = []
     selected_partial = []
     selected_pending_run = []
-    procedure_review_pending = []
     unjustified_exclusions = []
     for procedure in procedure_coverage.get("procedures", []):
         decision = engagement.get("procedures", {}).get(
@@ -201,10 +165,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
             selected_partial.append(procedure.get("procedure_id"))
         elif procedure.get("execution_status") in ("ready_to_run", "not_run", "error"):
             selected_pending_run.append(procedure.get("procedure_id"))
-        run = procedure.get("procedure_run")
-        if (run and run.get("status") == "completed"
-                and run.get("review_status") != "approved"):
-            procedure_review_pending.append(procedure.get("procedure_id"))
     if selected_blocked:
         blockers.append({"code": "SELECTED_PROCEDURES_BLOCKED",
                          "count": len(selected_blocked),
@@ -217,10 +177,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
         blockers.append({"code": "SELECTED_PROCEDURES_PENDING_RUN",
                          "count": len(selected_pending_run),
                          "items": selected_pending_run})
-    if procedure_review_pending:
-        blockers.append({"code": "PROCEDURE_RUN_REVIEW_PENDING",
-                         "count": len(procedure_review_pending),
-                         "items": procedure_review_pending})
     if unjustified_exclusions:
         blockers.append({"code": "PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE",
                          "count": len(unjustified_exclusions),
@@ -281,14 +237,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if sad.get("invalid_waiver_count"):
         blockers.append({"code": "WAIVERS_ABOVE_TRIVIAL_THRESHOLD",
                          "count": sad["invalid_waiver_count"]})
-    # Above-trivial dispositions are proposals until a second person
-    # concurs (AU-C 220). The count arrives on the sad dict from the
-    # application layer, which knows who proposed and who concurred;
-    # legacy sad dicts without the key are unaffected.
-    if sad.get("concurrence_pending_count"):
-        blockers.append({"code": "DISPOSITIONS_AWAITING_CONCURRENCE",
-                         "count": sad["concurrence_pending_count"],
-                         "items": list(sad.get("concurrence_pending", []))})
 
     unresolved_scope = 0
     limitations = 0
@@ -300,26 +248,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if unresolved_scope:
         blockers.append({"code": "SCOPE_ITEMS_UNRESOLVED",
                          "count": unresolved_scope})
-
-    completion = engagement.get("completion", {})
-    incomplete_checks = [
-        name for name in COMPLETION_CHECKS
-        if not completion.get(name, {}).get("done", False)
-    ]
-    unsupported_checks = [
-        name for name in COMPLETION_CHECKS
-        if completion.get(name, {}).get("done", False)
-        and not completion.get(name, {}).get("note")
-        and not completion.get(name, {}).get("evidence")
-    ]
-    if incomplete_checks:
-        blockers.append({"code": "COMPLETION_PROCEDURES_INCOMPLETE",
-                         "count": len(incomplete_checks),
-                         "items": incomplete_checks})
-    if unsupported_checks:
-        blockers.append({"code": "COMPLETION_EVIDENCE_MISSING",
-                         "count": len(unsupported_checks),
-                         "items": unsupported_checks})
 
     if trail_status is not None and not trail_status.get("ok", False):
         blockers.append({"code": "DECISION_TRAIL_BROKEN", "count": 1})
@@ -347,8 +275,4 @@ def readiness(report: dict, engagement: dict, sad: dict,
             "status") == "locked",
         "scope_items": len(report.get("refusals", [])),
         "scope_limitations": limitations,
-        "completion_done": sum(
-            1 for name in COMPLETION_CHECKS
-            if completion.get(name, {}).get("done", False)),
-        "completion_total": len(COMPLETION_CHECKS),
     }

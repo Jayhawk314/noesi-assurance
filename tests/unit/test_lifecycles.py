@@ -10,10 +10,13 @@ from assurance_domain.lifecycle import (
 
 def test_full_procedure_run_lifecycle_is_legal():
     state = "planned"
-    for target in ("executable", "queued", "running", "completed",
-                   "reviewed", "approved"):
+    for target in ("executable", "queued", "running", "completed"):
         state = advance("procedure_run", state, target)
-    assert state == "approved"
+    assert state == "completed"
+    # No sign-off follows a completed run (review removed 1 Oct 2026).
+    for target in ("reviewed", "approved"):
+        with pytest.raises(InvalidTransition):
+            advance("procedure_run", "completed", target)
 
 
 def test_field_presence_can_never_mean_completed():

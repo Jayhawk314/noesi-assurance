@@ -7,7 +7,6 @@ import pytest
 from assurance_application.service import AuthorizationError, WorkbenchService
 from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
-from assurance_domain.readiness import COMPLETION_CHECKS
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 
@@ -43,12 +42,6 @@ def test_an_open_engagement_gives_a_marked_draft_and_no_export(svc):
 def test_a_locked_engagement_still_gives_the_signed_working_paper(svc):
     eid = svc.create_engagement("pa", "Zenith", "2025-06-30")["engagement_id"]
     svc.update_workflow("pa", eid, "materiality", {"amount": 10000.0})
-    for stage in ("risk_assessment", "controls"):
-        svc.update_workflow("pa", eid, "stage", {"name": stage, "status": "complete",
-                                                 "note": "done for the fixture"})
-    for check in COMPLETION_CHECKS:
-        svc.update_workflow("pa", eid, "completion", {"name": check, "done": True,
-                                                      "note": "done for the fixture"})
     svc.update_workflow("pa", eid, "no_data_assertion",
                         {"asserted": True, "reason": "unit fixture, no client data"})
     assert svc.lock("pa", eid, expected_version=1)["locked"] is True

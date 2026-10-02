@@ -308,7 +308,6 @@ def compare_findings(old: dict[str, dict], new: dict[str, dict],
         before, after = old.get(uid), new.get(uid)
         disposition = dispositions.get(uid)
         disposed = bool(disposition and disposition.get("status"))
-        concurred = bool(disposition and disposition.get("concurred_by"))
         old_score = _score(before) if before else None
         new_score = _score(after) if after else None
         if before and after:
@@ -349,10 +348,6 @@ def compare_findings(old: dict[str, dict], new: dict[str, dict],
                        f"{fnum(new_score) if new_score is not None else 'no amount'}. "
                        "The judgment may still hold, but it was made on "
                        "different numbers.")
-        if disposed and concurred and action in ("revisit_disposition",
-                                                 "reassess_disposition"):
-            meaning += (" Changing the disposition voids the reviewer's "
-                        "concurrence, so it will need a second look.")
 
         verdict = after or before
         cards.append({
@@ -366,7 +361,6 @@ def compare_findings(old: dict[str, dict], new: dict[str, dict],
             "amount_change": fnum(delta),
             "significance": significance(delta, limits),
             "disposition": (disposition or {}).get("status", "undisposed"),
-            "concurred": concurred,
             "action": action,
             "what_it_means": meaning,
         })

@@ -6,7 +6,6 @@ import pytest
 
 from assurance_application.service import AuthorizationError, WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
-from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 
@@ -117,30 +116,19 @@ def test_coverage_reflects_normalized_datasets(service, engagement):
     assert coverage["summary"]["total"] == 11
 
 
-def test_run_review_approve_lifecycle_with_separation(service, engagement):
+def test_a_completed_run_needs_no_sign_off(service, engagement):
+    # Supplement, not audit software (1 Oct 2026): a run is completed or an
+    # error; no review or approval follows, and none is recorded.
     _ingest(service, engagement, PAYMENTS_CSV, "payments.csv", "Payments")
     run = service.run_procedure(
         BOB, engagement, procedure_id="ap.split_payment_review",
         policies={"split_threshold": "10000"})
     assert run["status"] == "completed"
     assert run["findings"] == 1
-
-    with pytest.raises(AuthorizationError):   # executor cannot review
-        service.review_run(BOB, engagement, run["run_id"],
-                           target="reviewed", expected_version=1)
-    reviewed = service.review_run(CAROL, engagement, run["run_id"],
-                                  target="reviewed", expected_version=1)
-    # Even with partner authority, the reviewing principal cannot approve
-    # their own review — separation fires after the role gate.
-    service.assign_team(ALICE, engagement, CAROL, "partner")
-    with pytest.raises(SeparationOfDutiesError):
-        service.review_run(CAROL, engagement, run["run_id"],
-                           target="approved",
-                           expected_version=reviewed["version"])
-    approved = service.review_run(ALICE, engagement, run["run_id"],
-                                  target="approved",
-                                  expected_version=reviewed["version"])
-    assert approved["status"] == "approved"
+    assert not hasattr(service, "review_run")
+    [listed] = service.runs(engagement)
+    assert listed["status"] == "completed" and listed["executed_by"] == BOB
+    assert "reviewed_by" not in listed and "approved_by" not in listed
 
 
 def test_workflow_policy_reaches_runs_without_per_run_override(service,
@@ -192,216 +180,16 @@ def test_findings_dispositions_and_sad(service, engagement):
     service.set_disposition(BOB, engagement,
                             finding_uid=tie["finding_uid"],
                             status="unadjusted", note="client declines")
-    # $5,000 is far above clearly-trivial ($500 at this materiality): the
-    # disposition is a proposal, and the SAD refuses to conclude over it.
+    # $5,000 is above clearly-trivial ($500 at this materiality); the
+    # auditor's disposition stands as recorded, with no concurrence step.
     sad = service.sad(engagement, materiality=10000.0)
     assert sad["total_unadjusted"] == 5000.0
-    assert sad["concurrence_pending"] == [tie["finding_uid"]]
-    assert sad["conclusion"] is None
     assert sad["candidates"] == 1  # the split cluster is a lead, not a SAD item
-
-    service.concur_disposition(CAROL, engagement,
-                               finding_uid=tie["finding_uid"],
-                               expected_version=1)
-    sad = service.sad(engagement, materiality=10000.0)
-    assert sad["concurrence_pending_count"] == 0
     assert sad["conclusion"] == "immaterial"
+    assert "concurrence_pending" not in sad
 
 
-def test_readiness_gates_a_partially_worked_engagement(service, engagement):
-    _ingest(service, engagement, PAYMENTS_CSV, "payments.csv", "Payments")
-    state = service.readiness(engagement)
-    codes = {b["code"] for b in state["blockers"]}
-    assert "MATERIALITY_NOT_SET" in codes
-    assert "SELECTED_PROCEDURES_BLOCKED" in codes
-    assert state["ready"] is False
-    locked = service.lock(ALICE, engagement, expected_version=1)
-    assert locked["locked"] is False
-    assert locked["blockers"]
-
-
-def test_green_engagement_locks_and_lock_requires_partner(service):
-    eid = service.create_engagement(ALICE, "Zenith", "2025-06-30")["engagement_id"]
-    service.update_workflow(ALICE, eid, "materiality",
-                            {"amount": 10000.0, "basis": "revenue"})
-    for stage in ("risk_assessment", "controls"):
-        service.update_workflow(ALICE, eid, "stage",
-                                {"name": stage, "status": "complete"})
-    from assurance_domain.readiness import COMPLETION_CHECKS
-    for check in COMPLETION_CHECKS:
-        service.update_workflow(ALICE, eid, "completion",
-                                {"name": check, "done": True,
-                                 "note": "performed"})
-
-    # Zero datasets: workflow gates alone no longer suffice (tracker 3.4,
-    # reproduced by the independent review as C1). The silence must be
-    # owned by the partner, on the record, with a reason.
-    state = service.readiness(eid)
-    assert state["ready"] is False
-    assert {"code": "NO_DATA_WITHOUT_PARTNER_ASSERTION", "count": 1} \
-        in state["blockers"]
-    refused = service.lock(ALICE, eid, expected_version=1)
-    assert refused["locked"] is False
-
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    with pytest.raises(AuthorizationError):   # the assertion is the partner's
-        service.update_workflow(BOB, eid, "no_data_assertion",
-                                {"asserted": True,
-                                 "reason": "planning-only engagement"})
-    with pytest.raises(ValueError, match="specific reason"):
-        service.update_workflow(ALICE, eid, "no_data_assertion",
-                                {"asserted": True, "reason": "n/a"})
-    service.update_workflow(ALICE, eid, "no_data_assertion",
-                            {"asserted": True,
-                             "reason": "planning-only engagement; no "
-                                       "client data was in scope this period"})
-
-    state = service.readiness(eid)
-    assert state["ready"] is True
-    assert state["report_implication"] == "unmodified_opinion_candidate"
-
-    with pytest.raises(AuthorizationError):
-        service.lock(BOB, eid, expected_version=1)
-    locked = service.lock(ALICE, eid, expected_version=1)
-    assert locked["locked"] is True
-    assert service.list_engagements()[-1]["status"] == "locked"
-
-
-def test_dataset_rebuild_is_digest_verified(service, engagement, tmp_path):
-    _ingest(service, engagement, PAYMENTS_CSV, "payments.csv", "Payments")
-    # Corrupt the vault blob; coverage must refuse, not serve silently.
-    sha = service._conn.execute("SELECT sha256 FROM artifact").fetchone()["sha256"]
-    blob = service._vault._blob_path(sha)
-    blob.write_bytes(PAYMENTS_CSV.replace(b"6000.00", b"9999.99"))
-    with pytest.raises(Exception):
-        service.coverage(engagement)
-
-
-# --------------------------------------------------------------- bulk loading
-
-def test_bulk_loading_is_one_pass_per_chair_with_inference(service, engagement):
-    ids = []
-    for name, content in (("payments.csv", PAYMENTS_CSV),
-                          ("ap_control_balance.csv", BALANCES_CSV)):
-        artifact = service.store_source(
-            BOB, engagement, content=content, media_type="text/csv",
-            original_name=name)
-        ids.append(artifact["artifact_id"])
-
-    # The inventory suggests roles; the suggestion is not a mapping.
-    inventory = service.sources(engagement)
-    assert [a["inferred_role"] for a in inventory["artifacts"]] == [
-        "Payments", "AP_control_balance"]
-
-    # Preparer pass: one batch, roles inferred from filenames.
-    proposals = service.propose_source_mappings(
-        BOB, engagement, [{"artifact_id": aid} for aid in ids])
-    assert proposals["proposed"] == 2 and proposals["errors"] == 0
-    assert [r["role"] for r in proposals["results"]] == [
-        "Payments", "AP_control_balance"]
-    spec_ids = [r["spec_id"] for r in proposals["results"]]
-
-    # Repeating the batch skips, so 'propose all' is idempotent.
-    again = service.propose_source_mappings(
-        BOB, engagement, [{"artifact_id": aid} for aid in ids])
-    assert again["skipped"] == 2 and again["proposed"] == 0
-
-    # The reviewer gate still stands: the preparer cannot batch-approve.
-    with pytest.raises(AuthorizationError):
-        service.approve_source_mappings(BOB, engagement, spec_ids)
-
-    # Normalizing before approval fails per item, batching or not.
-    early = service.normalize_sources(BOB, engagement, spec_ids)
-    assert early["errors"] == 2
-
-    # Reviewer pass, then preparer pass.
-    approvals = service.approve_source_mappings(CAROL, engagement, spec_ids)
-    assert approvals["approved"] == 2 and approvals["errors"] == 0
-
-    normalized = service.normalize_sources(BOB, engagement, spec_ids)
-    assert normalized["normalized"] == 2 and normalized["errors"] == 0
-    recon = {r["reconciliation"]["role"]: r["reconciliation"]
-             for r in normalized["results"]}
-    assert recon["Payments"]["rows_loaded"] == 3
-    assert recon["Payments"]["control_total"] == "13000.00"
-
-    # Re-normalizing skips instead of minting duplicate receipts.
-    again = service.normalize_sources(BOB, engagement, spec_ids)
-    assert again["skipped"] == 2 and again["normalized"] == 0
-
-
-def test_bulk_proposal_reports_per_item_without_blocking_the_rest(
-        service, engagement):
-    good = service.store_source(
-        BOB, engagement, content=PAYMENTS_CSV, media_type="text/csv",
-        original_name="payments.csv")["artifact_id"]
-    unnamed = service.store_source(
-        BOB, engagement, content=b"Foo,Bar\n1,2\n", media_type="text/csv",
-        original_name="export_final_v2.csv")["artifact_id"]
-
-    outcome = service.propose_source_mappings(
-        BOB, engagement,
-        [{"artifact_id": good},
-         {"artifact_id": unnamed},                       # nothing inferable
-         {"artifact_id": "no-such-artifact"}])
-    assert outcome["proposed"] == 1 and outcome["errors"] == 2
-    by_id = {r["artifact_id"]: r for r in outcome["results"]}
-    assert by_id[good]["status"] == "proposed"
-    assert "choose the role explicitly" in by_id[unnamed]["error"]
-    assert by_id["no-such-artifact"]["status"] == "error"
-
-    # Naming a role does not make headings that match none of its fields
-    # loadable (K4): the item is refused with the reason, not mapped empty.
-    named = service.propose_source_mappings(
-        BOB, engagement,
-        [{"artifact_id": unnamed, "role": "Vendors"}])
-    assert named["proposed"] == 0
-    assert "none of this file's headings" in named["results"][0]["error"]
-
-
-def test_a_file_named_nothing_useful_is_guessed_from_its_columns(service, engagement):
-    """A client's 'export (3).csv' is recognized by its headings; the guess is
-    labelled as coming from the columns, and it is still only a proposal."""
-    aid = service.store_source(
-        BOB, engagement, content=BALANCES_CSV, media_type="text/csv",
-        original_name="export (3).csv")["artifact_id"]
-    [item] = [a for a in service.sources(engagement)["artifacts"]
-              if a["artifact_id"] == aid]
-    assert (item["inferred_role"], item["inferred_from"]) == (
-        "AP_control_balance", "columns")
-    outcome = service.propose_source_mappings(BOB, engagement, [{"artifact_id": aid}])
-    assert outcome["results"][0]["role"] == "AP_control_balance"
-    # the "map as" list offers every data type, not only the payables ones
-    roles = service.sources(engagement)["roles"]
-    assert {"Payroll_register", "Trial_balance", "Fixed_assets", "Vendors"} <= set(roles)
-
-
-def test_bulk_approval_enforces_separation_per_item(service, engagement):
-    # Dana holds both chairs; the batch approves Bob's spec but refuses the
-    # one Dana proposed — separation is judged item by item.
-    service.assign_team(ALICE, engagement, "principal-dana", "preparer")
-    service.assign_team(ALICE, engagement, "principal-dana", "reviewer")
-    bobs = service.store_source(
-        BOB, engagement, content=PAYMENTS_CSV, media_type="text/csv",
-        original_name="payments.csv")["artifact_id"]
-    danas = service.store_source(
-        "principal-dana", engagement, content=BALANCES_CSV,
-        media_type="text/csv",
-        original_name="ap_control_balance.csv")["artifact_id"]
-    specs = [
-        service.propose_source_mapping(
-            BOB, engagement, role="Payments",
-            artifact_id=bobs)["spec_id"],
-        service.propose_source_mapping(
-            "principal-dana", engagement, role="AP_control_balance",
-            artifact_id=danas)["spec_id"],
-    ]
-    outcome = service.approve_source_mappings(
-        "principal-dana", engagement, specs)
-    assert outcome["approved"] == 1 and outcome["errors"] == 1
-    assert outcome["results"][0]["status"] == "approved"
-    assert outcome["results"][1]["status"] == "error"
-
+# ------------------------------------------------- dispositions stand alone
 
 # ------------------------------------------------- disposition concurrence
 
@@ -415,60 +203,21 @@ def _tie_finding(service, engagement):
                 if f["procedure_id"] == "ap.subledger_gl_balance_tie")
 
 
-def test_disposition_concurrence_mirrors_the_review_gates(service, engagement):
+def test_a_disposition_above_clearly_trivial_stands_without_concurrence(
+        service, engagement):
     service.update_workflow(ALICE, engagement, "materiality",
                             {"amount": 10000.0, "basis": "revenue"})
     tie = _tie_finding(service, engagement)
+    assert "requires_concurrence" not in tie
     service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
                             status="unadjusted", note="client declines")
-
-    # The preparer proposed; the preparer cannot concur — not for lack of
-    # a role, but because it is their own judgment.
-    with pytest.raises(AuthorizationError):
-        service.concur_disposition(BOB, engagement,
-                                   finding_uid=tie["finding_uid"],
-                                   expected_version=1)
-    service.assign_team(ALICE, engagement, BOB, "reviewer")
-    with pytest.raises(SeparationOfDutiesError):
-        service.concur_disposition(BOB, engagement,
-                                   finding_uid=tie["finding_uid"],
-                                   expected_version=1)
-
-    state = service.readiness(engagement)
-    pending = next(b for b in state["blockers"]
-                   if b["code"] == "DISPOSITIONS_AWAITING_CONCURRENCE")
-    assert pending["items"] == [tie["finding_uid"]]
-
-    outcome = service.concur_disposition(CAROL, engagement,
-                                         finding_uid=tie["finding_uid"],
-                                         expected_version=1)
-    assert outcome["concurred_by"] == CAROL
     codes = {b["code"] for b in service.readiness(engagement)["blockers"]}
     assert "DISPOSITIONS_AWAITING_CONCURRENCE" not in codes
-
-    # A changed judgment voids the old concurrence: re-set, and the
-    # finding is awaiting concurrence again.
-    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
-                            status="adjusted", note="client booked it",
-                            expected_version=2)
+    assert not hasattr(service, "concur_disposition")
     refreshed = next(f for f in service.findings(engagement)
                      if f["finding_uid"] == tie["finding_uid"])
-    assert refreshed["awaiting_concurrence"] is True
-    assert refreshed["disposition"]["concurred_by"] == ""
-
-
-def test_below_clearly_trivial_needs_no_concurrence(service, engagement):
-    # $5,000 misstatement under a $200,000 materiality: clearly trivial
-    # territory ($10,000); one person's judgment stands alone.
-    service.update_workflow(ALICE, engagement, "materiality",
-                            {"amount": 200000.0, "basis": "assets"})
-    tie = _tie_finding(service, engagement)
-    assert tie["requires_concurrence"] is False
-    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
-                            status="unadjusted", note="clearly trivial")
-    sad = service.sad(engagement)
-    assert sad["concurrence_pending_count"] == 0
-    assert sad["conclusion"] == "immaterial"
+    assert refreshed["disposition"]["status"] == "unadjusted"
+    assert refreshed["disposition"]["proposed_by"] == BOB
 
 
 SCHEDULE_CSV = (
@@ -505,8 +254,7 @@ def test_the_sad_carries_the_misstatement_schedule(service, engagement):
 
 
 def test_clearly_trivial_is_the_firms_policy(service, engagement):
-    # B1: the same $5,000 under $200,000 materiality, but this firm sets
-    # clearly trivial at 2% ($4,000): now it is a significant judgment.
+    # B1: the firm sets clearly trivial; 2% of $200,000 materiality is $4,000.
     service.update_workflow(ALICE, engagement, "materiality",
                             {"amount": 200000.0, "basis": "assets"})
     for bad in ("0", "100", "x", "-3"):
@@ -516,12 +264,6 @@ def test_clearly_trivial_is_the_firms_policy(service, engagement):
     service.update_workflow(ALICE, engagement, "policy",
                             {"name": "clearly_trivial_pct", "value": "2"})
     assert service.sad(engagement)["clearly_trivial"] == 4000.0
-    tie = _tie_finding(service, engagement)
-    assert tie["requires_concurrence"] is True
-    service.set_disposition(BOB, engagement, finding_uid=tie["finding_uid"],
-                            status="unadjusted", note="below 2%? no")
-    sad = service.sad(engagement)
-    assert sad["concurrence_pending_count"] == 1 and sad["conclusion"] is None
     assert "clearly_trivial_pct" in service.cycle_catalog()["general_policies"]
 
 

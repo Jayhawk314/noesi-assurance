@@ -1,11 +1,9 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 /** Planning & Risk: the assertion-level risk register and its response
  *  linkage. A risk assessment is auditor *judgment* — the workbench stores
- *  it, names who proposed it, and (above a moderate level) requires a second
- *  person to concur, the same separation dispositions and runs carry. The
- *  engine never grades a risk; linking a procedure is how the response is
- *  recorded, and a significant risk with no procedure answering it refuses
- *  the lock. */
+ *  it and names who recorded it. The engine never grades a risk; linking a
+ *  procedure is how the response is recorded, and a significant risk with
+ *  no procedure answering it refuses the lock. */
 
 import { useCallback, useState } from "react";
 import { Client, Risk, RiskRegister, Sad, WorkflowDocument } from "../api";
@@ -142,9 +140,8 @@ export function RiskScreen({ client, eid, onError }: {
       <h2>Risk assessment</h2>
       <p className="note">
         Record the risks of material misstatement at the assertion level, then
-        link the procedures that respond to each. Judgment is the auditor's —
-        a significant risk is a proposal until a reviewer or partner concurs,
-        and a significant risk with no procedure answering it blocks the lock.
+        link the procedures that respond to each. Judgment is the auditor's;
+        a significant risk with no procedure answering it blocks the lock.
       </p>
 
       <form className="inline" onSubmit={addRisk}>
@@ -177,7 +174,7 @@ export function RiskScreen({ client, eid, onError }: {
         <table className="dense">
           <thead>
             <tr><th>Risk</th><th>Assertion</th><th>Level</th><th>Response</th>
-                <th>Responding procedures</th><th>Concurrence</th><th /></tr>
+                <th>Responding procedures</th><th /></tr>
           </thead>
           <tbody>
             {risks.map((r) => (
@@ -226,23 +223,6 @@ export function RiskScreen({ client, eid, onError }: {
                   </button>
                 </td>
                 <td>
-                  {r.awaiting_concurrence ? (
-                    <button className="action"
-                            title="Significant/high risk: a reviewer or partner (not the proposer) must concur"
-                            onClick={act(() => client.concurRisk(
-                              eid, r.risk_id, r.version))}>
-                      concur
-                    </button>
-                  ) : r.requires_concurrence && r.concurred_by ? (
-                    <span className="status ok"
-                          title={`concurred by ${r.concurred_by}`}>concurred</span>
-                  ) : r.requires_concurrence ? (
-                    <span className="note">needs response first</span>
-                  ) : (
-                    <span className="note">—</span>
-                  )}
-                </td>
-                <td>
                   <button className="action"
                           onClick={act(() => client.archiveRisk(
                             eid, r.risk_id, r.version))}>
@@ -254,10 +234,6 @@ export function RiskScreen({ client, eid, onError }: {
           </tbody>
         </table>
       )}
-      <p className="note">
-        Changing a risk's level, response, or linked procedures voids any prior
-        concurrence — the concurrer agreed to a different judgment.
-      </p>
     </>
   );
 }

@@ -121,8 +121,9 @@ not invented. Manual chapter 3 explains each step.
 ### One operator, several chairs
 
 Separation of duties is enforced server-side: whoever proposes a mapping
-cannot approve it, whoever runs a procedure cannot review it, and only the
-partner locks. On a single laptop you play every part — the **acting as**
+cannot approve it, and only the partner locks. Runs, dispositions and
+risks carry no review, approval or concurrence step (removed 1 Oct 2026:
+Noesi supplements an audit; the firm's own review process stays outside it). On a single laptop you play every part — the **acting as**
 control in the header switches which chair you sit in (the demo comes with
 `demo-preparer` and `demo-reviewer`; the Team screen adds more). Every action
 is journaled under the chair that performed it and appears that way on the
@@ -139,7 +140,7 @@ rule for changes after file assembly (AU-C 230 / PCAOB AS 1215): nothing is
 ever deleted. Unlock **supersedes** the lock — the partner must give a
 specific reason, which enters the journal permanently; the superseded
 snapshot, its signature, and its journal anchor stay verifiable forever; work
-after reopening passes through the same preparer/reviewer/partner gates; and
+after reopening passes the same readiness gates; and
 the next lock signs a manifest that names its predecessor and the reason it
 was reopened. Evidence packets carry the full amendment history, and
 `verify_packet` re-verifies every superseded lock offline along with the

@@ -92,19 +92,16 @@ because it will not manufacture the look of a computed number where the
 substance is professional judgment.
 
 The register is auditor **judgment**, not a computed output — the engine
-never grades a risk. So it carries the same separation as dispositions and
-runs: a high or significant risk is a *proposal* until a second person
-(reviewer or partner, never the proposer) concurs, and changing the level,
-response, or linked procedures voids that concurrence. Three readiness gates
-follow from the register, and each blocks the lock:
+never grades a risk; it records the judgment and who made it. Two readiness
+gates follow from the register, and each blocks the lock:
 
 - `HIGH_RISKS_WITHOUT_RESPONSE` — a significant risk with no planned response.
 - `HIGH_RISKS_WITHOUT_PROCEDURE` — a significant risk no procedure answers.
-- `RISKS_AWAITING_CONCURRENCE` — a fully-specified significant risk no second
-  person has concurred.
 
-That last trio is the point: the tool will not let you lock an engagement
-that names a significant risk and then does nothing about it.
+That pair is the point: the tool will not let you lock an engagement that
+names a significant risk and then does nothing about it. (Noesi supplements
+the audit; it asks for no sign-off or second-person concurrence. Your firm's
+own review process stays where it is.)
 
 **Fraud risks go in the same register.** There is no separate fraud flag,
 so start the title with "Fraud:" and name the fraud risk factor in the

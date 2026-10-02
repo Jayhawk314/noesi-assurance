@@ -11,7 +11,6 @@ from assurance_application.service import (
 )
 from assurance_artifacts.signing import LocalKeyStore, verify_signature
 from assurance_artifacts.vault import ArtifactVault
-from assurance_domain.readiness import COMPLETION_CHECKS
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 from assurance_persistence.spine import verify_journal
@@ -32,12 +31,6 @@ def service(tmp_path):
 def _green_locked(service):
     eid = service.create_engagement(ALICE, "Zenith", "2025-06-30")["engagement_id"]
     service.update_workflow(ALICE, eid, "materiality", {"amount": 10000.0})
-    for stage in ("risk_assessment", "controls"):
-        service.update_workflow(ALICE, eid, "stage",
-                                {"name": stage, "status": "complete"})
-    for check in COMPLETION_CHECKS:
-        service.update_workflow(ALICE, eid, "completion",
-                                {"name": check, "done": True, "note": "done"})
     # Data-less engagement: the partner owns the silence explicitly (3.4).
     service.update_workflow(ALICE, eid, "no_data_assertion",
                             {"asserted": True,
@@ -137,12 +130,6 @@ def test_lock_requires_a_configured_keystore(tmp_path):
     service = WorkbenchService(conn, ArtifactVault(tmp_path / "v"), tenant)
     eid = service.create_engagement(ALICE, "Zenith", "2025-06-30")["engagement_id"]
     service.update_workflow(ALICE, eid, "materiality", {"amount": 1000.0})
-    for stage in ("risk_assessment", "controls"):
-        service.update_workflow(ALICE, eid, "stage",
-                                {"name": stage, "status": "complete"})
-    for check in COMPLETION_CHECKS:
-        service.update_workflow(ALICE, eid, "completion",
-                                {"name": check, "done": True, "note": "n"})
     service.update_workflow(ALICE, eid, "no_data_assertion",
                             {"asserted": True,
                              "reason": "keystore/lock unit fixture; no "
