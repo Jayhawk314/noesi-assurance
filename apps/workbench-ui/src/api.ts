@@ -334,6 +334,9 @@ export interface TrialBalanceLines {
   lines: string[];
   labels: { label: string; accounts: string[]; recognized: boolean;
             mapped_to: string | null; suggestion: string | null }[];
+  /** Accounts whose own label is not a statement line, each with a suggestion from its name. */
+  accounts: { account: string; description: string; label: string;
+              mapped_to: string | null; suggestion: string | null }[];
   account_overrides: Record<string, string>;
   has_trial_balance: boolean;
 }

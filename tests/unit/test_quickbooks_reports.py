@@ -280,3 +280,40 @@ def test_a_line_mapping_counts_only_when_it_reaches_a_loaded_account(service):
     assert status() == "partial"
     svc.update_workflow(PREPARER, eid, "line_mapping", {"account": "10100", "line": "cash"})
     assert status() == "executable"
+
+
+def test_a_quickbooks_trial_balance_is_mapped_account_by_account(service):
+    # Review M2: a QuickBooks trial balance has no labels, so its accounts are
+    # listed one by one with a suggestion from each name, and saved together.
+    svc, eid = service
+    built = svc.build_trial_balance(PREPARER, eid,
+                                    current_artifact_id=_store(svc, eid, TB, "TB.xlsx"))
+    proposal = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+                                          artifact_id=built["artifact_id"])
+    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
+    svc.normalize_source(PREPARER, eid, proposal["spec_id"])
+
+    listed = svc.trial_balance_lines(eid)["accounts"]
+    assert {a["description"]: a["suggestion"] for a in listed} == {
+        "10100 Checking - First Prairie": "cash",
+        "Accounts Receivable (A/R)": "receivables", "Inventory Asset": "inventory",
+        "Accounts Payable (A/P)": "current_liabilities",
+        "Opening Balance Equity": "equity", "Owner's Investment": "equity",
+        "Sales of Product Income": "sales", "Cost of Goods Sold": "cost_of_sales",
+        "Bank Charges & Fees": "operating_expense"}
+    assert all(a["mapped_to"] is None for a in listed)
+
+    # One unknown line refuses the whole save; nothing is half-applied.
+    choices = {a["account"]: a["suggestion"] for a in listed}
+    with pytest.raises(ValueError, match="unknown statement line 'cashh'"):
+        svc.update_workflow(PREPARER, eid, "line_mapping",
+                            {"accounts": {**choices, "10100": "cashh"}})
+    assert svc.trial_balance_lines(eid)["account_overrides"] == {}
+
+    svc.update_workflow(PREPARER, eid, "line_mapping", {"accounts": choices})
+    after = svc.trial_balance_lines(eid)
+    assert all(a["mapped_to"] == a["suggestion"] for a in after["accounts"])
+    assert after["account_overrides"]["10100"] == "cash"
+    # A blank line removes that account's mapping.
+    svc.update_workflow(PREPARER, eid, "line_mapping", {"accounts": {"10100": ""}})
+    assert "10100" not in svc.trial_balance_lines(eid)["account_overrides"]

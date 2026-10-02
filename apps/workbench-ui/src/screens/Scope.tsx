@@ -34,6 +34,7 @@ export function ScopeScreen({ client, eid, onError }: {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [start, setStart] = useState<string | null>(null);
   const [lineChoice, setLineChoice] = useState<Record<string, string>>({});
+  const [accountChoice, setAccountChoice] = useState<Record<string, string>>({});
   const [overrideAccount, setOverrideAccount] = useState("");
   const [overrideLine, setOverrideLine] = useState("");
 
@@ -118,22 +119,22 @@ export function ScopeScreen({ client, eid, onError }: {
                 const current = lineChoice[item.label] ?? item.mapped_to ?? item.suggestion ?? "";
                 return (
                   <tr key={item.label}>
-                    <td>{item.label || <i>(blank)</i>}</td>
+                    <td>{item.label || <i>(no label: map these accounts one by one below)</i>}</td>
                     <td>{item.accounts.join(", ")}</td>
                     <td>
-                      {item.recognized ? <span className="status ok">recognized</span> : (
+                      {item.recognized ? <span className="status ok">recognized</span> : !item.label ? null : (
                         <select value={current}
                                 onChange={(e) => setLineChoice({ ...lineChoice, [item.label]: e.target.value })}>
                           <option value="">choose…</option>
                           {tbLines.data!.lines.map((l) => <option key={l} value={l}>{words(l)}</option>)}
                         </select>
                       )}
-                      {!item.recognized && !item.mapped_to && item.suggestion && !lineChoice[item.label] && (
+                      {item.label && !item.recognized && !item.mapped_to && item.suggestion && !lineChoice[item.label] && (
                         <div className="note">suggested: check it</div>
                       )}
                     </td>
                     <td>
-                      {!item.recognized && (
+                      {item.label && !item.recognized && (
                         <button className="action" disabled={!current || current === item.mapped_to}
                                 onClick={() => void save("line_mapping", { label: item.label, line: current })}>
                           {item.mapped_to ? "change" : "map"}
@@ -145,6 +146,55 @@ export function ScopeScreen({ client, eid, onError }: {
               })}
             </tbody>
           </table>
+          {tbLines.data.accounts.length > 0 && (() => {
+            const rows = tbLines.data!.accounts;
+            const chosen = (a: (typeof rows)[number]) =>
+              accountChoice[a.account] ?? a.mapped_to ?? a.suggestion ?? "";
+            const pending = Object.fromEntries(rows
+              .filter((a) => chosen(a) && chosen(a) !== a.mapped_to)
+              .map((a) => [a.account, chosen(a)]));
+            const open = rows.filter((a) => !a.mapped_to).length;
+            return (
+              <>
+                <h4>Accounts by name</h4>
+                <p className="note">
+                  {rows.length} accounts carry no statement line of their own
+                  ({open} not yet mapped). Each line below is suggested from the
+                  account's name where the name makes it clear; check every one
+                  before saving. Unmapped accounts are left out of the run, which
+                  lists them.
+                </p>
+                <table className="dense">
+                  <thead><tr><th>Account</th><th>Name</th><th>Statement line</th><th /></tr></thead>
+                  <tbody>
+                    {rows.map((a) => (
+                      <tr key={a.account}>
+                        <td>{a.account}</td>
+                        <td>{a.description}</td>
+                        <td>
+                          <select value={chosen(a)}
+                                  onChange={(e) => setAccountChoice({ ...accountChoice, [a.account]: e.target.value })}>
+                            <option value="">choose…</option>
+                            {tbLines.data!.lines.map((l) => <option key={l} value={l}>{words(l)}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          {a.mapped_to
+                            ? (chosen(a) === a.mapped_to && <span className="status ok">mapped</span>)
+                            : a.suggestion && !accountChoice[a.account] && <span className="note">suggested: check it</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button className="action" disabled={Object.keys(pending).length === 0}
+                        onClick={() => void save("line_mapping", { accounts: pending })
+                          .then(() => setAccountChoice({}))}>
+                  save {Object.keys(pending).length} account mapping{Object.keys(pending).length === 1 ? "" : "s"}
+                </button>
+              </>
+            );
+          })()}
           <p className="note">
             Account overrides:{" "}
             {Object.entries(tbLines.data.account_overrides).map(([a, l]) => `${a} → ${words(l)}`).join(", ") || "none"}

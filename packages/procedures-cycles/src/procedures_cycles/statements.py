@@ -72,7 +72,9 @@ _LINE_HINTS: tuple[tuple[str, str], ...] = (
     ("allowance", "allowance"), ("doubtful", "allowance"),
     ("sales return", "sales_returns"), ("returns and allowances", "sales_returns"),
     ("cost of", "cost_of_sales"), ("cogs", "cost_of_sales"),
-    ("receivable", "receivables"), ("cash", "cash"), ("bank", "cash"),
+    ("receivable", "receivables"), ("bank charge", "operating_expense"),
+    ("bank fee", "operating_expense"), ("accumulated depreciation", "noncurrent_assets"),
+    ("cash", "cash"), ("bank", "cash"), ("checking", "cash"), ("savings", "cash"),
     ("inventor", "inventory"), ("prepaid", "other_current_assets"),
     ("other current asset", "other_current_assets"),
     ("property", "noncurrent_assets"), ("equipment", "noncurrent_assets"),
@@ -80,12 +82,14 @@ _LINE_HINTS: tuple[tuple[str, str], ...] = (
     ("long-term debt", "noncurrent_liabilities"), ("long term debt", "noncurrent_liabilities"),
     ("notes payable - long", "noncurrent_liabilities"),
     ("payable", "current_liabilities"), ("accrued", "current_liabilities"),
+    ("credit card", "current_liabilities"),
     ("line of credit", "current_liabilities"), ("current liabilit", "current_liabilities"),
     ("equity", "equity"), ("capital", "equity"), ("retained", "equity"),
+    ("owner", "equity"),
     ("revenue", "sales"), ("sales", "sales"), ("income tax", "income_tax"),
     ("other income", "other_income"), ("interest income", "other_income"),
     ("interest expense", "other_expense"), ("other expense", "other_expense"),
-    ("expense", "operating_expense"),
+    ("expense", "operating_expense"), ("income", "sales"),
 )
 
 

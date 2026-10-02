@@ -1391,19 +1391,31 @@ class WorkbenchService:
             self._require(engagement_id, actor, "preparer", "partner")
             from procedures_cycles.common import key_text as _key
             from procedures_cycles.statements import LINES
-            label = " ".join(str(values.get("label") or "").split()).lower()
-            account = _key(values.get("account")) if values.get("account") else ""
-            if bool(label) == bool(account):
-                raise ValueError("map either a label or one account, not both")
-            key = f"account:{account}" if account else f"label:{label}"
-            line = str(values.get("line") or "").strip()
-            mapping = document.setdefault("line_mapping", {})
-            if not line:
-                mapping.pop(key, None)
-            elif line not in LINES:
-                raise ValueError(f"unknown statement line {line!r}; one of {list(LINES)}")
+            if isinstance(values.get("accounts"), dict):
+                # Many accounts at once ({account: line}), for a trial balance
+                # with no labels of its own (QuickBooks); all checked first.
+                if values.get("label") or values.get("account"):
+                    raise ValueError("send either accounts, a label or one account")
+                changes = [(f"account:{_key(a)}", str(l or "").strip())
+                           for a, l in values["accounts"].items() if _key(a)]
+                if not changes:
+                    raise ValueError("no accounts to map")
             else:
-                mapping[key] = line
+                label = " ".join(str(values.get("label") or "").split()).lower()
+                account = _key(values.get("account")) if values.get("account") else ""
+                if bool(label) == bool(account):
+                    raise ValueError("map either a label or one account, not both")
+                changes = [(f"account:{account}" if account else f"label:{label}",
+                            str(values.get("line") or "").strip())]
+            unknown = sorted({line for _, line in changes if line and line not in LINES})
+            if unknown:
+                raise ValueError(f"unknown statement line {unknown[0]!r}; one of {list(LINES)}")
+            mapping = document.setdefault("line_mapping", {})
+            for key, line in changes:
+                if line:
+                    mapping[key] = line
+                else:
+                    mapping.pop(key, None)
         elif section == "opinion_decision":
             # A judgment the draft opinion asks for (pervasiveness, the
             # going-concern conclusion). The partner's alone; kept, with who
@@ -1698,6 +1710,7 @@ class WorkbenchService:
     def trial_balance_lines(self, engagement_id: str) -> dict:
         """Each label on the loaded trial balance, whether Noesi recognizes it,
         how it is mapped, and a suggestion — for the line-mapping screen."""
+        from procedures_cycles.common import key_text
         from procedures_cycles.statements import LINES, suggest_line
         document, _ = self.workflow_document(engagement_id)
         mapping = document.get("line_mapping") or {}
@@ -1713,8 +1726,24 @@ class WorkbenchService:
             item["accounts"].append(str(row.get("account") or ""))
         overrides = {k[len("account:"):]: v for k, v in mapping.items()
                      if k.startswith("account:")}
+        # Accounts whose own label is not a statement line, one by one, each
+        # with a suggestion from its name: a QuickBooks trial balance has no
+        # labels at all, so this is where its accounts get mapped.
+        accounts = []
+        for row in (table.records if table else []):
+            label = " ".join(str(row.get("line") or "").split())
+            if label.lower() in LINES:
+                continue
+            account = str(row.get("account") or "")
+            description = " ".join(str(row.get("description") or "").split())
+            accounts.append({
+                "account": account, "description": description, "label": label,
+                "mapped_to": (overrides.get(key_text(account))
+                              or mapping.get(f"label:{label.lower()}")),
+                "suggestion": suggest_line(description) or suggest_line(label)})
         return {"lines": list(LINES), "labels": sorted(labels.values(),
                                                         key=lambda i: i["label"]),
+                "accounts": accounts,
                 "account_overrides": overrides, "has_trial_balance": table is not None}
 
     def cycle_catalog(self) -> dict:
