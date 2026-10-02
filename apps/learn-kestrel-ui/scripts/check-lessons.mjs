@@ -118,8 +118,8 @@ for (const [where, text] of pages) {
 
 const written = LESSONS.map((l) => l.n).sort((a, b) => a - b).join(",");
 const coming = COMING.map((c) => c.n).sort((a, b) => a - b).join(",");
-if (written !== "1,5,8,9,10,11,12,13") problems.push(`modules written are ${written}, agreed 1,5,8,9,10,11,12,13`);
-if (coming !== "2,3,4,6,7") problems.push(`modules coming are ${coming}, agreed 2,3,4,6,7`);
+if (written !== "1,2,3,4,5,6,7,8,9,10,11,12,13") problems.push(`modules written are ${written}, agreed 1 to 13`);
+if (coming !== "") problems.push(`modules coming are ${coming}, agreed none`);
 const fraudNs = FRAUD_LESSONS.map((l) => l.n).join(",");
 if (fraudNs !== "1,2,3,4,5,6,7,8,9") problems.push(`fraud lessons are ${fraudNs}, expected 1 to 9`);
 
