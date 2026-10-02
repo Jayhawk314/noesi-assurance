@@ -120,6 +120,11 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
         "Final pay: days allowed after leaving", DAYS,
         "A payment to someone who left is flagged only if it comes later than this "
         "many days after their termination date."),
+    # forensic
+    "benford_min_population": (
+        "First-digit test: fewest amounts to test", COUNT,
+        "A population with fewer amounts of 10 or more than this is not tested. "
+        "Nigrini suggests at least 1,000; below a few hundred the test says little."),
     # cash
     "dit_max_days": (
         "Deposits in transit: most days to reach the bank", DAYS,

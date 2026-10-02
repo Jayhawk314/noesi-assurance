@@ -93,6 +93,12 @@ FRAUD_TESTS: dict[str, tuple[str, str]] = {
                                    "AU-C 240.32: the population tested is complete"),
     "payroll.register_tests": ("Ghost employees and payroll schemes",
                                "AU-C 240: payroll fraud"),
+    "forensic.check_number_sequence": ("Missing or reused check numbers",
+                                       "AU-C 240: concealed disbursements"),
+    "forensic.vendor_employee_match": ("Vendors that match an employee",
+                                       "AU-C 240: fictitious vendors, conflicts of interest"),
+    "forensic.benford_first_digit": ("Amounts that do not look natural",
+                                     "AU-C 240: invented figures"),
 }
 
 

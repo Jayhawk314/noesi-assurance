@@ -218,7 +218,7 @@ def test_vendor_contact_list_loads_as_reviewed_vendors(service):
     _, proposal, normalized = _load(svc, eid, CONTACTS, "Vendor Contact List.xlsx",
                                     "Vendors", "qbo.vendor_contact_list.vendors")
     assert proposal["column_map"] == {"vendor_number": "Vendor", "vendor_name": "Vendor",
-                                      "address": "Billing address"}
+                                      "address": "Billing address", "phone": "Phone numbers"}
     rec = normalized["reconciliation"]
     assert rec["rows_loaded"] == 26 and rec["rows_rejected"] == 0
     assert rec["diagnostics"]["duplicate_keys"] == []

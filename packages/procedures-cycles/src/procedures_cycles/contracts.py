@@ -242,6 +242,50 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "explains the rest.",
     ),
     ProcedureContract(
+        "forensic.check_number_sequence", "Check-number gaps and reused numbers",
+        "List the check numbers missing between the first and last check of each run "
+        "(disbursements; payroll apart), and any number used for two transactions. "
+        "The Journal's checks are used when it carries their numbers, since it is the "
+        "complete population; otherwise the payment records.",
+        "payables", ("completeness", "occurrence"),
+        {"Payments": ("payment_number",)},
+        evidence_source="client payment records, checks with no bill and payroll register",
+        denominator_role="Payments",
+        limitations="A gap is a lead: a voided check is a normal gap; inspect the void "
+                    "or the bank statement. EFTs and text references carry no check "
+                    "number and are counted, not tested. Checks from several bank "
+                    "accounts loaded as one run will show gaps between them.",
+    ),
+    ProcedureContract(
+        "forensic.vendor_employee_match", "Vendors that match an employee",
+        "List vendors sharing a bank account, phone number or tax ID with an employee, "
+        "or carrying an employee's full name.",
+        "payroll", ("occurrence", "existence"),
+        {"Vendors": ("vendor_number",), "Payroll_master": ("employee_id",)},
+        evidence_source="client vendor list and HR employee master",
+        denominator_role="Vendors",
+        limitations="A match is a lead, not proof: the employee may own or control the "
+                    "vendor, or it may be a coincidence. Addresses are compared in the "
+                    "payroll register tests. A field missing on either side is reported "
+                    "as not compared.",
+    ),
+    ProcedureContract(
+        "forensic.benford_first_digit", "First-digit test (Benford's law)",
+        "Compare the first digits of journal lines, bills and payments, each apart, "
+        "with Benford's law, and name the digits most in excess.",
+        "journal_entries", ("occurrence", "accuracy"),
+        {"Journal_entries": ("entry_id",)},
+        required_policies=("benford_min_population",),
+        evidence_source="client Journal, bills and payments",
+        denominator_role="Journal_entries",
+        limitations="Amounts under 10 are left out. Conformity bands are Nigrini's "
+                    "(2012). Many populations do not follow Benford's law (fixed fees, "
+                    "prices, amounts with a ceiling); nonconformity says where to look, "
+                    "not that anything is wrong. A population below the minimum is not "
+                    "tested.",
+        default_selected=False,
+    ),
+    ProcedureContract(
         "cash.bank_reconciliation", "Bank reconciliation re-performance",
         "Re-foot each bank reconciliation and test outstanding checks and deposits in "
         "transit against the cutoff bank statement.",
@@ -511,6 +555,9 @@ SCOPE_OF: dict[str, str] = {
     "ap.payments_without_bills": "payables",
     "payroll.register_tests": "payroll",
     "payroll.register_to_ledger": "payroll",
+    "forensic.check_number_sequence": "payables",
+    "forensic.vendor_employee_match": "payroll",
+    "forensic.benford_first_digit": "journal_entries",
     "cash.bank_reconciliation": "cash",
     "cash.interbank_transfers": "cash",
     "inventory.count_listing_trace": "inventory",

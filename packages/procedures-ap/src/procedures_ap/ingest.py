@@ -36,6 +36,10 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
                           "supplier number", "supplier no", "supplier id", "vendor"],
         "vendor_name": ["vendor name", "supplier name", "payee name", "name"],
         "address": ["billing address", "vendor address", "street address", "address"],
+        "phone": ["phone", "phone number", "phone numbers", "telephone"],
+        "bank_account": ["bank account", "bank account number", "ach account",
+                         "remit to account", "direct deposit account"],
+        "tax_id": ["tax id", "tax identification number", "ein", "tin", "federal id"],
     },
     "Employees": {
         "employee_number": ["employee number", "employee no", "employee id",

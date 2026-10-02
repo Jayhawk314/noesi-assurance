@@ -128,7 +128,8 @@ _JOURNAL = ("Transaction date", "Transaction type", "Num", "Name", "Description"
             "Account Name", "Debit", "Credit")
 _JOURNAL_MAP = {"entry_id": ENTRY, "line": LINE, "entry_date": "Transaction date",
                 "account": ACCOUNT, "debit": "Debit", "credit": "Credit",
-                "description": "Description", "source": "Transaction type"}
+                "description": "Description", "source": "Transaction type",
+                "document_number": "Num"}
 _JOURNAL_NOTE = ("QuickBooks groups each transaction's lines under its own "
                  "transaction ID and closes it with a debit/credit total, checked here. "
                  "An entry is named by date, type, Num and name (Num alone repeats "
@@ -202,7 +203,7 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
         headers=("Vendor", "Phone numbers", "Email", "Full name",
                  "Billing address", "Account #"),
         column_map={"vendor_number": "Vendor", "vendor_name": "Vendor",
-                    "address": "Billing address"},
+                    "address": "Billing address", "phone": "Phone numbers"},
         amount_columns=(),
         note="QuickBooks identifies vendors by display name, so the name "
              "is also the vendor key. 'Account #' is your account number "

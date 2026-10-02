@@ -141,6 +141,8 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "bank_account": ["bank account", "account number", "direct deposit account",
                          "deposit account"],
         "address": ["address", "home address", "street address"],
+        "phone": ["phone", "phone number", "telephone"],
+        "tax_id": ["ssn", "social security number", "tax id", "tin"],
         "pay_rate": ["pay rate", "rate", "hourly rate", "salary"],
     },
     "Fixed_assets": {
@@ -214,6 +216,9 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "credit": ["credit", "cr"],
         "amount": ["amount", "signed amount", "net amount"],
         "posted_by": ["posted by", "entered by", "created by", "user", "prepared by"],
+        # The transaction's own number (a check number on a check), not the entry id.
+        "document_number": ["document number", "doc number", "check number", "check no",
+                            "reference number"],
         "approved_by": ["approved by", "approver"],
         "description": ["description", "memo", "memo description", "explanation"],
         "source": ["source", "journal type", "transaction type", "type"],
