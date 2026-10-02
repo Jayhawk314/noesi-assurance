@@ -132,6 +132,32 @@ def main():
                          KEY["completion.uncorrected_misstatements"]["totals"]
                          ["income_before_taxes"]))
 
+    # Forensic (roadmap D10): the check sequence read from both Journal
+    # exports, and vendor names holding an employee's full name.
+    k3 = json.loads((ROOT / "instructor" / "answer_key_part3.json").read_text(encoding="utf-8"))
+    kp = json.loads((ROOT / "instructor" / "answer_key_payables.json")
+                    .read_text(encoding="utf-8"))
+    seq = k3["forensic"]["check_number_sequence"]["disbursements"]
+    checks = set()
+    for name in ("Journal.xlsx", "Journal_2026-07.xlsx"):
+        for r in sheet(name)[5:]:
+            if r[2] in ("Check", "Bill Payment (Check)") and str(r[3] or "").isdigit():
+                checks.add(int(r[3]))
+    numbers = sorted(checks)
+    gaps = [f"{lo + 1}-{hi - 1}" for lo, hi in zip(numbers, numbers[1:]) if hi - lo > 1]
+    results.append(check("check sequence: distinct checks", len(numbers),
+                         seq["distinct_checks"]))
+    results.append(check("check sequence: gaps", len(gaps), len(seq["gaps"])))
+    results.append(check("check sequence: the gap starts at", gaps[0].split("-")[0],
+                         seq["gaps"][0]["first_missing"]))
+    vendors = [r[0] for r in sheet("Vendor_Contact_List.xlsx")[4:] if r[0]]
+    employees = rows_csv("client", "employee_master.csv")
+    hits = [(v, e["Employee ID"]) for v in vendors for e in employees
+            if e["Name"].lower() in v.lower()]
+    results.append(check("vendors holding an employee's name", len(hits), 1))
+    results.append(check("that employee", int(hits[0][1][1:]),
+                         int(kp["vendor_employee_match"]["employee"][1:])))
+
     print(f"\n{sum(results)}/{len(results)} checks agree")
     raise SystemExit(0 if all(results) else 1)
 

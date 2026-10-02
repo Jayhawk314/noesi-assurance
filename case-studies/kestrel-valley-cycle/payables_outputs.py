@@ -53,7 +53,7 @@ def write_transaction_list(b):
             other = next(n for n, a in t["lines"] if n not in ("20000", "10100"))
         amount = sum(a for _, a in t["lines"] if a > 0)
         track = "Yes" if t["name"] in ("Alder & Finch CPAs", "DM Consulting",
-                                       "Hyalite Fabrication") else "No"
+                                       "Hyalite Fabrication", "Owen Pike Hauling") else "No"
         if t["type"] == "Bill":
             row = (t["date"], track, "Bill", t["num"], "Yes", t["memo"], AP_NAME,
                    NAMES[other], amount)

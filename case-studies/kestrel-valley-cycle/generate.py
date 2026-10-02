@@ -173,17 +173,21 @@ PRICING = [  # SKU, qty, invoice unit cost
 
 # ------------------------------------------------------------------ cash
 # Checking reconciliation, period ending 06/30/2026.
+# June's checks run 4411-4426 in date order (renumbered 2 Oct 2026, roadmap
+# D10: the earlier numbers skipped by accident). 4421 and 4425 kept the
+# numbers the key names. 4422-4424 are missing on purpose: the planted gap
+# in the check sequence (answer_key_part3.json "forensic").
 REC_BEGIN = m("171904.88")
 CLEARED_CHECKS = [  # date, type, ref, payee, amount
-    ("06/02/2026", "Check", "4391", "Granite Peak Properties", "8750.00"),
-    ("06/04/2026", "Bill Payment", "4393", "Moraine Cycle Components", "22140.60"),
-    ("06/08/2026", "Check", "4396", "Northwestern Energy", "1284.33"),
-    ("06/11/2026", "Bill Payment", "4399", "Velo Freight Lines", "3915.00"),
+    ("06/02/2026", "Check", "4411", "Granite Peak Properties", "8750.00"),
+    ("06/04/2026", "Bill Payment", "4412", "Moraine Cycle Components", "22140.60"),
+    ("06/08/2026", "Check", "4413", "Northwestern Energy", "1284.33"),
+    ("06/11/2026", "Bill Payment", "4414", "Velo Freight Lines", "3915.00"),
     ("06/15/2026", "Payroll Transfer", "", "Payroll Checking", "38500.00"),
-    ("06/16/2026", "Bill Payment", "4402", "Summit Tire Import", "17480.25"),
-    ("06/19/2026", "Check", "4405", "Big Hole Insurance", "4210.00"),
-    ("06/22/2026", "Bill Payment", "4408", "Moraine Cycle Components", "15600.00"),
-    ("06/24/2026", "Check", "4410", "First Prairie Bank - LOC interest", "1125.00"),
+    ("06/16/2026", "Bill Payment", "4415", "Summit Tire Import", "17480.25"),
+    ("06/19/2026", "Check", "4416", "Big Hole Insurance", "4210.00"),
+    ("06/22/2026", "Bill Payment", "4417", "Moraine Cycle Components", "15600.00"),
+    ("06/24/2026", "Check", "4419", "First Prairie Bank - LOC interest", "1125.00"),
 ]
 CLEARED_DEPOSITS = [
     ("06/03/2026", "Deposit", "", "Customer receipts", "41220.40"),
@@ -193,11 +197,11 @@ CLEARED_DEPOSITS = [
     ("06/29/2026", "Deposit", "", "Customer receipts", "18411.45"),
 ]
 UNCLEARED_CHECKS = [
-    ("06/22/2026", "Bill Payment", "4412", "Velo Freight Lines", "2480.00"),
-    ("06/26/2026", "Check", "4418", "Granite Peak Properties", "8750.00"),
+    ("06/22/2026", "Bill Payment", "4418", "Velo Freight Lines", "2480.00"),
+    ("06/26/2026", "Check", "4420", "Granite Peak Properties", "8750.00"),
     ("06/27/2026", "Check", "4421", "Tri-County Tool Rental", "3100.00"),
     ("06/29/2026", "Check", "4425", "Alder & Finch CPAs", "1780.00"),
-    ("06/30/2026", "Bill Payment", "4427", "Moraine Cycle Components", "11265.40"),
+    ("06/30/2026", "Bill Payment", "4426", "Moraine Cycle Components", "11265.40"),
     ("06/30/2026", "Transfer", "", "Payroll Checking", "40000.00"),
 ]
 UNCLEARED_DEPOSITS = [
@@ -206,15 +210,15 @@ UNCLEARED_DEPOSITS = [
 ]
 # First Prairie Bank cutoff statement, 07/01-07/15/2026 (bank's own layout).
 CUTOFF = [  # posting date, description, check/slip, signed amount
-    ("07/01/2026", "CHECK 4418", "4418", "-8750.00"),
+    ("07/01/2026", "CHECK 4420", "4420", "-8750.00"),
     ("07/01/2026", "ONLINE TRANSFER TO XXXX4471", "", "-40000.00"),
     ("07/01/2026", "DEPOSIT", "", "4318.75"),
-    ("07/02/2026", "CHECK 4412", "4412", "-2480.00"),
+    ("07/02/2026", "CHECK 4418", "4418", "-2480.00"),
     ("07/02/2026", "CHECK 4429", "4429", "-25000.00"),
     ("07/06/2026", "CHECK 4425", "4425", "-1870.00"),
     ("07/07/2026", "DEPOSIT", "", "12650.00"),
     ("07/08/2026", "DEPOSIT", "", "33580.90"),
-    ("07/09/2026", "CHECK 4427", "4427", "-11265.40"),
+    ("07/09/2026", "CHECK 4426", "4426", "-11265.40"),
     ("07/10/2026", "CHECK 4431", "4431", "-2215.00"),
     ("07/14/2026", "DEPOSIT", "", "27904.15"),
     ("07/15/2026", "CHECK 4433", "4433", "-6100.00"),

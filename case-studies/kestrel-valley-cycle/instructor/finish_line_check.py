@@ -309,6 +309,26 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("checks without bills: DM Consulting", KP["checks_without_bills"]["total"],
       next((v["evidence"]["total"] for v in fnd.get("ap.payments_without_bills", [])
             if v["key"][1] == "dm consulting"), NOT_IN))
+    # Forensic tests (roadmap D10, 2 Oct 2026): the check sequence across the
+    # year's and July's Journals, and a vendor named after an employee.
+    seq = K3["forensic"]["check_number_sequence"]["disbursements"]
+    got_seq = (run("forensic.check_number_sequence").get("sequences") or {}).get(
+        "disbursements") if ran("forensic.check_number_sequence") else None
+    c("check sequence: first to last check", f"{seq['first']}-{seq['last']}",
+      f"{got_seq['first']}-{got_seq['last']}" if got_seq else NOT_IN)
+    c("check sequence: the one gap, checks 4422-4424",
+      [f"{g['first_missing']}-{g['last_missing']}" for g in seq["gaps"]],
+      [v["key"][-2] for v in with_test("forensic.check_number_sequence", "gap")]
+      if ran("forensic.check_number_sequence") else NOT_IN)
+    c("check sequence: reused numbers", seq["reused_numbers"],
+      got_seq["reused_numbers"] if got_seq else NOT_IN)
+    vem = KP["vendor_employee_match"]
+    c(f"vendor named after an employee: {vem['vendor']} ({vem['employee']})", True,
+      has("forensic.vendor_employee_match", vem["employee"], vem["vendor"])
+      if ran("forensic.vendor_employee_match") else NOT_IN)
+    c("vendors matching an employee (leads)", 1,
+      len(fnd.get("forensic.vendor_employee_match", []))
+      if ran("forensic.vendor_employee_match") else NOT_IN)
     # Unpaid Bills against the trial balance's A/P account (no General Ledger
     # export): the tie reports a finding carrying the difference when it is
     # off by more than a cent, and nothing when it agrees.

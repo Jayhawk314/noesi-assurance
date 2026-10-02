@@ -185,15 +185,15 @@
     "item": "transactions in the Journal",
     "status": "match",
     "why": "",
-    "key": "461",
-    "noesi": "461"
+    "key": "467",
+    "noesi": "467"
    },
    {
     "item": "lines in the Journal",
     "status": "match",
     "why": "",
-    "key": "1006",
-    "noesi": "1006"
+    "key": "1018",
+    "noesi": "1018"
    },
    {
     "item": "posted after period end: entries",
@@ -213,8 +213,8 @@
     "item": "round amount: entries",
     "status": "match",
     "why": "",
-    "key": "2025-10-01 Check 4039 First Prairie Bank, 2026-03-14 Journal Entry 1047, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Transfer (no num)",
-    "noesi": "2025-10-01 check 4039 first prairie bank, 2026-03-14 journal entry 1047, 2026-06-30 deposit (no num) checking, 2026-06-30 transfer (no num)"
+    "key": "2025-10-01 Check 4306 First Prairie Bank, 2026-03-14 Journal Entry 1047, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Transfer (no num)",
+    "noesi": "2025-10-01 check 4306 first prairie bank, 2026-03-14 journal entry 1047, 2026-06-30 deposit (no num) checking, 2026-06-30 transfer (no num)"
    },
    {
     "item": "unauthorized user: entries",
@@ -227,15 +227,15 @@
     "item": "seldom used account: entries",
     "status": "match",
     "why": "",
-    "key": "2025-07-01 Journal Entry 1000, 2025-08-12 Check 4014 Rocky Mountain Racking, 2025-10-01 Check 4039 First Prairie Bank, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Journal Entry 1063, 2026-06-30 Journal Entry 1064, 2026-06-30 Journal Entry 1065",
-    "noesi": "2025-07-01 journal entry 1000, 2025-08-12 check 4014 rocky mountain racking, 2025-10-01 check 4039 first prairie bank, 2026-06-30 deposit (no num) checking, 2026-06-30 journal entry 1063, 2026-06-30 journal entry 1064, 2026-06-30 journal entry 1065"
+    "key": "2025-07-01 Journal Entry 1000, 2025-08-12 Check 4280 Rocky Mountain Racking, 2025-10-01 Check 4306 First Prairie Bank, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Journal Entry 1063, 2026-06-30 Journal Entry 1064, 2026-06-30 Journal Entry 1065",
+    "noesi": "2025-07-01 journal entry 1000, 2025-08-12 check 4280 rocky mountain racking, 2025-10-01 check 4306 first prairie bank, 2026-06-30 deposit (no num) checking, 2026-06-30 journal entry 1063, 2026-06-30 journal entry 1064, 2026-06-30 journal entry 1065"
    },
    {
     "item": "no description: count",
     "status": "match",
     "why": "",
-    "key": "177",
-    "noesi": "177"
+    "key": "180",
+    "noesi": "180"
    },
    {
     "item": "manual entries without a description",
@@ -399,8 +399,8 @@
     "item": "vendors",
     "status": "match",
     "why": "",
-    "key": "16",
-    "noesi": "16"
+    "key": "17",
+    "noesi": "17"
    },
    {
     "item": "vendor twins",
@@ -413,8 +413,8 @@
     "item": "bills (loaded + set aside)",
     "status": "match",
     "why": "",
-    "key": "102",
-    "noesi": "102"
+    "key": "105",
+    "noesi": "105"
    },
    {
     "item": "bills without a number (set aside at load)",
@@ -427,8 +427,8 @@
     "item": "bill payments",
     "status": "match",
     "why": "",
-    "key": "115",
-    "noesi": "115"
+    "key": "118",
+    "noesi": "118"
    },
    {
     "item": "bill payments total",
@@ -471,6 +471,41 @@
     "why": "",
     "key": "4500.00",
     "noesi": "4500.00"
+   },
+   {
+    "item": "check sequence: first to last check",
+    "status": "match",
+    "why": "",
+    "key": "4267-4433",
+    "noesi": "4267-4433"
+   },
+   {
+    "item": "check sequence: the one gap, checks 4422-4424",
+    "status": "match",
+    "why": "",
+    "key": "4422-4424",
+    "noesi": "4422-4424"
+   },
+   {
+    "item": "check sequence: reused numbers",
+    "status": "match",
+    "why": "",
+    "key": "0",
+    "noesi": "0"
+   },
+   {
+    "item": "vendor named after an employee: Owen Pike Hauling (E08)",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "vendors matching an employee (leads)",
+    "status": "match",
+    "why": "",
+    "key": "1",
+    "noesi": "1"
    },
    {
     "item": "A/P subledger (Unpaid Bills total)",
@@ -1640,6 +1675,14 @@
      "amount": "1284.33"
     }
    ],
+   "vendor_employee_match": {
+    "vendor": "Owen Pike Hauling",
+    "employee": "E08",
+    "employee_name": "Owen Pike",
+    "field": "name",
+    "paid": "5925.00",
+    "not_compared": "bank account, phone, tax ID: the Vendor Contact List carries no bank account or tax ID, and the employee master no phone or tax ID"
+   },
    "split_bills": {
     "vendor": "Hyalite Fabrication",
     "approval_limit": "2500.00",
@@ -1669,7 +1712,7 @@
     "end": "2026-06-30"
    },
    "vendors": {
-    "count": 16,
+    "count": 17,
     "twins": [
      [
       "Moraine Cycle Components",
@@ -1679,11 +1722,11 @@
     ]
    },
    "bills": {
-    "count": 102,
+    "count": 105,
     "total": "3330775.30"
    },
    "bill_payments": {
-    "count": 115,
+    "count": 118,
     "total": "3285040.78"
    },
    "ap_subledger_to_ledger": {
@@ -1703,8 +1746,8 @@
    },
    "segregation_of_duties": "not testable: the exports carry no approver",
    "journal": {
-    "transactions": 461,
-    "lines": 1006,
+    "transactions": 467,
+    "lines": 1018,
     "entry_identity": "(date, transaction type, num, name): Num alone is not unique and is blank for deposits, transfers and payroll"
    },
    "je_testing_policies": {
@@ -1731,7 +1774,7 @@
     "round_amount": {
      "count": 4,
      "entries": [
-      "2025-10-01 Check 4039 First Prairie Bank",
+      "2025-10-01 Check 4306 First Prairie Bank",
       "2026-03-14 Journal Entry 1047",
       "2026-06-30 Deposit (no num) Checking",
       "2026-06-30 Transfer (no num)"
@@ -1747,8 +1790,8 @@
      "count": 7,
      "entries": [
       "2025-07-01 Journal Entry 1000",
-      "2025-08-12 Check 4014 Rocky Mountain Racking",
-      "2025-10-01 Check 4039 First Prairie Bank",
+      "2025-08-12 Check 4280 Rocky Mountain Racking",
+      "2025-10-01 Check 4306 First Prairie Bank",
       "2026-06-30 Deposit (no num) Checking",
       "2026-06-30 Journal Entry 1063",
       "2026-06-30 Journal Entry 1064",
@@ -1756,20 +1799,20 @@
      ]
     },
     "no_description": {
-     "count": 177,
+     "count": 180,
      "entries": [
       "2025-07-07 Invoice 88001 Basalt Ridge Bike Co.",
       "2025-07-09 Invoice 88002 Bitterroot Wheelworks",
       "2025-07-14 Invoice 88003 Cottonwood Spokes",
-      "2025-07-18 Bill Payment (Check) 4002 Alder & Finch CPAs",
-      "2025-07-18 Bill Payment (Check) 4003 Big Hole Insurance",
-      "2025-07-18 Bill Payment (Check) 4004 Big Timber Office Supply",
-      "2025-07-18 Bill Payment (Check) 4005 Granite Peak Properties",
-      "2025-07-18 Bill Payment (Check) 4006 Kinetic Drivetrain Co.",
-      "2025-07-18 Bill Payment (Check) 4007 Moraine Cycle Components",
-      "2025-07-18 Bill Payment (Check) 4008 Northwestern Energy",
-      "2025-07-18 Bill Payment (Check) 4009 Summit Tire Import",
-      "2025-07-18 Bill Payment (Check) 4010 Velo Freight Lines",
+      "2025-07-18 Bill Payment (Check) 4268 Alder & Finch CPAs",
+      "2025-07-18 Bill Payment (Check) 4269 Big Hole Insurance",
+      "2025-07-18 Bill Payment (Check) 4270 Big Timber Office Supply",
+      "2025-07-18 Bill Payment (Check) 4271 Granite Peak Properties",
+      "2025-07-18 Bill Payment (Check) 4272 Kinetic Drivetrain Co.",
+      "2025-07-18 Bill Payment (Check) 4273 Moraine Cycle Components",
+      "2025-07-18 Bill Payment (Check) 4274 Northwestern Energy",
+      "2025-07-18 Bill Payment (Check) 4275 Summit Tire Import",
+      "2025-07-18 Bill Payment (Check) 4276 Velo Freight Lines",
       "2025-07-21 Invoice 88004 Flathead Pedalworks",
       "2025-07-24 Invoice 88005 Grizzly Trail Outfitters",
       "2025-08-04 Invoice 88006 Crazy Mountain Cycles",
@@ -1980,6 +2023,26 @@
      "check": "4433",
      "amount": "6100.00",
      "why": "June freight paid in July, not in June AP"
+    }
+   },
+   "forensic": {
+    "check_number_sequence": {
+     "disbursements": {
+      "bank_account": "10100 Checking - First Prairie",
+      "first": 4267,
+      "last": 4433,
+      "distinct_checks": 164,
+      "gaps": [
+       {
+        "first_missing": 4422,
+        "last_missing": 4424,
+        "count": 3
+       }
+      ],
+      "reused_numbers": 0
+     },
+     "payroll": "no numbered run: QuickBooks payroll checks carry no number and the payroll register lists direct-deposit references",
+     "planted": "checks 4422-4424 are not in QuickBooks: the client cannot produce them; the auditor must account for them (voided checks, or the bank's paid-check images for June and July)"
     }
    },
    "representation_letter": {

@@ -236,6 +236,16 @@ accident (4142-4390 and short runs after 4390); the case's numbering must be
 made sequential, keeping every check number the key names, before a
 planted gap means anything. Plant with it: one vendor matching an employee
 by bank account, and the E3 schemes below.
+**Kestrel lines done 2 Oct 2026 (Claude, local, not reviewed by a second
+agent):** checks renumbered 4267–4433 without a break (June 4411–4426;
+4421, 4425, 4429, 4433 kept; four routine July checks added), one planted
+gap 4422–4424; a vendor named after employee E08, Owen Pike Hauling
+(5,925.00, freight budget moved from Velo, trial balances unchanged). **By
+name, not bank account:** QuickBooks' Vendor Contact List carries no bank
+account, so a bank-account match cannot come from Kestrel's exports. Key
+lines in answer_key_part3.json `forensic` and answer_key_payables.json
+`vendor_employee_match`; check_key.py re-derives both from the files
+(21/21); five new finish-line lines all match (167/169, 0 unexplained).
 
 ### E. Close-out
 - E1. Push to GitHub (James approves).
@@ -290,6 +300,11 @@ scripts first, James approves scripts and credits before voicing.
   still call the signing key and the lock removed in D9 stage 2, so they do
   not run; the Workbench's Oceanview loader (load_workbench.py) was fixed.
 - Studio's Harborline lessons still teach chairs, locks and concurrence.
+- apps/learn-kestrel-streamlit/learn.html is a built page that still shows
+  Kestrel's old June check numbers (renumbered 2 Oct); rebuild it if that
+  app is kept.
+- Regenerating Kestrel rewrites six .xlsx files with identical cell values
+  but different bytes (openpyxl version); harmless, seen 2 Oct.
 
 ## Rules
 - Never fit the engine to a case; test fixes on invented data.

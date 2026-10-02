@@ -112,8 +112,10 @@ Against the cutoff statement (07/01–07/15):
   fictitious?).
 - **Check 4425:** 1,780.00 on the reconciliation, cleared at **1,870.00**. The
   books are off by **90.00**.
-- Check 4412, check 4418, check 4427 and the 40,000 transfer each clear at
-  their listed amounts.
+- Check 4418, check 4420, check 4426 and the 40,000 transfer each clear at
+  their listed amounts. (June's checks were renumbered 4411–4426 on 2 Oct
+  2026 so the check sequence runs without accidental gaps; 4421 and 4425
+  kept their numbers.)
 - Deposit **12,650.00** cleared 07/07, 7 days after year end, over the 3-day
   policy. Deposit 4,318.75 cleared 07/01.
 

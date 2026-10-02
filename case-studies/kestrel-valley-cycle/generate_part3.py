@@ -74,8 +74,20 @@ def subsequent_period(key):
     tx = [  # date, type, num, name, memo, lines, created
         (date(2026, 7, 1), "Transfer", "", "", "Payroll funding",
          [("10200", m("40000")), ("10100", -m("40000"))], date(2026, 7, 1)),
+        # July's checks run on from June's (4426) without a break (roadmap
+        # D10): 4427, 4428, 4430 and 4432 are routine July payments, under the
+        # subsequent-events threshold and not cleared by the 07/15 cutoff.
+        (date(2026, 7, 1), "Check", "4427", "Members", "Member distribution",
+         [("31000", m("7500")), ("10100", -m("7500"))], date(2026, 7, 1)),
+        (date(2026, 7, 1), "Check", "4428", "Hyalite Fabrication", "Display fixture repair",
+         [("67000", m("640")), ("10100", -m("640"))], date(2026, 7, 1)),
         (date(2026, 7, 1), "Check", "4429", "Payroll Checking", "Transfer to payroll",
          [("10900", m("25000")), ("10100", -m("25000"))], date(2026, 7, 1)),
+        (date(2026, 7, 9), "Check", "4430", "Velo Freight Lines", "July freight (VF-0709)",
+         [("66000", m("1320")), ("10100", -m("1320"))], date(2026, 7, 9)),
+        (date(2026, 7, 13), "Check", "4432", "Tri-County Tool Rental",
+         "Delivery equipment rental, July",
+         [("66000", m("1150")), ("10100", -m("1150"))], date(2026, 7, 13)),
         (date(2026, 7, 8), "Journal Entry", "1071", "Cycle Tech Legal",
          "Settle distributor dispute (claim from March 2026)",
          [("68000", m("30000")), ("20000", -m("30000"))], date(2026, 7, 8)),
@@ -105,6 +117,44 @@ def subsequent_period(key):
             "deposits 33,580.90 and 27,904.15: customer receipts (routine)"],
         "unrecorded_liability": {"check": "4433", "amount": "6100.00",
                                  "why": "June freight paid in July, not in June AP"}}
+    return entered
+
+
+def check_sequence(key, july):
+    """The year's checks and July's, numbered run by run, in plain logic.
+
+    A check is a Check or Bill Payment (Check) transaction; its bank is the
+    account it credits (10100 for every Kestrel check). Payroll checks carry
+    no number in QuickBooks, and the payroll register lists direct-deposit
+    references, so payroll has no numbered run to test."""
+    from generate_payables import build
+    book = build()[0]
+    runs: dict[str, dict[int, set]] = {}
+    for t in book.tx + july:
+        if t["type"] not in ("Check", "Bill Payment (Check)") or not str(t["num"]).isdigit():
+            continue
+        bank = next(n for n, a in t["lines"] if a < 0)
+        runs.setdefault(bank, {}).setdefault(int(t["num"]), set()).add(
+            (t["name"], t["date"]))
+    assert list(runs) == ["10100"], list(runs)
+    numbers = sorted(runs["10100"])
+    gaps = [{"first_missing": lo + 1, "last_missing": hi - 1, "count": hi - lo - 1}
+            for lo, hi in zip(numbers, numbers[1:]) if hi - lo > 1]
+    reused = [n for n in numbers if len(runs["10100"][n]) > 1]
+    assert gaps == [{"first_missing": 4422, "last_missing": 4424, "count": 3}], gaps
+    assert not reused, reused
+    key["forensic"] = {
+        "check_number_sequence": {
+            "disbursements": {"bank_account": "10100 Checking - First Prairie",
+                              "first": numbers[0], "last": numbers[-1],
+                              "distinct_checks": len(numbers), "gaps": gaps,
+                              "reused_numbers": len(reused)},
+            "payroll": "no numbered run: QuickBooks payroll checks carry no number and "
+                       "the payroll register lists direct-deposit references",
+            "planted": "checks 4422-4424 are not in QuickBooks: the client cannot "
+                       "produce them; the auditor must account for them (voided "
+                       "checks, or the bank's paid-check images for June and July)"},
+    }
 
 
 def representation_letter(key):
@@ -191,7 +241,8 @@ def main():
                         "gc_current_ratio_floor": "1.20"}}
     estimates(key)
     related_parties(key)
-    subsequent_period(key)
+    july = subsequent_period(key)
+    check_sequence(key, july)
     representation_letter(key)
     final_misstatements(key)
     going_concern(key)

@@ -90,8 +90,15 @@ def main() -> None:
     register = table("client/payroll_register_FY2026.csv")
     master = table("client/employee_master.csv")
     e16 = [r for r in register if r["Employee ID"] == "E16"]
+    # The duplicated invoice MC-25009, its PO (1009), and the payment of each
+    # bill: Moraine's 3/18 check and the look-alike vendor's 4/2 check. Found
+    # by date, since check numbers moved when the case's checks were made
+    # sequential (roadmap D10, 2 Oct 2026).
     moraine = [t for t in tlbv if t["vendor"].startswith("Moraine")
-               and ("25009" in str(t["num"]) or t["num"] in ("1009", "4110", "4117"))]
+               and ("25009" in str(t["num"]) or t["num"] == "1009"
+                    or (t["type"].startswith("Bill Payment")
+                        and t["date"] in ("03/18/2026", "04/02/2026")))]
+    assert sum(t["type"].startswith("Bill Payment") for t in moraine) == 2, moraine
     records = {
         "source": "Kestrel case files (case-studies/kestrel-valley-cycle/data); do not edit, "
                   "re-run scripts/export_records.py",

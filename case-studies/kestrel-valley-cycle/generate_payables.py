@@ -100,6 +100,15 @@ VENDORS = [  # name, phone, email, contact, address, account #
      "1 Main St Bozeman MT 59715", "LOC-2208"),
     ("Rocky Mountain Racking", "", "", "", "88 Gold Ave Billings MT 59101", ""),
     ("Idaho State Tax Commission", "", "", "", "PO Box 36 Boise ID 83722", ""),
+    # Planted (roadmap D10): a vendor named after warehouse employee Owen Pike
+    # (E08 in part 2's employee master). QuickBooks' Vendor Contact List
+    # carries no bank account, so the match the export allows is the name.
+    ("Owen Pike Hauling", "", "", "", "PO Box 412 Bozeman MT 59771", ""),
+]
+PIKE_BILLS = [  # date, num, amount: freight hauling, paid two weeks later
+    (date(2025, 9, 9), "OPH-101", m("1850.00")),
+    (date(2026, 1, 13), "OPH-102", m("2100.00")),
+    (date(2026, 4, 14), "OPH-103", m("1975.00")),
 ]
 DM_HOME = "414 S Willson Ave Bozeman MT 59715"   # Dana Merritt's home (part 2 payroll)
 
@@ -201,8 +210,18 @@ def build():
                   "13000", "Annual liability and property premium"))
     manual_reclass = m("612.00")
     tool_rental = m("3100.00")
-    monthly("Velo Freight Lines", "66000", act["66000"] - manual_reclass - tool_rental, 20,
+    pike = sum(a for *_, a in PIKE_BILLS)
+    monthly("Velo Freight Lines", "66000",
+            act["66000"] - manual_reclass - tool_rental - pike, 20,
             "Freight out", "VF-{i:03d}")
+    for when, num, amount in PIKE_BILLS:
+        bills.append(("Owen Pike Hauling", when, num, amount, "66000", "Freight hauling"))
+    key["vendor_employee_match"] = {
+        "vendor": "Owen Pike Hauling", "employee": "E08", "employee_name": "Owen Pike",
+        "field": "name", "paid": str(pike),
+        "not_compared": "bank account, phone, tax ID: the Vendor Contact List "
+                        "carries no bank account or tax ID, and the employee master "
+                        "no phone or tax ID"}
     # tool rental (the uncleared June check 4421) is delivery equipment: freight
     split = [m("2450.00"), m("2475.00"), m("2400.00")]
     monthly("Big Timber Office Supply", "67000",
@@ -265,6 +284,10 @@ def build():
         if vendor in ("Hyalite Fabrication",):
             for d, amount in zip((14, 14, 14), split):
                 payments.append((vendor, date(2025, 11, d), None, amount))
+            continue
+        if vendor == "Owen Pike Hauling":
+            for when, _num, amount in PIKE_BILLS:
+                payments.append((vendor, when + timedelta(days=14), None, amount))
             continue
         if vendor == "Moraine Cycle Components, Inc.":
             payments.append((vendor, workday(2026, 4, 2), None, duplicate))
@@ -385,7 +408,7 @@ def build():
     for (y, mo), amount in zip(MONTHS[:11], spread(interest - june_interest, [1] * 11)):
         b.add(workday(y, mo, 24), "Check", None, "First Prairie Bank",
               "Line of credit interest", [("69000", amount), ("10100", -amount)])
-    b.add(date(2026, 6, 24), "Check", "4410", "First Prairie Bank",
+    b.add(date(2026, 6, 24), "Check", "4419", "First Prairie Bank",
           "Line of credit interest", [("69000", june_interest), ("10100", -june_interest)])
     b.add(workday(2025, 10, 1), "Check", None, "First Prairie Bank",
           "Line of credit principal", [("23000", act["23000"]), ("10100", -act["23000"])])
@@ -407,14 +430,20 @@ def build():
     return b, key, act, bills, payments, begin_ap, end_ap
 
 
+JUNE_FIRST_CHECK = 4411   # the reconciliation's first June check (generate.py)
+
+
 def number_checks(b: Book):
-    """Checks written before June carry numbers in date order below June's
-    first reconciled check (4391); June's keep the reconciliation's numbers."""
+    """Checks written before June carry numbers in date order, ending just
+    below June's first reconciled check (4411), so the year's checks run
+    without a break; June's keep the reconciliation's numbers. The only gap
+    is the planted one, 4422-4424 (roadmap D10, 2 Oct 2026)."""
     pending = sorted((t for t in b.tx if t["num"] is None),
                      key=lambda t: (t["date"], t["name"]))
-    for n, t in enumerate(pending, start=4001):
+    first = JUNE_FIRST_CHECK - len(pending)
+    for n, t in enumerate(pending, start=first):
         t["num"] = str(n)
-    assert 4001 + len(pending) <= 4391, len(pending)
+    assert first > 4000, first
     assert all(t["date"] < date(2026, 6, 1) for t in pending)
 
 

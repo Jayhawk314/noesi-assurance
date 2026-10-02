@@ -155,6 +155,10 @@ Planted items:
 - 4,500 in checks to DM Consulting with no bills; the vendor's address is
   the bookkeeper's home address.
 - Two utility bills with no invoice number.
+- A vendor named after an employee: **Owen Pike Hauling** (5,925.00 for
+  freight hauling over three bills), where Owen Pike is warehouse employee
+  E08. The Vendor Contact List carries no bank account or tax ID, so the
+  name is the only match the exports allow.
 - A bill 12% over its purchase order.
 - Check 4425 keyed 90 short, leaving 90 open.
 - Journal entries:
@@ -227,6 +231,12 @@ Planted items:
 - The final misstatements total 15,650.37 on current assets, above
   materiality.
 - The current ratio is below 1.20, and the covenant is breached.
+- **The check sequence** (both Journals, checking account 10100) runs
+  4267–4433 with one gap: **checks 4422–4424 are not in QuickBooks**, and
+  the client cannot produce them. Nothing else is missing or reused. (On
+  2 Oct 2026 the checks were renumbered to remove 16 gaps the generator had
+  left by accident; the numbers the key names, 4421, 4425, 4429 and 4433,
+  were kept. July's 4427, 4428, 4430 and 4432 are routine.)
 
 The expected draft opinion is a **disclaimer**: the missing representation
 takes precedence. The partner still has to decide pervasiveness and record a

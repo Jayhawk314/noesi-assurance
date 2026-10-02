@@ -25,9 +25,12 @@ def test_the_journal_recipe_keeps_same_day_unnumbered_deposits_separate():
     _, rows, _, report = qb.apply("qbo.journal_created.journal_entries", headers, rows,
                                   extraction["header_row"] + 1)
     assert report["totals_disagreeing"] == []
+    import json
+    journal = json.loads((CASE / "instructor" / "answer_key_payables.json")
+                         .read_text(encoding="utf-8"))["journal"]
     entry_ids = {row["Entry"] for row in rows}
-    assert len(entry_ids) == 461 and len(rows) == 1006
-    assert sum(row["Line"] == "1" for row in rows) == 461
+    assert len(entry_ids) == journal["transactions"] and len(rows) == journal["lines"]
+    assert sum(row["Line"] == "1" for row in rows) == journal["transactions"]
     deposits = sorted(e for e in entry_ids if e.startswith("2026-06-30 Deposit (no num) [txn"))
     assert len(deposits) == 2
 

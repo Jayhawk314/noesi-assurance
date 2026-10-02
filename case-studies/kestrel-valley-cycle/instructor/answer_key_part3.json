@@ -72,6 +72,26 @@
       "why": "June freight paid in July, not in June AP"
     }
   },
+  "forensic": {
+    "check_number_sequence": {
+      "disbursements": {
+        "bank_account": "10100 Checking - First Prairie",
+        "first": 4267,
+        "last": 4433,
+        "distinct_checks": 164,
+        "gaps": [
+          {
+            "first_missing": 4422,
+            "last_missing": 4424,
+            "count": 3
+          }
+        ],
+        "reused_numbers": 0
+      },
+      "payroll": "no numbered run: QuickBooks payroll checks carry no number and the payroll register lists direct-deposit references",
+      "planted": "checks 4422-4424 are not in QuickBooks: the client cannot produce them; the auditor must account for them (voided checks, or the bank's paid-check images for June and July)"
+    }
+  },
   "representation_letter": {
     "rep_signers": "Jo Kestrel",
     "missing": [
