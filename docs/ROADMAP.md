@@ -161,13 +161,42 @@ supplement. Build only what tests client data or shows what the tests found
 and could not test. No sign-offs, signatures, approval or file-management
 features.**
 
+### D9. Remove the approval features (James decided 1 Oct 2026: remove)
+The supplement rule above. Three stages, each finished, tested and checked
+against the finish line before the next:
+1. Run review/approve (`review_run`, run statuses reviewed/approved),
+   disposition and risk concurrence (`concur_disposition`, `concur_risk`,
+   `requires_concurrence`), and "mark done" on stages and completion checks:
+   out of the service, API and screens. Who ran each test, and when, stays
+   on record. The lock's readiness gates that read them go too.
+2. The signed lock, unlock and signed packet (`lock`, `unlock`,
+   `verify_lock`, `_require_unlocked` everywhere): removed. The engagement
+   record stays downloadable, unsigned. Evidence digests (files and
+   datasets) stay: they prove the data, not a sign-off.
+3. Chairs: one user per engagement. `assign_team`, the X-Acting-Principal
+   switcher and role checks go; proposing and approving a mapping become one
+   "confirm mapping" step (checking the columns map right is a data check,
+   not a sign-off). About 52 test files assign chairs and 34 approve
+   mappings. The finish-line line "team: partner, preparer, reviewer" and
+   Learn module 1's "three chairs" section are reworded with it.
+
+### D10. Forensic tests (James decided 1 Oct 2026: all three, extend the key)
+Done 1 Oct (c13ba96): `forensic.check_number_sequence`,
+`forensic.vendor_employee_match`, `forensic.benford_first_digit`, general to
+any client, tested on invented data. Open: Kestrel's key lines for them.
+Kestrel's Journal numbers its checks with 16 gaps the generator left by
+accident (4142-4390 and short runs after 4390); the case's numbering must be
+made sequential, keeping every check number the key names, before a
+planted gap means anything. Plant with it: one vendor matching an employee
+by bank account, and the E3 schemes below.
+
 ### E. Close-out
 - E1. Push to GitHub (James approves).
 - E2. James works Oceanview by hand in his Workbench (loaded 2026-09-29);
   anything he hits goes to the private friction log, then to section B.
-- E3. Decide the fraud lessons Kestrel cannot teach (self-approved payments,
-  round-tripped money): add those schemes to Kestrel, or keep those lessons
-  on Harborline.
+- E3. Decided 1 Oct 2026: add both schemes (self-approved payments,
+  round-tripped money) to Kestrel, the public case, with key lines. Not
+  started; do with D10's Kestrel work.
 
 **Order:** A and B now (no outside dependency) → D1-D4 → E1 → C when exports arrive
 → E2/E3 alongside. Phase 1 is done when A, B, C and E are done.
