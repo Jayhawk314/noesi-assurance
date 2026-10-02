@@ -2417,15 +2417,16 @@ class WorkbenchService:
             if not recipe_id:
                 return headers, rows, resolved, None
             recipe = quickbooks.get(str(recipe_id))
-            version = extraction.get("recipe_version") or quickbooks.RECIPE_VERSION
-            if version != quickbooks.RECIPE_VERSION:
+            version = extraction.get("recipe_version") or recipe.version
+            if version != recipe.version:
                 raise ValueError(
-                    f"this spec was read with recipe version {version!r}; "
-                    f"this build has {quickbooks.RECIPE_VERSION!r}")
+                    f"this spec was read with {recipe.report} recipe version "
+                    f"{version!r}; this build reads it as {recipe.version!r}. "
+                    f"Propose and approve the file again")
             headers, rows, source_rows, report = quickbooks.apply(
                 recipe.recipe_id, headers, rows, resolved["header_row"] + 1)
             resolved.update(recipe=recipe.recipe_id,
-                            recipe_version=quickbooks.RECIPE_VERSION,
+                            recipe_version=recipe.version,
                             recipe_report=report)
             return headers, rows, resolved, source_rows
         if (extraction or {}).get("recipe"):
@@ -2637,7 +2638,7 @@ class WorkbenchService:
             writer.writerow([item[c] for c in columns])
         provenance = json.dumps({
             "prepared_by": "noesi build_trial_balance",
-            "recipe": TB_RECIPE, "recipe_version": quickbooks.RECIPE_VERSION,
+            "recipe": TB_RECIPE, "recipe_version": quickbooks.get(TB_RECIPE).version,
             **{side: {"artifact_id": r["book"]["artifact_id"],
                       "sha256": r["book"]["sha256"], "as_of": r["as_of"],
                       "grand_total": r["report"]["grand_total"]}

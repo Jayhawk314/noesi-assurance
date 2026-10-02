@@ -360,3 +360,21 @@ def test_a_february_year_end_compares_with_the_last_day_of_february():
     assert _year_before("2024-02-29") == "2023-02-28"
     assert _year_before("2026-06-30") == "2025-06-30"
     assert _year_before("2026-06-15") == "2025-06-15"
+
+
+def test_a_blank_total_cell_is_zero_and_a_blank_row_is_refused_with_both_readings():
+    # Review L5: a blank TOTAL cell is zero, not a disagreement; a row with
+    # only a name is refused, and the message names both things it could be.
+    blank_total = _edited(AGING, {"E8": None})
+    _, _, _, report = _flatten(blank_total, "qbo.ar_aging_summary.ar_listing")
+    assert report["totals_disagreeing"] == []
+    nothing = _edited(INVENTORY, {"A8": "Retired Part", "C8": None, "D8": None,
+                                  "E8": None, "A9": "TOTAL", "C9": 95, "D9": 3665,
+                                  "E9": 38.58})
+    with pytest.raises(qb.RecipeError, match="nested heading .* or an item with every cell blank"):
+        _flatten(nothing, "qbo.inventory_valuation_summary.inventory_listing")
+    # A real category heading, closed by its total, is still refused.
+    category = _edited(INVENTORY, {"A6": "Tires", "B6": None, "C6": None, "D6": None,
+                                   "E6": None, "A7": "Total for Tires", "A8": "TOTAL"})
+    with pytest.raises(qb.RecipeError, match="nested heading"):
+        _flatten(category, "qbo.inventory_valuation_summary.inventory_listing")

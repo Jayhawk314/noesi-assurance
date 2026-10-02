@@ -92,6 +92,9 @@ class Recipe:
     row_total: tuple[str, tuple[str, ...]] | None = None   # per-row footing check
     derive: str = ""                # columns computed from the as-exported ones
     blank_amounts: bool = False     # a blank amount is zero (debit/credit columns)
+    # Changes when this recipe's reading of a file changes, so a spec approved
+    # under the old reading is refused, not silently re-read.
+    version: str = RECIPE_VERSION
 
     @property
     def grouped(self) -> bool:
@@ -195,7 +198,7 @@ RECIPES: dict[str, Recipe] = {r.recipe_id: r for r in (
              "Payable. " + _NO_BILL_NUMBER),
     Recipe(
         recipe_id="qbo.vendor_contact_list.vendors", report="Vendor Contact List",
-        role="Vendors",
+        role="Vendors", version="qbo-v2",   # v2: a row with values but no Vendor is refused
         headers=("Vendor", "Phone numbers", "Email", "Full name",
                  "Billing address", "Account #"),
         column_map={"vendor_number": "Vendor", "vendor_name": "Vendor",
@@ -397,7 +400,7 @@ def apply(recipe_id: str, headers: list[str], records: list[dict],
     if recipe.derive:
         out_headers, kept = _DERIVE[recipe.derive](out_headers, kept, source_rows)
     report = {
-        "recipe": recipe.recipe_id, "version": RECIPE_VERSION,
+        "recipe": recipe.recipe_id, "version": recipe.version,
         "report": recipe.report, "role": recipe.role,
         "rows_kept": len(kept),
         "subtotals_checked": len(subtotals),
@@ -440,13 +443,21 @@ def _apply_flat(recipe: Recipe, headers: list[str], records: list[dict],
             raise RecipeError(f"{where}: rows continue after the grand TOTAL")
         if recipe.totals and first == "TOTAL":
             grand_totals = [_check("TOTAL", c, sheet_row, grand[c],
-                                   parse_decimal(raw.get(c)))
+                                   parse_decimal(raw.get(c))
+                                   if (raw.get(c) or "").strip() else Decimal("0"))
                             for c in recipe.amount_columns]
             continue
-        if first.startswith("Total for ") or (label_col and first and not filled):
+        if first.startswith("Total for "):
             raise RecipeError(
-                f"{where}: {first!r} is a nested heading or subtotal; this "
-                f"{recipe.report} layout (sub-items or categories) is not read yet")
+                f"{where}: {first!r} is a subtotal; this {recipe.report} layout "
+                f"(sub-items or categories) is not read yet")
+        if label_col and first and not filled:
+            # Not guessed either way: a category heading would be misread as
+            # an item, and no export seen prints an item with every cell blank.
+            raise RecipeError(
+                f"{where}: {first!r} has no values: a nested heading (sub-items or "
+                f"categories, not read yet) or an item with every cell blank. If it "
+                f"is an item, enter 0 in its amounts and export again")
         if not first:
             raise RecipeError(f"{where}: a row with values but no "
                               f"{label_col or detail[0]}")
@@ -469,7 +480,7 @@ def _apply_flat(recipe: Recipe, headers: list[str], records: list[dict],
     out_headers = ([label_col] if label_col else []) + detail
     if recipe.derive:
         out_headers, kept = _DERIVE[recipe.derive](out_headers, kept, source_rows)
-    report = {"recipe": recipe.recipe_id, "version": RECIPE_VERSION,
+    report = {"recipe": recipe.recipe_id, "version": recipe.version,
               "report": recipe.report, "role": recipe.role,
               "rows_kept": len(kept), "subtotals_checked": 0,
               "rows_footed": len(row_checks),

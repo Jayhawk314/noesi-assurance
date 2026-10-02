@@ -429,3 +429,18 @@ def test_one_stored_report_feeds_several_roles_once_each(service):
     assert {r["role"] for r in first["results"]} == {"Vouchers", "Purchase_orders"}
     again = svc.propose_source_mappings(PREPARER, eid, items)
     assert [r["status"] for r in again["results"]] == ["skipped", "skipped"]
+
+
+def test_a_vendor_list_approved_under_the_old_reading_is_refused(service):
+    # Review L1: the vendor list's reading changed (a row with values but no
+    # Vendor is now refused), so its recipe version moved; other recipes kept theirs.
+    svc, eid = service
+    assert qb.get("qbo.vendor_contact_list.vendors").version == "qbo-v2"
+    assert qb.get("qbo.unpaid_bills.vouchers").version == qb.RECIPE_VERSION
+    artifact = svc.store_source(PREPARER, eid, content=CONTACTS, media_type=XLSX_TYPE,
+                                original_name="Vendor Contact List.xlsx")
+    with pytest.raises(ValueError, match="recipe version 'qbo-v1'.*'qbo-v2'"):
+        svc.propose_source_mapping(
+            PREPARER, eid, role="Vendors", artifact_id=artifact["artifact_id"],
+            extraction={"recipe": "qbo.vendor_contact_list.vendors",
+                        "recipe_version": "qbo-v1"})
