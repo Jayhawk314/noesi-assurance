@@ -317,3 +317,46 @@ def test_a_quickbooks_trial_balance_is_mapped_account_by_account(service):
     # A blank line removes that account's mapping.
     svc.update_workflow(PREPARER, eid, "line_mapping", {"accounts": {"10100": ""}})
     assert "10100" not in svc.trial_balance_lines(eid)["account_overrides"]
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("As of Jun 30, 2026", "2026-06-30"), ("As of Sept. 30, 2026", "2026-09-30"),
+    ("April-June, 2026", "2026-06-30"), ("July 2025-June 2026", "2026-06-30"),
+    ("August 2026", "2026-08-31"), ("July 1-24, 2026", "2026-07-24"),
+    ("January 1-September 23, 2026", "2026-09-23"), ("Mar 1-31, 2026", "2026-03-31"),
+    # Review L4: a whole month after a dated day ends the range; a date that
+    # cannot exist is unreadable, not an error that stops every other file.
+    ("Jan 1, 2026 - Mar 2026", "2026-03-31"), ("June 31, 2026", None),
+    ("As of 06/30/2026", None),
+])
+def test_the_last_date_a_period_line_names(text, expected):
+    assert qb.last_date(text) == expected
+
+
+def test_a_trial_balance_off_the_period_end_stays_in_view_on_coverage(service):
+    # Review L2: the note was shown once on the panel; coverage (read by the
+    # Coverage and Runs screens) now carries it while the file is in use.
+    svc, _ = service
+    eid = svc.create_engagement(PARTNER, "xx", "2025-12-31")["engagement_id"]
+    svc.assign_team(PARTNER, eid, PREPARER, "preparer")
+    svc.assign_team(PARTNER, eid, REVIEWER, "reviewer")
+    built = svc.build_trial_balance(PREPARER, eid,
+                                    current_artifact_id=_store(svc, eid, TB, "TB.xlsx"))
+    assert svc.coverage(eid)["source_notes"] == []     # built, not yet loaded
+    proposal = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+                                          artifact_id=built["artifact_id"])
+    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
+    svc.normalize_source(PREPARER, eid, proposal["spec_id"])
+    notes = svc.coverage(eid)["source_notes"]
+    assert [(n["role"], n["note"]) for n in notes] == [
+        ("Trial_balance", "this period's trial balance is as of '2026-06-30', "
+                          "not the engagement's period end 2025-12-31")]
+
+
+def test_a_february_year_end_compares_with_the_last_day_of_february():
+    # Review L3: 2025-02-28 and 2024-02-29 are each a year apart.
+    from assurance_application.service import _year_before
+    assert _year_before("2025-02-28") == "2024-02-29"
+    assert _year_before("2024-02-29") == "2023-02-28"
+    assert _year_before("2026-06-30") == "2025-06-30"
+    assert _year_before("2026-06-15") == "2025-06-15"

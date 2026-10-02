@@ -637,25 +637,32 @@ def last_date(text: str) -> str | None:
     A range's end day has no month of its own, so the nearest month named
     before it applies. A period of whole months names no day ("April-June,
     2026", "August 2026"): it ends on the last day of its last month.
+    A date that cannot exist ("June 31, 2026") gives None, as unreadable text does.
     """
     text = text or ""
     found = list(_PERIOD.finditer(text))
-    if not found:
-        whole = list(_WHOLE_MONTH.finditer(text))
-        if not whole:
+    # A whole month named after the last dated day ends the range:
+    # "Jan 1, 2026 - Mar 2026" ends 2026-03-31, not on January 1.
+    whole = [m for m in _WHOLE_MONTH.finditer(text)
+             if not found or m.start() >= found[-1].end()]
+    try:
+        if whole:
+            year, month = int(whole[-1].group(2)), _month_number(whole[-1].group(1))
+            following = date(year + month // 12, month % 12 + 1, 1)
+            return date.fromordinal(following.toordinal() - 1).isoformat()
+        if not found:
             return None
-        year, month = int(whole[-1].group(2)), _month_number(whole[-1].group(1))
-        following = date(year + month // 12, month % 12 + 1, 1)
-        return date.fromordinal(following.toordinal() - 1).isoformat()
-    match = found[-1]
-    month = match.group(1)
-    if month is None:
-        named = re.findall(_MONTHS, text[:match.start()])
-        if not named:
-            return None
-        month = named[-1]
-    return date(int(match.group(3)), _month_number(month),
-                int(match.group(2))).isoformat()
+        match = found[-1]
+        month = match.group(1)
+        if month is None:
+            named = re.findall(_MONTHS, text[:match.start()])
+            if not named:
+                return None
+            month = named[-1]
+        return date(int(match.group(3)), _month_number(month),
+                    int(match.group(2))).isoformat()
+    except ValueError:
+        return None
 
 
 def is_general_ledger(rows: list[list[str]]) -> bool:

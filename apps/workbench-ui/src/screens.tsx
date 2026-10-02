@@ -444,6 +444,19 @@ function PolicySetter({ policy, onSet }: {
   );
 }
 
+/** Notes recorded on a file in use, kept in view where procedures are chosen and run. */
+function SourceNotes({ notes }: { notes?: Coverage["source_notes"] }) {
+  if (!notes?.length) return null;
+  return (
+    <div className="error-bar">
+      Check the data in use before relying on these results:
+      <ul>
+        {notes.map((n, i) => <li key={i}>{n.role} ({n.file}): {n.note}</li>)}
+      </ul>
+    </div>
+  );
+}
+
 export function CoverageScreen({ client, eid, onError, clientName = "" }: ScreenProps) {
   const load = useCallback(async () => {
     const [coverage, workflow] = await Promise.all([
@@ -471,6 +484,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
   return (
     <>
       <h2>Procedure coverage</h2>
+      <SourceNotes notes={data.source_notes} />
       <p className="note">
         A procedure that cannot run, or that the audit does not need (for example
         the confirmation methods not chosen), is left out by the partner with a
@@ -728,6 +742,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
   return (
     <>
       <h2>Procedure runs</h2>
+      <SourceNotes notes={data?.coverage.source_notes} />
       <form className="inline"
             onSubmit={(e) => {
               e.preventDefault();

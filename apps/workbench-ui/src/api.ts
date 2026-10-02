@@ -183,6 +183,8 @@ export interface Coverage {
   procedures: CoverageRow[];
   summary: Record<string, number>;
   evidence_requests: EvidenceRequest[];
+  /** What a builder noted about a file in use (e.g. a trial balance not at period end). */
+  source_notes?: { role: string; file: string; note: string }[];
 }
 
 export interface Run {

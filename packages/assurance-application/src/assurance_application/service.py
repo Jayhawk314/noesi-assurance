@@ -739,7 +739,26 @@ class WorkbenchService:
                                     executors=cycle_engines.registered_procedures())
         # The auditor's choices (a procedure included or left out, and why)
         # apply here, so every screen and every caller sees the same audit.
-        return apply_selections(compiled, document.get("procedures") or {})
+        return {**apply_selections(compiled, document.get("procedures") or {}),
+                "source_notes": self._source_notes(engagement_id)}
+
+    def _source_notes(self, engagement_id: str) -> list[dict]:
+        """What a builder noted about a file now in use (a trial balance not
+        at the period end, a prior year not one year before), so it stays in
+        view wherever coverage is read, not only on the panel that built it."""
+        out = []
+        for role, states in self._role_states(engagement_id).items():
+            for dataset in states[-1][1]:
+                row = self._conn.execute(
+                    "SELECT original_name, provenance FROM artifact WHERE artifact_id = ?",
+                    (dataset["artifact_id"],)).fetchone()
+                try:
+                    notes = json.loads(row["provenance"] or "{}").get("notes") or []
+                except (TypeError, ValueError, AttributeError):
+                    notes = []
+                out.extend({"role": role, "file": row["original_name"], "note": str(n)}
+                           for n in notes)
+        return out
 
     # ---------------------------------------- screen 4: runs and findings
 
@@ -2603,7 +2622,7 @@ class WorkbenchService:
             if not (cur and pri and pri < cur):
                 raise ValueError(f"the prior trial balance ({pri or 'undated'}) must be "
                                  f"dated before this period's ({cur or 'undated'})")
-            expected = f"{int(cur[:4]) - 1}{cur[4:]}".replace("-02-29", "-02-28")
+            expected = _year_before(cur)
             if pri != expected:
                 notes.append(f"the prior trial balance is as of {pri}, not one year "
                              f"before ({expected})")
@@ -2801,6 +2820,18 @@ class WorkbenchService:
         """The in-use datasets per role, rebuilt, digest-verified, combined."""
         return {role: _combine([self._verified_table(d) for d in states[-1][1]])
                 for role, states in self._role_states(engagement_id).items()}
+
+
+def _year_before(iso: str) -> str:
+    """The same date a year earlier; a month end maps to that month's end, so
+    a February year end compares 2025-02-28 with 2024-02-29 (and back)."""
+    from datetime import date, timedelta
+    day = date.fromisoformat(iso)
+    month_end = (day + timedelta(days=1)).day == 1
+    if month_end:
+        following = date(day.year - 1 + day.month // 12, day.month % 12 + 1, 1)
+        return (following - timedelta(days=1)).isoformat()
+    return date(day.year - 1, day.month, day.day).isoformat()
 
 
 def _combine(tables: list[NormalizedTable]) -> NormalizedTable:
