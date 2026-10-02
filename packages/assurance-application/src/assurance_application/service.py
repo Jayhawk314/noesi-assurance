@@ -468,6 +468,8 @@ class WorkbenchService:
                     f"{sorted(current.column_map)}; rows combined across "
                     f"different fields would leave blanks a procedure would "
                     f"misread")
+            if "entry_id" in table.column_map:
+                self._refuse_repeated_entries(table, in_use[-1][1])
 
         def handler(uow):
             spec_row = uow.mappings.get(spec_id)
@@ -2731,6 +2733,26 @@ class WorkbenchService:
                       if history and dataset["load_mode"] == "add" else [dataset])
             history.append((dataset, in_use))
         return states
+
+    def _refuse_repeated_entries(self, table: NormalizedTable, in_use) -> None:
+        """Journal procedures group lines by entry, so an entry already in use
+        would silently gain this file's lines: an overlapping or re-exported
+        Journal would double-count and every doubled entry would still balance."""
+        loaded: dict[str, str] = {}
+        for dataset in in_use:
+            name = self._dataset_file(dataset)
+            for record in self._verified_table(dataset).records:
+                loaded.setdefault(str(record.get("entry_id") or ""), name)
+        repeated = sorted({str(r.get("entry_id") or "") for r in table.records}
+                          & (loaded.keys() - {""}))
+        if repeated:
+            shown = "; ".join(f"{e} (in {loaded[e]})" for e in repeated[:3])
+            more = f" and {len(repeated) - 3} more" if len(repeated) > 3 else ""
+            raise ValueError(
+                f"cannot add this file to {table.role}: {len(repeated)} of its "
+                f"entries are already loaded: {shown}{more}. Adding would "
+                f"merge their lines and double-count them. If this file covers "
+                f"the same period, load it as a replacement instead")
 
     def _verified_table(self, dataset) -> NormalizedTable:
         table = self._rebuild_table(dataset["mapping_spec_id"])

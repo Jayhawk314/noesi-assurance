@@ -240,6 +240,26 @@ def test_the_journal_and_aging_load_through_their_recipes(service):
     assert journal["rows_loaded"] == 31
 
 
+def test_an_added_journal_that_repeats_loaded_entries_is_refused(service):
+    # Review M3: a re-exported Journal (new footer, so new bytes) added to the
+    # one in use would merge each entry's lines and double-count them.
+    svc, eid = service
+
+    def load(content, name, mode=None):
+        proposal = svc.propose_source_mapping(
+            PREPARER, eid, role="Journal_entries", artifact_id=_store(svc, eid, content, name),
+            extraction={"recipe": "qbo.journal_created.journal_entries"})
+        svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
+        return svc.normalize_source(PREPARER, eid, proposal["spec_id"], mode=mode)
+
+    load(JOURNAL_CREATED, "Journal.xlsx")
+    again = _edited(JOURNAL_CREATED, {"A63": " Thursday, October 1, 2026 08:00 AM GMT-07:00"})
+    with pytest.raises(ValueError, match=r"11 of its entries are already loaded: .*\(in Journal.xlsx\)"):
+        load(again, "Journal re-export.xlsx", mode="add")
+    journal = [d for d in svc.sources(eid)["datasets"] if d["role"] == "Journal_entries"]
+    assert [d["rows_loaded"] for d in journal] == [31]
+
+
 def test_a_line_mapping_counts_only_when_it_reaches_a_loaded_account(service):
     # Review M1: a mapping for an account the trial balance does not hold
     # supplies no line, so coverage must not call the analytics executable.
