@@ -71,9 +71,6 @@ On **SAD & Completion**:
 - Set **materiality** with its basis and rationale. The workbench derives
   performance materiality (75%) and the clearly-trivial threshold (5%)
   from it, and both appear on the SAD and the workpaper.
-- Mark the **risk assessment** and **controls** stages complete when that
-  work is done — both are readiness gates
-  (`RISK_ASSESSMENT_NOT_COMPLETE`, `CONTROLS_NOT_COMPLETE`).
 
 On **Planning & Risk** you keep the risk register itself. Record each risk
 of material misstatement **at the assertion level** — choose the assertion

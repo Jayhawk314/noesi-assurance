@@ -69,6 +69,52 @@ def test_the_record_exports_any_time_and_checks_itself(service):
     assert not hasattr(service, "lock") and not hasattr(service, "unlock")
 
 
+def test_a_record_exported_over_a_broken_trail_says_so_and_fails_its_check(service):
+    # Review 2026-10-02 H1: the export goes ahead (the record is still the
+    # auditor's), but it must never read as verified.
+    eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
+    service._conn.execute(
+        "UPDATE domain_event SET payload = '{\"forged\":true}' WHERE event_seq = 1")
+    packet = service.export_record(ALICE, eid)
+    assert packet["manifest"]["journal_check"] == {
+        "ok": False, "checked": 0, "break_at_seq": 1}
+    report = verify_packet(packet)
+    assert report["journal_ok_at_export"] is False
+    assert report["verified"] is False
+    assert "BROKEN" in report["journal"]
+    # The other digests still hold: the packet is consistent, the trail is not.
+    assert report["manifest_ok"] and report["packet_digest_ok"]
+    assert "Decision trail BROKEN" in service.workpaper_html(ALICE, eid)
+
+
+def test_a_record_over_an_intact_trail_says_it_was_checked(service):
+    eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
+    report = verify_packet(service.export_record(ALICE, eid))
+    assert report["journal_ok_at_export"] is True
+    assert report["journal"].startswith("verified at export")
+    assert "Decision trail BROKEN" not in service.workpaper_html(ALICE, eid)
+
+
+def test_a_v4_packet_reads_but_its_trail_check_is_not_recorded(service):
+    eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
+    packet = service.export_record(ALICE, eid)
+    old = json.loads(json.dumps(packet))
+    old["packet_version"] = "noesi-evidence-packet-v4"
+    del old["manifest"]["journal_check"]
+    report = verify_packet(old)
+    assert report["journal_ok_at_export"] is False and report["verified"] is False
+    assert "not recorded" in report["journal"]
+
+
+def test_a_new_packet_missing_its_trail_check_says_it_was_removed(service):
+    # Fixes check C3: the reason given must not blame the packet's age.
+    eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
+    packet = json.loads(json.dumps(service.export_record(ALICE, eid)))
+    del packet["manifest"]["journal_check"]
+    report = verify_packet(packet)
+    assert report["verified"] is False and "removed or damaged" in report["journal"]
+
+
 def test_an_edited_record_fails_its_own_check(service):
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
     packet = service.export_record(ALICE, eid)

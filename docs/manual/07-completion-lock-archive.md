@@ -46,7 +46,11 @@ it was taken at), every run with its findings and seals, the dispositions,
 the SAD, readiness, the scope and the draft opinion. Each export is written
 to the hash-chained journal with its digest. Anyone can re-check the record
 **offline** with `assurance_workpapers.packet.verify_packet`: every finding
-receipt, every run seal, the manifest and the packet itself must re-hash.
+receipt, every run seal, the manifest and the packet itself must re-hash,
+and the decision trail must have verified when the record was made. A
+record exported over a broken trail (a journal entry edited outside the
+Workbench) still downloads, but it says so on the working paper and its
+offline check fails: it never reads as verified.
 The **working paper** is a static HTML rendering of the same record.
 
 What the check does not prove is written inside the record: it is not

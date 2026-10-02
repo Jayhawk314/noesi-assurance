@@ -52,6 +52,12 @@ The record as it stood at {_esc(packet['generated'])}; unsigned. It supplements
  the audit file; the firm's own review and sign-off are outside it.<br>
 Record manifest digest <code>{_esc(packet.get('manifest_digest', ''))}</code><br>
 Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>"""
+    trail = manifest.get("journal_check")
+    if trail is not None and trail.get("ok") is not True:
+        provenance += (
+            "<br><b>Decision trail BROKEN</b> at journal entry "
+            f"{_esc(trail.get('break_at_seq'))}: an entry was edited outside the "
+            "Workbench, so this record's history cannot be relied on.")
 
     sections = [f"""
 <h1>Working paper — {_esc(engagement['client_name'])}

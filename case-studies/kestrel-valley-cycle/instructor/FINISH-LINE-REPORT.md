@@ -2,7 +2,7 @@
 
 *Written by `finish_line_check.py` (ROADMAP step 0). It seeds the Workbench demo through the real service path, as `--demo` does, and compares each Learn module with `answer_key*.json`. Do not edit by hand; re-run the script.*
 
-**162 match, 0 differ, 2 not in Noesi** (34 procedures run).
+**162 match, 0 differ, 2 not in Noesi** (35 procedures run).
 
 | # | Module | Match | Differ | Not in Noesi |
 |---|---|---|---|---|

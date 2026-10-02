@@ -141,3 +141,114 @@ def test_the_journal_is_the_check_population_when_it_numbers_its_checks():
     assert _keys(findings) == [("disbursements", "2003-2004", "gap"),
                                ("disbursements", "2002", "reused")]
     assert stats["sequences"]["disbursements"]["distinct_checks"] == 3
+
+
+def _check(entry, number, source, account, amount, date="2026-01-05"):
+    """One check in the Journal: the expense debit and the bank credit."""
+    return [{"entry_id": entry, "line": "1", "source": source, "document_number": number,
+             "entry_date": date, "account": "60000", "debit": amount, "credit": "",
+             "source_row": 2},
+            {"entry_id": entry, "line": "2", "source": source, "document_number": number,
+             "entry_date": date, "account": account, "debit": "", "credit": amount,
+             "source_row": 3}]
+
+
+def test_each_bank_account_and_payroll_is_its_own_check_run():
+    # Review 2026-10-02 M1: two accounts numbered 1001-1003 and 5001-5002 are
+    # two runs, not 3,997 missing checks; payroll checks are not
+    # disbursements; a check with no number is counted, not dropped.
+    journal = []
+    for n in (1001, 1002, 1004):
+        journal += _check(f"op {n}", str(n), "Check", "10100", "50")
+    for n in (5001, 5002):
+        journal += _check(f"sav {n}", str(n), "Bill Payment (Check)", "10300", "70")
+    for n in (2001, 2002):
+        journal += _check(f"pay {n}", str(n), "Payroll Check", "10200", "900")
+    journal += _check("pay EFT", "", "Paycheck", "10200", "800")
+    findings, stats = forensic.check_number_sequence({"Journal_entries": journal}, {})
+    assert _keys(findings) == [("disbursements, account 10100", "1003", "gap")]
+    assert findings[0].evidence["account"] == "10100"
+    seq = stats["sequences"]
+    assert set(seq) == {"disbursements, account 10100",
+                        "disbursements, account 10300", "payroll"}
+    assert (seq["payroll"]["first"], seq["payroll"]["last"],
+            seq["payroll"]["not_numbered"]) == (2001, 2002, 1)
+    assert stats["payroll_from"] == "Journal"
+    # The bank credit, not the first line, is the check's amount.
+    reused, _ = forensic.check_number_sequence(
+        {"Journal_entries": _check("a", "7", "Check", "10100", "40")
+         + _check("b", "7", "Check", "10100", "60", date="2026-02-01")}, {})
+    assert reused[0].score == 100.0
+
+
+def test_payroll_comes_from_the_register_when_the_journal_numbers_none():
+    journal = _check("op 1", "1001", "Check", "10100", "50") + \
+        _check("pay 1", "", "Payroll Check", "10200", "900")
+    payroll = [{"employee_id": "E1", "pay_date": "2026-01-15", "net": "900",
+                "check_number": "501", "source_row": 2},
+               {"employee_id": "E2", "pay_date": "2026-01-15", "net": "800",
+                "check_number": "503", "source_row": 3}]
+    findings, stats = forensic.check_number_sequence(
+        {"Journal_entries": journal, "Payroll_register": payroll}, {})
+    assert _keys(findings) == [("payroll", "502", "gap")]
+    assert stats["payroll_from"] == "payroll register"
+
+
+def test_benford_counts_each_journal_amount_once():
+    # Review 2026-10-02 M2: a balanced entry's debit and credit are one amount.
+    lines = []
+    for row in _benford_amounts(2000):
+        lines += [row, {"debit": "", "credit": row["debit"], "source_row": 0}]
+    _, stats = forensic.benford_first_digit(
+        {"Journal_entries": lines}, {"benford_min_population": "1000"})
+    assert stats["populations"]["journal lines"]["amounts"] == \
+        len(_benford_amounts(2000))
+
+
+def test_a_close_conforming_population_is_not_a_finding_for_one_digit():
+    # Review 2026-10-02 M2: with nine digits tested, one "in excess" by the
+    # z-test is common in data that conforms; the MAD decides. The digit is
+    # still named in the results.
+    rows = _benford_amounts(20000)
+    moved = 300   # 1.5% of the amounts moved from 9 to 1
+    nines = [i for i, r in enumerate(rows) if str(r["debit"]).startswith("9")][:moved]
+    for i in nines:
+        rows[i] = {"debit": Decimal("125.00"), "credit": "", "source_row": i}
+    findings, stats = forensic.benford_first_digit(
+        {"Journal_entries": rows}, {"benford_min_population": "1000"})
+    result = stats["populations"]["journal lines"]
+    assert result["conformity"] == "close conformity"
+    assert [e["digit"] for e in result["digits_in_excess"]] == [1]
+    assert findings == []
+
+
+def test_a_negative_line_bigger_than_the_bank_credit_does_not_move_the_check():
+    # Fixes check C1: check 2006 credits 700 to a vendor-credit account and
+    # 300 to the bank; it stays in the bank's run, with no false gap.
+    journal = []
+    for n in range(2001, 2008):
+        if n == 2006:
+            journal += [
+                {"entry_id": "c2006", "source": "Check", "document_number": "2006",
+                 "entry_date": "2026-01-05", "account": "60000", "debit": "1000",
+                 "credit": "", "source_row": 2},
+                {"entry_id": "c2006", "source": "Check", "document_number": "2006",
+                 "entry_date": "2026-01-05", "account": "1400 Vendor credit",
+                 "debit": "", "credit": "700", "source_row": 3},
+                {"entry_id": "c2006", "source": "Check", "document_number": "2006",
+                 "entry_date": "2026-01-05", "account": "10100", "debit": "",
+                 "credit": "300", "source_row": 4}]
+        else:
+            journal += _check(f"c{n}", str(n), "Check", "10100", "50")
+    findings, stats = forensic.check_number_sequence({"Journal_entries": journal}, {})
+    assert findings == []
+    assert list(stats["sequences"]) == ["disbursements"]
+    assert stats["sequences"]["disbursements"]["distinct_checks"] == 7
+
+
+def test_benford_population_counts_only_amounts_tested():
+    # Fixes check C2: a population below the minimum is read, not tested.
+    findings, stats = forensic.benford_first_digit(
+        {"Journal_entries": _benford_amounts(100)}, {"benford_min_population": "1000"})
+    assert stats["population"] == 0
+    assert stats["amounts_not_tested"] == len(_benford_amounts(100))

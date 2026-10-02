@@ -8,7 +8,10 @@ packet — and reports each claim separately instead of one flag:
 1. every finding receipt re-hashes to its recorded receipt_id;
 2. every run's result digest re-derives from its recorded content;
 3. the record manifest re-hashes to the digest the packet carries;
-4. the packet digest itself re-derives.
+4. the packet digest itself re-derives;
+5. the decision trail (the hash-chained journal) verified when the record
+   was made. A broken trail does not stop an export, but the packet then
+   fails this check, so it never reads as verified.
 
 Nothing is signed (sign-offs were removed on 1 Oct 2026: Noesi supplements
 an audit, it does not approve one). So the digests show the packet is
@@ -26,7 +29,11 @@ import json
 # v4 (1 Oct 2026): no lock and no signatures; the record manifest travels
 # as "manifest" with its digest. Signed v3 packets from before are refused
 # by this checker rather than half-verified.
-PACKET_VERSION = "noesi-evidence-packet-v4"
+# v5 (2 Oct 2026): the manifest carries the journal's own check at export
+# ("journal_check"). A v4 packet has none, so its trail check fails as not
+# recorded rather than passing unseen.
+PACKET_VERSION = "noesi-evidence-packet-v5"
+_READABLE_VERSIONS = (PACKET_VERSION, "noesi-evidence-packet-v4")
 
 PACKET_LIMITS = (
     "Digests make this packet internally consistent: a corrupted or partly "
@@ -78,7 +85,7 @@ def _result_digest_of(run: dict) -> str:
 
 def verify_packet(packet: dict) -> dict:
     """Reperform every integrity claim using only the packet's own content."""
-    if packet.get("packet_version") != PACKET_VERSION:
+    if packet.get("packet_version") not in _READABLE_VERSIONS:
         raise ValueError(
             f"packet version {packet.get('packet_version')!r} is not "
             f"{PACKET_VERSION!r}; signed packets from before 1 Oct 2026 are "
@@ -93,17 +100,30 @@ def verify_packet(packet: dict) -> dict:
             run_seal_failures.append(run.get("run_id"))
 
     seal = packet.get("seal") or {}
+    trail = (packet.get("manifest") or {}).get("journal_check")
+    if trail is None and packet.get("packet_version") == PACKET_VERSION:
+        trail_note = ("missing: this packet's version records the trail check, "
+                      "so it was removed or damaged")
+    elif trail is None:
+        trail_note = "not recorded (packet made before 2 Oct 2026)"
+    elif trail.get("ok") is True:
+        trail_note = f"verified at export ({trail.get('checked')} journal entries)"
+    else:
+        trail_note = (f"BROKEN at export, at journal entry {trail.get('break_at_seq')}: "
+                      "the decision trail was edited outside the Workbench")
     checks = {
         "finding_receipts_ok": not receipt_failures,
         "run_seals_ok": not run_seal_failures,
         "manifest_ok": manifest_digest(packet.get("manifest") or {})
         == packet.get("manifest_digest"),
         "packet_digest_ok": packet_digest(packet) == seal.get("packet_digest"),
+        "journal_ok_at_export": bool(trail and trail.get("ok") is True),
     }
     return {
         **checks,
         "verified": all(checks.values()),
         "receipt_failures": receipt_failures,
         "run_seal_failures": run_seal_failures,
+        "journal": trail_note,
         "limits": packet.get("limits", ""),
     }

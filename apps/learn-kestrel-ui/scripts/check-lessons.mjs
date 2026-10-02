@@ -3,8 +3,9 @@
 //  - every module's keyModule, and every ask's row, is a line of the
 //    finish-line check in kestrel-key.json; every ask's key path resolves;
 //  - every number in a lesson's text (two or more digits, or with decimals)
-//    is a number in the key or in a line of the check. Standards references
-//    (AU-C 320, SAS 145, SQMS 1) are not figures and are skipped;
+//    is a number in that lesson's part of the key: the check lines of the
+//    modules it names and the key entries its asks read. Standards
+//    references (AU-C 320, SAS 145, SQMS 1) and "module 12" are skipped;
 //  - the modules written and the modules coming are the ones agreed;
 //  - the documents, trace and Excel pages (papers.ts, traceData.ts,
 //    excelData.ts) hold no number that is not in the key or the case records
@@ -33,17 +34,17 @@ const { EXERCISES } = await load("excelData.ts");
 
 const problems = [];
 const numbers = new Set();
-const collect = (v) => {
+function collectInto(v, into) {
   if (v === null || v === undefined) return;
-  if (typeof v === "object") { for (const [k, x] of Object.entries(v)) { collect(k); collect(x); } return; }
+  if (typeof v === "object") { for (const [k, x] of Object.entries(v)) { collectInto(k, into); collectInto(x, into); } return; }
   for (const m of String(v).matchAll(/-?\d[\d,]*(?:\.\d+)?/g)) {
     const n = Number(m[0].replace(/,/g, ""));
-    if (!Number.isNaN(n)) numbers.add(Math.abs(n));
+    if (!Number.isNaN(n)) into.add(Math.abs(n));
   }
-};
+}
+const collect = (v) => collectInto(v, numbers);
 collect(data);
-const lessonNumbers = new Set(numbers);   // lessons: the key only
-collect(records);                          // pages: the key and the case records
+collect(records);                         // pages: the key and the case records
 
 // Keys may contain dots ("cash.interbank_transfers"): the longest existing key wins, as in keyData.ts.
 function walk(at, parts) {
@@ -87,12 +88,27 @@ for (const lesson of [...LESSONS, ...FRAUD_LESSONS]) {
       if (!(scalar(v) || (Array.isArray(v) && v.every(scalar)))) problems.push(`${name}: ask "${ask.label}" key path ${ask.key} does not resolve to a value`);
     }
   }
+  // A lesson's figures must come from its own part of the key: the lines of
+  // the modules it names and the key entries its asks read. A number found
+  // anywhere in the key is not enough (review 2026-10-02 M3: the key's part 1
+  // and final misstatements both passed that test, the 30 Sep confusion).
+  const own = new Set();
+  const modules = new Set([lesson.keyModule, ...(lesson.keyLines ?? []).map(([m]) => m),
+    ...lesson.byHand.asks.map((a) => a.module ?? lesson.keyModule)]);
+  for (const m of modules) collectInto(data.modules[m], own);
+  for (const ask of lesson.byHand.asks) {
+    if (ask.key === undefined) continue;
+    const parts = ask.key.split(".");   // the entry the ask reads, and its siblings
+    collectInto(walk(data.key, parts.slice(0, -1)) ?? keyAt(ask.key), own);
+  }
   for (const [where, text] of textOf(lesson)) {
-    const clean = text.replace(/\b(AU-C|SAS|SQMS)\s+\d+/g, "").replace(/`[^`]*`/g, "").replace(/\b[\w-]+\.(csv|xlsx|md)\b/g, "");
+    const clean = text.replace(/\b(AU-C|SAS|SQMS)\s+\d+/g, "").replace(/\b[Mm]odules? \d+/g, "")
+      .replace(/\b[\w-]+\.(csv|xlsx|md)\b/g, "");
     for (const m of clean.matchAll(/\d[\d,]*(?:\.\d+)?/g)) {
       const raw = m[0].replace(/,$/, "");
       if (/^\d$/.test(raw)) continue;
-      if (!lessonNumbers.has(Number(raw.replace(/,/g, "")))) problems.push(`${where}: "${raw}" is not a number the key holds`);
+      if (!own.has(Number(raw.replace(/,/g, ""))))
+        problems.push(`${where}: "${raw}" is not a number in this lesson's part of the key (${[...modules].join(", ")})`);
     }
   }
 }

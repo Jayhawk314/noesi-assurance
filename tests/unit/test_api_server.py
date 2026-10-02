@@ -283,7 +283,7 @@ def test_full_engagement_journey_over_http(api):
     status, packet = _request(port, "POST", f"/api/engagements/{eid}/export",
                               token=token, body={})
     assert status == 200
-    assert packet["packet_version"] == "noesi-evidence-packet-v4"
+    assert packet["packet_version"] == "noesi-evidence-packet-v5"
     for path in ("lock", "unlock"):
         status, _ = _request(port, "POST", f"/api/engagements/{eid}/{path}",
                              token=token, body={"expected_version": 1})

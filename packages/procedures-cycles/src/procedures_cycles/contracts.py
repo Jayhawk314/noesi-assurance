@@ -244,17 +244,20 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
         "forensic.check_number_sequence", "Check-number gaps and reused numbers",
         "List the check numbers missing between the first and last check of each run "
-        "(disbursements; payroll apart), and any number used for two transactions. "
-        "The Journal's checks are used when it carries their numbers, since it is the "
-        "complete population; otherwise the payment records.",
+        "(disbursements and payroll apart, each bank account apart), and any number "
+        "used for two transactions. The Journal's checks are used when it carries "
+        "their numbers, since it is the complete population; otherwise the payment "
+        "records and the payroll register.",
         "payables", ("completeness", "occurrence"),
         {"Payments": ("payment_number",)},
         evidence_source="client payment records, checks with no bill and payroll register",
         denominator_role="Payments",
         limitations="A gap is a lead: a voided check is a normal gap; inspect the void "
                     "or the bank statement. EFTs and text references carry no check "
-                    "number and are counted, not tested. Checks from several bank "
-                    "accounts loaded as one run will show gaps between them.",
+                    "number and are counted, not tested. In the Journal a check's "
+                    "bank account is the account it credits most; payment records "
+                    "with no bank account column are one run, so checks from "
+                    "several accounts there show gaps between them.",
     ),
     ProcedureContract(
         "forensic.vendor_employee_match", "Vendors that match an employee",
@@ -271,15 +274,18 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ),
     ProcedureContract(
         "forensic.benford_first_digit", "First-digit test (Benford's law)",
-        "Compare the first digits of journal lines, bills and payments, each apart, "
-        "with Benford's law, and name the digits most in excess.",
+        "Compare the first digits of journal lines (each amount once, on its debit "
+        "side), bills and payments, each apart, with Benford's law, and name the "
+        "digits most in excess.",
         "journal_entries", ("occurrence", "accuracy"),
         {"Journal_entries": ("entry_id",)},
         required_policies=("benford_min_population",),
         evidence_source="client Journal, bills and payments",
         denominator_role="Journal_entries",
-        limitations="Amounts under 10 are left out. Conformity bands are Nigrini's "
-                    "(2012). Many populations do not follow Benford's law (fixed fees, "
+        limitations="Amounts under 10 are left out. Conformity is judged by the mean "
+                    "absolute deviation against Nigrini's (2012) bands; only "
+                    "marginal conformity or nonconformity is a finding, since a "
+                    "single digit in excess is common by chance. Many populations do not follow Benford's law (fixed fees, "
                     "prices, amounts with a ceiling); nonconformity says where to look, "
                     "not that anything is wrong. A population below the minimum is not "
                     "tested.",

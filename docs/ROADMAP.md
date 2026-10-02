@@ -23,6 +23,23 @@ that end: the cases calibrate the Workbench, Kestrel is also the public case
 the Learn app and videos teach on. Videos come only after the Workbench is
 finished.
 
+**Why the project exists, and the rule that follows (James, 2 Oct 2026):**
+James built Noesi both as a real product and to learn. He worked Amanda
+Dalton's integrated audit practice case (Oceanview) for his accountancy
+certificate in 2019 and found it useful. Harborline was modeled on that kind
+of case; Oceanview was later bought so the software could practice on it
+privately; Kestrel is a public remake that differs enough to be a demo and
+lesson. So learning is a real purpose, alongside the product.
+
+The rule for the Workbench: it is a supplement, not the audit. **Saying how
+uncertain a result is, and where it could be wrong, matters more than locks,
+sign-offs and holds.** Those belong to real audit software, which Noesi might
+become later, not first. A check or a hold earns its place only if it makes
+the supplement better: protecting the integrity of the data and the record,
+or stopping a result from claiming more than it can show. Draft verdicts
+(the opinion, the SAD conclusion) stay, but they must show their limits and
+how they could be wrong.
+
 The measurable check on the way there stays the same:
 
 > **Every one of the 13 Kestrel Learn modules (LEARN-KESTREL-PLAN) runs in
@@ -240,6 +257,16 @@ scripts first, James approves scripts and credits before voicing.
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,
   sample projection for additions, adjusted covenants).
 - Wiring the cycles into the structural layer (agreed as later, 2026-09-26).
+- Benford minimum population (2 Oct): set at 1,000, from memory of Nigrini,
+  source not verified. At 1,000 Kestrel tests nothing (3 "not tested" open
+  findings on the demo); at 100 all three Kestrel groups fail. James to decide.
+- Benford default-off: non-Kestrel engagements show "left out without a
+  reason" until a default is chosen (HANDOFF_2026-10-02-fixes.md, M5).
+- Lesson checker (C4): accepts a number from another line of the same module.
+- Open from the 2 Oct review: L1-L3, L5, L6, check runs with no bank-account
+  column, "Paycheck" name unverified (HANDOFF_2026-10-02-fixes.md "Not done").
+- Second round of 2 Oct fixes (C1-C3) committed without a second-agent
+  check, by James's decision: no more check rounds.
 
 ## Rules
 - Never fit the engine to a case; test fixes on invented data.

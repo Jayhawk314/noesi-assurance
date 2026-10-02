@@ -1781,13 +1781,19 @@ class WorkbenchService:
         workflow = self._conn.execute(
             "SELECT payload, version FROM workflow_state "
             "WHERE engagement_id = ?", (engagement_id,)).fetchone()
-        from assurance_persistence.spine import journal_head
+        from assurance_persistence.spine import journal_head, verify_journal
         head_seq, head_hash = journal_head(self._conn)
+        # The decision trail's own check, taken when the record is made. A
+        # broken chain does not stop the export (the record is still the
+        # auditor's), but the record says so and its offline check fails.
+        trail = verify_journal(self._conn)
         import hashlib
         return {
-            "schema": "noesi-record-manifest-v1",
+            "schema": "noesi-record-manifest-v2",
             "engagement": engagement,
             "journal_head": {"seq": head_seq, "hash": head_hash},
+            "journal_check": {"ok": trail["ok"], "checked": trail["checked"],
+                              "break_at_seq": trail["break_at_seq"]},
             "workflow": {
                 "version": workflow["version"] if workflow else 0,
                 "payload_sha256": hashlib.sha256(
