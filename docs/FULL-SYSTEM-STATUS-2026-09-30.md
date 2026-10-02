@@ -126,6 +126,14 @@ seen, refused); how QuickBooks prints account names with its account-number
 setting on; the Learn app's lesson text still names the old Journal column
 "Memo/Description" (real: "Description"). Not committed, not pushed.
 
+*Correction, 1 Oct 2026 (review L8):* "every figure equal" holds for figures,
+but two Journal entries were renamed (`[txn 445]`, `[txn 446]`, told apart by
+transaction ID), and `Journal_2026-07.xlsx` lines now come sorted by
+date/type/num/name instead of date only; content is unchanged. Unmapped
+trial-balance accounts are set aside by **sheet row**, not by name. The lesson
+text was fixed on 1 Oct (Description; date, type, number and name repeat on
+every line).
+
 ## Decisions still yours
 
 - Approval-workflow features against the supplement rule: chairs (preparer,

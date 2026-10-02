@@ -1563,7 +1563,11 @@ function TrialBalancePanel({ client, eid, onError, onBuilt, artifactCount }: {
       </p>
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void build(); }}>
         <label>This period{" "}
-          <select value={current} onChange={(e) => setCurrent(e.target.value)}>
+          <select value={current} onChange={(e) => {
+            // The file chosen as this period cannot stay chosen as the prior.
+            setCurrent(e.target.value);
+            if (prior === e.target.value) setPrior("");
+          }}>
             {found.trial_balances.map((a) => <option key={a.artifact_id} value={a.artifact_id}>{label(a)}</option>)}
           </select>
         </label>{" "}
