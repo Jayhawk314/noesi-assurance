@@ -140,6 +140,63 @@ def write_journal(b):
     return txs
 
 
+SIGNER = "Jo Kestrel"                       # signs Kestrel's checks
+INSPECT_FROM = m("2500.00")                 # images obtained for checks this size or more
+ALWAYS_INSPECT = ("DM Consulting", "Owen Pike Hauling", "Gallatin Display Works")
+
+
+def _checks(txs):
+    """The year's numbered checks: (num, date, payee, amount, created by)."""
+    return [(t["num"], t["date"], t["name"], sum(a for _, a in t["lines"] if a > 0), t["by"])
+            for t in txs if t["type"] in ("Check", "Bill Payment (Check)")
+            and str(t["num"]).isdigit() and t["date"] <= PE]
+
+
+def write_check_signatures(txs):
+    """The auditor's record of who signed each check, read off the bank's
+    paid-check images (roadmap E3): every check of 2,500 or more, and every
+    check to the three payees under inquiry. Jo Kestrel signs, except the
+    three DM Consulting checks: Dana Merritt prepared and signed them."""
+    rows, self_signed = [], []
+    for num, when, payee, amount, by in sorted(_checks(txs), key=lambda c: int(c[0])):
+        if amount < INSPECT_FROM and payee not in ALWAYS_INSPECT:
+            continue
+        signer = BOOKKEEPER if payee == "DM Consulting" else SIGNER
+        if signer == by:
+            self_signed.append(num)
+        rows.append((num, payee, when.isoformat(), amount, by, signer, f"IMG-{num}"))
+    g.write_csv(g.AUDITOR / "check_signatures.csv",
+                ["Check Number", "Payee", "Check Date", "Amount", "Prepared By",
+                 "Signed By", "Image Reference"], rows)
+    return {"inspected": len(rows), "selection": "every check of 2,500.00 or more, and "
+            "every check to DM Consulting, Owen Pike Hauling and Gallatin Display Works",
+            "self_signed": self_signed, "self_signed_by": BOOKKEEPER,
+            "self_signed_total": str(sum(r[3] for r in rows if r[0] in self_signed)),
+            "no_signer": 0}
+
+
+def write_flow_of_funds(txs, trip):
+    """The auditor's flow-of-funds schedule (roadmap E3): every check of
+    9,000 or more out of Kestrel, plus the legs traced beyond Kestrel's
+    books. Only the planted round trip comes back."""
+    rows, n = [], 0
+    for num, when, payee, amount, _ in sorted(_checks(txs), key=lambda c: (c[1], int(c[0]))):
+        if amount >= m("9000.00") or payee == trip["legs"][0]["to"]:
+            n += 1
+            rows.append((f"FF-{n:03d}", g.COMPANY, payee, amount, when.isoformat(),
+                         "payment", "vendor payment", f"check {num}"))
+    for leg, kind, evidence in ((trip["legs"][1], "third party", trip["legs"][1]["evidence"]),
+                                (trip["legs"][2], "customer receipt",
+                                 trip["legs"][2]["evidence"])):
+        n += 1
+        rows.append((f"FF-{n:03d}", leg["from"], leg["to"], m(trip["amount"]), leg["date"],
+                     "transfer" if kind == "third party" else "receipt", kind, evidence))
+    g.write_csv(g.AUDITOR / "flow_of_funds.csv",
+                ["Flow ID", "From", "To", "Amount", "Date", "Relation", "Flow Type",
+                 "Evidence"], rows)
+    return len(rows)
+
+
 def je_selections(txs):
     """The journal-entry tests as the key defines them, in plain logic. An
     entry is one transaction: (date, type, num, name)."""
@@ -193,6 +250,8 @@ def main():
     unpaid = write_unpaid_bills(open_bills(bills, end_ap))
     assert unpaid == -bal(CUR, "20000"), unpaid
     txs = write_journal(b)
+    key["self_approved_payments"] = write_check_signatures(txs)
+    key["round_trip"]["flow_of_funds_rows"] = write_flow_of_funds(txs, key["round_trip"])
     selections, rare, manual_no_memo = je_selections(txs)
     closing = sum(bal(PRI, n) for n in ACCTS if n[0] in "456")
 

@@ -185,15 +185,15 @@
     "item": "transactions in the Journal",
     "status": "match",
     "why": "",
-    "key": "467",
-    "noesi": "467"
+    "key": "470",
+    "noesi": "470"
    },
    {
     "item": "lines in the Journal",
     "status": "match",
     "why": "",
-    "key": "1018",
-    "noesi": "1018"
+    "key": "1024",
+    "noesi": "1024"
    },
    {
     "item": "posted after period end: entries",
@@ -213,8 +213,8 @@
     "item": "round amount: entries",
     "status": "match",
     "why": "",
-    "key": "2025-10-01 Check 4306 First Prairie Bank, 2026-03-14 Journal Entry 1047, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Transfer (no num)",
-    "noesi": "2025-10-01 check 4306 first prairie bank, 2026-03-14 journal entry 1047, 2026-06-30 deposit (no num) checking, 2026-06-30 transfer (no num)"
+    "key": "2025-10-01 Check 4305 First Prairie Bank, 2026-03-14 Journal Entry 1047, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Transfer (no num)",
+    "noesi": "2025-10-01 check 4305 first prairie bank, 2026-03-14 journal entry 1047, 2026-06-30 deposit (no num) checking, 2026-06-30 transfer (no num)"
    },
    {
     "item": "unauthorized user: entries",
@@ -227,15 +227,15 @@
     "item": "seldom used account: entries",
     "status": "match",
     "why": "",
-    "key": "2025-07-01 Journal Entry 1000, 2025-08-12 Check 4280 Rocky Mountain Racking, 2025-10-01 Check 4306 First Prairie Bank, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Journal Entry 1063, 2026-06-30 Journal Entry 1064, 2026-06-30 Journal Entry 1065",
-    "noesi": "2025-07-01 journal entry 1000, 2025-08-12 check 4280 rocky mountain racking, 2025-10-01 check 4306 first prairie bank, 2026-06-30 deposit (no num) checking, 2026-06-30 journal entry 1063, 2026-06-30 journal entry 1064, 2026-06-30 journal entry 1065"
+    "key": "2025-07-01 Journal Entry 1000, 2025-08-12 Check 4279 Rocky Mountain Racking, 2025-10-01 Check 4305 First Prairie Bank, 2026-06-30 Deposit (no num) Checking, 2026-06-30 Journal Entry 1063, 2026-06-30 Journal Entry 1064, 2026-06-30 Journal Entry 1065",
+    "noesi": "2025-07-01 journal entry 1000, 2025-08-12 check 4279 rocky mountain racking, 2025-10-01 check 4305 first prairie bank, 2026-06-30 deposit (no num) checking, 2026-06-30 journal entry 1063, 2026-06-30 journal entry 1064, 2026-06-30 journal entry 1065"
    },
    {
     "item": "no description: count",
     "status": "match",
     "why": "",
-    "key": "180",
-    "noesi": "180"
+    "key": "181",
+    "noesi": "181"
    },
    {
     "item": "manual entries without a description",
@@ -399,8 +399,8 @@
     "item": "vendors",
     "status": "match",
     "why": "",
-    "key": "17",
-    "noesi": "17"
+    "key": "18",
+    "noesi": "18"
    },
    {
     "item": "vendor twins",
@@ -413,8 +413,8 @@
     "item": "bills (loaded + set aside)",
     "status": "match",
     "why": "",
-    "key": "105",
-    "noesi": "105"
+    "key": "106",
+    "noesi": "106"
    },
    {
     "item": "bills without a number (set aside at load)",
@@ -427,8 +427,8 @@
     "item": "bill payments",
     "status": "match",
     "why": "",
-    "key": "118",
-    "noesi": "118"
+    "key": "119",
+    "noesi": "119"
    },
    {
     "item": "bill payments total",
@@ -476,8 +476,8 @@
     "item": "check sequence: first to last check",
     "status": "match",
     "why": "",
-    "key": "4267-4433",
-    "noesi": "4267-4433"
+    "key": "4266-4433",
+    "noesi": "4266-4433"
    },
    {
     "item": "check sequence: the one gap, checks 4422-4424",
@@ -499,6 +499,41 @@
     "why": "",
     "key": "yes",
     "noesi": "yes"
+   },
+   {
+    "item": "checks inspected for their signer",
+    "status": "match",
+    "why": "",
+    "key": "96",
+    "noesi": "96"
+   },
+   {
+    "item": "self-signed checks: Dana Merritt's DM Consulting checks",
+    "status": "match",
+    "why": "",
+    "key": "4301, 4343, 4381",
+    "noesi": "4301, 4343, 4381"
+   },
+   {
+    "item": "checks with no signer",
+    "status": "match",
+    "why": "",
+    "key": "0",
+    "noesi": "0"
+   },
+   {
+    "item": "round trip: Kestrel to Gallatin to Summit Loop and back",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
+    "item": "round trips found (leads)",
+    "status": "match",
+    "why": "",
+    "key": "1",
+    "noesi": "1"
    },
    {
     "item": "vendors matching an employee (leads)",
@@ -1651,9 +1686,9 @@
    "po_overrun": {
     "vendor": "Summit Tire Import",
     "po": "1021",
-    "po_amount": "90644.37",
+    "po_amount": "90352.71",
     "bill": "ST-25021",
-    "bill_amount": "101521.69"
+    "bill_amount": "101195.03"
    },
    "duplicate_bill": {
     "vendor": "Moraine Cycle Components, Inc.",
@@ -1693,6 +1728,31 @@
     ],
     "total": "7325.00"
    },
+   "round_trip": {
+    "amount": "9800.00",
+    "legs": [
+     {
+      "from": "Kestrel Valley Cycle Supply, LLC",
+      "to": "Gallatin Display Works",
+      "date": "2026-05-12",
+      "evidence": "check for bill GDW-2207 (display racks for resale)"
+     },
+     {
+      "from": "Gallatin Display Works",
+      "to": "Summit Loop Racing",
+      "date": "2026-05-14",
+      "evidence": "traced by the auditor: the check's endorsement and deposit"
+     },
+     {
+      "from": "Summit Loop Racing",
+      "to": "Kestrel Valley Cycle Supply, LLC",
+      "date": "2026-05-19",
+      "evidence": "recorded as a customer receipt (QuickBooks Payment)"
+     }
+    ],
+    "why_it_matters": "Kestrel's own 9,800 came back as a 'collection' from a related-party customer; the display-rack bill needs evidence the racks were received. A lead, not a quantified misstatement.",
+    "flow_of_funds_rows": 65
+   },
    "checks_without_bills": {
     "vendor": "DM Consulting",
     "total": "4500.00",
@@ -1706,13 +1766,25 @@
     "amount": "25000.00",
     "by": "Jo Kestrel"
    },
+   "self_approved_payments": {
+    "inspected": 96,
+    "selection": "every check of 2,500.00 or more, and every check to DM Consulting, Owen Pike Hauling and Gallatin Display Works",
+    "self_signed": [
+     "4301",
+     "4343",
+     "4381"
+    ],
+    "self_signed_by": "Dana Merritt",
+    "self_signed_total": "4500.00",
+    "no_signer": 0
+   },
    "case_part": "1 of 3: payables and the journal",
    "period": {
     "start": "2025-07-01",
     "end": "2026-06-30"
    },
    "vendors": {
-    "count": 17,
+    "count": 18,
     "twins": [
      [
       "Moraine Cycle Components",
@@ -1722,11 +1794,11 @@
     ]
    },
    "bills": {
-    "count": 105,
+    "count": 106,
     "total": "3330775.30"
    },
    "bill_payments": {
-    "count": 118,
+    "count": 119,
     "total": "3285040.78"
    },
    "ap_subledger_to_ledger": {
@@ -1746,8 +1818,8 @@
    },
    "segregation_of_duties": "not testable: the exports carry no approver",
    "journal": {
-    "transactions": 467,
-    "lines": 1018,
+    "transactions": 470,
+    "lines": 1024,
     "entry_identity": "(date, transaction type, num, name): Num alone is not unique and is blank for deposits, transfers and payroll"
    },
    "je_testing_policies": {
@@ -1774,7 +1846,7 @@
     "round_amount": {
      "count": 4,
      "entries": [
-      "2025-10-01 Check 4306 First Prairie Bank",
+      "2025-10-01 Check 4305 First Prairie Bank",
       "2026-03-14 Journal Entry 1047",
       "2026-06-30 Deposit (no num) Checking",
       "2026-06-30 Transfer (no num)"
@@ -1790,8 +1862,8 @@
      "count": 7,
      "entries": [
       "2025-07-01 Journal Entry 1000",
-      "2025-08-12 Check 4280 Rocky Mountain Racking",
-      "2025-10-01 Check 4306 First Prairie Bank",
+      "2025-08-12 Check 4279 Rocky Mountain Racking",
+      "2025-10-01 Check 4305 First Prairie Bank",
       "2026-06-30 Deposit (no num) Checking",
       "2026-06-30 Journal Entry 1063",
       "2026-06-30 Journal Entry 1064",
@@ -1799,20 +1871,20 @@
      ]
     },
     "no_description": {
-     "count": 180,
+     "count": 181,
      "entries": [
       "2025-07-07 Invoice 88001 Basalt Ridge Bike Co.",
       "2025-07-09 Invoice 88002 Bitterroot Wheelworks",
       "2025-07-14 Invoice 88003 Cottonwood Spokes",
-      "2025-07-18 Bill Payment (Check) 4268 Alder & Finch CPAs",
-      "2025-07-18 Bill Payment (Check) 4269 Big Hole Insurance",
-      "2025-07-18 Bill Payment (Check) 4270 Big Timber Office Supply",
-      "2025-07-18 Bill Payment (Check) 4271 Granite Peak Properties",
-      "2025-07-18 Bill Payment (Check) 4272 Kinetic Drivetrain Co.",
-      "2025-07-18 Bill Payment (Check) 4273 Moraine Cycle Components",
-      "2025-07-18 Bill Payment (Check) 4274 Northwestern Energy",
-      "2025-07-18 Bill Payment (Check) 4275 Summit Tire Import",
-      "2025-07-18 Bill Payment (Check) 4276 Velo Freight Lines",
+      "2025-07-18 Bill Payment (Check) 4267 Alder & Finch CPAs",
+      "2025-07-18 Bill Payment (Check) 4268 Big Hole Insurance",
+      "2025-07-18 Bill Payment (Check) 4269 Big Timber Office Supply",
+      "2025-07-18 Bill Payment (Check) 4270 Granite Peak Properties",
+      "2025-07-18 Bill Payment (Check) 4271 Kinetic Drivetrain Co.",
+      "2025-07-18 Bill Payment (Check) 4272 Moraine Cycle Components",
+      "2025-07-18 Bill Payment (Check) 4273 Northwestern Energy",
+      "2025-07-18 Bill Payment (Check) 4274 Summit Tire Import",
+      "2025-07-18 Bill Payment (Check) 4275 Velo Freight Lines",
       "2025-07-21 Invoice 88004 Flathead Pedalworks",
       "2025-07-24 Invoice 88005 Grizzly Trail Outfitters",
       "2025-08-04 Invoice 88006 Crazy Mountain Cycles",
@@ -2029,9 +2101,9 @@
     "check_number_sequence": {
      "disbursements": {
       "bank_account": "10100 Checking - First Prairie",
-      "first": 4267,
+      "first": 4266,
       "last": 4433,
-      "distinct_checks": 164,
+      "distinct_checks": 165,
       "gaps": [
        {
         "first_missing": 4422,

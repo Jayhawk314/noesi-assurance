@@ -279,6 +279,60 @@ def vendor_employee_match(tables: dict, policies: dict):
     return findings, stats
 
 
+# ------------------------------------------------- self-approved payments
+
+def _person(value) -> str:
+    return " ".join(text(value).lower().split())
+
+
+def self_approved_payments(tables: dict, policies: dict):
+    """Payments approved (or signed) by the person who prepared them, and
+    payments with no approver recorded, from an approval or signature log.
+
+    The log is separate evidence from the payment register: a bill-pay
+    approval report, or the signers the auditor read off the bank's
+    paid-check images. Names compare as written, ignoring case and spacing.
+    """
+    pid = "forensic.self_approved_payments"
+    rows = records(tables, "Payment_approvals")
+    findings = []
+    by_person: dict[str, list[dict]] = {}
+    no_approver = 0
+    for row in rows:
+        number = key_text(row.get("payment_number"))
+        preparer, approver = _person(row.get("prepared_by")), _person(row.get("approved_by"))
+        amount = money(row.get("payment_amount"))
+        payee = text(row.get("payee")) or "(no payee)"
+        if not approver:
+            no_approver += 1
+            findings.append(receipt(
+                pid, (number, "no_approver"), "ORPHAN",
+                f"payment {number} to {payee} ({amount}) has no approver or signer "
+                "recorded. Who authorized it?",
+                {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "forensic",
+                 "payment": number, "prepared_by": text(row.get("prepared_by")),
+                 "source_rows": [source_ref("Payment_approvals", row, "payment_number")]},
+                amount))
+        elif preparer and preparer == approver:
+            by_person.setdefault(preparer, []).append(row)
+            findings.append(receipt(
+                pid, (number, "self_approved"), "CLASH",
+                f"payment {number} to {payee} ({amount}) was prepared and approved by "
+                f"the same person, {text(row.get('approved_by'))}. One person both "
+                "raising and authorizing a payment is the opening for a false one: "
+                "inspect its support and what it paid for",
+                {"finding_class": "PROVED_EXCEPTION", "cycle": "forensic",
+                 "payment": number, "person": text(row.get("approved_by")),
+                 "payee": payee, "date": str(day(row.get("payment_date")) or ""),
+                 "source_rows": [source_ref("Payment_approvals", row, "payment_number")]},
+                amount))
+    stats = {"population": len(rows), "self_approved": sum(len(v) for v in by_person.values()),
+             "no_approver": no_approver,
+             "self_approved_by": {p: len(v) for p, v in sorted(by_person.items())},
+             "exceptions": len(findings)}
+    return findings, stats
+
+
 # ------------------------------------------------------------- first digit
 
 # Nigrini, Benford's Law (2012), table 7.1: mean absolute deviation bands for

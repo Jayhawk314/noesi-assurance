@@ -252,8 +252,25 @@ lines in answer_key_part3.json `forensic` and answer_key_payables.json
 - E2. James works Oceanview by hand in his Workbench (loaded 2026-09-29);
   anything he hits goes to the private friction log, then to section B.
 - E3. Decided 1 Oct 2026: add both schemes (self-approved payments,
-  round-tripped money) to Kestrel, the public case, with key lines. Not
-  started; do with D10's Kestrel work.
+  round-tripped money) to Kestrel, the public case, with key lines.
+  **Done 2 Oct 2026 (Claude, local, not reviewed by a second agent):**
+  - Engine: new role `Payment_approvals` and procedure
+    `forensic.self_approved_payments` (payables): an approval or signature
+    log kept apart from the payment register, as such evidence arrives; it
+    lists payments approved by their preparer and payments with no approver.
+    Tested on invented data.
+  - Engine fix: the round-trip test named the client "Rockwood" (an old
+    case) for every client. It now uses a neutral name. This changed no
+    result: a payment's outflow ends at a vendor node no flow leaves, so
+    every leg of a round trip must be in Value_flows (stated in the code).
+  - Kestrel: `auditor/check_signatures.csv` (96 checks; Dana Merritt
+    prepared and signed the three DM Consulting checks) and
+    `auditor/flow_of_funds.csv` (Kestrel → Gallatin Display Works →
+    Summit Loop Racing → Kestrel, 9,800, May 2026). Trial balances
+    unchanged. Key lines in answer_key_payables.json; check_key.py 24/24;
+    finish line 172/174, 0 unexplained (five new lines match).
+  - `ap.segregation_of_duties` stays partial on Kestrel: QuickBooks'
+    payment exports carry no approver; the new procedure reads the log.
 
 **Order:** A and B now (no outside dependency) → D1-D4 → E1 → C when exports arrive
 → E2/E3 alongside. Phase 1 is done when A, B, C and E are done.

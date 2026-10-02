@@ -159,6 +159,17 @@ Planted items:
   freight hauling over three bills), where Owen Pike is warehouse employee
   E08. The Vendor Contact List carries no bank account or tax ID, so the
   name is the only match the exports allow.
+- **Self-approved payments** (roadmap E3): `data/auditor/check_signatures.csv`
+  records who signed each check, read off the bank's paid-check images for
+  every check of 2,500 or more and every check to DM Consulting, Owen Pike
+  Hauling and Gallatin Display Works. Jo Kestrel signs, except the three DM
+  Consulting checks (4,500): Dana Merritt prepared and signed them herself.
+- **A round trip** (roadmap E3): Kestrel pays Gallatin Display Works 9,800
+  for display racks (bill GDW-2207, paid 5/12); the auditor traces that money
+  to Summit Loop Racing (5/14), which pays 9,800 back to Kestrel as a
+  "customer receipt" (5/19). `data/auditor/flow_of_funds.csv` is the
+  auditor's tracing schedule: every check of 9,000 or more, plus the two
+  legs beyond Kestrel's books. A lead, not a quantified misstatement.
 - A bill 12% over its purchase order.
 - Check 4425 keyed 90 short, leaving 90 open.
 - Journal entries:

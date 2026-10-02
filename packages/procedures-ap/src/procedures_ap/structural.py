@@ -132,13 +132,23 @@ def _control_edges(graph: AccountingGraph, record: dict, document: str,
                 evidence=(ref,)))
 
 
-def build_rockwood_accounting_graph(tables: dict) -> AccountingGraph:
-    """Map every AP row, not a sample, with reference/value separation."""
+def build_rockwood_accounting_graph(tables: dict,
+                                    company: str = "Rockwood") -> AccountingGraph:
+    """Map every AP row, not a sample, with reference/value separation.
+
+    ``company`` names the client's own node, which payments flow out of.
+    The default keeps the Rockwood shadow comparison unchanged; the generic
+    executor passes a neutral name (2 Oct 2026: it was hard-coded to the
+    Rockwood case for every client). A payment's outflow ends at a vendor
+    node, which no value-flow row leaves (rows create entity nodes), so a
+    round trip must have every leg in Value_flows, the client's own
+    payment included."""
     graph = AccountingGraph()
+    company_id = _id("entity", company)
     company_ref = EvidenceRef(
-        "engagement", 0, "Rockwood", content_hash({"company": "Rockwood"}))
+        "engagement", 0, company, content_hash({"company": company}))
     graph.add_node(AccountingNode(
-        "entity:Rockwood", "entity", {"name": "Rockwood"}, company_ref))
+        company_id, "entity", {"name": company}, company_ref))
 
     specs = (
         ("Vendors", "vendor", "vendor_number"),
@@ -206,7 +216,7 @@ def build_rockwood_accounting_graph(tables: dict) -> AccountingGraph:
             if isinstance(payment.get("payment_date"), date) else None,
             evidence=(ref,)))
         graph.add_edge(AccountingEdge(
-            "entity:Rockwood", _id("vendor", payment.get("vendor_number")),
+            company_id, _id("vendor", payment.get("vendor_number")),
             "cash_outflow", "value_flow", _number(payment.get("payment_amount")),
             payment.get("payment_date")
             if isinstance(payment.get("payment_date"), date) else None,

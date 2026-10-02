@@ -252,3 +252,50 @@ def test_benford_population_counts_only_amounts_tested():
         {"Journal_entries": _benford_amounts(100)}, {"benford_min_population": "1000"})
     assert stats["population"] == 0
     assert stats["amounts_not_tested"] == len(_benford_amounts(100))
+
+
+# ---------------------------------------------- self-approved payments (E3)
+
+def test_self_approved_payments_and_missing_approvers():
+    log = [
+        {"payment_number": "501", "payee": "Acme", "payment_amount": "900",
+         "prepared_by": "Pat Lee", "approved_by": "Sam Ortiz", "source_row": 2},
+        {"payment_number": "502", "payee": "Pat Lee Services", "payment_amount": "1,500",
+         "prepared_by": "Pat Lee", "approved_by": "  pat  LEE ", "source_row": 3},
+        {"payment_number": "503", "payee": "Bolt", "payment_amount": "40",
+         "prepared_by": "Pat Lee", "approved_by": "", "source_row": 4},
+    ]
+    findings, stats = forensic.self_approved_payments({"Payment_approvals": log}, {})
+    assert _keys(findings) == [("502", "self_approved"), ("503", "no_approver")]
+    assert stats["population"] == 3 and stats["self_approved"] == 1
+    assert stats["no_approver"] == 1 and stats["self_approved_by"] == {"pat lee": 1}
+
+
+def test_a_clean_approval_log_raises_nothing():
+    log = [{"payment_number": str(n), "prepared_by": "Pat Lee", "approved_by": "Sam Ortiz",
+            "payment_amount": "10", "source_row": n} for n in range(2, 12)]
+    findings, stats = forensic.self_approved_payments({"Payment_approvals": log}, {})
+    assert findings == [] and stats["population"] == 10
+
+
+# ------------------------------------- the value-flow company (review 2 Oct)
+
+def test_a_round_trip_needs_every_leg_in_the_value_flows():
+    """The client's own payment does not join the flows (it ends at a vendor
+    node), so a round trip is found when the flow schedule holds every leg,
+    and the Rockwood case's name no longer appears in any run (2 Oct 2026)."""
+    from procedures_ap.engines import execute_procedure
+    # Amounts as the Workbench hands them to AP procedures (engine_view: floats).
+    payments = [{"payment_number": "P1", "vendor_number": "Cove Ltd",
+                 "payment_amount": 5000.0, "payment_date": "2026-05-01"}]
+    back = {"flow_id": "F2", "source_entity": "Cove Ltd", "target_entity": "Acme Co",
+            "amount": 4990.0, "flow_date": "2026-05-09"}
+    found, _ = execute_procedure("forensic.closed_value_flow",
+                                 {"Payments": payments, "Value_flows": [back]}, {})
+    assert found == []
+    out = {"flow_id": "F1", "source_entity": "Acme Co", "target_entity": "Cove Ltd",
+           "amount": 5000.0, "flow_date": "2026-05-01"}
+    found, stats = execute_procedure("forensic.closed_value_flow",
+                                     {"Payments": payments, "Value_flows": [out, back]}, {})
+    assert len(found) == 1 and stats["cycles"] == 1
+    assert "Rockwood" not in str(found[0].evidence)

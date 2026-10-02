@@ -46,6 +46,7 @@ EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "payroll.register_to_ledger": payroll.register_to_ledger,
     "forensic.check_number_sequence": forensic.check_number_sequence,
     "forensic.vendor_employee_match": forensic.vendor_employee_match,
+    "forensic.self_approved_payments": forensic.self_approved_payments,
     "forensic.benford_first_digit": forensic.benford_first_digit,
     "cash.bank_reconciliation": cash.bank_reconciliation,
     "cash.interbank_transfers": cash.interbank_transfers,

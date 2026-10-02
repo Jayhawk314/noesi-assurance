@@ -93,6 +93,10 @@ LOADS = [
     ("client/related_parties.csv", "Related_parties", None, None, None),
     ("auditor/representation_letter.csv", "Representations", None, None, None),
     ("auditor/uncorrected_misstatements_final.csv", "Misstatements", None, None, None),
+    # Roadmap E3: signers read off the paid-check images, and the auditor's
+    # flow-of-funds tracing schedule.
+    ("auditor/check_signatures.csv", "Payment_approvals", None, None, None),
+    ("auditor/flow_of_funds.csv", "Value_flows", None, None, None),
 ]
 
 

@@ -158,6 +158,23 @@ def main():
     results.append(check("that employee", int(hits[0][1][1:]),
                          int(kp["vendor_employee_match"]["employee"][1:])))
 
+    # E3: self-signed checks, and a flow that returns to Kestrel, from the files.
+    signed = rows_csv("auditor", "check_signatures.csv")
+    self_signed = [r["Check Number"] for r in signed
+                   if r["Prepared By"].strip().lower() == r["Signed By"].strip().lower()]
+    results.append(check("self-signed checks", len(self_signed),
+                         len(kp["self_approved_payments"]["self_signed"])))
+    flows = rows_csv("auditor", "flow_of_funds.csv")
+    company = "Kestrel Valley Cycle Supply, LLC"
+    out_to = {(r["To"], num(r["Amount"])) for r in flows if r["From"] == company}
+    onward = {(r["From"], r["To"], num(r["Amount"])) for r in flows
+              if company not in (r["From"], r["To"])}
+    back = {(r["From"], num(r["Amount"])) for r in flows if r["To"] == company}
+    trips = [(a, b, amt) for (a, amt) in out_to for (x, b, amt2) in onward
+             if x == a and amt2 == amt and (b, amt) in back]
+    results.append(check("round trips through one outsider", len(trips), 1))
+    results.append(check("round trip amount", trips[0][2], kp["round_trip"]["amount"]))
+
     print(f"\n{sum(results)}/{len(results)} checks agree")
     raise SystemExit(0 if all(results) else 1)
 

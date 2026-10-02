@@ -76,9 +76,9 @@
     "check_number_sequence": {
       "disbursements": {
         "bank_account": "10100 Checking - First Prairie",
-        "first": 4267,
+        "first": 4266,
         "last": 4433,
-        "distinct_checks": 164,
+        "distinct_checks": 165,
         "gaps": [
           {
             "first_missing": 4422,

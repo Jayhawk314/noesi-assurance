@@ -92,6 +92,8 @@ FRAUD_TESTS: dict[str, tuple[str, str]] = {
                                        "AU-C 240: concealed disbursements"),
     "forensic.vendor_employee_match": ("Vendors that match an employee",
                                        "AU-C 240: fictitious vendors, conflicts of interest"),
+    "forensic.self_approved_payments": ("Payments approved by the person who prepared them",
+                                        "AU-C 240: opportunity from incompatible duties"),
     "forensic.benford_first_digit": ("Amounts that do not look natural",
                                      "AU-C 240: invented figures"),
 }

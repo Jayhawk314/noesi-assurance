@@ -104,7 +104,16 @@ VENDORS = [  # name, phone, email, contact, address, account #
     # (E08 in part 2's employee master). QuickBooks' Vendor Contact List
     # carries no bank account, so the match the export allows is the name.
     ("Owen Pike Hauling", "", "", "", "PO Box 412 Bozeman MT 59771", ""),
+    # Planted (roadmap E3): the first leg of a round trip. Its 9,800 check is
+    # traced to Summit Loop Racing, which pays the same 9,800 back to Kestrel
+    # as a "customer receipt" (data/auditor/flow_of_funds.csv).
+    ("Gallatin Display Works", "", "", "", "PO Box 88 Belgrade MT 59714", ""),
 ]
+ROUND_TRIP = m("9800.00")
+ROUND_TRIP_BILL = (date(2026, 5, 8), "GDW-2207")
+ROUND_TRIP_PAID = date(2026, 5, 12)          # Kestrel's check to Gallatin
+ROUND_TRIP_ONWARD = date(2026, 5, 14)        # Gallatin to Summit Loop Racing
+ROUND_TRIP_BACK = date(2026, 5, 19)          # Summit Loop Racing to Kestrel
 PIKE_BILLS = [  # date, num, amount: freight hauling, paid two weeks later
     (date(2025, 9, 9), "OPH-101", m("1850.00")),
     (date(2026, 1, 13), "OPH-102", m("2100.00")),
@@ -142,7 +151,7 @@ def build():
     # ---- inventory purchases: bills from three suppliers, monthly
     purchases = act["12100"] + act["50000"] + act["51000"]
     duplicate = m("18432.50")
-    genuine = purchases - duplicate
+    genuine = purchases - duplicate - ROUND_TRIP     # Gallatin's bill is a purchase too
     shares = {"Moraine Cycle Components": D("0.5"), "Summit Tire Import": D("0.3"),
               "Kinetic Drivetrain Co.": D("0.2")}
     bills = []   # (vendor, date, num, amount, account, memo)
@@ -227,6 +236,8 @@ def build():
     monthly("Big Timber Office Supply", "67000",
             act["67000"] + manual_reclass - sum(split), 8, "Office supplies",
             "BT-{i:04d}")
+    bills.append(("Gallatin Display Works", ROUND_TRIP_BILL[0], ROUND_TRIP_BILL[1],
+                  ROUND_TRIP, "12100", "Display racks for resale"))
     bills.append(("Tri-County Tool Rental", workday(2026, 6, 1), "TC-8812", tool_rental,
                   "66000", "Delivery equipment rental"))
     for d, amount, num in zip((3, 4, 6), split, ("HF-301", "HF-302", "HF-303")):
@@ -285,6 +296,9 @@ def build():
             for d, amount in zip((14, 14, 14), split):
                 payments.append((vendor, date(2025, 11, d), None, amount))
             continue
+        if vendor == "Gallatin Display Works":
+            payments.append((vendor, ROUND_TRIP_PAID, None, ROUND_TRIP))
+            continue
         if vendor == "Owen Pike Hauling":
             for when, _num, amount in PIKE_BILLS:
                 payments.append((vendor, when + timedelta(days=14), None, amount))
@@ -314,6 +328,22 @@ def build():
         y = 2025 if mo >= 7 else 2026
         b.add(workday(y, mo, 22), "Check", None, "DM Consulting",
               "Consulting", [("68000", m(amount)), ("10100", -m(amount))])
+    key["round_trip"] = {
+        "amount": str(ROUND_TRIP),
+        "legs": [
+            {"from": "Kestrel Valley Cycle Supply, LLC", "to": "Gallatin Display Works",
+             "date": ROUND_TRIP_PAID.isoformat(),
+             "evidence": f"check for bill {ROUND_TRIP_BILL[1]} (display racks for resale)"},
+            {"from": "Gallatin Display Works", "to": "Summit Loop Racing",
+             "date": ROUND_TRIP_ONWARD.isoformat(),
+             "evidence": "traced by the auditor: the check's endorsement and deposit"},
+            {"from": "Summit Loop Racing", "to": "Kestrel Valley Cycle Supply, LLC",
+             "date": ROUND_TRIP_BACK.isoformat(),
+             "evidence": "recorded as a customer receipt (QuickBooks Payment)"}],
+        "why_it_matters": "Kestrel's own 9,800 came back as a 'collection' from a "
+                          "related-party customer; the display-rack bill needs "
+                          "evidence the racks were received. A lead, not a quantified "
+                          "misstatement."}
     key["checks_without_bills"] = {"vendor": "DM Consulting", "total": "4500.00",
                                    "address_matches": "the bookkeeper's home address"}
 
@@ -351,7 +381,15 @@ def build():
     col_months = spread(collections - sum(june_deposits), [1] * 11)
     for (y, mo), amount in zip(MONTHS[:11], col_months):
         for k, part in enumerate(spread(amount, [1] * 4)):
-            b.add(workday(y, mo, 6 + k * 7), "Deposit", "", "", "Customer receipts",
+            when = workday(y, mo, 6 + k * 7)
+            if (y, mo, k) == (2026, 5, 1):
+                # The round trip's return leg: 9,800 of this deposit is Summit
+                # Loop Racing paying back Kestrel's own money (E3).
+                assert when < ROUND_TRIP_BACK and part > ROUND_TRIP, (when, part)
+                part -= ROUND_TRIP
+                b.add(ROUND_TRIP_BACK, "Payment", "", "Summit Loop Racing",
+                      "Customer receipt", [("10100", ROUND_TRIP), ("11000", -ROUND_TRIP)])
+            b.add(when, "Deposit", "", "", "Customer receipts",
                   [("10100", part), ("11000", -part)])
     for d, amount in zip(g.CLEARED_DEPOSITS + g.UNCLEARED_DEPOSITS, june_deposits):
         when = date(2026, int(d[0][:2]), int(d[0][3:5]))

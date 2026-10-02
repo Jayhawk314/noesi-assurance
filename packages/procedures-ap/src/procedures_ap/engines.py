@@ -568,8 +568,10 @@ def _closed_value_flow(tables: dict, policies: dict) -> tuple[list[Receipt], dic
         build_rockwood_accounting_graph,
         directed_round_trip_findings,
     )
+    # A neutral name for the client's own node (it was the Rockwood case's
+    # name for every client). Round trips are found within Value_flows.
     findings, stats = directed_round_trip_findings(
-        build_rockwood_accounting_graph(tables), 0.02)
+        build_rockwood_accounting_graph(tables, "the company"), 0.02)
     return findings, {"population": len(_records(tables, "Value_flows")),
                       "exceptions": len(findings), **stats}
 

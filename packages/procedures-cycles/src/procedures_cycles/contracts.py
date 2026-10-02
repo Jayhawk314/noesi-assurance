@@ -273,6 +273,19 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "as not compared.",
     ),
     ProcedureContract(
+        "forensic.self_approved_payments", "Payments approved by the person who prepared them",
+        "From an approval or signature log (a bill-pay approval report, or the signers "
+        "the auditor read off the bank's paid-check images), list each payment approved "
+        "or signed by the person who prepared it, and each with no approver recorded.",
+        "payables", ("authorization", "occurrence"),
+        {"Payment_approvals": ("payment_number", "prepared_by", "approved_by")},
+        evidence_source="bill-pay approval report or paid-check images inspected by the auditor",
+        denominator_role="Payment_approvals",
+        limitations="Tests only the payments in the log. A signature stamp, a shared login "
+                    "or a forged signature looks like a proper approval; names are "
+                    "compared as written (case and spacing ignored).",
+    ),
+    ProcedureContract(
         "forensic.benford_first_digit", "First-digit test (Benford's law)",
         "Compare the first digits of journal lines (each amount once, on its debit "
         "side), bills and payments, each apart, with Benford's law, and name the "
@@ -563,6 +576,7 @@ SCOPE_OF: dict[str, str] = {
     "payroll.register_to_ledger": "payroll",
     "forensic.check_number_sequence": "payables",
     "forensic.vendor_employee_match": "payroll",
+    "forensic.self_approved_payments": "payables",
     "forensic.benford_first_digit": "journal_entries",
     "cash.bank_reconciliation": "cash",
     "cash.interbank_transfers": "cash",

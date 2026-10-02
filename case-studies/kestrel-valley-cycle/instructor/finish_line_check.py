@@ -326,6 +326,23 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c(f"vendor named after an employee: {vem['vendor']} ({vem['employee']})", True,
       has("forensic.vendor_employee_match", vem["employee"], vem["vendor"])
       if ran("forensic.vendor_employee_match") else NOT_IN)
+    sap = KP["self_approved_payments"]
+    c("checks inspected for their signer", sap["inspected"], loaded("Payment_approvals"))
+    c("self-signed checks: Dana Merritt's DM Consulting checks", sap["self_signed"],
+      [v["key"][-2] for v in with_test("forensic.self_approved_payments", "self_approved")]
+      if ran("forensic.self_approved_payments") else NOT_IN)
+    c("checks with no signer", sap["no_signer"],
+      run("forensic.self_approved_payments").get("no_approver", NOT_IN)
+      if ran("forensic.self_approved_payments") else NOT_IN)
+    trip = KP["round_trip"]
+    cycles = fnd.get("forensic.closed_value_flow", [])
+    entities = lambda v: {e["source"] for e in v["evidence"]["graph_path"]}  # noqa: E731
+    want = {f"entity:{leg['from']}" for leg in trip["legs"]}
+    c("round trip: Kestrel to Gallatin to Summit Loop and back", True,
+      any(entities(v) == want for v in cycles) if ran("forensic.closed_value_flow")
+      else NOT_IN)
+    c("round trips found (leads)", 1,
+      len(cycles) if ran("forensic.closed_value_flow") else NOT_IN)
     c("vendors matching an employee (leads)", 1,
       len(fnd.get("forensic.vendor_employee_match", []))
       if ran("forensic.vendor_employee_match") else NOT_IN)

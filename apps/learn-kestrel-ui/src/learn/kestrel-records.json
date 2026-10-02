@@ -43,6 +43,14 @@
    "account": "LOC-2208"
   },
   {
+   "name": "Gallatin Display Works",
+   "phone": null,
+   "email": null,
+   "contact": null,
+   "address": "PO Box 88 Belgrade MT 59714",
+   "account": null
+  },
+  {
    "name": "Granite Peak Properties",
    "phone": "Phone:(406) 555-0110 ",
    "email": null,
@@ -164,11 +172,11 @@
    "vendor": "Moraine Cycle Components",
    "date": "03/18/2026",
    "type": "Bill Payment (Check)",
-   "num": "4378",
+   "num": "4377",
    "memo": "",
    "account": "10100 Checking - First Prairie",
    "split": "20000 Accounts Payable (A/P)",
-   "amount": "-133380.79"
+   "amount": "-132890.78"
   },
   {
    "vendor": "Moraine Cycle Components, Inc.",
@@ -184,7 +192,7 @@
    "vendor": "Moraine Cycle Components, Inc.",
    "date": "04/02/2026",
    "type": "Bill Payment (Check)",
-   "num": "4385",
+   "num": "4384",
    "memo": "",
    "account": "10100 Checking - First Prairie",
    "split": "20000 Accounts Payable (A/P)",
@@ -228,7 +236,7 @@
    "vendor": "DM Consulting",
    "date": "09/22/2025",
    "type": "Check",
-   "num": "4302",
+   "num": "4301",
    "memo": "Consulting",
    "account": "10100 Checking - First Prairie",
    "split": "68000 Professional Fees",
@@ -238,7 +246,7 @@
    "vendor": "DM Consulting",
    "date": "12/22/2025",
    "type": "Check",
-   "num": "4344",
+   "num": "4343",
    "memo": "Consulting",
    "account": "10100 Checking - First Prairie",
    "split": "68000 Professional Fees",
@@ -248,7 +256,7 @@
    "vendor": "DM Consulting",
    "date": "03/23/2026",
    "type": "Check",
-   "num": "4382",
+   "num": "4381",
    "memo": "Consulting",
    "account": "10100 Checking - First Prairie",
    "split": "68000 Professional Fees",
