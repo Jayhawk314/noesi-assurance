@@ -1,7 +1,7 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 /** Draft Opinion: the opinion the engagement's evidence points to, its
  *  basis, and the judgments only the partner can make. The partner records
- *  each judgment here (with a reason, kept in the signed record); once all
+ *  each judgment here (with a reason, kept in the engagement record); once all
  *  are recorded, the draft settles to one opinion. It never issues one. */
 
 import { useCallback, useState } from "react";
@@ -86,7 +86,7 @@ export function OpinionScreen({ client, eid, onError, onNavigate }: {
                       <option value="">choose…</option>
                       {options.map((o) => <option key={o} value={o}>{words(o)}</option>)}
                     </select>{" "}
-                    <input value={notes[d.decision] ?? ""} placeholder="reason (kept in the signed record)"
+                    <input value={notes[d.decision] ?? ""} placeholder="reason (kept in the engagement record)"
                            onChange={(e) => setNotes({ ...notes, [d.decision]: e.target.value })} />{" "}
                     <button className="action" type="submit"
                             disabled={!answers[d.decision] || (notes[d.decision] ?? "").trim().length < 10}>

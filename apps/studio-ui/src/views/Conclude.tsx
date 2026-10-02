@@ -1,6 +1,5 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
-/** Conclusion: the SAD against materiality, and exactly what still stands
- *  between the file and the partner's lock. */
+/** Conclusion: the SAD against materiality, and exactly what is still open. */
 
 import { Bundle, money } from "../data";
 import { MaterialityRuler } from "./MaterialityRuler";
@@ -65,9 +64,9 @@ export function Conclude({ bundle }: { bundle: Bundle }) {
       </section>
 
       <section className="card wide">
-        <h3>{readiness.ready ? "Ready to lock" : "Before the partner can lock"}</h3>
+        <h3>{readiness.ready ? "Nothing open" : "Still open"}</h3>
         {readiness.ready ? (
-          <p>Nothing blocks the lock. {readiness.report_implication}</p>
+          <p>Nothing is open. {readiness.report_implication}</p>
         ) : (
           <ul className="blockers">
             {readiness.blockers.map((b) => (
@@ -78,8 +77,7 @@ export function Conclude({ bundle }: { bundle: Bundle }) {
             ))}
           </ul>
         )}
-        <p className="muted">Completion checks: {readiness.completion_done} of {readiness.completion_total} done.
-          Locking, the completion checklist and the evidence export live in the <a href="/">Workbench</a>.</p>
+        <p className="muted">The record export lives in the <a href="/">Workbench</a> (Export tab).</p>
       </section>
     </div>
   );

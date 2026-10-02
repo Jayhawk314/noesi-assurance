@@ -39,7 +39,7 @@ def _create_engagement(conn, tenant, client="Acme", period="2025-12-31",
 
 def test_migrate_is_idempotent(tmp_path):
     connection = connect(tmp_path / "m.db")
-    assert migrate(connection) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    assert migrate(connection) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     assert migrate(connection) == []
     connection.close()
 
@@ -85,21 +85,6 @@ def test_replayed_command_returns_stored_result_without_side_effects(conn, tenan
     assert outcome.result["engagement_id"] == first
     assert calls == []  # handler never re-ran
     assert conn.execute("SELECT COUNT(*) c FROM engagement").fetchone()["c"] == 1
-
-
-def test_optimistic_version_conflict_raises(conn, tenant):
-    engagement_id = _create_engagement(conn, tenant)
-    run_command(
-        conn, _command(tenant, "engagement.lock", "lock-1", engagement_id),
-        lambda uow: {"version": uow.engagements.set_status(
-            engagement_id, "locked", expected_version=1)})
-    with pytest.raises(ConflictError):
-        run_command(
-            conn, _command(tenant, "engagement.lock", "lock-stale", engagement_id),
-            lambda uow: {"version": uow.engagements.set_status(
-                engagement_id, "archived", expected_version=1)})
-    row = conn.execute("SELECT status, version FROM engagement").fetchone()
-    assert (row["status"], row["version"]) == ("locked", 2)
 
 
 def test_workflow_state_uses_optimistic_versions(conn, tenant):

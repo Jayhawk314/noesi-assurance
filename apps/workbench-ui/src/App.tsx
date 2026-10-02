@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Client, Engagement, TeamMember } from "./api";
 import {
-  CoverageScreen, LockScreen, RunsScreen, SadScreen, SourcesScreen,
+  CoverageScreen, ExportScreen, RunsScreen, SadScreen, SourcesScreen,
   TeamScreen,
 } from "./screens";
 import { FlowMapScreen } from "./screens/FlowMap";
@@ -17,7 +17,7 @@ import { useTheme } from "./lib/theme";
 const TABS = [
   "Flow Map", "Team", "Scope & Policies", "Planning & Risk", "Sources & Mappings",
   "Coverage", "Runs & Findings", "Fraud", "What Changed", "SAD & Completion", "Draft Opinion",
-  "Lock & Export",
+  "Export",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -179,7 +179,7 @@ function Workbench({ client }: { client: Client }) {
         {selected && (
           <span className="context">
             {selected.client_name} — FYE {selected.period_end}{" "}
-            <span className={`status ${selected.status === "locked" ? "ok" : "pending"}`}>
+            <span className="status pending">
               [{selected.status}]
             </span>
           </span>
@@ -218,7 +218,7 @@ function Workbench({ client }: { client: Client }) {
                     <td>{engagement.client_name}</td>
                     <td>{engagement.period_end}</td>
                     <td>
-                      <span className={`status ${engagement.status === "locked" ? "ok" : "pending"}`}>
+                      <span className="status pending">
                         {engagement.status}
                       </span>
                     </td>
@@ -345,7 +345,7 @@ function Workbench({ client }: { client: Client }) {
               ))}
             </nav>
             <ScreenBody tab={tab} client={client} engagement={selected}
-                        onError={report} onChanged={refresh}
+                        onError={report}
                         onNavigate={setTab} />
           </>
         )}
@@ -402,12 +402,11 @@ function ChairSwitcher({ acting, sessionPrincipal, team, onSwitch }: {
   );
 }
 
-function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }: {
+function ScreenBody({ tab, client, engagement, onError, onNavigate }: {
   tab: Tab;
   client: Client;
   engagement: Engagement;
   onError: (exc: unknown) => void;
-  onChanged: () => Promise<void>;
   onNavigate: (tab: Tab) => void;
 }) {
   const eid = engagement.engagement_id;
@@ -440,8 +439,8 @@ function ScreenBody({ tab, client, engagement, onError, onChanged, onNavigate }:
       return <SadScreen client={client} eid={eid} onError={onError} />;
     case "Draft Opinion":
       return <OpinionScreen client={client} eid={eid} onError={onError} onNavigate={goTo} />;
-    case "Lock & Export":
-      return <LockScreen client={client} engagement={engagement}
-                         onError={onError} onChanged={onChanged} onNavigate={goTo} />;
+    case "Export":
+      return <ExportScreen client={client} engagement={engagement}
+                           onError={onError} onNavigate={goTo} />;
   }
 }

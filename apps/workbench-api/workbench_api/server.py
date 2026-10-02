@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 from assurance_application.service import (
-    AuthorizationError, EngagementLockedError, EvidenceIntegrityError,
+    AuthorizationError, EngagementArchivedError, EvidenceIntegrityError,
     WorkbenchService,
 )
 from assurance_artifacts.vault import VaultIntegrityError
@@ -348,7 +348,7 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                 self._reply(exc.status, {"error": str(exc)})
             except AuthorizationError as exc:
                 self._reply(403, {"error": str(exc)})
-            except EngagementLockedError as exc:
+            except EngagementArchivedError as exc:
                 self._reply(423, {"error": str(exc)})
             except SeparationOfDutiesError as exc:
                 self._reply(409, {"error": str(exc)})
@@ -438,8 +438,6 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.draft_opinion(eid)
                 case ["engagements", eid, "trial-balance-lines"]:
                     return service.trial_balance_lines(eid)
-                case ["engagements", eid, "lock"]:
-                    return service.verify_lock(eid)
                 case ["engagements", eid, "workpaper"]:
                     self._reply_html(
                         200, service.workpaper_html(actor, eid))
@@ -566,11 +564,6 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.update_workflow(
                         actor, eid, str(body["section"]),
                         dict(body.get("values") or {}))
-                case ["engagements", eid, "lock"]:
-                    body = self._read_json()
-                    return service.lock(
-                        actor, eid,
-                        expected_version=int(body["expected_version"]))
                 case ["engagements", eid, "archive"]:
                     body = self._read_json()
                     return service.archive_engagement(
@@ -590,14 +583,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                         return load_case(service, name, actor)
                     except KeyError as exc:
                         raise ApiError(404, str(exc)) from exc
-                case ["engagements", eid, "unlock"]:
-                    body = self._read_json()
-                    return service.unlock(
-                        actor, eid,
-                        reason=str(body.get("reason", "")),
-                        expected_version=int(body["expected_version"]))
                 case ["engagements", eid, "export"]:
-                    return service.export_packet(actor, eid)
+                    return service.export_record(actor, eid)
             raise ApiError(404, "unknown path")
 
     return ThreadingHTTPServer((host, port), Handler)

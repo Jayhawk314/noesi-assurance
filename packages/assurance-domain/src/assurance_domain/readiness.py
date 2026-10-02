@@ -1,5 +1,5 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
-"""Completion readiness: the gates that decide whether an engagement can close.
+"""Completion readiness: what still stands between the record and an opinion.
 
 Supplement, not audit-management software (James, 1 Oct 2026): no gate here
 waits on a sign-off, a concurrence, a review or a ticked box. Each gate is a
@@ -55,8 +55,6 @@ def blank_engagement(report: dict) -> dict:
         "evidence_requests": {},
         "team": {"preparer": "", "reviewer": "", "engagement_partner": ""},
         "data_approvals": {},
-        "workpaper_lock": {"status": "unlocked"},
-        "lock_history": [],
         "scope": {},
     }
 
@@ -182,8 +180,8 @@ def readiness(report: dict, engagement: dict, sad: dict,
                          "count": len(unjustified_exclusions),
                          "items": unjustified_exclusions})
 
-    # A data-less engagement skips every procedure gate above, so a lock
-    # could attest to no substantive work without anyone saying so. When
+    # A data-less engagement skips every procedure gate above, so readiness
+    # could pass with no substantive work without anyone saying so. When
     # the application layer marks the assertion required (dataset count is
     # its fact, not this function's), the partner's explicit statement —
     # "no data-dependent procedures apply, because…" — is a gate like any
@@ -271,8 +269,6 @@ def readiness(report: dict, engagement: dict, sad: dict,
         "control_items": len(control_ids),
         "procedure_items": len(procedure_coverage.get("procedures", [])),
         "review_sources": len(review_sources or []),
-        "workpaper_locked": engagement.get("workpaper_lock", {}).get(
-            "status") == "locked",
         "scope_items": len(report.get("refusals", [])),
         "scope_limitations": limitations,
     }

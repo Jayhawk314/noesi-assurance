@@ -36,7 +36,7 @@ packages/
                           # SAD, readiness, worker protocol — no I/O
   assurance-persistence/  # SQLite adapter, migrations, transactional spine
   assurance-artifacts/    # quarantine -> register -> promote evidence vault;
-                          # signing; the .xlsx reader
+                          # the .xlsx reader
   assurance-application/  # use cases behind the screens, authorization
   assurance-workpapers/   # evidence packet sealing/verification, workpaper
   procedures-ap/          # AP methodology: contracts, coverage, engines,
@@ -91,8 +91,7 @@ cd apps\workbench-ui && npm install && npm run build && cd ..\..
 ```
 
 Open the address it prints — the served page carries its own session token.
-Data lives under `~/.noesi-assurance` (control DB, evidence vault,
-signing keys).
+Data lives under `~/.noesi-assurance` (control DB, evidence vault).
 
 ### First five minutes
 
@@ -121,30 +120,27 @@ not invented. Manual chapter 3 explains each step.
 ### One operator, several chairs
 
 Separation of duties is enforced server-side: whoever proposes a mapping
-cannot approve it, and only the partner locks. Runs, dispositions and
-risks carry no review, approval or concurrence step (removed 1 Oct 2026:
-Noesi supplements an audit; the firm's own review process stays outside it). On a single laptop you play every part — the **acting as**
+cannot approve it. Runs, dispositions and risks carry no review, approval
+or concurrence step, and nothing is locked or signed (removed 1 Oct 2026:
+Noesi supplements an audit; the firm's own review and sign-off stay outside
+it). On a single laptop you play every part — the **acting as**
 control in the header switches which chair you sit in (the demo comes with
 `demo-preparer` and `demo-reviewer`; the Team screen adds more). Every action
-is journaled under the chair that performed it and appears that way on the
-signed workpaper. This is the pilot's honest trust model: the console owner
+is journaled under the chair that performed it and appears that way in the
+exported record. This is the pilot's honest trust model: the console owner
 already controls every local identity, so the switcher changes convenience,
 not the security boundary. A firm-hosted profile with real per-person
 sessions replaces it.
 
-### Locking, reopening, and the amendment record
+### The exported record
 
-Locking freezes a signed manifest of every covered entity, anchored to the
-hash-chained journal. Reopening a locked engagement follows the professional
-rule for changes after file assembly (AU-C 230 / PCAOB AS 1215): nothing is
-ever deleted. Unlock **supersedes** the lock — the partner must give a
-specific reason, which enters the journal permanently; the superseded
-snapshot, its signature, and its journal anchor stay verifiable forever; work
-after reopening passes the same readiness gates; and
-the next lock signs a manifest that names its predecessor and the reason it
-was reopened. Evidence packets carry the full amendment history, and
-`verify_packet` re-verifies every superseded lock offline along with the
-active one.
+The record exports at any time as one JSON file: a manifest of every
+entity (file digests, mappings, datasets, runs, dispositions, risks, team,
+journal position), every run with its findings and seals, the SAD,
+readiness, scope and the draft opinion. Each export is journaled with its
+digest. `verify_packet` re-checks it offline. It is not signed: the digests
+show it is internally consistent, not who made it; the firm archives it
+like any other working paper.
 
 ### The manual and the teaching case
 

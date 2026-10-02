@@ -32,12 +32,10 @@ CUTOFF_CSV = (
 
 @pytest.fixture()
 def service(tmp_path):
-    from assurance_artifacts.signing import LocalKeyStore
     conn = connect(tmp_path / "control.db")
     migrate(conn)
     yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"),
-                           ensure_tenant(conn, "firm"),
-                           keystore=LocalKeyStore(tmp_path / "keys"))
+                           ensure_tenant(conn, "firm"))
     conn.close()
 
 
@@ -174,7 +172,7 @@ def test_migration_8_keeps_existing_risks(tmp_path, monkeypatch):
                  "assertion, level, updated_at) VALUES ('t', 'e', 'r1', 'Cutoff', "
                  "'cutoff', 'high', '2026-01-01')")
     monkeypatch.undo()
-    assert db.migrate(conn) == [8, 9, 10, 11]
+    assert db.migrate(conn) == [8, 9, 10, 11, 12]
     row = conn.execute("SELECT * FROM risk_assessment").fetchone()
     assert (row["risk_id"], row["assertion"], row["level"]) == ("r1", "cutoff", "high")
     conn.execute("INSERT INTO risk_assessment (tenant_id, engagement_id, risk_id, "

@@ -378,6 +378,13 @@ UPDATE engagement SET
         ORDER BY d.event_seq DESC LIMIT 1), 'open')
 WHERE status = 'archived';
 """),
+    (12, "locks-removed", """
+-- Locks and signatures were removed on 1 Oct 2026 (Noesi supplements an
+-- audit; it does not approve one). A locked engagement is reopened: nothing
+-- could unlock it any more. Its lock_snapshot and lock_signature rows stay
+-- as history; nothing reads them now.
+UPDATE engagement SET status = 'open' WHERE status = 'locked';
+"""),
 )
 
 

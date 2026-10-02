@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
-  Run, Sad, Sources, TeamMember, WorkflowDocument, LockVerification, Blocker,
+  Run, Sad, Sources, TeamMember, WorkflowDocument, Blocker,
   ApControlBuilt, ApControlCandidates, TrialBalanceBuilt, TrialBalanceCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
 import { amountsInWords, cents } from "./lib/words";
@@ -71,8 +71,8 @@ export function TeamScreen({ client, eid, onError }: ScreenProps) {
       </form>
       <p className="note">
         Roles are the only authorization input. Preparers ingest and run;
-        reviewers approve mappings and review runs; partners approve, assign,
-        and lock. Separation of duties is enforced server-side.
+        reviewers approve mappings; partners assign the team and make the
+        partner's decisions. Separation of duties is enforced server-side.
       </p>
     </>
   );
@@ -488,7 +488,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
       <p className="note">
         A procedure that cannot run, or that the audit does not need (for example
         the confirmation methods not chosen), is left out by the partner with a
-        reason. The reason goes into the signed record; the lock refuses a
+        reason. The reason goes into the engagement record; readiness lists a
         procedure left out without one, and a blocked or partial one still included.
       </p>
       <div className="panel">
@@ -548,7 +548,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
                     <div className="note">
                       {d.rationale
                         ? <>{d.rationale}{d.decided_by && <> ({d.decided_by})</>}</>
-                        : <b>no reason recorded yet: the lock needs one</b>}
+                        : <b>no reason recorded yet: readiness needs one</b>}
                     </div>
                   </>
                 )}
@@ -966,7 +966,7 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
           </button>
           <span className="note">
             Zero datasets means no procedure ever gated this engagement; the
-            partner must own that on the record before it can lock.
+            partner must own that on the record before readiness can pass.
           </span>
         </form>
       )}
@@ -1046,7 +1046,7 @@ const BLOCKERS: Record<string, [string, string | null]> = {
   WAIVERS_ABOVE_TRIVIAL_THRESHOLD: ["Findings above clearly trivial are waived; waiving is only for trivial amounts.", "Runs & Findings"],
   SCOPE_ITEMS_UNRESOLVED: ["Scope refusals are not yet resolved (no screen for this yet).", null],
   NO_DATA_WITHOUT_PARTNER_ASSERTION: ["No data is loaded; the partner must say why no data-dependent procedure applies.", "SAD & Completion"],
-  DECISION_TRAIL_BROKEN: ["The journal's hash chain does not verify. Suspect the record; do not lock.", null],
+  DECISION_TRAIL_BROKEN: ["The journal's hash chain does not verify. Suspect the record.", null],
 };
 
 /** The readiness gate's report implication, in words (an unknown code shows as it is). */
@@ -1110,72 +1110,44 @@ export function BlockerList({ blockers, onNavigate }: {
   );
 }
 
-// ---------------------------------------------- screen 6: lock and export
+// ---------------------------------------------- screen 6: export the record
 
-export function LockScreen({ client, engagement, onError, onChanged, onNavigate }: {
+export function ExportScreen({ client, engagement, onError, onNavigate }: {
   client: Client;
   engagement: Engagement;
   onError: (exc: unknown) => void;
-  onChanged: () => Promise<void>;
   onNavigate?: (tab: string) => void;
 }) {
   const eid = engagement.engagement_id;
-  const load = useCallback(async () => {
-    const [readiness, lock] = await Promise.all([
-      client.readiness(eid), client.lockStatus(eid),
-    ]);
-    return { readiness, lock };
-  }, [client, eid]);
-  const { data, reload } = useLoader(load, onError);
-  const [unlockReason, setUnlockReason] = useState("");
+  const load = useCallback(() => client.readiness(eid), [client, eid]);
+  const { data: readiness } = useLoader<Readiness>(load, onError);
+  const stamp = () => new Date().toISOString().slice(0, 10);
 
-  async function lockNow() {
-    try {
-      await client.lock(eid, engagement.version);
-      await onChanged();
-      reload();
-    } catch (exc) { onError(exc); }
+  function save(content: string, type: string, name: string) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([content], { type }));
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
-  async function unlockNow() {
+  async function downloadRecord() {
     try {
-      await client.unlock(eid, unlockReason, engagement.version);
-      setUnlockReason("");
-      await onChanged();
-      reload();
-    } catch (exc) { onError(exc); }
-  }
-
-  async function download() {
-    try {
-      const packet = await client.exportPacket(eid);
-      const blob = new Blob([JSON.stringify(packet, null, 2)],
-                            { type: "application/json" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `evidence-packet-${engagement.client_name}-${engagement.period_end}.json`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      const packet = await client.exportRecord(eid);
+      save(JSON.stringify(packet, null, 2), "application/json",
+           `record-${engagement.client_name}-${engagement.period_end}-${stamp()}.json`);
     } catch (exc) { onError(exc); }
   }
 
   async function saveWorkpaper() {
     try {
       const html = await client.workpaperHtml(eid);
-      const locked = engagement.status === "locked";
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-      link.download = `${locked ? "workpaper" : "DRAFT-workpaper"}-${engagement.client_name}-${engagement.period_end}.html`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      save(html, "text/html",
+           `working-paper-${engagement.client_name}-${engagement.period_end}-${stamp()}.html`);
     } catch (exc) { onError(exc); }
   }
 
-  if (!data) return <p className="note">Deriving readiness…</p>;
-  const { readiness, lock } = data as {
-    readiness: Readiness; lock: LockVerification;
-  };
-
+  if (!readiness) return <p className="note">Deriving readiness…</p>;
   return (
     <>
       <h2>Completion readiness</h2>
@@ -1184,7 +1156,7 @@ export function LockScreen({ client, engagement, onError, onChanged, onNavigate 
           <b className={`status ${readiness.ready ? "ok" : "broken"}`}>
             {readiness.ready ? "READY" : "NOT READY"}
           </b>
-          gate
+          for an opinion
         </span>
         <span className="metric">
           <b>{IMPLICATIONS[readiness.report_implication] ?? readiness.report_implication}</b>
@@ -1195,134 +1167,22 @@ export function LockScreen({ client, engagement, onError, onChanged, onNavigate 
         <BlockerList blockers={readiness.blockers} onNavigate={onNavigate} />
       )}
 
-      <h3>Lock</h3>
-      {!lock.locked ? (
-        <>
-          <p className="note">
-            Locking freezes a signed snapshot manifest of every covered
-            entity. It requires the partner and a green readiness gate.
-          </p>
-          <button className="action" disabled={!readiness.ready}
-                  onClick={() => void lockNow()}>
-            lock engagement
-          </button>
-          <h3>Working paper</h3>
-          <p className="note">
-            A draft from the record as it stands, marked DRAFT: not locked, not
-            signed, and not an export. The signed working paper comes with the lock.
-          </p>
-          <button className="action" onClick={() => void saveWorkpaper()}>
-            save DRAFT working paper (HTML)
-          </button>
-        </>
-      ) : (
-        <>
-          <div className="panel">
-            <span className="metric">
-              <b className={`status ${lock.verified ? "ok" : "broken"}`}>
-                {lock.verified ? "VERIFIED" : "FAILED"}
-              </b>
-              overall
-            </span>
-            <span className="metric">
-              <b className={`status ${lock.snapshot_ok ? "ok" : "broken"}`}>
-                {lock.snapshot_ok ? "intact" : `drift: ${(lock.drift ?? []).join(", ")}`}
-              </b>
-              snapshot
-            </span>
-            <span className="metric">
-              <b className={`status ${lock.signature_ok ? "ok" : "broken"}`}>
-                {lock.signature_ok ? "valid" : "invalid"}
-              </b>
-              signature
-            </span>
-            <span className="metric">
-              <b className={`status ${lock.journal_ok ? "ok" : "broken"}`}>
-                {lock.journal_ok ? `${lock.journal_events_checked} events` : "broken"}
-              </b>
-              journal
-            </span>
-          </div>
-          {lock.signer && (
-            <p className="note">
-              Signed by <code>{lock.signer.principal}</code> with key{" "}
-              <code>{short(lock.signer.key_id)}</code> ({lock.signer.algorithm}){" "}
-              at {lock.signer.signed_at}
-            </p>
-          )}
-          {lock.limits && <div className="limits">{lock.limits}</div>}
-          <form className="inline" onSubmit={(e) => e.preventDefault()}>
-            <button className="action" onClick={() => void download()}>
-              download evidence packet (JSON)
-            </button>
-            <button className="action" onClick={() => void saveWorkpaper()}>
-              save working paper (HTML)
-            </button>
-          </form>
-
-          <h3>Reopen (supersede the lock)</h3>
-          <p className="note">
-            Unlocking never deletes anything: this lock, its signature, and
-            its journal anchor stay in the record permanently, and the next
-            lock names it. The reason is required and becomes part of the
-            engagement record (AU-C 230: changes after file assembly document
-            the reason, by whom, and when). Requires the partner chair.
-          </p>
-          <form className="inline"
-                onSubmit={(e) => { e.preventDefault(); void unlockNow(); }}>
-            <input value={unlockReason} size={48}
-                   placeholder="specific reason for reopening (required)"
-                   onChange={(e) => setUnlockReason(e.target.value)} />
-            <button className="action" type="submit"
-                    disabled={unlockReason.trim().length < 10}>
-              unlock with reason
-            </button>
-          </form>
-        </>
-      )}
-
-      {(lock.history ?? []).length > 0 && (
-        <>
-          <h3>Lock amendment history</h3>
-          <table className="dense">
-            <thead>
-              <tr><th>Seq</th><th>Locked</th><th>Unlocked</th><th>Reason</th>
-                  <th>Integrity</th></tr>
-            </thead>
-            <tbody>
-              {(lock.history ?? []).map((item) => (
-                <tr key={item.snapshot_id}>
-                  <td>{item.sequence}</td>
-                  <td className="note">
-                    {item.locked_at}<br />
-                    signed by <code>{item.signer ?? "—"}</code>
-                  </td>
-                  <td className="note">
-                    {item.unlocked_at}<br />
-                    by <code>{item.unlocked_by}</code>
-                  </td>
-                  <td>{item.reason}</td>
-                  <td>
-                    <span className={`status ${item.manifest_ok
-                      && item.signature_ok && item.journal_anchor_ok
-                      ? "ok" : "broken"}`}>
-                      {item.manifest_ok && item.signature_ok
-                        && item.journal_anchor_ok
-                        ? "verifies" : "FAILS"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="note">
-            Superseded locks are re-verified from stored material on every
-            read: manifest re-hashes to its digest, the signature still
-            binds, and the journal hash chain still contains the head each
-            lock was anchored to.
-          </p>
-        </>
-      )}
+      <h3>Export</h3>
+      <p className="note">
+        The record as it stands now: sources, mappings, runs, findings,
+        dispositions, the summary of misstatements, readiness and the draft
+        opinion. It is not signed. Noesi supplements the audit; your firm's
+        own review and sign-off stay outside it. Each export is written to
+        the journal with its digest.
+      </p>
+      <form className="inline" onSubmit={(e) => e.preventDefault()}>
+        <button className="action" onClick={() => void downloadRecord()}>
+          download the record (JSON)
+        </button>
+        <button className="action" onClick={() => void saveWorkpaper()}>
+          save working paper (HTML)
+        </button>
+      </form>
     </>
   );
 }

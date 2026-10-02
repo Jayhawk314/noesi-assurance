@@ -16,7 +16,7 @@
 | Assertion | What a finding (or a risk) is about: occurrence, accuracy, authorization, cutoff, completeness — the audit assertions this cycle tests |
 | Disposition | The auditor's documented conclusion on a finding (AU-C 450 accumulation and evaluation) |
 | SAD | Summary of audit differences / uncorrected misstatements |
-| Lock | File assembly: the frozen, signed, journal-anchored record of the completed engagement |
+| Record | The engagement's testing, exported as one JSON file with its own digests; unsigned (locks and signatures were removed on 1 Oct 2026) |
 | Supersession | A documented post-assembly change (AU-C 230 / AS 1215): reason, who, when — with the prior record preserved intact |
 | Chair | The role a single pilot operator is currently acting in; gates treat chairs as separate people |
 | Journal | The engagement's hash-chained decision trail: who did what, when, in what capacity |

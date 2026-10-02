@@ -3,7 +3,7 @@
  *  linkage. A risk assessment is auditor *judgment* — the workbench stores
  *  it and names who recorded it. The engine never grades a risk; linking a
  *  procedure is how the response is recorded, and a significant risk with
- *  no procedure answering it refuses the lock. */
+ *  no procedure answering it is a readiness blocker. */
 
 import { useCallback, useState } from "react";
 import { Client, Risk, RiskRegister, Sad, WorkflowDocument } from "../api";
@@ -141,7 +141,7 @@ export function RiskScreen({ client, eid, onError }: {
       <p className="note">
         Record the risks of material misstatement at the assertion level, then
         link the procedures that respond to each. Judgment is the auditor's;
-        a significant risk with no procedure answering it blocks the lock.
+        a significant risk with no procedure answering it is a readiness blocker.
       </p>
 
       <form className="inline" onSubmit={addRisk}>

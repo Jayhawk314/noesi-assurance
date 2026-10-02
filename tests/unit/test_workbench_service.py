@@ -26,12 +26,10 @@ ALICE, BOB, CAROL = "principal-alice", "principal-bob", "principal-carol"
 
 @pytest.fixture()
 def service(tmp_path):
-    from assurance_artifacts.signing import LocalKeyStore
     conn = connect(tmp_path / "control.db")
     migrate(conn)
     tenant = ensure_tenant(conn, "firm")
-    yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant,
-                           keystore=LocalKeyStore(tmp_path / "keys"))
+    yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant)
     conn.close()
 
 

@@ -93,13 +93,13 @@ substance is professional judgment.
 
 The register is auditor **judgment**, not a computed output — the engine
 never grades a risk; it records the judgment and who made it. Two readiness
-gates follow from the register, and each blocks the lock:
+gates follow from the register, and each is a readiness blocker:
 
 - `HIGH_RISKS_WITHOUT_RESPONSE` — a significant risk with no planned response.
 - `HIGH_RISKS_WITHOUT_PROCEDURE` — a significant risk no procedure answers.
 
-That pair is the point: the tool will not let you lock an engagement that
-names a significant risk and then does nothing about it. (Noesi supplements
+That pair is the point: readiness will not pass an engagement that names
+a significant risk and then does nothing about it. (Noesi supplements
 the audit; it asks for no sign-off or second-person concurrence. Your firm's
 own review process stays where it is.)
 

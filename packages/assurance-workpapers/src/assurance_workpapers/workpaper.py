@@ -2,7 +2,7 @@
 """Render one self-contained HTML workpaper from an evidence packet.
 
 A document, not an application: inline styles, no scripts, nothing loaded
-from anywhere. Every table row traces to sealed content in the packet.
+from anywhere. Every table row traces to content in the packet.
 """
 
 from __future__ import annotations
@@ -44,29 +44,17 @@ code { font-size: 0.75rem; word-break: break-all; }
 
 def render_workpaper(packet: dict) -> str:
     engagement = packet["engagement"]
-    draft = bool(packet.get("draft"))
-    # A draft has no lock: it reads the live record's manifest instead.
-    lock = packet["lock"] or {"manifest": packet.get("draft_manifest") or {}}
+    manifest = packet.get("manifest") or {}
     seal = packet.get("seal", {})
     sad = packet.get("summary_of_audit_differences", {})
-
-    if draft:
-        provenance = f"""
-<div class="limits"><b>DRAFT — not locked, not signed.</b> Rendered from the
- live record at {_esc(packet['generated'])}. Anything here can still change;
- it is not the audit file and proves nothing about it. The signed working
- paper exists only after the lock.</div>"""
-    else:
-        provenance = f"""
-Lock signed by <b>{_esc(lock['signature']['signer_principal'])}</b>
- (key <code>{_esc(lock['signature']['key_id'][:16])}…</code>,
- {_esc(lock['signature']['algorithm'])}) at
- {_esc(lock['signature']['signed_at'])}<br>
-Lock manifest digest <code>{_esc(lock['digest'])}</code><br>
+    provenance = f"""
+The record as it stood at {_esc(packet['generated'])}; unsigned. It supplements
+ the audit file; the firm's own review and sign-off are outside it.<br>
+Record manifest digest <code>{_esc(packet.get('manifest_digest', ''))}</code><br>
 Packet digest <code>{_esc(seal.get('packet_digest', 'unsealed'))}</code>"""
 
     sections = [f"""
-<h1>{'DRAFT working paper' if draft else 'Assurance workpaper'} — {_esc(engagement['client_name'])}
+<h1>Working paper — {_esc(engagement['client_name'])}
  (FYE {_esc(engagement['period_end'])})</h1>
 <p class="meta">
 Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
@@ -133,48 +121,28 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
             + [[f"setting: {k.replace('_', ' ')}", v]
                for k, v in sorted((scope.get("policies") or {}).items())]))
 
-    if packet.get("lock_history"):
-        sections.append(
-            "<h2>Lock amendment history</h2>"
-            "<p class='meta'>Earlier locks were superseded, never deleted. "
-            "Each entry keeps its full signed manifest in the packet and the "
-            "documented reason for reopening (AU-C 230: changes after file "
-            "assembly record the reason, by whom, and when).</p>"
-            + _table(
-                ["Seq", "Locked (signed by)", "Unlocked (by)", "Reason",
-                 "Manifest digest"],
-                [[item["sequence"],
-                  f"{item.get('locked_at', '')} "
-                  f"({(item.get('signature') or {}).get('signer_principal', '—')})",
-                  f"{item.get('unlocked_at', '')} ({item.get('unlocked_by', '—')})",
-                  item.get("reason", ""),
-                  item["digest"][:16] + "…"]
-                 for item in packet["lock_history"]]))
-
     sections.append("<h2>Source inventory</h2>" + _table(
         ["File", "SHA-256", "Bytes", "State"],
         [[a["original_name"], a["sha256"][:16] + "…", a["size_bytes"],
-          a["state"]] for a in lock["manifest"].get("artifacts", [])]))
+          a["state"]] for a in manifest.get("artifacts", [])]))
 
     sections.append("<h2>Approved mappings and datasets</h2>" + _table(
         ["Role", "Mapping status", "Proposed by", "Approved by",
          "Rows in/loaded/rejected", "Control total"],
         [[d["role"],
-          next((m["status"] for m in lock["manifest"]["mapping_specs"]
+          next((m["status"] for m in manifest["mapping_specs"]
                 if m["spec_id"] == d["mapping_spec_id"]), "?"),
-          next((m["proposed_by"] for m in lock["manifest"]["mapping_specs"]
+          next((m["proposed_by"] for m in manifest["mapping_specs"]
                 if m["spec_id"] == d["mapping_spec_id"]), "?"),
-          next((m["approved_by"] for m in lock["manifest"]["mapping_specs"]
+          next((m["approved_by"] for m in manifest["mapping_specs"]
                 if m["spec_id"] == d["mapping_spec_id"]), "?"),
           f"{d['rows_in']}/{d['rows_loaded']}/{d['rows_rejected']}",
           d["control_total"]]
-         for d in lock["manifest"].get("datasets", [])]))
+         for d in manifest.get("datasets", [])]))
 
     sections.append("<h2>Procedures executed</h2>" + _table(
-        ["Procedure", "Status", "Executed by", "Reviewed by", "Approved by",
-         "Findings", "Result digest"],
+        ["Procedure", "Status", "Run by", "Findings", "Result digest"],
         [[r["procedure_id"], r["status"], r["executed_by"],
-          r["reviewed_by"] or "—", r["approved_by"] or "—",
           len(r["findings"]), r["result_digest"][:16] + "…"]
          for r in packet.get("runs", [])]))
 
@@ -191,8 +159,6 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
                    + json.dumps(finding["key"], ensure_ascii=False))
             disposition = packet.get("dispositions", {}).get(uid, {})
             judged = disposition.get("proposed_by", "")
-            if disposition.get("concurred_by"):
-                judged += f" / concurred: {disposition['concurred_by']}"
             finding_rows.append([
                 run["procedure_id"], finding["verdict"],
                 finding.get("reason", ""),
@@ -214,33 +180,16 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
          ["Total adjusted", sad.get("total_adjusted")],
          ["Conclusion", sad.get("conclusion")]]))
 
-    if draft:
-        sections.append(
-            "<h2>Limitations</h2><div class='limits'>This draft is not signed, "
-            "sealed or locked: nothing in it is protected against change, and it "
-            "cannot be verified later. It shows the record as it stood when it "
-            "was rendered. It does not prove the accounting source was complete "
-            "or authentic.</div>")
-    else:
-        sections.append(
-            "<h2>Limitations</h2>"
-            f"<div class='limits'>{_esc(packet.get('limits', ''))}<br><br>"
-            f"{_esc(lock['manifest'].get('limits', ''))}</div>")
-
-    if draft:
-        return ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
-                f"<title>DRAFT working paper — {_esc(engagement['client_name'])}</title>"
-                f"<style>{_STYLE}</style></head><body>"
-                + "".join(sections) + "</body></html>")
-
     sections.append(
-        "<h2>Verification</h2><p class='meta'>Reperform every integrity "
-        "check offline with <code>assurance_workpapers.packet."
-        "verify_packet(packet)</code> against the JSON packet this document "
-        "was rendered from. Public keys and signatures are carried in the "
-        "packet itself.</p>")
+        "<h2>Limitations</h2>"
+        f"<div class='limits'>{_esc(packet.get('limits', ''))}</div>")
+    sections.append(
+        "<h2>Checking this record</h2><p class='meta'>Reperform the integrity "
+        "checks offline with <code>assurance_workpapers.packet."
+        "verify_packet(packet)</code> against the JSON record this document "
+        "was rendered from (Export → download the record).</p>")
 
     return ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
-            f"<title>Workpaper — {_esc(engagement['client_name'])}</title>"
+            f"<title>Working paper — {_esc(engagement['client_name'])}</title>"
             f"<style>{_STYLE}</style></head><body>"
             + "".join(sections) + "</body></html>")

@@ -32,9 +32,10 @@ principal its **partner**. The partner assigns other principals as
 **Chairs.** The pilot runs on one machine with one operator. The header's
 **acting as** control switches which principal your actions are performed
 as. The gates treat chairs exactly as they would treat separate people: a
-proposal's author cannot approve it, a run's executor cannot review it, a
-reviewer cannot approve their own review. Every action is journaled under
-the chair that performed it and appears that way on the signed workpaper.
+proposal's author cannot approve it. Runs, dispositions and risks carry no
+review or sign-off step: Noesi supplements the audit, and the firm's own
+review stays outside it. Every action is journaled under the chair that
+performed it and appears that way in the exported record.
 
 Understand what this does and does not mean. On a single laptop, chair
 separation is *procedural*, not *personal* — the same human sits in every
@@ -46,8 +47,7 @@ authentication ([production tracker §1](../PRODUCTION-READINESS.md)).
 
 **The journal.** Every accepted command writes a domain event linked by
 hash to its predecessor. This chain is the engagement's decision trail; if
-it breaks, completion readiness blocks (`DECISION_TRAIL_BROKEN`) and the
-engagement cannot lock. You do not have to do anything to maintain it —
+it breaks, completion readiness says so (`DECISION_TRAIL_BROKEN`). You do not have to do anything to maintain it —
 you only need to know it is there, because it is what makes "who did what,
 when" a property of the record rather than a claim.
 

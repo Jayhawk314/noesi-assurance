@@ -5,6 +5,7 @@ export interface Engagement {
   engagement_id: string;
   client_name: string;
   period_end: string;
+  /** "locked" only on engagements read before locks were removed (1 Oct 2026). */
   status: "open" | "locked" | "archived";
   version: number;
 }
@@ -293,7 +294,6 @@ export interface Readiness {
   status: string;
   report_implication: string;
   blockers: Blocker[];
-  workpaper_locked: boolean;
 }
 
 export interface WorkflowDocument {
@@ -348,37 +348,6 @@ export interface DraftOpinion {
   missing_representations: string[];
   going_concern_indicators: string[];
   note: string;
-}
-
-export interface LockVerification {
-  locked: boolean;
-  error?: string;
-  snapshot_ok?: boolean;
-  drift?: string[];
-  signature_ok?: boolean;
-  signer?: { principal: string; key_id: string; algorithm: string; signed_at: string };
-  journal_ok?: boolean;
-  journal_events_checked?: number;
-  verified?: boolean;
-  sequence?: number;
-  history?: LockHistoryEntry[];
-  limits?: string;
-}
-
-/** A superseded lock: retained forever, re-verified from stored material. */
-export interface LockHistoryEntry {
-  sequence: number;
-  snapshot_id: string;
-  digest: string;
-  locked_at: string;
-  manifest_ok: boolean;
-  signature_ok: boolean;
-  journal_anchor_ok: boolean;
-  signer: string | null;
-  signed_at: string | null;
-  unlocked_by: string;
-  unlocked_at: string;
-  reason: string;
 }
 
 export type Significance = "none" | "below_trivial" | "not_measured" | "above_trivial" | "above_performance";
@@ -470,7 +439,7 @@ export class Client {
     return data as T;
   }
 
-  /** The working paper as HTML: signed once locked, a marked draft before. */
+  /** The working paper as HTML, rendered from the record as it stands. */
   workpaperHtml = async (eid: string): Promise<string> => {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
     if (this.actingAs) headers["X-Acting-Principal"] = this.actingAs;
@@ -606,14 +575,6 @@ export class Client {
   updateWorkflow = (eid: string, section: string, values: Record<string, unknown>) =>
     this.request("POST", `/api/engagements/${eid}/workflow`, { section, values });
 
-  lockStatus = (eid: string) =>
-    this.request<LockVerification>("GET", `/api/engagements/${eid}/lock`);
-  lock = (eid: string, expected_version: number) =>
-    this.request<{ locked: boolean; blockers?: Blocker[]; digest?: string }>(
-      "POST", `/api/engagements/${eid}/lock`, { expected_version });
-  unlock = (eid: string, reason: string, expected_version: number) =>
-    this.request<{ unlocked: boolean; version: number }>(
-      "POST", `/api/engagements/${eid}/unlock`, { reason, expected_version });
-  exportPacket = (eid: string) =>
+  exportRecord = (eid: string) =>
     this.request<Record<string, unknown>>("POST", `/api/engagements/${eid}/export`, {});
 }

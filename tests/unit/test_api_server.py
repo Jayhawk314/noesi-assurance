@@ -279,18 +279,15 @@ def test_full_engagement_journey_over_http(api):
     assert status == 200
     assert state["ready"] is False
 
-    status, lock = _request(port, "POST", f"/api/engagements/{eid}/lock",
-                            token=token, body={"expected_version": 1})
+    # The record exports at any time, unsigned; locks are gone (1 Oct 2026).
+    status, packet = _request(port, "POST", f"/api/engagements/{eid}/export",
+                              token=token, body={})
     assert status == 200
-    assert lock["locked"] is False
-
-    # Unlock is reachable and fails closed on an engagement never locked.
-    status, body = _request(port, "POST", f"/api/engagements/{eid}/unlock",
-                            token=token,
-                            body={"reason": "A specific documented reason.",
-                                  "expected_version": 1})
-    assert status == 400
-    assert "not locked" in body["error"]
+    assert packet["packet_version"] == "noesi-evidence-packet-v4"
+    for path in ("lock", "unlock"):
+        status, _ = _request(port, "POST", f"/api/engagements/{eid}/{path}",
+                             token=token, body={"expected_version": 1})
+        assert status == 404
 
 
 # ---------------------------------------------------------- chair switching

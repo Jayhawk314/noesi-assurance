@@ -6,7 +6,6 @@ second person's concurrence (sign-offs removed 1 Oct 2026)."""
 import pytest
 
 from assurance_application.service import WorkbenchService
-from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -19,8 +18,7 @@ def service(tmp_path):
     conn = connect(tmp_path / "control.db")
     migrate(conn)
     tenant = ensure_tenant(conn, "firm")
-    yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant,
-                           keystore=LocalKeyStore(tmp_path / "keys"))
+    yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant)
     conn.close()
 
 

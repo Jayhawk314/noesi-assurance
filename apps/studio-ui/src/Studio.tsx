@@ -16,9 +16,9 @@ import { Changes } from "./views/Changes";
 import { Conclude } from "./views/Conclude";
 
 const CHAIR_HELP: Record<string, string> = {
-  partner: "Partner — sets materiality, approves, signs off",
+  partner: "Partner — sets materiality and makes the partner's decisions",
   preparer: "Preparer — loads data, runs tests, proposes judgments",
-  reviewer: "Reviewer — checks the preparer's work",
+  reviewer: "Reviewer — approves file mappings",
 };
 
 const VIEWS: { id: ViewId; label: string }[] = [
@@ -147,8 +147,8 @@ export function Studio({ client }: { client: Client }) {
             {!next && (
               <div className="next done-all">
                 <div className="next-kicker">Complete</div>
-                <h2>The engagement is locked and signed.</h2>
-                <p>Export the packet from the Workbench to hand it to anyone for offline verification.</p>
+                <h2>Nothing is open.</h2>
+                <p>Export the record from the Workbench (Export tab); anyone can check it offline.</p>
               </div>
             )}
             {error && <div className="alert bad" role="alert">{error}</div>}
@@ -220,7 +220,6 @@ function NextStepCard({ next, bundle, client, acting, actingRoles, busy, perform
     ? bundle.team.find((m) => m.role === next.chair && m.principal_id !== acting)
       ?? bundle.team.find((m) => m.role === next.chair)
     : undefined;
-  const version = (runId: string) => bundle.runs.find((r) => r.run_id === runId)?.version ?? 0;
   const action = next.action;
 
   let button: JSX.Element | null = null;
@@ -231,16 +230,6 @@ function NextStepCard({ next, bundle, client, acting, actingRoles, busy, perform
           <button className="primary" disabled={!!busy} onClick={() => perform("run", async () => {
             for (const pid of action.procedureIds) await client.runProcedure(eid, pid, {});
           })}>{busy === "run" ? "Running…" : `Run ${action.procedureIds.length}`}</button>
-        );
-        break;
-      case "review":
-      case "approve":
-        button = (
-          <button className="primary" disabled={!!busy} onClick={() => perform(action.kind, async () => {
-            for (const id of action.runIds) {
-              await client.reviewRun(eid, id, action.kind === "review" ? "reviewed" : "approved", version(id));
-            }
-          })}>{busy ? "Working…" : `${action.kind === "review" ? "Mark reviewed" : "Approve"} (${action.runIds.length})`}</button>
         );
         break;
       case "materiality":

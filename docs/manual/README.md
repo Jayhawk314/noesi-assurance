@@ -17,8 +17,8 @@ Every chapter follows the same three-part pattern:
 
 The point of pairing them: the workbench is not a substitute for the audit
 process — it is the audit process, instrumented. Every gate in the tool
-(a mapping you cannot approve yourself, a lock that refuses while a run is
-unreviewed) exists because the profession requires it, and each chapter
+(a mapping you cannot approve yourself, a readiness list that names every
+open finding) exists because the profession requires it, and each chapter
 names the requirement the gate implements.
 
 ## The chapters
@@ -31,7 +31,7 @@ names the requirement the gate implements.
 | 4 | [Coverage and scoping](04-coverage-and-scoping.md) | What "the data supports this procedure" honestly means; policies; deselection with rationale |
 | 5 | [Executing procedures](05-executing-procedures.md) | Procedure families, assertion by assertion; tolerances; what silence means |
 | 6 | [Findings, dispositions, and the SAD](06-findings-dispositions-sad.md) | Exception ≠ misstatement; dispositions; AU-C 450 evaluation |
-| 7 | [Completion, lock, and the archive](07-completion-lock-archive.md) | Readiness gates, signing, the evidence packet, reopening under AU-C 230 |
+| 7 | [Completion, the record, and the archive](07-completion-lock-archive.md) | Readiness, the exported record and its offline check, what it does not prove |
 | 8 | [Glossary and reference](08-glossary.md) | Product terms ↔ standards vocabulary; verdicts; blocker codes |
 
 ## Two ways to work through it

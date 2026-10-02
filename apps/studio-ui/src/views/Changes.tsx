@@ -79,7 +79,7 @@ export function Changes({ bundle }: { bundle: Bundle }) {
           ))}
           {judged.map((c, i) => (
             <Box key={`j${i}`} x={colX[3]} y={y(i, judged.length)} w={180} cls="judg"
-                 title={`${c.disposition}${c.concurred ? " (concurred)" : ""}`} sub={ACTION[c.action]} />
+                 title={c.disposition} sub={ACTION[c.action]} />
           ))}
         </svg>
       </section>

@@ -13,7 +13,6 @@ import getpass
 from pathlib import Path
 
 from assurance_application.service import WorkbenchService
-from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -27,7 +26,7 @@ _STUDIO_DIST = Path(__file__).resolve().parents[2] / "studio-ui" / "dist"
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", default=str(Path.home() / ".noesi-assurance"),
-                        help="data directory (control DB, vault, keys)")
+                        help="data directory (control DB, vault)")
     parser.add_argument("--port", type=int, default=8347)
     parser.add_argument("--principal", default=f"local:{getpass.getuser()}",
                         help="principal id for this session")
@@ -45,9 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     conn = connect(data / "control.db", allow_cross_thread=True)
     migrate(conn)
     tenant = ensure_tenant(conn, "local")
-    service = WorkbenchService(
-        conn, ArtifactVault(data / "vault"), tenant,
-        keystore=LocalKeyStore(data / "keys"))
+    service = WorkbenchService(conn, ArtifactVault(data / "vault"), tenant)
     auth = SessionAuth.create(args.principal)
     static = _UI_DIST if _UI_DIST.is_dir() else None
     studio = _STUDIO_DIST if _STUDIO_DIST.is_dir() else None

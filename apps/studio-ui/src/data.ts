@@ -3,12 +3,12 @@
  *
  *  The studio never decides anything the server has not already recorded:
  *  every stage status below is a direct reading of coverage, runs,
- *  findings, SAD, readiness or the lock. "Next step" names the first stage
+ *  findings, SAD or readiness. "Next step" names the first stage
  *  that is not done, the chair that can move it, and — only where the
  *  server offers a one-shot action — the button that does it. */
 
 import {
-  Client, Coverage, Engagement, Finding, Impact, LockVerification,
+  Client, Coverage, Engagement, Finding, Impact,
   Readiness, Run, Sad, Sources, TeamMember, WorkflowDocument,
 } from "../../workbench-ui/src/api";
 
@@ -29,25 +29,24 @@ export interface Bundle {
   workflow: WorkflowDocument;
   workflowVersion: number;
   impact: Impact | null;
-  lock: LockVerification;
 }
 
 export async function loadBundle(client: Client, engagement: Engagement): Promise<Bundle> {
   const eid = engagement.engagement_id;
   const [team, sources, coverage, runs, findings, sad, readiness, workflow,
-         impact, lock] = await Promise.all([
+         impact] = await Promise.all([
     client.team(eid), client.sources(eid), client.coverage(eid),
     client.runs(eid), client.findings(eid), client.sad(eid),
     client.readiness(eid), client.workflow(eid),
     // The impact report rebuilds every file version; an older server
     // without the endpoint simply has nothing to show.
-    client.impact(eid).catch(() => null), client.lockStatus(eid),
+    client.impact(eid).catch(() => null),
   ]);
   return {
     engagement, team: team.team, sources, coverage, runs: runs.runs,
     findings: findings.findings, sad, readiness,
     workflow: workflow.document, workflowVersion: workflow.version,
-    impact, lock,
+    impact,
   };
 }
 
@@ -65,8 +64,8 @@ export function currentFindings(bundle: Bundle): Finding[] {
 }
 
 export type StageId =
-  | "plan" | "collect" | "scope" | "test" | "review" | "judge"
-  | "conclude" | "signoff";
+  | "plan" | "collect" | "scope" | "test" | "judge"
+  | "conclude" | "export";
 export type StageState = "done" | "active" | "waiting" | "attention";
 
 export interface Stage {
@@ -88,8 +87,6 @@ export interface NextStep {
 
 export type NextAction =
   | { kind: "run"; procedureIds: string[] }
-  | { kind: "review"; runIds: string[] }
-  | { kind: "approve"; runIds: string[] }
   | { kind: "materiality" }
   | { kind: "view"; view: ViewId }
   | { kind: "workbench"; tab: string };
@@ -112,15 +109,8 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
     })
     .map((p) => p.procedure_id);
   const ran = executable.length - toRun.length;
-  const current = [...latest.values()].filter((r) => r.status !== "error");
-  const toReview = current.filter((r) => r.status === "completed");
-  const toApprove = current.filter((r) => r.status === "reviewed");
   const findings = currentFindings(bundle);
   const undisposed = findings.filter((f) => f.disposition.status === "undisposed");
-  const awaiting = findings.filter((f) => f.awaiting_concurrence);
-  const completionDone = bundle.readiness.completion_done;
-  const completionTotal = bundle.readiness.completion_total;
-  const locked = bundle.engagement.status === "locked";
 
   const state = (done: boolean, attention = false): StageState =>
     done ? "done" : attention ? "attention" : "waiting";
@@ -155,35 +145,25 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
         : `${ran} of ${executable.length} run`,
     },
     {
-      id: "review", title: "Review", question: "Has a second person checked the work?",
-      state: state(current.length > 0 && toReview.length + toApprove.length === 0,
-                   current.length > 0),
-      progress: [current.filter((r) => r.status === "approved").length, current.length],
-      detail: `${toReview.length} to review, ${toApprove.length} to approve`,
-    },
-    {
       id: "judge", title: "Judge", question: "What does each exception mean?",
-      state: state(findings.length > 0 && undisposed.length === 0 && awaiting.length === 0,
-                   findings.length > 0),
+      state: state(findings.length > 0 && undisposed.length === 0, findings.length > 0),
       progress: [findings.length - undisposed.length, findings.length],
-      detail: `${undisposed.length} need a judgment` +
-        (awaiting.length ? `, ${awaiting.length} await concurrence` : ""),
+      detail: `${undisposed.length} need a judgment`,
     },
     {
       id: "conclude", title: "Conclude", question: "Is the total material?",
-      state: state(bundle.sad.conclusion !== null && completionDone === completionTotal,
-                   bundle.sad.conclusion !== null),
-      progress: [completionDone, completionTotal],
-      detail: bundle.sad.conclusion
-        ? `SAD: ${bundle.sad.conclusion}; ${completionDone}/${completionTotal} completion checks`
-        : "SAD not concluded",
+      state: state(bundle.sad.conclusion !== null),
+      progress: [bundle.sad.conclusion !== null ? 1 : 0, 1],
+      detail: bundle.sad.conclusion ? `SAD: ${bundle.sad.conclusion}` : "SAD not concluded",
     },
     {
-      id: "signoff", title: "Sign off", question: "Seal the file",
-      state: state(locked, bundle.readiness.ready),
-      progress: [locked ? 1 : 0, 1],
-      detail: locked ? "Locked and signed" : bundle.readiness.ready
-        ? "Ready to lock" : `${bundle.readiness.blockers.length} blocker(s)`,
+      // Noesi supplements the audit; there is no sign-off (removed 1 Oct 2026).
+      id: "export", title: "Export", question: "Is anything still open?",
+      state: state(bundle.readiness.ready),
+      progress: [bundle.readiness.ready ? 1 : 0, 1],
+      detail: bundle.readiness.ready
+        ? "Nothing open: export the record"
+        : `${bundle.readiness.blockers.length} item(s) still open`,
     },
   ];
   const firstOpen = stages.findIndex((s) => s.state !== "done");
@@ -218,33 +198,20 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
                  : `Run ${toRun.length} procedure(s)`,
                why: "Each run tests the whole population and freezes exactly which data it used." };
       break;
-    case "review":
-      next = toReview.length
-        ? { stage: open, chair: "reviewer",
-            action: { kind: "review", runIds: toReview.map((r) => r.run_id) },
-            headline: `Review ${toReview.length} run(s)`,
-            why: "The person who ran a procedure cannot be the one who reviews it." }
-        : { stage: open, chair: "partner",
-            action: { kind: "approve", runIds: toApprove.map((r) => r.run_id) },
-            headline: `Approve ${toApprove.length} reviewed run(s)`,
-            why: "Partner approval is the last step before the results count." };
-      break;
     case "judge":
       next = { stage: open, chair: "preparer", action: { kind: "view", view: "findings" },
-               headline: undisposed.length
-                 ? `Judge ${undisposed.length} exception(s)`
-                 : `${awaiting.length} judgment(s) need a reviewer's concurrence`,
+               headline: `Judge ${undisposed.length} exception(s)`,
                why: "An exception is a lead, not a conclusion. Each needs a disposition and a note saying why." };
       break;
     case "conclude":
       next = { stage: open, chair: "partner", action: { kind: "workbench", tab: "SAD & Completion" },
-               headline: "Conclude the SAD and finish the completion checklist",
-               why: "Compare uncorrected differences to materiality, then document the completion checks." };
+               headline: "Conclude the SAD",
+               why: "Compare uncorrected differences to materiality: every misstatement candidate needs a disposition." };
       break;
-    case "signoff":
-      next = { stage: open, chair: "partner", action: { kind: "workbench", tab: "Lock & Export" },
-               headline: "Lock and export the evidence packet",
-               why: "The lock signs the whole file; the packet re-verifies anywhere, with no tool." };
+    case "export":
+      next = { stage: open, chair: "partner", action: { kind: "workbench", tab: "Export" },
+               headline: "See what is still open, then export the record",
+               why: "Readiness lists what stands between the record and an opinion; the record exports any time, unsigned, and checks itself with no tool." };
       break;
   }
   return { stages, next };

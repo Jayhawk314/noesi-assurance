@@ -1,13 +1,13 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
-"""Evidence packets: exported from a frozen verified lock, offline-verifiable,
-tamper-naming; the workpaper renders every conclusion with its lineage."""
+"""The engagement record: exported unsigned at any time, checkable offline,
+naming what was edited; the workpaper renders every conclusion with its
+lineage."""
 
 import json
 
 import pytest
 
 from assurance_application.service import WorkbenchService
-from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -34,14 +34,13 @@ def service(tmp_path):
     conn = connect(tmp_path / "control.db")
     migrate(conn)
     tenant = ensure_tenant(conn, "firm")
-    yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant,
-                           keystore=LocalKeyStore(tmp_path / "keys"))
+    yield WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), tenant)
     conn.close()
 
 
 @pytest.fixture()
-def locked_engagement(service):
-    """A fully worked engagement: data, runs, dispositions, lock."""
+def worked_engagement(service):
+    """A fully worked engagement: data, runs, dispositions."""
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
     service.assign_team(ALICE, eid, BOB, "preparer")
     service.assign_team(ALICE, eid, CAROL, "reviewer")
@@ -86,49 +85,46 @@ def locked_engagement(service):
     service.update_workflow(ALICE, eid, "policy",
                             {"name": "split_threshold", "value": "10000"})
     service.update_workflow(ALICE, eid, "materiality", {"amount": 10000.0})
-    outcome = service.lock(ALICE, eid, expected_version=1)
-    assert outcome["locked"] is True, outcome.get("blockers")
+    assert service.readiness(eid)["ready"] is True, service.readiness(eid)["blockers"]
     return eid
 
 
 def test_export_produces_an_offline_verifiable_packet(service,
-                                                      locked_engagement):
-    packet = service.export_packet(CAROL, locked_engagement)
+                                                      worked_engagement):
+    packet = service.export_record(CAROL, worked_engagement)
     report = verify_packet(packet)
     assert report["verified"] is True, report
     assert report["finding_receipts_ok"] is True
     assert report["run_seals_ok"] is True
-    assert report["lock_signature_ok"] is True
-    assert report["export_signature_ok"] is True
-
-    assert packet["engagement"]["status"] == "locked"
+    assert report["manifest_ok"] is True
     assert len(packet["runs"]) == 2
     assert {run["procedure_id"] for run in packet["runs"]} == {
         "ap.split_payment_review", "ap.subledger_gl_balance_tie"}
     assert len(packet["procedures_not_run"]) == 9
-    assert all("deselected" in p["reason"]
+    assert all("left out" in p["reason"]
                for p in packet["procedures_not_run"])
     sad = packet["summary_of_audit_differences"]
     assert sad["total_unadjusted"] == 5000.0
     assert sad["conclusion"] == "immaterial"
+    assert packet["readiness"]["ready"] is True
     # The export itself was journaled.
     event = service._conn.execute(
-        "SELECT payload FROM domain_event WHERE event_type = 'export.packet'"
+        "SELECT payload FROM domain_event WHERE event_type = 'export.record'"
     ).fetchone()
     assert json.loads(event["payload"])["packet_digest"] == \
         packet["seal"]["packet_digest"]
 
 
-def test_every_run_carries_who_ran_it(service, locked_engagement):
-    packet = service.export_packet(CAROL, locked_engagement)
+def test_every_run_carries_who_ran_it(service, worked_engagement):
+    packet = service.export_record(CAROL, worked_engagement)
     for run in packet["runs"]:
         assert run["executed_by"] == BOB
         assert run["status"] == "completed"
 
 
 def test_tampering_with_a_packet_is_named_not_hidden(service,
-                                                     locked_engagement):
-    packet = service.export_packet(CAROL, locked_engagement)
+                                                     worked_engagement):
+    packet = service.export_record(CAROL, worked_engagement)
 
     forged = json.loads(json.dumps(packet))
     forged["runs"][0]["findings"][0]["score"] = 1.0
@@ -142,55 +138,28 @@ def test_tampering_with_a_packet_is_named_not_hidden(service,
     forged["summary_of_audit_differences"]["total_unadjusted"] = 0.0
     report = verify_packet(forged)
     assert report["verified"] is False
-    # The signature still validly covers the *claimed* digest; the forgery
-    # is caught because the content no longer matches that claim. Each
-    # layer answers for itself.
+    # The receipts and run seals still hold; only the packet digest names
+    # the edit. Each layer answers for itself.
     assert report["packet_digest_ok"] is False
-    assert report["export_signature_ok"] is True
-    assert report["lock_signature_ok"] is True
+    assert report["finding_receipts_ok"] is True and report["run_seals_ok"] is True
+
+    # Unsigned: someone who edits the packet can recompute its digest. The
+    # check then passes; the packet's limits say so plainly.
+    from assurance_workpapers.packet import seal_packet
+    resealed = seal_packet({k: v for k, v in forged.items() if k != "seal"})
+    assert verify_packet(resealed)["verified"] is True
+    assert "can recompute the digests" in packet["limits"]
 
 
-def test_export_refuses_unlocked_and_drifted_engagements(service):
-    eid = service.create_engagement(ALICE, "Fresh", "2025-12-31")["engagement_id"]
-    with pytest.raises(ValueError, match="does not verify"):
-        service.export_packet(ALICE, eid)
-
-
-def test_export_refuses_when_post_lock_drift_exists(service,
-                                                    locked_engagement):
-    service._conn.execute(
-        "UPDATE disposition SET note = 'edited after lock' "
-        "WHERE engagement_id = ?", (locked_engagement,))
-    with pytest.raises(ValueError, match="drift"):
-        service.export_packet(CAROL, locked_engagement)
-
-
-def test_reopened_work_is_regated_before_relock(service, locked_engagement):
-    """After unlock, rework passes the same gates a first lock required.
-
-    Reperformance of the same procedure on the same data is the normal
-    post-reopening event (AU-C 230 changes after assembly), so the rerun
-    must mint a distinct job; the re-lock takes it as it stands.
-    """
-    eid = locked_engagement
-    service.unlock(
-        ALICE, eid,
-        reason="Client delivered a corrected AP control balance after "
-               "archiving; reperforming the control-account tie.",
-        expected_version=2)
-
-    # Same procedure, same tables, same policies — a true reperformance.
+def test_a_rerun_keeps_both_generations_in_the_record(service, worked_engagement):
+    """Reperformance of the same procedure on the same data mints a distinct
+    job; the record keeps both runs, each with who ran it."""
+    eid = worked_engagement
     rerun = service.run_procedure(
         BOB, eid, procedure_id="ap.subledger_gl_balance_tie")
     assert rerun["status"] == "completed"
-
-    relock = service.lock(ALICE, eid, expected_version=3)
-    assert relock["locked"] is True, relock.get("blockers")
-    verification = service.verify_lock(eid)
-    assert verification["verified"] is True
-    assert verification["sequence"] == 2
-    # Both generations of the tie run are in the packet.
-    packet = service.export_packet(CAROL, eid)
+    packet = service.export_record(CAROL, eid)
+    assert verify_packet(packet)["verified"] is True
     tie_runs = [run for run in packet["runs"]
                 if run["procedure_id"] == "ap.subledger_gl_balance_tie"]
     assert len(tie_runs) == 2
@@ -199,29 +168,29 @@ def test_reopened_work_is_regated_before_relock(service, locked_engagement):
 
 
 def test_workpaper_renders_conclusions_with_lineage(service,
-                                                    locked_engagement):
-    html = service.workpaper_html(CAROL, locked_engagement)
+                                                    worked_engagement):
+    html = service.workpaper_html(CAROL, worked_engagement)
     assert "<script" not in html.lower()
     assert "Acme" in html
     assert "ap.split_payment_review" in html
     assert "ap.subledger_gl_balance_tie" in html
     assert "unadjusted" in html
     assert "reviewed with client" in html
-    assert "principal-alice" in html          # lock signer
-    assert "does not prove" in html or "Nothing here" in html
+    assert "unsigned" in html
+    assert "does not prove" in html
     assert "Procedures not executed" in html
     assert "verify_packet" in html
 
 
 def test_the_final_file_carries_the_opinion_scope_and_decisions(service,
-                                                                locked_engagement):
-    """The signed packet is the finished audit file: the opinion the evidence
-    supports, the partner's recorded judgments, and what was covered, sealed
-    and verifiable offline like everything else."""
-    packet = service.export_packet(CAROL, locked_engagement)
+                                                                worked_engagement):
+    """The record carries the opinion the evidence points to, the partner's
+    recorded judgments, and what was covered, checkable offline like
+    everything else."""
+    packet = service.export_record(CAROL, worked_engagement)
     assert verify_packet(packet)["verified"] is True
     assert packet["opinion"]["proposed_opinion"]
     assert "decisions_required" in packet["opinion"]
     assert packet["scope"]["period_end"] and "policies" in packet["scope"]
-    html = service.workpaper_html(CAROL, locked_engagement)
+    html = service.workpaper_html(CAROL, worked_engagement)
     assert "<h2>Opinion</h2>" in html and "<h2>Scope and settings</h2>" in html

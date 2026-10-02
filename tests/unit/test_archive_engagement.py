@@ -44,14 +44,13 @@ def test_the_archive_is_journaled_with_who_and_why(svc):
     assert "practice run" in rows[0]["payload"]
 
 
-def test_a_locked_engagement_restores_as_locked(svc):
+def test_archive_and_restore_leave_the_status_alone(svc):
     eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
-    svc._conn.execute("UPDATE engagement SET status = 'locked' WHERE engagement_id = ?", (eid,))
-    svc._conn.commit()
     svc.archive_engagement("pa", eid, reason="finished engagement, file away")
-    assert svc._engagement(eid)["status"] == "locked" and svc._engagement(eid)["archived_at"]
+    assert svc._engagement(eid)["status"] == "open" and svc._engagement(eid)["archived_at"]
     svc.restore_engagement("pa", eid)
-    assert svc._engagement(eid)["status"] == "locked"
+    assert svc._engagement(eid)["status"] == "open"
+    assert svc._engagement(eid)["archived_at"] is None
 
 
 def test_delete_removes_the_case_and_keeps_the_journal_chain_whole(svc):

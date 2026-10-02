@@ -9,9 +9,8 @@ import pytest
 
 from assurance_application.impact import KEY_FIELDS, diff_records, thresholds
 from assurance_application.service import (
-    AuthorizationError, EngagementLockedError, WorkbenchService,
+    EngagementArchivedError, WorkbenchService,
 )
-from assurance_artifacts.signing import LocalKeyStore
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -23,18 +22,8 @@ PA, PREP, REV = "pa", "prep", "rev"
 def svc(tmp_path):
     conn = connect(tmp_path / "c.db")
     migrate(conn)
-    yield WorkbenchService(conn, ArtifactVault(tmp_path / "v"), ensure_tenant(conn, "o"),
-                           keystore=LocalKeyStore(tmp_path / "keys"))
+    yield WorkbenchService(conn, ArtifactVault(tmp_path / "v"), ensure_tenant(conn, "o"))
     conn.close()
-
-
-def _locked(svc, name="Zenith"):
-    eid = svc.create_engagement(PA, name, "2025-06-30")["engagement_id"]
-    svc.update_workflow(PA, eid, "materiality", {"amount": 10000.0})
-    svc.update_workflow(PA, eid, "no_data_assertion",
-                        {"asserted": True, "reason": "unit fixture, no client data"})
-    assert svc.lock(PA, eid, expected_version=1)["locked"] is True
-    return eid
 
 
 # 1. archived engagements are read-only ---------------------------------------
@@ -42,31 +31,17 @@ def _locked(svc, name="Zenith"):
 def test_1_an_archived_engagement_refuses_every_change(svc):
     eid = svc.create_engagement(PA, "Acme", "2025-12-31")["engagement_id"]
     svc.archive_engagement(PA, eid, reason="practice run, file it away")
-    with pytest.raises(EngagementLockedError, match="archived"):
+    with pytest.raises(EngagementArchivedError, match="archived"):
         svc.assign_team(PA, eid, PREP, "preparer")
-    with pytest.raises(EngagementLockedError, match="archived"):
+    with pytest.raises(EngagementArchivedError, match="archived"):
         svc.update_workflow(PA, eid, "materiality", {"amount": 5000})
-    with pytest.raises(EngagementLockedError, match="archived"):
+    with pytest.raises(EngagementArchivedError, match="archived"):
         svc.assess_risk(PA, eid, title="x", assertion="occurrence")
-    with pytest.raises(EngagementLockedError, match="archived"):
-        svc.lock(PA, eid, expected_version=1)
     svc.restore_engagement(PA, eid)
     svc.assign_team(PA, eid, PREP, "preparer")        # writable again
 
 
-# 2. archive and restore leave a signed lock verified ------------------------
-
-def test_2_archive_and_restore_keep_a_signed_lock_verified(svc):
-    eid = _locked(svc)
-    assert svc.verify_lock(eid)["verified"] is True
-    svc.archive_engagement(PA, eid, reason="finished engagement, file away")
-    assert svc.verify_lock(eid)["verified"] is True
-    assert [e["engagement_id"] for e in svc.list_engagements(archived=True)] == [eid]
-    svc.restore_engagement(PA, eid)
-    lock = svc.verify_lock(eid)
-    assert lock["verified"] is True and not lock.get("drift")
-    assert svc._engagement(eid)["status"] == "locked"
-
+# 2. old-style archives come back as open engagements --------------------
 
 def test_2_migration_11_brings_old_style_archives_back_to_their_status(tmp_path):
     from assurance_persistence import database as db
@@ -92,9 +67,11 @@ def test_2_migration_11_brings_old_style_archives_back_to_their_status(tmp_path)
             "'engagement', engagement_id, 'engagement.archived', ?, '2026-09-29T00:00:00+00:00' "
             "FROM engagement WHERE engagement_id = ?",
             (json.dumps({"reason": "old", "previous_status": before}), eid))
-    assert db.migrate(conn) == [11]
+    # 11 restores each status from its archive event; 12 (locks removed
+    # 1 Oct 2026) then reopens the one that had been locked.
+    assert db.migrate(conn) == [11, 12]
     rows = {r["engagement_id"]: r for r in conn.execute("SELECT * FROM engagement")}
-    assert (rows[a]["status"], rows[b]["status"]) == ("locked", "open")
+    assert (rows[a]["status"], rows[b]["status"]) == ("open", "open")
     assert rows[a]["archived_at"] and rows[b]["archived_at"]
     conn.close()
 
@@ -129,32 +106,25 @@ def test_3_a_change_with_no_dollar_measure_is_not_called_none():
     assert diff["significance"] == "not_measured"
 
 
-# 4. the fraud flag is inside the signed manifest ----------------------------
+# 4. the fraud flag travels in the exported record -------------------------
 
-def test_4_changing_a_fraud_flag_after_the_lock_breaks_verification(svc):
+def test_4_the_fraud_flag_is_in_the_exported_record(svc):
     eid = svc.create_engagement(PA, "Zenith", "2025-06-30")["engagement_id"]
     svc.assess_risk(PA, eid, title="Override", assertion="occurrence",
                     level="moderate", fraud=True)
-    svc.update_workflow(PA, eid, "materiality", {"amount": 10000.0})
-    svc.update_workflow(PA, eid, "no_data_assertion",
-                        {"asserted": True, "reason": "unit fixture, no client data"})
-    assert svc.lock(PA, eid, expected_version=1)["locked"] is True
-    assert svc.verify_lock(eid)["verified"] is True
-    svc._conn.execute("UPDATE risk_assessment SET fraud = 0 WHERE engagement_id = ?", (eid,))
-    lock = svc.verify_lock(eid)
-    assert lock["verified"] is False and "risks" in lock["drift"]
+    [risk] = svc.export_record(PA, eid)["manifest"]["risks"]
+    assert risk["fraud"] == 1
 
 
-# 5. a signed engagement can be deleted --------------------------------------
+# 5. an engagement can be deleted -------------------------------------------
 
-def test_5_a_signed_engagement_deletes_completely(svc):
-    eid = _locked(svc)
+def test_5_an_engagement_deletes_completely(svc):
+    eid = svc.create_engagement(PA, "Zenith", "2025-06-30")["engagement_id"]
+    svc.export_record(PA, eid)
     svc.delete_engagement(PA, eid, confirm_client_name="Zenith",
                           reason="practice file, remove it")
-    for table in ("engagement", "lock_snapshot"):
-        assert svc._conn.execute(
-            f"SELECT COUNT(*) FROM {table} WHERE engagement_id = ?", (eid,)).fetchone()[0] == 0
-    assert svc._conn.execute("SELECT COUNT(*) FROM lock_signature").fetchone()[0] == 0
+    assert svc._conn.execute(
+        "SELECT COUNT(*) FROM engagement WHERE engagement_id = ?", (eid,)).fetchone()[0] == 0
 
 
 # 6. the fraud tab counts only the latest run --------------------------------
@@ -216,7 +186,7 @@ def test_8_updating_a_fraud_risk_without_the_flag_keeps_it(svc):
 
 # Second review, REVIEW-2026-09-30-claude-batch.md ---------------------------
 
-def test_b1_a_draft_working_paper_says_not_ready_before_any_opinion(svc):
+def test_b1_the_working_paper_says_not_ready_before_any_opinion(svc):
     eid = svc.create_engagement(PA, "Acme", "2025-12-31")["engagement_id"]
     html = svc.workpaper_html(PA, eid)
     assert "<b>NOT READY.</b>" in html

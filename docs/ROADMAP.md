@@ -179,6 +179,15 @@ against the finish line before the next:
    `verify_lock`, `_require_unlocked` everywhere): removed. The engagement
    record stays downloadable, unsigned. Evidence digests (files and
    datasets) stay: they prove the data, not a sign-off.
+   **Done 2 Oct 2026:** lock, unlock, signatures, key store and the
+   cryptography dependency gone; the record (packet v4, unsigned, with its
+   manifest and digests) exports any time and is journaled; migration 12
+   reopens locked engagements (old lock rows kept as history); Lock &
+   Export is now Export; Studio's Review and Sign-off stages replaced by
+   Export (stage 1 had broken Studio; fixed here). 518 tests pass; finish
+   line 162/164. Seen on screen: Export tab, export and working-paper
+   endpoints on the full demo, Studio journey. Not changed: Studio's
+   Harborline Learn lessons still teach lock and concurrence.
 3. Chairs: one user per engagement. `assign_team`, the X-Acting-Principal
    switcher and role checks go; proposing and approving a mapping become one
    "confirm mapping" step (checking the columns map right is a data check,

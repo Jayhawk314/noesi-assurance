@@ -20,7 +20,6 @@ def test_every_setting_the_screen_shows_is_in_words():
 
 def test_the_catalog_carries_the_text_for_every_setting_it_lists(tmp_path):
     from assurance_application.service import WorkbenchService
-    from assurance_artifacts.signing import LocalKeyStore
     from assurance_artifacts.vault import ArtifactVault
     from assurance_persistence.database import connect, migrate
     from assurance_persistence.legacy_import import ensure_tenant
@@ -28,8 +27,7 @@ def test_the_catalog_carries_the_text_for_every_setting_it_lists(tmp_path):
     migrate(conn)
     try:
         service = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"),
-                                   ensure_tenant(conn, "firm"),
-                                   keystore=LocalKeyStore(tmp_path / "keys"))
+                                   ensure_tenant(conn, "firm"))
         catalog = service.cycle_catalog()
         listed = set(catalog["general_policies"]) | {
             p for a in catalog["areas"] for p in a["required_policies"] + a["optional_policies"]}
@@ -42,7 +40,6 @@ def test_the_catalog_carries_the_text_for_every_setting_it_lists(tmp_path):
 
 def test_the_performance_rate_setting_reaches_the_sad(tmp_path):
     from assurance_application.service import WorkbenchService
-    from assurance_artifacts.signing import LocalKeyStore
     from assurance_artifacts.vault import ArtifactVault
     from assurance_persistence.database import connect, migrate
     from assurance_persistence.legacy_import import ensure_tenant
@@ -50,8 +47,7 @@ def test_the_performance_rate_setting_reaches_the_sad(tmp_path):
     conn = connect(tmp_path / "control.db")
     migrate(conn)
     try:
-        svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), ensure_tenant(conn, "firm"),
-                               keystore=LocalKeyStore(tmp_path / "keys"))
+        svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"), ensure_tenant(conn, "firm"))
         eid = svc.create_engagement("partner", "Invented Co", "2026-12-31")["engagement_id"]
         svc.update_workflow("partner", eid, "materiality",
                             {"amount": 20000, "basis": "revenue", "rationale": "about 1% of revenue"})

@@ -91,7 +91,6 @@ class UnitOfWork:
         self.datasets = DatasetRepository(self)
         self.principals = PrincipalRepository(self)
         self.runs = ProcedureRunRepository(self)
-        self.snapshots = LockSnapshotRepository(self)
         self.risks = RiskRepository(self)
 
     def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
@@ -187,22 +186,6 @@ class EngagementRepository:
         if row is None:
             raise NotFoundError(f"engagement {engagement_id}")
         return row
-
-    def set_status(self, engagement_id: str, status: str,
-                   expected_version: int) -> int:
-        cursor = self._uow.execute(
-            """UPDATE engagement SET status = ?, version = version + 1
-               WHERE engagement_id = ? AND tenant_id = ? AND version = ?""",
-            (status, engagement_id, self._uow.command.tenant_id,
-             expected_version))
-        if cursor.rowcount == 0:
-            raise ConflictError("engagement", engagement_id, expected_version)
-        self._uow.emit(
-            entity_type="engagement", entity_id=engagement_id,
-            event_type="engagement.status_changed",
-            before_version=expected_version, after_version=expected_version + 1,
-            payload={"status": status}, engagement_id=engagement_id)
-        return expected_version + 1
 
 
 class WorkflowStateRepository:
@@ -640,85 +623,3 @@ class ProcedureRunRepository:
             """SELECT * FROM procedure_run WHERE engagement_id = ?
                ORDER BY created_at, rowid""",
             (engagement_id,)).fetchall()
-
-class LockSnapshotRepository:
-    """Frozen lock manifests and the signatures bound to them."""
-
-    def __init__(self, uow: UnitOfWork):
-        self._uow = uow
-
-    def record(self, engagement_id: str, *, manifest: dict, digest: str,
-               journal_head_seq: int, journal_head_hash: str) -> str:
-        snapshot_id = new_id()
-        sequence = self._uow.execute(
-            """SELECT COALESCE(MAX(sequence), 0) + 1 AS seq
-               FROM lock_snapshot WHERE engagement_id = ?""",
-            (engagement_id,)).fetchone()["seq"]
-        try:
-            self._uow.execute(
-                """INSERT INTO lock_snapshot (snapshot_id, tenant_id,
-                   engagement_id, sequence, manifest, digest,
-                   journal_head_seq, journal_head_hash, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)""",
-                (snapshot_id, self._uow.command.tenant_id, engagement_id,
-                 sequence,
-                 json.dumps(manifest, ensure_ascii=False, sort_keys=True),
-                 digest, journal_head_seq, journal_head_hash, utcnow()))
-        except sqlite3.IntegrityError as exc:
-            # The partial unique index: an active lock already exists.
-            raise ConflictError("lock_snapshot", engagement_id, 0) from exc
-        self._uow.emit(
-            entity_type="lock_snapshot", entity_id=snapshot_id,
-            event_type="lock.snapshot_recorded", after_version=sequence,
-            payload={"digest": digest, "journal_head_seq": journal_head_seq,
-                     "sequence": sequence},
-            engagement_id=engagement_id)
-        return snapshot_id
-
-    def supersede(self, engagement_id: str, *, actor: str,
-                  reason: str) -> dict:
-        """Retire the active lock in place — nothing is deleted, ever.
-
-        The reason, actor, and timestamp ride the journal event, so the
-        amendment record itself is inside the hash chain.
-        """
-        row = self._uow.execute(
-            """SELECT snapshot_id, sequence, digest FROM lock_snapshot
-               WHERE engagement_id = ? AND status = 'active'""",
-            (engagement_id,)).fetchone()
-        if row is None:
-            raise NotFoundError(
-                f"no active lock snapshot for engagement {engagement_id}")
-        self._uow.execute(
-            """UPDATE lock_snapshot SET status = 'superseded',
-               superseded_at = ?, superseded_by = ?, supersede_reason = ?
-               WHERE snapshot_id = ?""",
-            (utcnow(), actor, reason, row["snapshot_id"]))
-        self._uow.emit(
-            entity_type="lock_snapshot", entity_id=row["snapshot_id"],
-            event_type="lock.superseded",
-            before_version=row["sequence"], after_version=row["sequence"],
-            payload={"digest": row["digest"], "sequence": row["sequence"],
-                     "reason": reason, "superseded_by": actor},
-            engagement_id=engagement_id)
-        return {"snapshot_id": row["snapshot_id"],
-                "sequence": row["sequence"], "digest": row["digest"]}
-
-    def sign(self, snapshot_id: str, *, engagement_id: str,
-             signer_principal: str, key_id: str, algorithm: str,
-             public_key_pem: str, signature_hex: str) -> str:
-        signature_id = new_id()
-        self._uow.execute(
-            """INSERT INTO lock_signature (signature_id, snapshot_id,
-               signer_principal, key_id, algorithm, public_key_pem,
-               signature_hex, signed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (signature_id, snapshot_id, signer_principal, key_id,
-             algorithm, public_key_pem, signature_hex, utcnow()))
-        self._uow.emit(
-            entity_type="lock_signature", entity_id=signature_id,
-            event_type="lock.signed", after_version=1,
-            payload={"snapshot_id": snapshot_id, "key_id": key_id,
-                     "algorithm": algorithm,
-                     "signer_principal": signer_principal},
-            engagement_id=engagement_id)
-        return signature_id

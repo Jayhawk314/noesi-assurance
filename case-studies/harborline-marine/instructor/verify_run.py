@@ -41,7 +41,6 @@ PARTNER, PREPARER, REVIEWER = (
 
 def main() -> int:
     from assurance_application.service import WorkbenchService
-    from assurance_artifacts.signing import LocalKeyStore
     from assurance_artifacts.vault import ArtifactVault
     from assurance_persistence.database import connect, migrate
     from assurance_persistence.legacy_import import ensure_tenant
@@ -52,8 +51,7 @@ def main() -> int:
         migrate(conn)
         tenant = ensure_tenant(conn, "harborline-verify")
         service = WorkbenchService(
-            conn, ArtifactVault(root / "vault"), tenant,
-            keystore=LocalKeyStore(root / "keys"))
+            conn, ArtifactVault(root / "vault"), tenant)
 
         eid = service.create_engagement(
             PARTNER, "Harborline Marine Group", "2026-12-31")["engagement_id"]

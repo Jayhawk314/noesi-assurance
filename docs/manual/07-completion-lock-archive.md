@@ -1,4 +1,4 @@
-# Chapter 7 — Completion, lock, and the archive
+# Chapter 7 — Completion, the record, and the archive
 
 ## In practice
 
@@ -26,43 +26,40 @@ outlives any later amendment.
 
 ## In the workbench
 
-**Readiness** (SAD & Completion tab) derives every blocker by name, each a
-fact about the data, the procedures and the findings: undisposed findings,
-procedures in the audit that could not run or have not run, missing
-materiality, unexplained deselections, and a broken decision trail. There
-are no boxes to tick: the completion work (subsequent events, going
-concern, representations) is done through its procedures.
-Red readiness is the gate working, not an error — each blocker names
-exactly what is outstanding.
+Noesi supplements the audit; it does not assemble or sign the audit file.
+The firm's own archive, review and sign-off stay where they are. What
+Noesi adds is a record of the testing that can be checked.
 
-**Lock** (partner chair, green gate required). One transaction: engagement
-status → locked; a deterministic **manifest** of every covered entity
-(artifact digests, mapping approvals, dataset reconciliations, run
-receipts, dispositions, team) is frozen, anchored to the current head of
-the hash-chained journal, and its digest **signed** with the partner's key.
-What the signature does and does not prove is written inside the manifest
-itself — it binds a principal's key to exactly that byte set; it does not
-authenticate the client's source documents or provide trusted time.
+**Readiness** (Export tab, and SAD & Completion) derives every open item
+by name, each a fact about the data, the procedures and the findings:
+undisposed findings, procedures in the audit that could not run or have
+not run, missing materiality, unexplained deselections, and a broken
+decision trail. There are no boxes to tick: the completion work
+(subsequent events, going concern, representations) is done through its
+procedures. Red readiness is the list working, not an error — each item
+names exactly what is outstanding.
 
-**Verify** re-derives everything on demand: the manifest against live
-state (drift is named section by section), the signature, the journal
-chain. **Export** refuses unless verification passes *right now*, then
-produces the **evidence packet** — self-contained JSON carrying the lock,
-every run with its findings and seals, dispositions, the SAD, and all
-public keys needed to re-verify **offline** with
-`assurance_workpapers.packet.verify_packet`. The **workpaper** is a
-static HTML rendering of the same packet.
+**Export** (any chair, any time) downloads the **record**: one JSON file
+carrying a manifest of every entity (file digests, mappings, dataset
+reconciliations, runs, dispositions, risks, team, and the journal position
+it was taken at), every run with its findings and seals, the dispositions,
+the SAD, readiness, the scope and the draft opinion. Each export is written
+to the hash-chained journal with its digest. Anyone can re-check the record
+**offline** with `assurance_workpapers.packet.verify_packet`: every finding
+receipt, every run seal, the manifest and the packet itself must re-hash.
+The **working paper** is a static HTML rendering of the same record.
 
-**Reopening = supersession, never deletion.** Unlock requires the partner
-chair and a *specific written reason* (ten characters minimum — it becomes
-a permanent part of the record, inside the journal's hash chain). The
-superseded lock keeps its manifest, signature, and journal anchor forever
-and is re-verified on every read. Work after reopening passes the same
-readiness gates — a reperformed procedure is a new run, kept beside the
-old one — and the next lock signs a manifest that
-**names its predecessor and the reason it was set aside**. The packet and
-workpaper carry the full amendment history. This is AU-C 230's
-post-assembly rule, made structural.
+What the check does not prove is written inside the record: it is not
+signed, so it shows the record is internally consistent (a corrupted or
+partly edited file fails), but someone able to edit it could recompute the
+digests. It does not prove who produced it, that the client's source
+documents are authentic or complete, or when it was made. Keep the
+exported record in the firm's archive like any other working paper.
+
+(Until 1 October 2026 the Workbench also locked and signed engagements.
+That was removed: a sign-off is the firm's act, not the tool's. An
+engagement locked before then was reopened by the upgrade; its old lock
+rows are kept as history.)
 
 ## In Kestrel
 
@@ -75,14 +72,11 @@ post-assembly rule, made structural.
    case data to make the screen green.
 3. Clear or follow up every finding, run every selected procedure,
    record the partner decisions, and watch readiness explain what remains.
-   Lock only when the evidence truly supports it; export the packet and find
-   the scope limitations, policies, line mapping, dispositions, and opinion
-   decisions in the final record.
-4. **Then practice supersession in a scratch copy.** Reopen with a specific
-   reason, reperform one procedure after changing a source or mapping, and
-   lock again. The second lock, whose history names the first and the reason
-   it was set aside, is the lesson.
+   Export the record and find the scope limitations, policies, line mapping,
+   dispositions and opinion decisions in it.
+4. **Then check it.** Run `verify_packet` on the exported file; change one
+   amount in it and run it again, and see which check names the edit.
 
-One caution to carry back to practice: the lock proves the *file's*
-integrity, not the audit's quality. A signed archive of thin work is
-still thin work — which is why every chapter before this one exists.
+One caution to carry back to practice: a record that checks proves the
+*file's* consistency, not the audit's quality. A tidy record of thin work
+is still thin work — which is why every chapter before this one exists.

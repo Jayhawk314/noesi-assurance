@@ -65,8 +65,8 @@
     },
     {
       "file": "readiness_blank.json",
-      "sha256": "ba5e4f5865b276e84f6256a751f6b49003b3c016cca3c49ac9a423fb643c538a",
-      "changed": "2026-10-01: sign-off gates removed by decision (D9 stage 1): RISK_ASSESSMENT_NOT_COMPLETE, CONTROLS_NOT_COMPLETE, COMPLETION_PROCEDURES_INCOMPLETE and the completion counts"
+      "sha256": "e0c029a1cbb404cfb55aefd71832b80c0ec6b30101f98fa13ed6761f0b9b7905",
+      "changed": "2026-10-01: sign-off gates removed by decision (D9 stage 1): RISK_ASSESSMENT_NOT_COMPLETE, CONTROLS_NOT_COMPLETE, COMPLETION_PROCEDURES_INCOMPLETE and the completion counts; 2026-10-01 (D9 stage 2): workpaper_locked removed with the lock"
     },
     {
       "file": "rockwood_unified.json",

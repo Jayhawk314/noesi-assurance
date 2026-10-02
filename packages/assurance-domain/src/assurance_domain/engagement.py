@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-STATUSES = ("open", "locked", "archived")
+STATUSES = ("open", "archived")   # "locked" removed 1 Oct 2026
 
 
 @dataclass(frozen=True)

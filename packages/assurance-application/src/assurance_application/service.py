@@ -3,8 +3,8 @@
 
 Authorization model (pilot): the first principal to create an engagement is
 its partner; partners assign the team; preparers ingest, map, normalize,
-and execute; reviewers approve mappings and review runs; partners approve
-reviewed runs and lock. Separation of duties comes from the domain layer
+and execute; reviewers approve mappings. Runs, dispositions and risks carry
+no review or sign-off (removed 1 Oct 2026). Separation of duties comes from the domain layer
 and the repositories -- this service adds the role matrix, never replaces
 those checks.
 """
@@ -114,8 +114,8 @@ def _trivial_rate(document: dict) -> Decimal:
     return trivial_rate((document.get("policies") or {}).get("clearly_trivial_pct"))
 
 
-class EngagementLockedError(PermissionError):
-    """The engagement is locked; its record can no longer change."""
+class EngagementArchivedError(PermissionError):
+    """The engagement is archived; its record cannot change until restored."""
 
 
 class EvidenceIntegrityError(RuntimeError):
@@ -136,11 +136,10 @@ _DISPOSITION_STATUSES = ("cleared", "unadjusted", "adjusted", "waived",
 
 class WorkbenchService:
     def __init__(self, conn: sqlite3.Connection, vault: ArtifactVault,
-                 tenant_id: str, keystore=None):
+                 tenant_id: str):
         self._conn = conn
         self._vault = vault
         self._tenant = tenant_id
-        self._keystore = keystore
 
     # ------------------------------------------------------------ plumbing
 
@@ -162,20 +161,10 @@ class WorkbenchService:
             raise AuthorizationError(
                 f"action requires one of {sorted(roles)} on this engagement")
 
-    def _require_unlocked(self, engagement_id: str) -> None:
-        info = self._engagement(engagement_id)
-        if info["archived_at"]:
-            raise EngagementLockedError(
-                "the engagement is archived; restore it before changing its record")
-        if info["status"] == "locked":
-            raise EngagementLockedError(
-                "the engagement is locked; unlock (with supersession) before "
-                "changing its record")
-
-    def _require_not_archived(self, engagement_id: str) -> None:
+    def _require_open(self, engagement_id: str) -> None:
         if self._engagement(engagement_id)["archived_at"]:
-            raise EngagementLockedError(
-                "the engagement is archived; restore it first")
+            raise EngagementArchivedError(
+                "the engagement is archived; restore it before changing its record")
 
     def _set_archived(self, uow, engagement_id: str, expected_version: int,
                       when: str | None) -> None:
@@ -200,7 +189,7 @@ class WorkbenchService:
             handler).result
 
     def list_engagements(self, *, archived: bool = False) -> list[dict]:
-        """Open and locked engagements; with ``archived``, only the archived ones."""
+        """Engagements in use; with ``archived``, only the archived ones."""
         rows = self._conn.execute(
             f"""SELECT engagement_id, client_name, period_end, status, version
                FROM engagement WHERE tenant_id = ?
@@ -213,10 +202,8 @@ class WorkbenchService:
         """Take an engagement off the list without erasing its record.
 
         Partner only, with a specific reason. Nothing is deleted: the journal,
-        sources, runs and any lock stay as they were. Archiving sets its own
-        flag and never the status or version a signed lock covers, so a
-        locked engagement stays locked and its lock still verifies. While
-        archived, nothing in it can change.
+        sources and runs stay as they were. Archiving sets its own flag and
+        never the status or version. While archived, nothing in it can change.
         """
         if len(reason.strip()) < 10:
             raise ValueError("archiving requires a specific reason (ten characters or more)")
@@ -244,7 +231,8 @@ class WorkbenchService:
 
         Partner only; the exact client name must be typed back, with a reason.
         Every row that belongs to the engagement goes (sources, mappings,
-        datasets, runs, dispositions, workflow, team, risks, locks), and each
+        datasets, runs, dispositions, workflow, team, risks, and any lock
+        recorded before locks were removed), and each
         uploaded file whose bytes no other engagement uses. The journal keeps
         its lines for the engagement, plus one naming who deleted it and why:
         the journal is one hash chain across all engagements, and cutting lines
@@ -320,7 +308,7 @@ class WorkbenchService:
 
     def assign_team(self, actor: str, engagement_id: str,
                     principal_id: str, role: str) -> dict:
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
 
         def handler(uow):
             if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
@@ -343,7 +331,7 @@ class WorkbenchService:
     def store_source(self, actor: str, engagement_id: str, *, content: bytes,
                      media_type: str, original_name: str,
                      provenance: str = "") -> dict:
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer", "partner")
         outcome = store_artifact(
             self._conn, self._vault,
@@ -364,7 +352,7 @@ class WorkbenchService:
         digest, so the reviewer approves *which* rows were read, and every
         later rebuild reads exactly those rows again.
         """
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         headers, _, resolved, _ = self._artifact_table(artifact_id, extraction)
         artifact = self._conn.execute(
@@ -417,7 +405,7 @@ class WorkbenchService:
 
     def approve_source_mapping(self, actor: str, engagement_id: str,
                                spec_id: str) -> dict:
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
 
         def handler(uow):
             if "reviewer" not in uow.principals.roles_for(engagement_id, actor):
@@ -439,7 +427,7 @@ class WorkbenchService:
         account's reconciliation). Guessing either way silently changes
         what every procedure reads, so a load without one is refused.
         """
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         # The file and the approved mapping are immutable, so a second load
         # could only repeat the same rows as a confusing duplicate dataset.
@@ -509,7 +497,7 @@ class WorkbenchService:
         *for the same role* is skipped, so 'propose all' is safe to repeat;
         one file may still feed several roles (a QuickBooks Transaction List
         by Vendor holds both bills and purchase orders)."""
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         active = {(row["artifact_id"], row["role"]) for row in self._conn.execute(
             """SELECT artifact_id, role FROM mapping_spec
@@ -561,7 +549,7 @@ class WorkbenchService:
         """Batch approve, for the reviewer's single pass over a bulk load.
         Non-proposed specs are skipped; separation of duties still refuses,
         per item, any spec the approver proposed themselves."""
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "reviewer")
         results = []
         for spec_id in spec_ids:
@@ -592,7 +580,7 @@ class WorkbenchService:
         """Batch normalize approved specs. Specs that already produced a
         dataset are skipped rather than re-recorded. ``modes`` gives the
         replace/add choice per spec where its role already has data."""
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         normalized = {row["mapping_spec_id"] for row in self._conn.execute(
             "SELECT mapping_spec_id FROM normalized_dataset "
@@ -771,7 +759,7 @@ class WorkbenchService:
     def run_procedure(self, actor: str, engagement_id: str, *,
                       procedure_id: str,
                       policies: dict | None = None) -> dict:
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         tables = {role: list(t.engine_view().records)
                   for role, t in self._tables(engagement_id).items()}
@@ -814,8 +802,8 @@ class WorkbenchService:
                     or row["missing_policies"] or row.get("unsupported_reason"))
             not_runnable = (f"{procedure_id} is {row['status']} on this engagement's "
                             f"data and policies: missing {gaps}")
-        # Reperformance is legitimate — after a reviewer sends work back, or
-        # after an unlock. Same procedure, same data, same policies must
+        # Reperformance is legitimate — after a correction or a revised
+        # file. Same procedure, same data, same policies must
         # still mint a distinct job, so the manifest carries a rerun
         # sequence instead of colliding on the frozen job_id.
         rerun_sequence = self._conn.execute(
@@ -897,7 +885,7 @@ class WorkbenchService:
     def set_disposition(self, actor: str, engagement_id: str, *,
                         finding_uid: str, status: str, note: str = "",
                         expected_version: int = 0) -> dict:
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         # Validate before the write: the table's CHECK constraint would
         # refuse anyway, but as an IntegrityError that the repository
         # relabels as a version conflict — a misleading message for what
@@ -1074,7 +1062,7 @@ class WorkbenchService:
         """
         from procedures_ap.contracts import RISK_LEVELS
         from procedures_cycles.contracts import REGISTER_ASSERTIONS as ASSERTIONS
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         if assertion not in ASSERTIONS:
             raise ValueError(
@@ -1107,7 +1095,7 @@ class WorkbenchService:
                              expected_version: int) -> dict:
         """Link the procedures that respond to a risk (the audit response)."""
         from procedures_ap.contracts import CONTRACTS_BY_ID
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         document, _ = self.workflow_document(engagement_id)
         allowed = {contract.procedure_id for contract in self._contracts(document)}
@@ -1131,7 +1119,7 @@ class WorkbenchService:
 
     def archive_risk(self, actor: str, engagement_id: str, *, risk_id: str,
                      expected_version: int) -> dict:
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
 
         def handler(uow):
@@ -1265,7 +1253,7 @@ class WorkbenchService:
     def update_workflow(self, actor: str, engagement_id: str,
                         section: str, values: dict) -> dict:
         """Constrained workflow updates: materiality, stages, completion."""
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer", "partner")
         document, version = self.workflow_document(engagement_id)
         if section == "materiality":
@@ -1345,7 +1333,7 @@ class WorkbenchService:
         elif section == "opinion_decision":
             # A judgment the draft opinion asks for (pervasiveness, the
             # going-concern conclusion). The partner's alone; kept, with who
-            # and why, in the signed engagement record.
+            # and why, in the engagement record.
             self._require(engagement_id, actor, "partner")
             from assurance_domain.opinion import DECISION_ANSWERS
             decision = str(values.get("decision") or "")
@@ -1359,7 +1347,7 @@ class WorkbenchService:
                                  f"{list(DECISION_ANSWERS[decision])}, not {answer!r}")
             if len(note) < 10:
                 raise ValueError("record the reason for the decision (ten characters "
-                                 "or more); it becomes part of the signed record")
+                                 "or more); it becomes part of the engagement record")
             document.setdefault("opinion_decisions", {})[decision] = {
                 "answer": answer, "note": note, "decided_by": actor}
         elif section == "period":
@@ -1425,7 +1413,7 @@ class WorkbenchService:
             # Settings and procedure choices owned only by a cycle leaving
             # scope are retired, not kept: kept, they would come back into
             # force unreviewed if the cycle were switched on again. The
-            # retired list stays in the signed record.
+            # retired list stays in the engagement record.
             from procedures_ap.contracts import OPTIONAL_POLICIES, PROCEDURES
             from procedures_cycles.contracts import policy_scopes
             payables_policies = {p for c in PROCEDURES for p in c.required_policies}
@@ -1457,23 +1445,22 @@ class WorkbenchService:
                     f"{procedure_id} belongs to the "
                     f"{SCOPE_OF[procedure_id]!r} cycle, which is not in scope")
             # Leaving a procedure out is a scope decision: the partner's, and
-            # never without the reason that goes into the signed record.
+            # never without the reason that goes into the engagement record.
             self._require(engagement_id, actor, "partner")
             selected = bool(values.get("selected", True))
             rationale = " ".join(str(values.get("rationale", "")).split())
             if not selected and len(rationale) < 10:
                 raise ValueError(
                     f"say why {procedure_id} is left out (ten characters or "
-                    "more); the reason becomes part of the signed record")
+                    "more); the reason becomes part of the engagement record")
             document.setdefault("procedures", {})[procedure_id] = {
                 "selected": selected, "rationale": rationale,
                 "decided_by": actor}
         elif section == "no_data_assertion":
             # Tracker 3.4: an engagement with zero normalized datasets skips
-            # every procedure gate, so a lock could silently attest to no
+            # every procedure gate, so readiness could silently pass with no
             # substantive work. The silence must be owned — by the partner,
-            # on the record, with a reason that enters the signed manifest
-            # (the workflow payload hash covers it).
+            # on the record, with a reason that enters the exported record.
             self._require(engagement_id, actor, "partner")
             asserted = bool(values.get("asserted", False))
             reason = " ".join(str(values.get("reason", "")).split())
@@ -1481,7 +1468,7 @@ class WorkbenchService:
                 raise ValueError(
                     "asserting that no data-dependent procedures apply "
                     "requires a specific reason (ten characters or more); "
-                    "it becomes part of the signed engagement record")
+                    "it becomes part of the engagement record")
             document["no_data_assertion"] = {
                 "asserted": asserted, "reason": reason, "asserted_by": actor}
         elif section == "policy":
@@ -1576,7 +1563,7 @@ class WorkbenchService:
         # Findings that are not dollar misstatements (leads, refusals-to-
         # evaluate, control deviations) never reach the SAD, but they still
         # need a decision: one left undisposed, or marked follow-up, is an
-        # open question and must not ride silently into a signed lock.
+        # open question and must not pass readiness silently.
         from assurance_domain.sad import _is_candidate
         open_findings = sorted({
             row["finding_uid"] for row in rows
@@ -1729,8 +1716,7 @@ class WorkbenchService:
 
         # Assessed risks live in their own table (judgment, versioned like
         # dispositions); overlay them into the document shape
-        # the readiness gates already read, so the risk→procedure linkage is
-        # what a lock is refused over.
+        # the readiness gates already read.
         document["risks"] = {
             r["risk_id"]: {
                 "manual": True, "archived": False,
@@ -1779,136 +1765,29 @@ class WorkbenchService:
                 row["procedure_run"] = {"run_id": run["run_id"], "status": "completed"}
         return coverage
 
-    # ----------------------------------------------- screen 6: lock
+    # ----------------------------------------------- screen 6: the record
 
-    def lock(self, actor: str, engagement_id: str, *,
-             expected_version: int) -> dict:
-        """Lock, snapshot, and sign — one transaction, or none of it.
-
-        The manifest freezes every entity the lock covers; the signature
-        binds the partner's device key to exactly that byte set. What it
-        proves is stated inside the manifest itself.
-        """
-        self._require_not_archived(engagement_id)
-        state = self.readiness(engagement_id)
-        if not state["ready"]:
-            return {"locked": False,
-                    "blockers": state["blockers"],
-                    "report_implication": state["report_implication"]}
-        if self._keystore is None:
-            raise RuntimeError(
-                "locking requires a signing key store; none is configured")
-        identity = self._keystore.identity(actor)
-
-        def handler(uow):
-            if "partner" not in uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("locking requires the partner")
-            version = uow.engagements.set_status(
-                engagement_id, "locked", expected_version=expected_version)
-            manifest = self._lock_manifest(engagement_id, uow.execute)
-            digest = _manifest_digest(manifest)
-            from assurance_persistence.spine import journal_head
-            head_seq, head_hash = journal_head(self._conn)
-            snapshot_id = uow.snapshots.record(
-                engagement_id, manifest=manifest, digest=digest,
-                journal_head_seq=head_seq, journal_head_hash=head_hash)
-            signature_hex = self._keystore.sign(actor, digest)
-            from assurance_artifacts.signing import ALGORITHM
-            uow.snapshots.sign(
-                snapshot_id, engagement_id=engagement_id,
-                signer_principal=actor, key_id=identity.key_id,
-                algorithm=ALGORITHM,
-                public_key_pem=identity.public_key_pem,
-                signature_hex=signature_hex)
-            return {"locked": True, "version": version,
-                    "snapshot_id": snapshot_id, "digest": digest,
-                    "key_id": identity.key_id,
-                    "report_implication": state["report_implication"]}
-        return run_command(
-            self._conn, self._command(actor, "engagement.lock", engagement_id),
-            handler).result
-
-    def unlock(self, actor: str, engagement_id: str, *, reason: str,
-               expected_version: int) -> dict:
-        """Reopen a locked engagement by superseding its lock — never erasing it.
-
-        Professional basis (AU-C 230 / AS 1215): after the file is assembled,
-        documentation is not deleted or discarded, and any change must record
-        the specific reason, by whom, and when. Here the superseded snapshot,
-        its signature, and its journal anchor remain permanently verifiable;
-        the reason enters the hash-chained journal under the partner's
-        principal; work after reopening flows through the same preparer /
-        reviewer / partner gates (who made and reviewed each change); and the
-        next lock signs a new manifest that names its predecessor and the
-        reason it was reopened.
-        """
-        reason = " ".join(str(reason or "").split())
-        if len(reason) < 10:
-            raise ValueError(
-                "unlocking requires a specific reason (ten characters or "
-                "more); it becomes a permanent part of the engagement record")
-        self._require_not_archived(engagement_id)
-        if self._engagement(engagement_id)["status"] != "locked":
-            raise ValueError("the engagement is not locked")
-
-        def handler(uow):
-            if "partner" not in uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("unlocking requires the partner")
-            superseded = uow.snapshots.supersede(
-                engagement_id, actor=actor, reason=reason)
-            version = uow.engagements.set_status(
-                engagement_id, "open", expected_version=expected_version)
-            return {"unlocked": True, "version": version,
-                    "superseded": superseded, "reason": reason}
-        return run_command(
-            self._conn,
-            self._command(actor, "engagement.unlock", engagement_id),
-            handler).result
-
-    def _lock_manifest(self, engagement_id: str, query,
-                       schema: str = "noesi-lock-manifest-v2") -> dict:
-        """Deterministic snapshot of every entity the lock covers.
-
-        A re-lock names its predecessor: the superseded snapshot's digest and
-        the documented reason ride inside the new manifest, so the partner's
-        signature covers the amendment record itself (AU-C 230's reason /
-        who / when for changes after assembly). A first lock has no such
-        section and keeps the original v1 byte shape.
-
-        v2 (2026-09-30) adds each risk's fraud flag. A lock is always
-        re-verified in the schema it was signed in, so v1 locks still verify.
-        """
+    def _record_manifest(self, engagement_id: str) -> dict:
+        """Deterministic digest list of every entity in the engagement record:
+        its files, mappings, datasets, runs, dispositions, risks and team,
+        and the journal position it was taken at. It travels in the exported
+        record so a reader can see exactly what the record covered."""
         def rows(sql: str) -> list[dict]:
-            return [dict(row) for row in query(sql, (engagement_id,))]
+            return [dict(row) for row in self._conn.execute(sql, (engagement_id,))]
 
         engagement = rows("SELECT engagement_id, client_name, period_end, "
                           "status, version FROM engagement "
                           "WHERE engagement_id = ?")[0]
-        workflow = query(
+        workflow = self._conn.execute(
             "SELECT payload, version FROM workflow_state "
             "WHERE engagement_id = ?", (engagement_id,)).fetchone()
-        predecessor = query(
-            """SELECT snapshot_id, sequence, digest, supersede_reason,
-               superseded_by, superseded_at FROM lock_snapshot
-               WHERE engagement_id = ? AND status = 'superseded'
-               ORDER BY sequence DESC LIMIT 1""",
-            (engagement_id,)).fetchone()
-        supersession = {} if predecessor is None else {
-            "sequence": predecessor["sequence"] + 1,
-            "supersedes": {
-                "snapshot_id": predecessor["snapshot_id"],
-                "sequence": predecessor["sequence"],
-                "digest": predecessor["digest"],
-                "reason": predecessor["supersede_reason"],
-                "unlocked_by": predecessor["superseded_by"],
-                "unlocked_at": predecessor["superseded_at"],
-            },
-        }
+        from assurance_persistence.spine import journal_head
+        head_seq, head_hash = journal_head(self._conn)
         import hashlib
         return {
-            "schema": schema,
-            **supersession,
+            "schema": "noesi-record-manifest-v1",
             "engagement": engagement,
+            "journal_head": {"seq": head_seq, "hash": head_hash},
             "workflow": {
                 "version": workflow["version"] if workflow else 0,
                 "payload_sha256": hashlib.sha256(
@@ -1930,164 +1809,27 @@ class WorkbenchService:
                 "WHERE engagement_id = ? ORDER BY dataset_id"),
             "runs": rows(
                 "SELECT run_id, procedure_id, job_id, status, result_digest, "
-                "executed_by, reviewed_by, approved_by, version "
+                "executed_by, version "
                 "FROM procedure_run WHERE engagement_id = ? ORDER BY run_id"),
             "dispositions": rows(
-                "SELECT finding_uid, status, note, version FROM disposition "
-                "WHERE engagement_id = ? ORDER BY finding_uid"),
+                "SELECT finding_uid, status, note, proposed_by, version "
+                "FROM disposition WHERE engagement_id = ? ORDER BY finding_uid"),
             "risks": rows(
                 "SELECT risk_id, assertion, level, response, procedure_ids, "
-                "proposed_by, concurred_by, archived, version"
-                + (", fraud" if schema != "noesi-lock-manifest-v1" else "")
-                + " FROM risk_assessment WHERE engagement_id = ? "
-                "ORDER BY risk_id"),
+                "proposed_by, archived, fraud, version FROM risk_assessment "
+                "WHERE engagement_id = ? ORDER BY risk_id"),
             "team": rows(
                 "SELECT principal_id, role FROM principal_assignment "
                 "WHERE engagement_id = ? ORDER BY role, principal_id"),
-            "limits": (
-                "This signature proves which principal's device key approved "
-                "exactly this byte set and when the local signer recorded "
-                "it. It does not prove the accounting source was complete "
-                "or authentic, and it does not provide trusted time."),
         }
 
-    def _lock_history(self, engagement_id: str) -> list[dict]:
-        """Superseded locks, each re-verified from stored material alone."""
-        from assurance_artifacts.signing import verify_signature
-
-        history = []
-        for row in self._conn.execute(
-                """SELECT * FROM lock_snapshot WHERE engagement_id = ?
-                   AND status = 'superseded' ORDER BY sequence""",
-                (engagement_id,)):
-            signature = self._conn.execute(
-                "SELECT * FROM lock_signature WHERE snapshot_id = ?",
-                (row["snapshot_id"],)).fetchone()
-            head = self._conn.execute(
-                "SELECT entry_hash FROM domain_event WHERE event_seq = ?",
-                (row["journal_head_seq"],)).fetchone()
-            history.append({
-                "sequence": row["sequence"],
-                "snapshot_id": row["snapshot_id"],
-                "digest": row["digest"],
-                "locked_at": row["created_at"],
-                "manifest_ok": _manifest_digest(
-                    json.loads(row["manifest"])) == row["digest"],
-                "signature_ok": bool(signature) and verify_signature(
-                    signature["public_key_pem"], row["digest"],
-                    signature["signature_hex"]),
-                "journal_anchor_ok": head is not None
-                and head["entry_hash"] == row["journal_head_hash"],
-                "signer": signature["signer_principal"] if signature else None,
-                "signed_at": signature["signed_at"] if signature else None,
-                "unlocked_by": row["superseded_by"],
-                "unlocked_at": row["superseded_at"],
-                "reason": row["supersede_reason"],
-            })
-        return history
-
-    def verify_lock(self, engagement_id: str) -> dict:
-        """Re-derive everything a lock claims; report exactly what holds."""
-        from assurance_artifacts.signing import verify_signature
-        from assurance_persistence.spine import verify_journal
-
-        history = self._lock_history(engagement_id)
-        snapshot = self._conn.execute(
-            """SELECT * FROM lock_snapshot WHERE engagement_id = ?
-               AND status = 'active'""",
-            (engagement_id,)).fetchone()
-        if snapshot is None:
-            return {"locked": False,
-                    "error": ("the lock was superseded; the engagement is "
-                              "reopened" if history
-                              else "no lock snapshot exists"),
-                    "history": history}
-        signature = self._conn.execute(
-            "SELECT * FROM lock_signature WHERE snapshot_id = ?",
-            (snapshot["snapshot_id"],)).fetchone()
-
-        stored_manifest = json.loads(snapshot["manifest"])
-        current_manifest = self._lock_manifest(
-            engagement_id, self._conn.execute,
-            schema=stored_manifest.get("schema", "noesi-lock-manifest-v1"))
-        drift = sorted(
-            section for section in stored_manifest
-            if stored_manifest[section] != current_manifest.get(section))
-        snapshot_ok = (
-            not drift
-            and _manifest_digest(current_manifest) == snapshot["digest"])
-
-        signature_ok = bool(signature) and verify_signature(
-            signature["public_key_pem"], snapshot["digest"],
-            signature["signature_hex"])
-
-        journal = verify_journal(self._conn)
-        head_row = self._conn.execute(
-            "SELECT entry_hash FROM domain_event WHERE event_seq = ?",
-            (snapshot["journal_head_seq"],)).fetchone()
-        journal_ok = (journal["ok"] and head_row is not None
-                      and head_row["entry_hash"]
-                      == snapshot["journal_head_hash"])
-
-        return {
-            "locked": True,
-            "sequence": snapshot["sequence"],
-            "snapshot_ok": snapshot_ok,
-            "drift": drift,
-            "signature_ok": signature_ok,
-            "signer": dict(signature) and {
-                "principal": signature["signer_principal"],
-                "key_id": signature["key_id"],
-                "algorithm": signature["algorithm"],
-                "signed_at": signature["signed_at"],
-            } if signature else None,
-            "journal_ok": journal_ok,
-            "journal_events_checked": journal["checked"],
-            "verified": snapshot_ok and signature_ok and journal_ok,
-            "history": history,
-            "limits": stored_manifest.get("limits", ""),
-        }
-
-    # ------------------------------------------------- screen 6b: export
-
-    def _packet_body(self, engagement_id: str, lock: dict | None) -> dict:
-        """The evidence packet's contents, sealed or not. ``lock`` is the
-        signed lock block, or None for a draft working paper."""
-        from assurance_workpapers.packet import PACKET_LIMITS, PACKET_VERSION
+    def _packet_body(self, engagement_id: str) -> dict:
+        """The engagement record's contents, as they stand now."""
+        from assurance_workpapers.packet import (
+            PACKET_LIMITS, PACKET_VERSION, manifest_digest,
+        )
         info = self._engagement(engagement_id)
-
-        # Superseded locks travel whole — manifest, signature, reason — so
-        # the amendment record verifies offline like everything else.
-        lock_history = []
-        for row in self._conn.execute(
-                """SELECT * FROM lock_snapshot WHERE engagement_id = ?
-                   AND status = 'superseded' ORDER BY sequence""",
-                (engagement_id,)):
-            old_signature = self._conn.execute(
-                "SELECT * FROM lock_signature WHERE snapshot_id = ?",
-                (row["snapshot_id"],)).fetchone()
-            lock_history.append({
-                "sequence": row["sequence"],
-                "manifest": json.loads(row["manifest"]),
-                "digest": row["digest"],
-                "journal_head_seq": row["journal_head_seq"],
-                "journal_head_hash": row["journal_head_hash"],
-                "locked_at": row["created_at"],
-                "signature": {
-                    "signer_principal": old_signature["signer_principal"],
-                    "key_id": old_signature["key_id"],
-                    "algorithm": old_signature["algorithm"],
-                    "public_key_pem": old_signature["public_key_pem"],
-                    "signature_hex": old_signature["signature_hex"],
-                    "signed_at": old_signature["signed_at"],
-                } if old_signature else None,
-                "unlocked_by": row["superseded_by"],
-                "unlocked_at": row["superseded_at"],
-                "reason": row["supersede_reason"],
-            })
-
-        runs = []
-        executed = set()
+        runs, executed = [], set()
         for row in self._conn.execute(
                 """SELECT * FROM procedure_run WHERE engagement_id = ?
                    ORDER BY created_at, rowid""", (engagement_id,)):
@@ -2098,7 +1840,7 @@ class WorkbenchService:
                 "job_id": row["job_id"],
                 "manifest": json.loads(row["manifest"]),
                 "status": row["status"],
-                # The seal was taken at execution, before review moved status.
+                # The seal was taken at execution: completed or error.
                 "status_at_execution": ("error" if row["status"] == "error"
                                         else "completed"),
                 "summary": json.loads(row["summary"]),
@@ -2106,8 +1848,6 @@ class WorkbenchService:
                 "error": row["error"],
                 "result_digest": row["result_digest"],
                 "executed_by": row["executed_by"],
-                "reviewed_by": row["reviewed_by"],
-                "approved_by": row["approved_by"],
             })
         document, _ = self.workflow_document(engagement_id)
         selections = document.get("procedures", {})
@@ -2116,23 +1856,22 @@ class WorkbenchService:
             if contract.procedure_id in executed:
                 continue
             decision = selections.get(contract.procedure_id, {})
-            reason = ("deselected: " + decision.get("rationale", "")
+            reason = ("left out: " + decision.get("rationale", "")
                       if decision.get("selected") is False
-                      else "not executed before lock" if lock
                       else "not executed yet")
             not_run.append({"procedure_id": contract.procedure_id,
                             "reason": reason})
 
         dispositions = {
             row["finding_uid"]: {"status": row["status"], "note": row["note"],
-                                 "proposed_by": row["proposed_by"],
-                                 "concurred_by": row["concurred_by"]}
+                                 "proposed_by": row["proposed_by"]}
             for row in self._conn.execute(
                 "SELECT * FROM disposition WHERE engagement_id = ?",
                 (engagement_id,))}
 
+        manifest = self._record_manifest(engagement_id)
         from assurance_persistence.database import utcnow
-        packet = {
+        return {
             "packet_version": PACKET_VERSION,
             "generated": utcnow(),
             "software": "noesi-assurance-workbench",
@@ -2140,21 +1879,19 @@ class WorkbenchService:
                 "engagement_id": engagement_id,
                 "client_name": info["client_name"],
                 "period_end": info["period_end"],
-                "status": info["status"],
             },
-            "lock": lock,
-            "lock_history": lock_history,
+            "manifest": manifest,
+            "manifest_digest": manifest_digest(manifest),
             "runs": runs,
             "procedures_not_run": not_run,
             # Present when the partner asserted no data-dependent procedures
-            # apply (tracker 3.4); the workflow payload hash in the lock
-            # manifest already covers it, this puts the words in the packet.
+            # apply (tracker 3.4).
             "no_data_assertion": document.get("no_data_assertion"),
             "dispositions": dispositions,
             "summary_of_audit_differences": self.sad(engagement_id),
-            # The finished audit file: what was covered and how it was set
-            # up, and the opinion the evidence supports with the partner's
-            # recorded judgments — sealed with everything else.
+            "readiness": self.readiness(engagement_id),
+            # What was covered and how it was set up, and the opinion the
+            # evidence points to with the partner's recorded judgments.
             "scope": {
                 "cycles": document.get("cycles") or [],
                 "period_start": (document.get("period") or {}).get("start"),
@@ -2166,93 +1903,36 @@ class WorkbenchService:
             "opinion": self.draft_opinion(engagement_id),
             "limits": PACKET_LIMITS,
         }
-        return packet
 
-    def export_packet(self, actor: str, engagement_id: str) -> dict:
-        """Build, sign, and journal an evidence packet from the frozen lock.
+    def export_record(self, actor: str, engagement_id: str) -> dict:
+        """The engagement record as one JSON packet, at any time, unsigned.
 
-        Export refuses unless the lock fully verifies right now — a drifted
-        or broken engagement cannot produce a packet that pretends
-        otherwise.
-        """
-        from assurance_artifacts.signing import ALGORITHM
-        from assurance_workpapers.packet import (
-            PACKET_LIMITS, PACKET_VERSION, packet_digest, seal_packet,
-        )
-
-        self._require(engagement_id, actor,
-                      "preparer", "reviewer", "partner")
-        verification = self.verify_lock(engagement_id)
-        if not verification.get("verified"):
-            raise ValueError(
-                "export refused: the lock does not verify "
-                f"(drift={verification.get('drift')}, "
-                f"signature_ok={verification.get('signature_ok')}, "
-                f"journal_ok={verification.get('journal_ok')})")
-        if self._keystore is None:
-            raise RuntimeError(
-                "export is a signed operation; no key store is configured")
-
-        snapshot = self._conn.execute(
-            """SELECT * FROM lock_snapshot WHERE engagement_id = ?
-               AND status = 'active'""",
-            (engagement_id,)).fetchone()
-        signature = self._conn.execute(
-            "SELECT * FROM lock_signature WHERE snapshot_id = ?",
-            (snapshot["snapshot_id"],)).fetchone()
-        packet = self._packet_body(engagement_id, {
-            "manifest": json.loads(snapshot["manifest"]),
-            "digest": snapshot["digest"],
-            "journal_head_seq": snapshot["journal_head_seq"],
-            "journal_head_hash": snapshot["journal_head_hash"],
-            "signature": {
-                "signer_principal": signature["signer_principal"],
-                "key_id": signature["key_id"],
-                "algorithm": signature["algorithm"],
-                "public_key_pem": signature["public_key_pem"],
-                "signature_hex": signature["signature_hex"],
-                "signed_at": signature["signed_at"],
-            },
-        })
-        identity = self._keystore.identity(actor)
+        Each export is journaled with its digest, so the journal says which
+        record left the Workbench, when and by whom. The packet's own digests
+        let anyone check it is internally consistent (see the packet's
+        limits for what they do not prove)."""
+        from assurance_workpapers.packet import packet_digest, seal_packet
+        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
+        packet = seal_packet(self._packet_body(engagement_id))
         digest = packet_digest(packet)
-        seal_packet(
-            packet, exporter=actor, key_id=identity.key_id,
-            public_key_pem=identity.public_key_pem,
-            signature_hex=self._keystore.sign(actor, digest),
-            algorithm=ALGORITHM)
 
         def handler(uow):
-            uow.emit(entity_type="evidence_packet",
-                     entity_id=snapshot["snapshot_id"],
-                     event_type="export.packet",
-                     payload={"packet_digest": digest,
-                              "exporter": actor,
-                              "key_id": identity.key_id},
+            uow.emit(entity_type="evidence_packet", entity_id=engagement_id,
+                     event_type="export.record",
+                     payload={"packet_digest": digest, "exporter": actor},
                      engagement_id=engagement_id)
             return {"packet_digest": digest}
         run_command(self._conn,
-                    self._command(actor, "export.packet", engagement_id),
+                    self._command(actor, "export.record", engagement_id),
                     handler)
         return packet
 
     def workpaper_html(self, actor: str, engagement_id: str) -> str:
-        """The working paper: from the signed packet once locked; before
-        that, a draft from the live record, marked as such, unsigned."""
+        """The working paper, rendered from the record as it stands now."""
         from assurance_workpapers.workpaper import render_workpaper
-        if self._engagement(engagement_id)["status"] == "locked":
-            return render_workpaper(self.export_packet(actor, engagement_id))
-        return render_workpaper(self.draft_packet(actor, engagement_id))
-
-    def draft_packet(self, actor: str, engagement_id: str) -> dict:
-        """The packet's contents as they stand now: not locked, not signed,
-        not an export. For reading the file while the work goes on."""
         self._require(engagement_id, actor, "preparer", "reviewer", "partner")
-        packet = self._packet_body(engagement_id, None)
-        packet["draft"] = True
-        packet["draft_manifest"] = self._lock_manifest(
-            engagement_id, self._conn.execute)
-        return packet
+        from assurance_workpapers.packet import seal_packet
+        return render_workpaper(seal_packet(self._packet_body(engagement_id)))
 
     # ------------------------------------------------------------ helpers
 
@@ -2375,7 +2055,7 @@ class WorkbenchService:
         through the same propose, approve and normalize path as any other
         file: the preparer builds it, a reviewer approves its mapping.
         """
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
         sub = books.get(subledger_artifact_id)
@@ -2473,7 +2153,7 @@ class WorkbenchService:
         ordinary source file whose provenance names both exports by SHA-256,
         then goes through propose, approve and normalize like any other file.
         """
-        self._require_unlocked(engagement_id)
+        self._require_open(engagement_id)
         self._require(engagement_id, actor, "preparer")
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
         chosen = {"current": books.get(current_artifact_id)}
@@ -2744,13 +2424,6 @@ def _batch_report(results: list[dict], *, done: str) -> dict:
             done: sum(r["status"] == done for r in results),
             "skipped": sum(r["status"] == "skipped" for r in results),
             "errors": sum(r["status"] == "error" for r in results)}
-
-
-def _manifest_digest(manifest: dict) -> str:
-    import hashlib
-    payload = json.dumps(manifest, sort_keys=True, separators=(",", ":"),
-                         ensure_ascii=False).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
 
 
 def _tags(verdict: dict) -> dict:

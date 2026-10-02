@@ -209,7 +209,6 @@ PREPARED = [  # (label, role, builder or delivered file)
 # ---------------------------------------------------------------- the run
 def run(pass_name: str) -> int:
     from assurance_application.service import WorkbenchService
-    from assurance_artifacts.signing import LocalKeyStore
     from assurance_artifacts.vault import ArtifactVault
     from assurance_persistence.database import connect, migrate
     from assurance_persistence.legacy_import import ensure_tenant
@@ -219,8 +218,7 @@ def run(pass_name: str) -> int:
         conn = connect(root / "control.db")
         migrate(conn)
         service = WorkbenchService(conn, ArtifactVault(root / "vault"),
-                                   ensure_tenant(conn, "kestrel-verify"),
-                                   keystore=LocalKeyStore(root / "keys"))
+                                   ensure_tenant(conn, "kestrel-verify"))
         eid = service.create_engagement(PARTNER, "Kestrel Valley Cycle Supply",
                                         "2026-06-30")["engagement_id"]
         service.assign_team(PARTNER, eid, PREPARER, "preparer")
