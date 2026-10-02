@@ -14,14 +14,6 @@
         "count": 1
       },
       {
-        "code": "TEAM_ASSIGNMENTS_INCOMPLETE",
-        "count": 2,
-        "items": [
-          "preparer",
-          "reviewer"
-        ]
-      },
-      {
         "code": "SELECTED_PROCEDURES_BLOCKED",
         "count": 5,
         "items": [

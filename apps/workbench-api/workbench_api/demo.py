@@ -1,7 +1,7 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """Seed a ready-to-explore demo engagement from the Harborline teaching case.
 
-The seed goes through the real service path — three chairs, mapping review,
+The seed goes through the real service path — one user, confirmed mappings,
 digest-verified normalization, approved policies — so the demo engagement is
 indistinguishable from hand-loaded work. Procedures are deliberately *not*
 run: pressing "run" and reading what the engine found (and refused) is the
@@ -15,8 +15,6 @@ from pathlib import Path
 
 DEMO_CLIENT = "Harborline Marine Group (demo)"
 DEMO_PERIOD = "2026-12-31"
-DEMO_PREPARER = "demo-preparer"
-DEMO_REVIEWER = "demo-reviewer"
 
 ROLE_FILES = {
     "vendors.csv": "Vendors",
@@ -63,7 +61,7 @@ def default_case_dir() -> Path:
             / "case-studies" / "harborline-marine" / "data")
 
 
-def seed_demo(service, partner: str,
+def seed_demo(service, user: str,
               case_dir: Path | None = None) -> dict:
     """Idempotently create and load the demo engagement; return a summary."""
     case_dir = Path(case_dir) if case_dir else default_case_dir()
@@ -82,50 +80,41 @@ def seed_demo(service, partner: str,
         return {"engagement_id": existing["engagement_id"], "seeded": False}
 
     eid = service.create_engagement(
-        partner, DEMO_CLIENT, DEMO_PERIOD)["engagement_id"]
-    service.assign_team(partner, eid, DEMO_PREPARER, "preparer")
-    service.assign_team(partner, eid, DEMO_REVIEWER, "reviewer")
+        user, DEMO_CLIENT, DEMO_PERIOD)["engagement_id"]
 
-    # Bulk path, one pass per chair: the preparer uploads everything and
-    # batch-proposes with roles inferred from the filenames, the reviewer
-    # batch-approves, the preparer batch-normalizes. The seed asserts every
-    # inference landed on the answer key's role, so the demo doubles as an
-    # end-to-end check of bulk loading against real case files.
+    # Bulk path: upload everything, map and confirm with roles inferred from
+    # the filenames, then load. The seed asserts every inference landed on
+    # the answer key's role, so the demo doubles as an end-to-end check of
+    # bulk loading against real case files.
     expected_role = {}
     for filename in ROLE_FILES:
         artifact = service.store_source(
-            DEMO_PREPARER, eid, content=(case_dir / filename).read_bytes(),
+            user, eid, content=(case_dir / filename).read_bytes(),
             media_type="text/csv", original_name=filename,
             provenance=f"harborline-marine teaching case: {filename}")
         expected_role[artifact["artifact_id"]] = ROLE_FILES[filename]
 
-    proposals = service.propose_source_mappings(
-        DEMO_PREPARER, eid,
-        [{"artifact_id": aid} for aid in expected_role])
-    wrong = [r for r in proposals["results"]
-             if r["status"] != "proposed"
+    mapped = service.confirm_source_mappings(
+        user, eid, [{"artifact_id": aid} for aid in expected_role])
+    wrong = [r for r in mapped["results"]
+             if r["status"] != "confirmed"
              or r["role"] != expected_role[r["artifact_id"]]]
     if wrong:
         raise RuntimeError(f"demo seed: role inference went wrong: {wrong}")
-    spec_ids = [r["spec_id"] for r in proposals["results"]]
+    spec_ids = [r["spec_id"] for r in mapped["results"]]
 
-    approvals = service.approve_source_mappings(DEMO_REVIEWER, eid, spec_ids)
-    if approvals["approved"] != len(spec_ids):
-        raise RuntimeError(f"demo seed: approval failed: {approvals}")
-
-    normalized = service.normalize_sources(DEMO_PREPARER, eid, spec_ids)
+    normalized = service.normalize_sources(user, eid, spec_ids)
     if normalized["normalized"] != len(spec_ids):
         raise RuntimeError(f"demo seed: normalization failed: {normalized}")
     loaded = {r["reconciliation"]["role"]: r["reconciliation"]["rows_loaded"]
               for r in normalized["results"]}
 
     for name, value in DEMO_POLICIES:
-        service.update_workflow(partner, eid, "policy",
+        service.update_workflow(user, eid, "policy",
                                 {"name": name, "value": value})
 
     return {"engagement_id": eid, "seeded": True, "rows_loaded": loaded,
-            "team": {"partner": partner, "preparer": DEMO_PREPARER,
-                     "reviewer": DEMO_REVIEWER}}
+            "user": user}
 
 
 # ------------------------------------------------------------------ load a case from the Workbench

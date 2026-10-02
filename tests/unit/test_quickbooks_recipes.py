@@ -132,8 +132,6 @@ def service(tmp_path):
     svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"),
                            ensure_tenant(conn, "qbo"))
     eid = svc.create_engagement(PARTNER, "Craig's Design", "2026-12-31")["engagement_id"]
-    svc.assign_team(PARTNER, eid, PREPARER, "preparer")
-    svc.assign_team(PARTNER, eid, REVIEWER, "reviewer")
     yield svc, eid
     conn.close()
 
@@ -141,10 +139,9 @@ def service(tmp_path):
 def _load(svc, eid, content, name, role, recipe, mode=None):
     artifact = svc.store_source(PREPARER, eid, content=content,
                                 media_type=XLSX_TYPE, original_name=name)
-    proposal = svc.propose_source_mapping(
+    proposal = svc.confirm_source_mapping(
         PREPARER, eid, role=role, artifact_id=artifact["artifact_id"],
         extraction={"recipe": recipe})
-    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
     return artifact, proposal, svc.normalize_source(PREPARER, eid, proposal["spec_id"],
                                                     mode=mode)
 
@@ -201,14 +198,13 @@ def test_a_mismatched_role_is_refused_and_purchase_orders_load(service):
                                 original_name="Transaction List by Vendor.xlsx")
     recipe = {"recipe": "qbo.transaction_list_by_vendor.purchase_orders"}
     with pytest.raises(ValueError, match="produces Purchase_orders, not Vouchers"):
-        svc.propose_source_mapping(PREPARER, eid, role="Vouchers",
+        svc.confirm_source_mapping(PREPARER, eid, role="Vouchers",
                                    artifact_id=artifact["artifact_id"], extraction=recipe)
     # In a batch, the recipe names its own role.
-    [item] = svc.propose_source_mappings(
+    [item] = svc.confirm_source_mappings(
         PREPARER, eid, [{"artifact_id": artifact["artifact_id"],
                          "extraction": recipe}])["results"]
-    assert item["status"] == "proposed" and item["role"] == "Purchase_orders"
-    svc.approve_source_mapping(REVIEWER, eid, item["spec_id"])
+    assert item["status"] == "confirmed" and item["role"] == "Purchase_orders"
     rec = svc.normalize_source(PREPARER, eid, item["spec_id"])["reconciliation"]
     assert rec["rows_loaded"] == 3 and rec["control_total"] == "558.75"
 
@@ -303,10 +299,9 @@ def test_ap_subledger_ties_to_the_ledger_through_the_review_path(service):
 
     # The schedule is an ordinary source: its name suggests the role, and it
     # crosses the reviewer like every other file.
-    [item] = svc.propose_source_mappings(
+    [item] = svc.confirm_source_mappings(
         PREPARER, eid, [{"artifact_id": built["artifact_id"]}])["results"]
     assert item["role"] == "AP_control_balance" and item["refused_fields"] == []
-    svc.approve_source_mapping(REVIEWER, eid, item["spec_id"])
     svc.normalize_source(PREPARER, eid, item["spec_id"])
     tie = next(p for p in svc.coverage(eid)["procedures"]
                if p["procedure_id"] == "ap.subledger_gl_balance_tie")
@@ -332,9 +327,8 @@ def test_ap_subledger_ties_to_the_trial_balance_when_no_ledger_export(service):
                                    b"2000,Accounts Payable,1502.67,Cr\n"
                                    b"2010,Accounts Payable - other,100.00,Cr\n"
                                    b"3000,Equity,3397.33,Cr\n"))
-    spec = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+    spec = svc.confirm_source_mapping(PREPARER, eid, role="Trial_balance",
                                       artifact_id=tb["artifact_id"])
-    svc.approve_source_mapping(REVIEWER, eid, spec["spec_id"])
     svc.normalize_source(PREPARER, eid, spec["spec_id"])
     assert {"artifact_id": "trial_balance",
             "original_name": "the loaded trial balance (A/P control accounts setting)"} \
@@ -362,10 +356,9 @@ def test_ap_subledger_ties_to_the_trial_balance_when_no_ledger_export(service):
            ("1602.67", "0.00", "2026-12-31")
     # A trial balance has no date of its own: the schedule says so.
     assert any("carries no date of its own" in n for n in built["notes"])
-    [item] = svc.propose_source_mappings(
+    [item] = svc.confirm_source_mappings(
         PREPARER, eid, [{"artifact_id": built["artifact_id"]}])["results"]
     assert item["role"] == "AP_control_balance"
-    svc.approve_source_mapping(REVIEWER, eid, item["spec_id"])
     svc.normalize_source(PREPARER, eid, item["spec_id"])
     run = svc.run_procedure(PREPARER, eid, procedure_id="ap.subledger_gl_balance_tie")
     assert run["status"] == "completed"
@@ -382,9 +375,8 @@ def test_the_trial_balance_ledger_counts_every_row_and_refuses_a_blank(service):
     def load_tb(name, body, mode=None):
         tb = svc.store_source(PREPARER, eid, media_type="text/csv", original_name=name,
                               content=body)
-        spec = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+        spec = svc.confirm_source_mapping(PREPARER, eid, role="Trial_balance",
                                           artifact_id=tb["artifact_id"])
-        svc.approve_source_mapping(REVIEWER, eid, spec["spec_id"])
         svc.normalize_source(PREPARER, eid, spec["spec_id"], **({"mode": mode} if mode else {}))
 
     load_tb("tb1.csv", b"Account,Balance,Side\n2000,1000.00,Cr\n")
@@ -414,7 +406,7 @@ def test_quickbooks_reports_without_a_recipe_are_named_not_guessed(service):
 
 def test_one_stored_report_feeds_several_roles_once_each(service):
     """A Transaction List by Vendor holds bills and purchase orders: the same
-    stored file may be mapped once per role, and repeating 'propose all'
+    stored file may be mapped once per role, and repeating 'map all'
     still skips what is already mapped."""
     svc, eid = service
     artifact = svc.store_source(PREPARER, eid, content=BY_VENDOR,
@@ -424,10 +416,10 @@ def test_one_stored_report_feeds_several_roles_once_each(service):
               "extraction": {"recipe": "qbo.transaction_list_by_vendor.vouchers"}},
              {"artifact_id": artifact["artifact_id"],
               "extraction": {"recipe": "qbo.transaction_list_by_vendor.purchase_orders"}}]
-    first = svc.propose_source_mappings(PREPARER, eid, items)
-    assert [r["status"] for r in first["results"]] == ["proposed", "proposed"]
+    first = svc.confirm_source_mappings(PREPARER, eid, items)
+    assert [r["status"] for r in first["results"]] == ["confirmed", "confirmed"]
     assert {r["role"] for r in first["results"]} == {"Vouchers", "Purchase_orders"}
-    again = svc.propose_source_mappings(PREPARER, eid, items)
+    again = svc.confirm_source_mappings(PREPARER, eid, items)
     assert [r["status"] for r in again["results"]] == ["skipped", "skipped"]
 
 
@@ -440,7 +432,7 @@ def test_a_vendor_list_approved_under_the_old_reading_is_refused(service):
     artifact = svc.store_source(PREPARER, eid, content=CONTACTS, media_type=XLSX_TYPE,
                                 original_name="Vendor Contact List.xlsx")
     with pytest.raises(ValueError, match="recipe version 'qbo-v1'.*'qbo-v2'"):
-        svc.propose_source_mapping(
+        svc.confirm_source_mapping(
             PREPARER, eid, role="Vendors", artifact_id=artifact["artifact_id"],
             extraction={"recipe": "qbo.vendor_contact_list.vendors",
                         "recipe_version": "qbo-v1"})

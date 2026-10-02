@@ -29,7 +29,6 @@ import run_noesi  # noqa: E402  (the pass-B preparations)
 CLIENT = "Kestrel Valley Cycle Supply (demo)"
 PERIOD_END = "2026-06-30"
 PERIOD_START = "2025-07-01"
-PREPARER, REVIEWER = "demo-preparer", "demo-reviewer"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 CYCLES = ["planning", "journal_entries", "receivables", "payables", "payroll", "cash",
           "inventory", "ppe", "debt_equity", "accruals", "estimates", "completion"]
@@ -105,8 +104,6 @@ def seed(service, partner: str) -> dict:
     if existing:
         return {"engagement_id": existing["engagement_id"], "seeded": False}
     eid = service.create_engagement(partner, CLIENT, PERIOD_END)["engagement_id"]
-    service.assign_team(partner, eid, PREPARER, "preparer")
-    service.assign_team(partner, eid, REVIEWER, "reviewer")
     service.update_workflow(partner, eid, "materiality", {
         "amount": 15000, "basis": "pretax income", "rationale": "about 4.6% of pretax income"})
     service.update_workflow(partner, eid, "period", {"start": PERIOD_START})
@@ -119,38 +116,36 @@ def seed(service, partner: str) -> dict:
 
     # The trial balance: QuickBooks exports one date per report, so this
     # year's and last year's Trial Balance exports are built into one
-    # schedule (Balance, Prior Balance), then mapped, approved and loaded.
+    # schedule (Balance, Prior Balance), then mapped and loaded.
     for label in ("quickbooks/Trial_Balance_2026-06-30.xlsx",
                   "quickbooks/Trial_Balance_2025-06-30.xlsx"):
         stored[label] = service.store_source(
-            PREPARER, eid, content=(DATA / label).read_bytes(), media_type=XLSX,
+            partner, eid, content=(DATA / label).read_bytes(), media_type=XLSX,
             original_name=Path(label).name,
             provenance=f"Kestrel Valley case: {label}")["artifact_id"]
     built_tb = service.build_trial_balance(
-        PREPARER, eid, current_artifact_id=stored["quickbooks/Trial_Balance_2026-06-30.xlsx"],
+        partner, eid, current_artifact_id=stored["quickbooks/Trial_Balance_2026-06-30.xlsx"],
         prior_artifact_id=stored["quickbooks/Trial_Balance_2025-06-30.xlsx"])
-    [item] = service.propose_source_mappings(
-        PREPARER, eid, [{"artifact_id": built_tb["artifact_id"], "role": "Trial_balance"}]
+    [item] = service.confirm_source_mappings(
+        partner, eid, [{"artifact_id": built_tb["artifact_id"], "role": "Trial_balance"}]
     )["results"]
-    service.approve_source_mapping(REVIEWER, eid, item["spec_id"])
-    service.normalize_source(PREPARER, eid, item["spec_id"])
+    service.normalize_source(partner, eid, item["spec_id"])
 
     for label, role, prep, recipe, mode in LOADS:
         try:
             if label not in stored:
                 content = prep() if prep else (DATA / label).read_bytes()
                 stored[label] = service.store_source(
-                    PREPARER, eid, content=content,
+                    partner, eid, content=content,
                     media_type=XLSX if label.endswith(".xlsx") else "text/csv",
                     original_name=Path(label).name,
                     provenance=("Kestrel Valley case, prepared by hand from the "
                                 "QuickBooks export" if prep else
                                 f"Kestrel Valley case: {label}"))["artifact_id"]
-            spec = service.propose_source_mapping(
-                PREPARER, eid, role=role, artifact_id=stored[label],
+            spec = service.confirm_source_mapping(
+                partner, eid, role=role, artifact_id=stored[label],
                 extraction={"recipe": recipe} if recipe else None)
-            service.approve_source_mapping(REVIEWER, eid, spec["spec_id"])
-            service.normalize_source(PREPARER, eid, spec["spec_id"], mode=mode)
+            service.normalize_source(partner, eid, spec["spec_id"], mode=mode)
         except (ValueError, KeyError) as exc:
             refused.append({"file": label, "role": role, "reason": str(exc)})
 
@@ -163,27 +158,26 @@ def seed(service, partner: str) -> dict:
     for row in run_noesi._read_csv("auditor/tb_line_mapping.csv"):
         line = suggest_line(row["Lead Schedule Line"])
         if line:
-            service.update_workflow(PREPARER, eid, "line_mapping",
+            service.update_workflow(partner, eid, "line_mapping",
                                     {"account": row["Account"].split(" ", 1)[0],
                                      "line": line})
-    service.update_workflow(PREPARER, eid, "line_mapping",
+    service.update_workflow(partner, eid, "line_mapping",
                             {"account": "11900", "line": "allowance"})
 
     # The A/P tie: Unpaid Bills (the subledger) against the trial balance's
-    # Accounts Payable account (the ledger), built, reviewed and loaded like
+    # Accounts Payable account (the ledger), built, mapped and loaded like
     # any other schedule. Kestrel has no General Ledger export.
     service.update_workflow(partner, eid, "policy", {"name": "ap_control_accounts",
                                                      "value": "20000"})
     unpaid = service.store_source(
-        PREPARER, eid, content=(DATA / "quickbooks/Unpaid_Bills.xlsx").read_bytes(),
+        partner, eid, content=(DATA / "quickbooks/Unpaid_Bills.xlsx").read_bytes(),
         media_type=XLSX, original_name="Unpaid_Bills.xlsx",
         provenance="Kestrel Valley case: quickbooks/Unpaid_Bills.xlsx")["artifact_id"]
-    built = service.build_ap_control_balance(PREPARER, eid, subledger_artifact_id=unpaid,
+    built = service.build_ap_control_balance(partner, eid, subledger_artifact_id=unpaid,
                                              ledger_artifact_id="trial_balance")
-    [item] = service.propose_source_mappings(
-        PREPARER, eid, [{"artifact_id": built["artifact_id"]}])["results"]
-    service.approve_source_mapping(REVIEWER, eid, item["spec_id"])
-    service.normalize_source(PREPARER, eid, item["spec_id"])
+    [item] = service.confirm_source_mappings(
+        partner, eid, [{"artifact_id": built["artifact_id"]}])["results"]
+    service.normalize_source(partner, eid, item["spec_id"])
 
     # The three confirmation evaluations start left out: the auditor picks
     # one. Kestrel's team evaluates its confirmations nonstatistically (the
@@ -210,8 +204,7 @@ def seed(service, partner: str) -> dict:
     runs = 0
     for row in service.coverage(eid)["procedures"]:
         if row["status"] == "executable" and row.get("selected", True):
-            service.run_procedure(PREPARER, eid, procedure_id=row["procedure_id"])
+            service.run_procedure(partner, eid, procedure_id=row["procedure_id"])
             runs += 1
     return {"engagement_id": eid, "seeded": True, "procedures_run": runs,
-            "refused": refused,
-            "team": {"partner": partner, "preparer": PREPARER, "reviewer": REVIEWER}}
+            "refused": refused, "user": partner}

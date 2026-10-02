@@ -35,8 +35,7 @@ ROLES = {
     "value_flows.csv": "Value_flows",
 }
 
-PARTNER, PREPARER, REVIEWER = (
-    "instructor-partner", "instructor-preparer", "instructor-reviewer")
+PARTNER = PREPARER = "instructor"   # one user per engagement (D9 stage 3)
 
 
 def main() -> int:
@@ -55,18 +54,15 @@ def main() -> int:
 
         eid = service.create_engagement(
             PARTNER, "Harborline Marine Group", "2026-12-31")["engagement_id"]
-        service.assign_team(PARTNER, eid, PREPARER, "preparer")
-        service.assign_team(PARTNER, eid, REVIEWER, "reviewer")
 
         print("== Ingestion ==")
         for filename, role in ROLES.items():
             artifact = service.store_source(
                 PREPARER, eid, content=(DATA / filename).read_bytes(),
                 media_type="text/csv", original_name=filename)
-            proposal = service.propose_source_mapping(
+            proposal = service.confirm_source_mapping(
                 PREPARER, eid, role=role,
                 artifact_id=artifact["artifact_id"])
-            service.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
             recon = service.normalize_source(
                 PREPARER, eid, proposal["spec_id"])["reconciliation"]
             print(f"  {role:<20} loaded {recon['rows_loaded']:>4}  "

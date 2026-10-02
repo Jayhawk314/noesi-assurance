@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from assurance_application.service import AuthorizationError, WorkbenchService
+from assurance_application.service import WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -42,17 +42,14 @@ def service(tmp_path):
 @pytest.fixture()
 def engagement(service):
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    service.assign_team(ALICE, eid, CAROL, "reviewer")
     return eid
 
 
 def _ingest(service, eid, content, name, role):
     artifact = service.store_source(BOB, eid, content=content, media_type="text/csv",
                                     original_name=name)
-    proposal = service.propose_source_mapping(BOB, eid, role=role,
+    proposal = service.confirm_source_mapping(BOB, eid, role=role,
                                               artifact_id=artifact["artifact_id"])
-    service.approve_source_mapping(CAROL, eid, proposal["spec_id"])
     return service.normalize_source(BOB, eid, proposal["spec_id"])
 
 
@@ -64,9 +61,7 @@ def test_no_scope_means_ap_only_coverage(service, engagement):
                for p in coverage["procedures"])
 
 
-def test_only_the_partner_sets_scope(service, engagement):
-    with pytest.raises(AuthorizationError):
-        service.update_workflow(BOB, engagement, "cycles", {"cycles": ["cash"]})
+def test_scope_refuses_an_unknown_cycle(service, engagement):
     with pytest.raises(ValueError):
         service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["not-a-cycle"]})
 
@@ -264,9 +259,8 @@ PAYROLL_REC_CSV = (
 def _ingest_as(service, eid, content, name, role, mode=None):
     artifact = service.store_source(BOB, eid, content=content, media_type="text/csv",
                                     original_name=name)
-    proposal = service.propose_source_mapping(BOB, eid, role=role,
+    proposal = service.confirm_source_mapping(BOB, eid, role=role,
                                               artifact_id=artifact["artifact_id"])
-    service.approve_source_mapping(CAROL, eid, proposal["spec_id"])
     return proposal["spec_id"], lambda m=mode: service.normalize_source(
         BOB, eid, proposal["spec_id"], mode=m)
 
@@ -350,8 +344,8 @@ def test_k4_a_file_whose_headings_match_no_field_is_refused(service, engagement)
     artifact = service.store_source(BOB, engagement, content=b"Foo,Bar\n1,2\n3,4\n",
                                     media_type="text/csv", original_name="tb.csv")
     with pytest.raises(ValueError, match="none of this file's headings"):
-        service.propose_source_mapping(BOB, engagement, role="Trial_balance",
+        service.confirm_source_mapping(BOB, engagement, role="Trial_balance",
                                        artifact_id=artifact["artifact_id"])
-    batch = service.propose_source_mappings(
+    batch = service.confirm_source_mappings(
         BOB, engagement, [{"artifact_id": artifact["artifact_id"], "role": "Trial_balance"}])
     assert batch["results"][0]["status"] == "error"

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Artifact, BatchOutcome, Client, Coverage, Engagement, Finding, Readiness,
-  Run, Sad, Sources, TeamMember, WorkflowDocument, Blocker,
+  Run, Sad, Sources, WorkflowDocument, Blocker,
   ApControlBuilt, ApControlCandidates, TrialBalanceBuilt, TrialBalanceCandidates, Extraction, RecipeReport, WorkbookPreview,
 } from "./api";
 import { amountsInWords, cents } from "./lib/words";
@@ -27,58 +27,7 @@ function useLoader<T>(load: () => Promise<T>, onError: (e: unknown) => void) {
 
 const short = (digest: string) => `${digest.slice(0, 12)}…`;
 
-// ------------------------------------------------------------ screen 1: team
-
-export function TeamScreen({ client, eid, onError }: ScreenProps) {
-  const load = useCallback(async () => (await client.team(eid)).team, [client, eid]);
-  const { data: team, reload } = useLoader<TeamMember[]>(load, onError);
-  const [principal, setPrincipal] = useState("");
-  const [role, setRole] = useState("preparer");
-
-  async function assign() {
-    try {
-      await client.assignTeam(eid, principal.trim(), role);
-      setPrincipal("");
-      reload();
-    } catch (exc) { onError(exc); }
-  }
-
-  return (
-    <>
-      <h2>Engagement team</h2>
-      <table className="dense">
-        <thead><tr><th>Principal</th><th>Role</th></tr></thead>
-        <tbody>
-          {(team ?? []).map((member) => (
-            <tr key={`${member.principal_id}/${member.role}`}>
-              <td><code>{member.principal_id}</code></td>
-              <td>{member.role}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <form className="inline" onSubmit={(e) => { e.preventDefault(); void assign(); }}>
-        <input value={principal} placeholder="principal id"
-               onChange={(e) => setPrincipal(e.target.value)} />
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="preparer">preparer</option>
-          <option value="reviewer">reviewer</option>
-          <option value="partner">partner</option>
-        </select>
-        <button className="action" type="submit" disabled={!principal.trim()}>
-          assign
-        </button>
-      </form>
-      <p className="note">
-        Roles are the only authorization input. Preparers ingest and run;
-        reviewers approve mappings; partners assign the team and make the
-        partner's decisions. Separation of duties is enforced server-side.
-      </p>
-    </>
-  );
-}
-
-// ------------------------------------------- screen 2: sources and mappings
+// ------------------------------------------- screen: sources and mappings
 
 const ROLES = [
   "Vendors", "Employees", "Purchase_orders", "Vouchers", "Payments",
@@ -118,7 +67,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
     isWorkbook(a) ? pick[a.artifact_id] : undefined;
 
   // Read every unmapped workbook once, so recognized reports are offered
-  // before anyone proposes — including "propose all".
+  // before anything is mapped — including "map all".
   const opened = useRef(new Set<string>());
   useEffect(() => {
     for (const a of data?.artifacts ?? []) {
@@ -173,13 +122,13 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   }
   const upload = () => uploadFiles(fileInput);
 
-  // The role a proposal would use: an explicit choice beats the filename
+  // The role a mapping would use: an explicit choice beats the filename
   // suggestion. A file is done mapping *for a role* once an active spec maps
   // it as that role; it may still feed another role (one QuickBooks report
   // can hold bills and purchase orders).
   // A file already mapped shows a role it is mapped as, never a fresh
   // filename guess: "Transaction_List_by_Vendor" once guessed Vendors and
-  // "propose all" would have mapped it again (30 Sep 2026).
+  // "map all" would have mapped it again (30 Sep 2026).
   const activeSpecs = (data?.mapping_specs ?? []).filter((s) => s.status !== "superseded");
   const mappedAs = new Set(activeSpecs.map((s) => `${s.artifact_id}|${s.role}`));
   const rolesOf = (a: Artifact) =>
@@ -189,13 +138,11 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   const mapped = (a: Artifact) => mappedAs.has(`${a.artifact_id}|${chosenRole(a)}`);
   // The batch takes only files with no mapping yet; a second role for a mapped
   // file is always a deliberate, one-at-a-time choice.
-  const proposable = (data?.artifacts ?? []).filter(
+  const mappable = (data?.artifacts ?? []).filter(
     (a) => a.state === "promoted" && !mapped(a) && chosenRole(a) && !rolesOf(a).length);
-  const proposedSpecs = (data?.mapping_specs ?? [])
-    .filter((s) => s.status === "proposed");
   const normalizedSpecs = new Set(
     (data?.datasets ?? []).map((d) => d.mapping_spec_id));
-  // A role that already has data needs the preparer's replace/add choice
+  // A role that already has data needs your replace/add choice
   // (K3), so those specs are loaded one at a time, never in the batch.
   const rolesWithData = new Set((data?.datasets ?? []).map((d) => d.role));
   const normalizable = (data?.mapping_specs ?? []).filter(
@@ -238,10 +185,11 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                 {!mapped(artifact) && (
                   <button className="action"
                           disabled={!chosenRole(artifact)}
-                          onClick={act(() => client.proposeMapping(
+                          title="Map this file's columns to the role and confirm it; then load it below"
+                          onClick={act(() => client.confirmMapping(
                             eid, chosenRole(artifact), artifact.artifact_id,
                             extractionFor(artifact)))}>
-                    propose mapping
+                    confirm mapping
                   </button>
                 )}
                 {isWorkbook(artifact) && !mapped(artifact) && (
@@ -275,13 +223,13 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                  {...{ webkitdirectory: "", directory: "" }}
                  onChange={() => void uploadFiles(folderInput)} />
         </label>
-        {proposable.length > 0 && (
+        {mappable.length > 0 && (
           <button className="action" type="button"
-                  onClick={batch(() => client.proposeMappings(
-                    eid, proposable.map((a) => ({
+                  onClick={batch(() => client.confirmMappings(
+                    eid, mappable.map((a) => ({
                       artifact_id: a.artifact_id, role: chosenRole(a),
                       extraction: extractionFor(a) }))))}>
-            propose all ({proposable.length})
+            map all ({mappable.length})
           </button>
         )}
       </form>
@@ -290,9 +238,9 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         suggested from the filenames, and each suggestion stays overridable
         above. For a workbook, choose the sheet and the row that holds the
         column headings; reading stops at the first blank row, so a totals
-        block below the data is left out, and the proposal says so. Batching
-        compresses the clicks, never the review — every proposal still
-        crosses the reviewer's approval before it can normalize. A PDF or an
+        block below the data is left out, and the mapping says so. Check each
+        mapping below (fields mapped, headings left unmapped, fields refused)
+        before you load it. A PDF or an
         image (a confirmation reply, a scanned invoice) is kept unaltered as
         evidence with its SHA-256 fingerprint; it is not mapped.
       </p>
@@ -302,28 +250,19 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
       <ApControlPanel client={client} eid={eid} onError={onError} onBuilt={reload}
                       artifactCount={data?.artifacts.length ?? 0} />
 
-      <h3>Mapping specs (proposal → reviewer approval → normalize)</h3>
-      {(proposedSpecs.length > 1 || normalizable.length > 1) && (
+      <h3>Mappings (confirm → load)</h3>
+      {normalizable.length > 1 && (
         <form className="inline" onSubmit={(e) => e.preventDefault()}>
-          {proposedSpecs.length > 1 && (
-            <button className="action" type="button"
-                    onClick={batch(() => client.approveMappings(
-                      eid, proposedSpecs.map((s) => s.spec_id)))}>
-              approve all proposed ({proposedSpecs.length})
-            </button>
-          )}
-          {normalizable.length > 1 && (
-            <button className="action" type="button"
-                    onClick={batch(() => client.normalizeBatch(
-                      eid, normalizable.map((s) => s.spec_id)))}>
-              normalize all approved ({normalizable.length})
-            </button>
-          )}
+          <button className="action" type="button"
+                  onClick={batch(() => client.normalizeBatch(
+                    eid, normalizable.map((s) => s.spec_id)))}>
+            load all confirmed ({normalizable.length})
+          </button>
         </form>
       )}
       <table className="dense">
         <thead>
-          <tr><th>Role</th><th>Status</th><th>Proposed by</th><th>Approved by</th>
+          <tr><th>Role</th><th>Status</th><th>Mapped by</th>
               <th>Mapped</th><th>Unmapped headers</th><th>Refused fields</th><th>Source</th><th /></tr>
         </thead>
         <tbody>
@@ -331,10 +270,11 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
             <tr key={spec.spec_id}>
               <td>{spec.role}</td>
               <td className={`status ${spec.status === "approved" ? "ok" : "pending"}`}>
-                {spec.status}
+                {spec.status === "approved" ? "confirmed"
+                  : spec.status === "proposed" ? "not confirmed (from before 2 Oct)"
+                  : spec.status}
               </td>
-              <td><code>{spec.proposed_by}</code></td>
-              <td><code>{spec.approved_by || "—"}</code></td>
+              <td><code>{spec.approved_by || spec.proposed_by}</code></td>
               <td>{Object.keys(spec.column_map).length} fields</td>
               <td>{spec.unmapped_headers.join(", ") || "—"}</td>
               <td>{spec.refused_fields.join(", ") || "—"}</td>
@@ -345,15 +285,15 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
               <td>
                 {spec.status === "proposed" && (
                   <button className="action"
-                          onClick={act(() => client.approveMapping(eid, spec.spec_id))}>
-                    approve
+                          onClick={act(() => client.confirmPendingMapping(eid, spec.spec_id))}>
+                    confirm
                   </button>
                 )}
                 {spec.status === "approved" && !normalizedSpecs.has(spec.spec_id)
                   && !rolesWithData.has(spec.role) && (
                   <button className="action"
                           onClick={act(() => client.normalize(eid, spec.spec_id))}>
-                    normalize
+                    load
                   </button>
                 )}
                 {spec.status === "approved" && !normalizedSpecs.has(spec.spec_id)
@@ -413,7 +353,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
         </tbody>
       </table>
       <p className="note">
-        Datasets are rebuilt from the immutable artifact through the approved
+        Datasets are rebuilt from the immutable artifact through the confirmed
         mapping on every read and digest-verified — reperformance is the read
         path.
       </p>
@@ -962,11 +902,11 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
                  onChange={(e) => setNoDataReason(e.target.value)} />
           <button className="action" type="submit"
                   disabled={noDataReason.trim().length < 10}>
-            assert (partner chair)
+            assert
           </button>
           <span className="note">
-            Zero datasets means no procedure ever gated this engagement; the
-            partner must own that on the record before readiness can pass.
+            Zero datasets means no procedure ever gated this engagement; say
+            why on the record before readiness can pass.
           </span>
         </form>
       )}
@@ -1027,7 +967,6 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
  *  missing here still shows, by its code, so nothing is ever hidden. */
 const BLOCKERS: Record<string, [string, string | null]> = {
   MATERIALITY_NOT_SET: ["Materiality is not set.", "Planning & Risk"],
-  TEAM_ASSIGNMENTS_INCOMPLETE: ["The team needs a preparer and a reviewer.", "Team"],
   RISKS_UNASSESSED: ["Some risks have no level assessed.", "Planning & Risk"],
   HIGH_RISKS_WITHOUT_RESPONSE: ["A high or significant risk has no planned response.", "Planning & Risk"],
   HIGH_RISKS_WITHOUT_PROCEDURE: ["A high or significant risk has no procedure linked to answer it.", "Planning & Risk"],
@@ -1254,7 +1193,7 @@ function WorkbookChooser({ book, choice, onChange, onRole }: {
   );
 }
 
-/** A QuickBooks recipe's checks, for the reviewer deciding on approval. */
+/** A QuickBooks recipe's checks, shown with the mapping before it is loaded. */
 function RecipeSummary({ report }: { report: RecipeReport }) {
   const totals = report.subtotals_checked + (report.grand_total?.length ?? 0);
   const agreed = totals === 1 ? "the total agrees" : totals === 2 ? "both totals agree"
@@ -1289,8 +1228,8 @@ function RecipeSummary({ report }: { report: RecipeReport }) {
 /** The trial balance from QuickBooks Trial Balance exports: QuickBooks gives
  *  one date per report, so this period's and the prior period's are joined
  *  by account into one schedule with a Prior Balance column. Building it
- *  stores the schedule as an ordinary source file, then proposed, approved
- *  and loaded like any other. Shown only when a Trial Balance export exists. */
+ *  stores the schedule as an ordinary source file, then mapped and loaded
+ *  like any other. Shown only when a Trial Balance export exists. */
 function TrialBalancePanel({ client, eid, onError, onBuilt, artifactCount }: {
   client: Client; eid: string; onError: (e: Error) => void;
   onBuilt: () => void; artifactCount: number;
@@ -1322,7 +1261,7 @@ function TrialBalancePanel({ client, eid, onError, onBuilt, artifactCount }: {
         QuickBooks exports a trial balance for one date. Choose this period's
         export and, for prior-year comparisons, last year's; each is footed
         against its TOTAL first. The result is saved as a "Trial balance"
-        source file, which you then propose, approve and load like any other,
+        source file, which you then map and load like any other,
         and map its accounts to statement lines under "Trial balance lines" on
         Scope &amp; Policies.
       </p>
@@ -1358,8 +1297,8 @@ function TrialBalancePanel({ client, eid, onError, onBuilt, artifactCount }: {
 
 /** The AP subledger-to-ledger tie from two QuickBooks exports: Unpaid Bills
  *  (the subledger) and the General Ledger (the control account). Building it
- *  stores a schedule as an ordinary source file, which is then proposed,
- *  approved and loaded like any other. Shown only when both kinds exist. */
+ *  stores a schedule as an ordinary source file, which is then mapped and
+ *  loaded like any other. Shown only when both kinds exist. */
 function ApControlPanel({ client, eid, onError, onBuilt, artifactCount }: {
   client: Client; eid: string; onError: (e: Error) => void;
   onBuilt: () => void; artifactCount: number;
@@ -1389,7 +1328,7 @@ function ApControlPanel({ client, eid, onError, onBuilt, artifactCount }: {
         The unpaid-bills total is the AP subledger; the ledger's Accounts
         Payable balance is the control account. Both reports are footed first.
         The result is saved as an "AP control balance" source file, which you
-        then propose, approve and load like any other.
+        then map and load like any other.
       </p>
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void build(); }}>
         <label>Subledger{" "}

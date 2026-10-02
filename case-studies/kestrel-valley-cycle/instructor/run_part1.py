@@ -17,7 +17,7 @@ from pathlib import Path
 CASE = Path(__file__).resolve().parent.parent
 QBO = CASE / "data" / "quickbooks"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-P, R, S = "kv-partner", "kv-preparer", "kv-reviewer"
+P = R = "kv-auditor"   # one user per engagement (D9 stage 3)
 
 LOADS = [  # file, role, recipe or None, mode for a role that already has data
     ("Vendor_Contact_List.xlsx", "Vendors", "qbo.vendor_contact_list.vendors", None),
@@ -46,8 +46,6 @@ def main() -> int:
         svc = WorkbenchService(conn, ArtifactVault(root / "vault"),
                                ensure_tenant(conn, "kv1"))
         eid = svc.create_engagement(P, "Kestrel Valley", "2026-06-30")["engagement_id"]
-        svc.assign_team(P, eid, R, "preparer")
-        svc.assign_team(P, eid, S, "reviewer")
         svc.update_workflow(P, eid, "cycles", {"cycles": ["journal_entries", "payables"]})
         svc.update_workflow(P, eid, "period", {"start": "2025-07-01"})
         print("== Loads ==")
@@ -60,7 +58,7 @@ def main() -> int:
                         R, eid, content=(QBO / name).read_bytes(),
                         media_type=XLSX, original_name=name)
                 art = stored[name]
-                prop = svc.propose_source_mapping(
+                prop = svc.confirm_source_mapping(
                     R, eid, role=role, artifact_id=art["artifact_id"],
                     extraction={"recipe": recipe} if recipe else None)
                 print(f"    map {prop['column_map']}")
@@ -69,7 +67,6 @@ def main() -> int:
                 report = (prop.get("extraction") or {}).get("recipe_report") or {}
                 if report.get("missing_required"):
                     print(f"    recipe: missing {report['missing_required']}")
-                svc.approve_source_mapping(S, eid, prop["spec_id"])
                 rec = svc.normalize_source(R, eid, prop["spec_id"], mode=mode)
                 r = rec["reconciliation"]
                 print(f"    loaded {r['rows_loaded']} set aside {r['rows_rejected']} "

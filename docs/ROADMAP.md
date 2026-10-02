@@ -211,6 +211,21 @@ against the finish line before the next:
    not a sign-off). About 52 test files assign chairs and 34 approve
    mappings. The finish-line line "team: partner, preparer, reviewer" and
    Learn module 1's "three chairs" section are reworded with it.
+   **Done 2 Oct 2026 (Claude, local, not reviewed by a second agent):**
+   role checks, `assign_team`, the team route, the X-Acting-Principal header
+   (now ignored), the readiness team gate and the mapping separation check
+   are gone; `confirm_source_mapping` maps and confirms in one step; a
+   mapping proposed before today can still be confirmed (`confirm_pending`).
+   The real count was 20 test files, not 52. Workbench and Studio lose the
+   chair switcher and the Team tab; manual ch. 1, 3, 7, 8 and Learn module 1
+   reworded; the finish-line line now reads "one user on record" (the Learn
+   key file regenerated: that line only). 529 tests pass; finish line
+   162/164, 0 unexplained; check-lessons passes; the three apps build. Seen
+   on screen: engagement list and Sources & Mappings on a throwaway Kestrel
+   demo (33 mappings confirmed, header shows the user). Not changed:
+   Studio's Harborline lessons still teach chairs; `require_separation` and
+   `ingest.approve_mapping` stay as unused domain helpers; the DB keeps the
+   `principal_assignment` table and the stored status 'approved'.
 
 ### D10. Forensic tests (James decided 1 Oct 2026: all three, extend the key)
 Done 1 Oct (c13ba96): `forensic.check_number_sequence`,
@@ -267,6 +282,14 @@ scripts first, James approves scripts and credits before voicing.
   column, "Paycheck" name unverified (HANDOFF_2026-10-02-fixes.md "Not done").
 - Second round of 2 Oct fixes (C1-C3) committed without a second-agent
   check, by James's decision: no more check rounds.
+- Sources: "map all" offers the raw files a built schedule was made from
+  (Kestrel: both Trial Balance exports and Unpaid Bills). One click now maps
+  and confirms them (before D9 stage 3 they waited at approval); loading
+  still needs its own step. Seen 2 Oct; leave such files out of "map all".
+- Oceanview's offline scripts (run_full.py, run_noesi.py, workflow_full.py)
+  still call the signing key and the lock removed in D9 stage 2, so they do
+  not run; the Workbench's Oceanview loader (load_workbench.py) was fixed.
+- Studio's Harborline lessons still teach chairs, locks and concurrence.
 
 ## Rules
 - Never fit the engine to a case; test fixes on invented data.

@@ -4,12 +4,12 @@
  *  The studio never decides anything the server has not already recorded:
  *  every stage status below is a direct reading of coverage, runs,
  *  findings, SAD or readiness. "Next step" names the first stage
- *  that is not done, the chair that can move it, and — only where the
- *  server offers a one-shot action — the button that does it. */
+ *  that is not done and — only where the server offers a one-shot
+ *  action — the button that does it. */
 
 import {
   Client, Coverage, Engagement, Finding, Impact,
-  Readiness, Run, Sad, Sources, TeamMember, WorkflowDocument,
+  Readiness, Run, Sad, Sources, WorkflowDocument,
 } from "../../workbench-ui/src/api";
 
 export const ROLES = [
@@ -19,7 +19,6 @@ export const ROLES = [
 
 export interface Bundle {
   engagement: Engagement;
-  team: TeamMember[];
   sources: Sources;
   coverage: Coverage;
   runs: Run[];
@@ -33,9 +32,9 @@ export interface Bundle {
 
 export async function loadBundle(client: Client, engagement: Engagement): Promise<Bundle> {
   const eid = engagement.engagement_id;
-  const [team, sources, coverage, runs, findings, sad, readiness, workflow,
+  const [sources, coverage, runs, findings, sad, readiness, workflow,
          impact] = await Promise.all([
-    client.team(eid), client.sources(eid), client.coverage(eid),
+    client.sources(eid), client.coverage(eid),
     client.runs(eid), client.findings(eid), client.sad(eid),
     client.readiness(eid), client.workflow(eid),
     // The impact report rebuilds every file version; an older server
@@ -43,7 +42,7 @@ export async function loadBundle(client: Client, engagement: Engagement): Promis
     client.impact(eid).catch(() => null),
   ]);
   return {
-    engagement, team: team.team, sources, coverage, runs: runs.runs,
+    engagement, sources, coverage, runs: runs.runs,
     findings: findings.findings, sad, readiness,
     workflow: workflow.document, workflowVersion: workflow.version,
     impact,
@@ -81,7 +80,6 @@ export interface NextStep {
   stage: StageId;
   headline: string;
   why: string;
-  chair: "partner" | "preparer" | "reviewer" | null;
   action: NextAction | null;
 }
 
@@ -173,18 +171,18 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
   let next: NextStep | null = null;
   switch (open) {
     case "plan":
-      next = { stage: open, chair: "partner", action: { kind: "materiality" },
+      next = { stage: open, action: { kind: "materiality" },
                headline: "Set materiality",
                why: "Every later judgment — what is trivial, what needs a second opinion, what goes on the SAD — is measured against it." };
       break;
     case "collect":
-      next = { stage: open, chair: "preparer",
+      next = { stage: open,
                action: { kind: "workbench", tab: "Sources & Mappings" },
                headline: `Load the client's files (${ROLES.length - loadedRoles.size} record sets missing)`,
-               why: "Upload, map each column, have a reviewer approve the mapping, then normalize. Refused columns are real facts about the data." };
+               why: "Upload, map and confirm each file's columns, then load it. Refused columns are real facts about the data." };
       break;
     case "scope":
-      next = { stage: open, chair: "partner",
+      next = { stage: open,
                action: { kind: "workbench", tab: "Coverage" },
                headline: partial.length
                  ? `Approve ${partial.flatMap((p) => p.missing_policies).join(", ")}`
@@ -192,24 +190,24 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
                why: "Some procedures need an engagement decision, like the client's approval limit, before they can test anything." };
       break;
     case "test":
-      next = { stage: open, chair: "preparer", action: { kind: "run", procedureIds: toRun },
+      next = { stage: open, action: { kind: "run", procedureIds: toRun },
                headline: stale.size
                  ? `Rerun ${toRun.length} procedure(s) on the corrected file`
                  : `Run ${toRun.length} procedure(s)`,
                why: "Each run tests the whole population and freezes exactly which data it used." };
       break;
     case "judge":
-      next = { stage: open, chair: "preparer", action: { kind: "view", view: "findings" },
+      next = { stage: open, action: { kind: "view", view: "findings" },
                headline: `Judge ${undisposed.length} exception(s)`,
                why: "An exception is a lead, not a conclusion. Each needs a disposition and a note saying why." };
       break;
     case "conclude":
-      next = { stage: open, chair: "partner", action: { kind: "workbench", tab: "SAD & Completion" },
+      next = { stage: open, action: { kind: "workbench", tab: "SAD & Completion" },
                headline: "Conclude the SAD",
                why: "Compare uncorrected differences to materiality: every misstatement candidate needs a disposition." };
       break;
     case "export":
-      next = { stage: open, chair: "partner", action: { kind: "workbench", tab: "Export" },
+      next = { stage: open, action: { kind: "workbench", tab: "Export" },
                headline: "See what is still open, then export the record",
                why: "Readiness lists what stands between the record and an opinion; the record exports any time, unsigned, and checks itself with no tool." };
       break;

@@ -17,8 +17,8 @@ Two habits distinguish professional data handling:
    re-derive your working population from it.
 2. **Review the transformation.** Mapping a client's column headings onto
    your working schema is itself audit work — a wrong mapping silently
-   corrupts every procedure downstream — so it is prepared by one person
-   and approved by another.
+   corrupts every procedure downstream — so it is checked before any
+   procedure relies on it, and in a firm it is reviewed by a second person.
 
 And a rule that sounds obvious until the deadline pressure arrives: **you
 are not obliged to treat a population as complete because it was
@@ -37,20 +37,21 @@ question.
 
 The **Sources & Mappings** flow implements exactly those habits:
 
-1. **Upload** (preparer chair). The file's bytes go into a
+1. **Upload.** The file's bytes go into a
    content-addressed vault — SHA-256 identity, never modified, never
    deleted (retirement is a tombstone). This is the original-evidence rule
    made structural. The same file uploaded twice is refused, and the
    message names the earlier upload.
-2. **Propose a mapping** (preparer). The header detector proposes the
-   column mapping for the declared role (Payments, Vendors, …). Two lists
-   on the proposal deserve attention: *unmapped headers* (columns the
-   schema does not use) and **refused fields** (canonical fields the file
-   simply does not contain). A refused field is an audit fact — data the
-   client did not provide — not a software complaint.
-3. **Approve** (reviewer chair). The mapping is a durable, reviewed
-   transformation object. You cannot approve your own proposal.
-4. **Normalize** (preparer). Rows load through the approved mapping;
+2. **Confirm mapping.** The header detector maps the file's columns for
+   the declared role (Payments, Vendors, …), and the mapping is confirmed
+   in the same step, by you: checking that the columns map right is a data
+   check, not a sign-off. Two lists on the mapping deserve attention before
+   you load: *unmapped headers* (columns the schema does not use) and
+   **refused fields** (canonical fields the file simply does not contain).
+   A refused field is an audit fact — data the client did not provide —
+   not a software complaint. The mapping is a durable transformation
+   object: it never changes, and every later read goes through it.
+3. **Load** (normalize). Rows load through the confirmed mapping;
    required-field failures are quarantined ("set aside") with reasons, not
    silently dropped; a Decimal control total accumulates. Check the
    reconciliation: rows in = rows loaded + rows rejected, always. The
@@ -59,7 +60,7 @@ The **Sources & Mappings** flow implements exactly those habits:
    in red, not as data supplied. A report's total line ("TOTAL", "Total
    for …") whose amount equals the sum of the rows above it is set aside as
    a total, so it cannot double the population; a total line that does not
-   tie is kept and named for the reviewer. A workbook that repeats its
+   tie is kept and named. A workbook that repeats its
    heading row lower down (a report of several sections, such as a bank
    reconciliation report) is refused rather than read as one table, which
    would take only its first section; choosing a heading row explicitly
@@ -77,8 +78,8 @@ that holds the column headings; the tool suggests one and previews the
 first rows.
 
 - Reading stops at the first blank row, so a totals block below the data
-  is left out, and the proposal says how many non-blank rows it ignored.
-- The sheet and heading row become part of the reviewed mapping, and each
+  is left out, and the mapping says how many non-blank rows it ignored.
+- The sheet and heading row become part of the confirmed mapping, and each
   record's `source_row` points at the real sheet row.
 - Legacy .xls files and damaged workbooks are refused with instructions;
   the original bytes stay in the vault either way.
@@ -103,8 +104,8 @@ leaves the role blank until you pick. What a recipe does:
 
 - **Foots the report.** Every subtotal and grand total is recomputed from
   the detail rows, for every amount column, before the subtotal rows are
-  dropped. A total that disagrees is shown to the reviewer beside the
-  mapping, never absorbed.
+  dropped. A total that disagrees is shown beside the mapping, never
+  absorbed.
 - **Flattens the groups.** The group name (vendor or paying account) goes
   onto every row as a column.
 - **Keeps only what the role is about** (bills for Vouchers, bill payments
@@ -113,7 +114,7 @@ leaves the role blank until you pick. What a recipe does:
   account: a check is negative in the bank, a card payment positive on the
   card. Payments load as positive paid amounts; the as-exported amount
   stays in the row and the signs seen per account are reported.
-- **Warns before approval** when rows will be set aside, for example
+- **Warns before loading** when rows will be set aside, for example
   "5 of 5 rows have no voucher_number (Num is blank)".
 
 What QuickBooks does not export is refused, not invented:
@@ -129,8 +130,8 @@ What QuickBooks does not export is refused, not invented:
   as a flat table; its use is the AP tie below.
 
 A report with customized columns is not recognized; map it the ordinary
-way. The recipe is part of the reviewed mapping and its digest. Once a
-mapping is loaded it shows "loaded ✓": the file and the approved mapping
+way. The recipe is part of the mapping and its digest. Once a
+mapping is loaded it shows "loaded ✓": the file and the confirmed mapping
 cannot change, so loading it again would only repeat the same rows, and
 the workbench refuses to.
 
@@ -149,26 +150,25 @@ uploaded, Sources shows a panel to build the **AP control balance**:
    states the dates of both sides and flags when they differ from each
    other or from the engagement's period end, so you confirm the tie
    compares like with like.
-3. You propose, approve and load the schedule like any other file, and
+3. You map and load the schedule like any other file, and
    the **AP subledger-to-GL control-account tie** procedure can then run.
    A difference becomes a finding; agreement is recorded as a clean run.
 
-**Bulk loading batches the clicks, never the review.** A real engagement
+**Bulk loading batches the clicks, never the checks.** A real engagement
 arrives as ten files, not one. Select them all in one upload; the
 workbench suggests each file's role from its name (`bank.csv` → Bank,
 `ap_invoices.csv` → Vouchers) and refuses to guess when a name is
-ambiguous — a suggestion you can override before proposing. **Propose
-all** files in one pass, the reviewer chair **approves all** proposals in
-one pass, and the preparer **normalizes all** approved mappings in one
-pass. Each file still gets its own proposal, its own approval, its own
-reconciliation, and its own journal entry; a file that fails (a damaged
+ambiguous — a suggestion you can override before mapping. **Map all**
+files in one pass, then **load all confirmed** mappings in one pass. Each
+file still gets its own mapping, its own reconciliation, and its own
+journal entry; a file that fails (a damaged
 workbook, an unrecognizable name) is reported individually and never
 blocks the rest.
 
 **Reperformance is the read path.** The workbench does not store your
 normalized table as the working copy. Every time any screen needs the
 data, it re-derives the table from the immutable artifact through the
-approved mapping and verifies the result against the recorded digest — and
+confirmed mapping and verifies the result against the recorded digest — and
 refuses to serve data it cannot reproduce. What you see is always what the
 evidence still supports.
 

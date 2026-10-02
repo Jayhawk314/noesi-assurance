@@ -39,7 +39,7 @@ decision trail. There are no boxes to tick: the completion work
 procedures. Red readiness is the list working, not an error — each item
 names exactly what is outstanding.
 
-**Export** (any chair, any time) downloads the **record**: one JSON file
+**Export** (any time) downloads the **record**: one JSON file
 carrying a manifest of every entity (file digests, mappings, dataset
 reconciliations, runs, dispositions, risks, team, and the journal position
 it was taken at), every run with its findings and seals, the dispositions,

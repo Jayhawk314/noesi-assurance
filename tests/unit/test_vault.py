@@ -163,28 +163,37 @@ def test_retirement_tombstones_manifest_then_removes_bytes(env):
 
 # ------------------------------------------------- mapping spec + dataset rows
 
-def test_mapping_approval_enforces_separation_server_side(env):
+def test_a_mapping_is_confirmed_in_one_step_by_one_user(env):
     conn, _, tenant, engagement = env
-    from assurance_domain.lifecycle import SeparationOfDutiesError
-
-    spec_id = run_command(
-        conn, Command("propose-1", tenant, "preparer-1", "mapping.propose"),
-        lambda uow: {"spec_id": uow.mappings.propose(
-            engagement, role="Payments", spec={"column_map": {}},
-            spec_digest="d" * 64, proposed_by="preparer-1")}
-    ).result["spec_id"]
-
-    with pytest.raises(SeparationOfDutiesError):
-        run_command(
-            conn, Command("approve-self", tenant, "preparer-1", "mapping.approve"),
-            lambda uow: uow.mappings.approve(
-                spec_id, approved_by="preparer-1") or {})
-
     run_command(
-        conn, Command("approve-1", tenant, "reviewer-1", "mapping.approve"),
-        lambda uow: uow.mappings.approve(spec_id, approved_by="reviewer-1") or {})
+        conn, Command("confirm-1", tenant, "auditor-1", "mapping.confirm"),
+        lambda uow: {"spec_id": uow.mappings.confirm(
+            engagement, role="Payments", spec={"column_map": {}},
+            spec_digest="d" * 64, confirmed_by="auditor-1")})
+    row = conn.execute("SELECT status, proposed_by, approved_by FROM mapping_spec").fetchone()
+    assert tuple(row) == ("approved", "auditor-1", "auditor-1")
+    events = [r["event_type"] for r in conn.execute(
+        "SELECT event_type FROM domain_event WHERE entity_type = 'mapping_spec'")]
+    assert events == ["mapping.confirmed"]
+
+
+def test_a_pending_mapping_from_before_2_oct_can_be_confirmed_once(env):
+    from assurance_domain.errors import ConflictError
+    conn, _, tenant, engagement = env
+    conn.execute(
+        """INSERT INTO mapping_spec (spec_id, tenant_id, engagement_id, role, spec,
+           spec_digest, proposed_by, created_at)
+           VALUES ('old-1', ?, ?, 'Payments', '{}', ?, 'preparer-1', '2026-09-01')""",
+        (tenant, engagement, "d" * 64))
+    conn.commit()
+    confirm = lambda cid: run_command(  # noqa: E731
+        conn, Command(cid, tenant, "auditor-1", "mapping.confirm"),
+        lambda uow: uow.mappings.confirm_pending("old-1", confirmed_by="auditor-1") or {})
+    confirm("confirm-old-1")
     row = conn.execute("SELECT status, approved_by FROM mapping_spec").fetchone()
-    assert (row["status"], row["approved_by"]) == ("approved", "reviewer-1")
+    assert tuple(row) == ("approved", "auditor-1")
+    with pytest.raises(ConflictError):
+        confirm("confirm-old-2")
 
 
 def test_dataset_receipt_is_recorded_with_events(env):
@@ -195,11 +204,10 @@ def test_dataset_receipt_is_recorded_with_events(env):
         media_type="text/csv", original_name="payments.csv")
 
     def handler(uow):
-        spec_id = uow.mappings.propose(
+        spec_id = uow.mappings.confirm(
             engagement, role="Payments", spec={}, spec_digest="d" * 64,
-            proposed_by="preparer-1",
+            confirmed_by="preparer-1",
             artifact_id=stored.result["artifact_id"])
-        uow.mappings.approve(spec_id, approved_by="reviewer-1")
         dataset_id = uow.datasets.record(
             engagement, role="Payments", mapping_spec_id=spec_id,
             artifact_id=stored.result["artifact_id"], rows_in=3,

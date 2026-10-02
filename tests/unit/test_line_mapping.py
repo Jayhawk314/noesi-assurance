@@ -69,8 +69,6 @@ def service(tmp_path):
     migrate(conn)
     svc = WorkbenchService(conn, ArtifactVault(tmp_path / "v"), ensure_tenant(conn, "m"))
     eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team("pa", eid, "pr", "preparer")
-    svc.assign_team("pa", eid, "rv", "reviewer")
     yield svc, eid
     conn.close()
 
@@ -82,9 +80,8 @@ def test_the_workbench_lists_labels_records_mappings_and_passes_them_to_runs(ser
            ).encode("utf-8")
     art = svc.store_source("pr", eid, content=csv, media_type="text/csv",
                            original_name="trial_balance.csv")
-    spec = svc.propose_source_mapping("pr", eid, role="Trial_balance",
+    spec = svc.confirm_source_mapping("pr", eid, role="Trial_balance",
                                       artifact_id=art["artifact_id"])
-    svc.approve_source_mapping("rv", eid, spec["spec_id"])
     svc.normalize_source("pr", eid, spec["spec_id"])
     listing = svc.trial_balance_lines(eid)
     ar = next(i for i in listing["labels"] if i["label"] == "Accounts receivable")

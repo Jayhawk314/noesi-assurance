@@ -12,7 +12,9 @@ from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 from procedures_ap.contracts import PROCEDURES
-from workbench_api.demo import DEMO_PREPARER, seed_demo
+from workbench_api.demo import seed_demo
+
+USER = "local:oracle-partner"
 
 
 CASE = Path(__file__).resolve().parents[2] / "case-studies" / "harborline-marine"
@@ -70,11 +72,11 @@ def test_harborline_matches_every_reviewed_outcome(tmp_path):
     try:
         service = WorkbenchService(
             conn, ArtifactVault(tmp_path / "vault"), ensure_tenant(conn, "oracle"))
-        eid = seed_demo(service, "local:oracle-partner")["engagement_id"]
+        eid = seed_demo(service, USER)["engagement_id"]
         assert service.coverage(eid)["summary"]["executable"] == len(PROCEDURES)
         for contract in PROCEDURES:
             result = service.run_procedure(
-                DEMO_PREPARER, eid, procedure_id=contract.procedure_id)
+                USER, eid, procedure_id=contract.procedure_id)
             assert result["status"] == "completed", result
 
         actual: dict[str, dict[str, str]] = {p: {} for p in EXPECTED["findings"]}

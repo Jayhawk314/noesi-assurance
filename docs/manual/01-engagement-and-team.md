@@ -1,5 +1,7 @@
 # Chapter 1 — The engagement and the team
 
+*Noesi has one user per engagement; the team's review happens outside it.*
+
 ## In practice
 
 An audit is performed by an **engagement team** with defined
@@ -25,25 +27,18 @@ auditor to understand who performed and who reviewed the work).
 
 ## In the workbench
 
-**Creating an engagement** (client name + period end) makes the acting
-principal its **partner**. The partner assigns other principals as
-`preparer` and `reviewer` on the **Team** tab.
+**One user per engagement.** Noesi supplements an audit; it is not the
+firm's audit software. So it has no chairs, roles or approvals (removed
+2 Oct 2026). Whoever runs the session does every step, and the header shows
+who that is. **Creating an engagement** (client name + period end) records
+you as its user.
 
-**Chairs.** The pilot runs on one machine with one operator. The header's
-**acting as** control switches which principal your actions are performed
-as. The gates treat chairs exactly as they would treat separate people: a
-proposal's author cannot approve it. Runs, dispositions and risks carry no
-review or sign-off step: Noesi supplements the audit, and the firm's own
-review stays outside it. Every action is journaled under the chair that
-performed it and appears that way in the exported record.
-
-Understand what this does and does not mean. On a single laptop, chair
-separation is *procedural*, not *personal* — the same human sits in every
-chair. That is acceptable for teaching and for a sole practitioner
-role-playing the discipline (the same way one signs different boxes on a
-paper workpaper), and the tool states it openly rather than pretending
-otherwise. A real multi-person deployment replaces chairs with per-person
-authentication ([production tracker §1](../PRODUCTION-READINESS.md)).
+The preparer–reviewer–partner discipline above still matters, but it
+happens in the firm's own review, outside Noesi. A second login on the same
+laptop would be the same person twice, and Noesi would rather not pretend
+otherwise. What Noesi does keep is the trail: every action is journaled
+under the user who did it, and appears that way in the exported record, so
+a reviewer can see exactly who did what and when.
 
 **The journal.** Every accepted command writes a domain event linked by
 hash to its predecessor. This chain is the engagement's decision trail; if
@@ -54,20 +49,11 @@ when" a property of the record rather than a claim.
 Steps:
 
 1. Start: `noesi-workbench` (or `--demo` for the pre-loaded case).
-2. Create the engagement while acting as the principal who should be
-   partner.
-3. Team tab → add a preparer and a reviewer principal.
-4. Practice switching chairs in the header; watch the roles chip update.
+2. Create the engagement; the header shows the user it is recorded under.
 
 ## In Kestrel
 
-The case is designed for the same three chairs. With `--demo`, the engagement
-**Kestrel Valley Cycle Supply (demo)** arrives with `demo-preparer` and
-`demo-reviewer` assigned and the session principal as partner. Loading it by
-hand instead: create a June 30, 2026 engagement as the partner chair, assign
-the other two chairs, and set the period start to July 1, 2025 before scoping
-the cycles.
-
-Try to approve one of your own mapping proposals while sitting in the
-preparer chair. The refusal you get is the point: the server enforces the
-discipline; the UI merely reflects it.
+With `--demo`, the engagement **Kestrel Valley Cycle Supply (demo)** arrives
+loaded under the session's user. Loading it by hand instead: create a
+June 30, 2026 engagement and set the period start to July 1, 2025 before
+scoping the cycles.

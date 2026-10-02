@@ -1,12 +1,12 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """WorkbenchService: typed use cases over the transactional spine.
 
-Authorization model (pilot): the first principal to create an engagement is
-its partner; partners assign the team; preparers ingest, map, normalize,
-and execute; reviewers approve mappings. Runs, dispositions and risks carry
-no review or sign-off (removed 1 Oct 2026). Separation of duties comes from the domain layer
-and the repositories -- this service adds the role matrix, never replaces
-those checks.
+One user per engagement (D9 stage 3, 2 Oct 2026): Noesi supplements an
+audit, so it has no chairs, role checks or approvals. Whoever runs the
+session does every step, and every command is journaled under that
+principal. A column mapping is confirmed in one step by the person who maps
+the file. Runs, dispositions and risks carry no review or sign-off (removed
+1 Oct 2026).
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from assurance_artifacts.vault import ArtifactVault
 from assurance_domain.commands import Command
 from assurance_domain.errors import ConflictError, DuplicateError, NotFoundError
 from assurance_domain.identities import new_id
-from assurance_domain.lifecycle import SeparationOfDutiesError
 from assurance_domain.jobs import build_manifest, run_job
 from assurance_domain.readiness import blank_engagement, readiness
 from assurance_domain.sad import (
@@ -52,10 +51,6 @@ def _engine_version(procedure_id: str) -> str:
     """AP runs keep their engine version (and so their job identities)."""
     return (cycle_engines.ENGINE_VERSION if procedure_id in CYCLE_CONTRACTS_BY_ID
             else ENGINE_VERSION)
-
-
-class AuthorizationError(PermissionError):
-    """The authenticated principal lacks the role this action requires."""
 
 
 def _finding_uid(verdict: dict) -> str:
@@ -148,19 +143,6 @@ class WorkbenchService:
         return Command(command_id or new_id(), self._tenant, actor, kind,
                        engagement_id=engagement_id)
 
-    def _roles(self, engagement_id: str, principal_id: str) -> set[str]:
-        rows = self._conn.execute(
-            """SELECT role FROM principal_assignment
-               WHERE engagement_id = ? AND principal_id = ?""",
-            (engagement_id, principal_id)).fetchall()
-        return {row["role"] for row in rows}
-
-    def _require(self, engagement_id: str, actor: str, *roles: str) -> None:
-        have = self._roles(engagement_id, actor)
-        if not have & set(roles):
-            raise AuthorizationError(
-                f"action requires one of {sorted(roles)} on this engagement")
-
     def _require_open(self, engagement_id: str) -> None:
         if self._engagement(engagement_id)["archived_at"]:
             raise EngagementArchivedError(
@@ -182,6 +164,8 @@ class WorkbenchService:
                           period_end: str) -> dict:
         def handler(uow):
             engagement_id = uow.engagements.create(client_name, period_end)
+            # The creator is recorded as the engagement's one user. The
+            # "partner" label is kept so older records read the same way.
             uow.principals.assign(engagement_id, actor, "partner")
             return {"engagement_id": engagement_id}
         return run_command(
@@ -201,7 +185,7 @@ class WorkbenchService:
                            reason: str) -> dict:
         """Take an engagement off the list without erasing its record.
 
-        Partner only, with a specific reason. Nothing is deleted: the journal,
+        A specific reason is required. Nothing is deleted: the journal,
         sources and runs stay as they were. Archiving sets its own flag and
         never the status or version. While archived, nothing in it can change.
         """
@@ -212,8 +196,6 @@ class WorkbenchService:
             raise ValueError("the engagement is already archived")
 
         def handler(uow):
-            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("only the partner archives an engagement")
             self._set_archived(uow, engagement_id, info["version"], utcnow())
             uow.emit(entity_type="engagement", entity_id=engagement_id,
                      event_type="engagement.archived",
@@ -229,7 +211,7 @@ class WorkbenchService:
                           confirm_client_name: str, reason: str) -> dict:
         """Delete an engagement and everything loaded into it.
 
-        Partner only; the exact client name must be typed back, with a reason.
+        The exact client name must be typed back, with a reason.
         Every row that belongs to the engagement goes (sources, mappings,
         datasets, runs, dispositions, workflow, team, risks, and any lock
         recorded before locks were removed), and each
@@ -253,8 +235,6 @@ class WorkbenchService:
             "SELECT sha256 FROM artifact WHERE engagement_id = ?", (engagement_id,))]
 
         def handler(uow):
-            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("only the partner deletes an engagement")
             # A lock's signature hangs off its snapshot, not the engagement.
             uow.execute("""DELETE FROM lock_signature WHERE snapshot_id IN
                            (SELECT snapshot_id FROM lock_snapshot WHERE engagement_id = ?)""",
@@ -294,8 +274,6 @@ class WorkbenchService:
             raise ValueError("the engagement is not archived")
 
         def handler(uow):
-            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("only the partner restores an engagement")
             self._set_archived(uow, engagement_id, info["version"], None)
             uow.emit(entity_type="engagement", entity_id=engagement_id,
                      event_type="engagement.restored", payload={},
@@ -306,20 +284,9 @@ class WorkbenchService:
             self._conn, self._command(actor, "engagement.restore", engagement_id),
             handler).result
 
-    def assign_team(self, actor: str, engagement_id: str,
-                    principal_id: str, role: str) -> dict:
-        self._require_open(engagement_id)
-
-        def handler(uow):
-            if not {"partner"} & uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("only a partner assigns the team")
-            uow.principals.assign(engagement_id, principal_id, role)
-            return {"principal_id": principal_id, "role": role}
-        return run_command(
-            self._conn,
-            self._command(actor, "team.assign", engagement_id), handler).result
-
     def team(self, engagement_id: str) -> list[dict]:
+        """Who is on record: the creator, plus any chairs assigned before
+        chairs were removed (2 Oct 2026). Read-only history."""
         rows = self._conn.execute(
             """SELECT principal_id, role FROM principal_assignment
                WHERE engagement_id = ? ORDER BY role, principal_id""",
@@ -332,7 +299,6 @@ class WorkbenchService:
                      media_type: str, original_name: str,
                      provenance: str = "") -> dict:
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer", "partner")
         outcome = store_artifact(
             self._conn, self._vault,
             command=self._command(actor, "artifact.store", engagement_id),
@@ -341,19 +307,19 @@ class WorkbenchService:
             provenance=provenance)
         return outcome.result
 
-    def propose_source_mapping(self, actor: str, engagement_id: str, *,
+    def confirm_source_mapping(self, actor: str, engagement_id: str, *,
                                role: str, artifact_id: str,
                                extraction: dict | None = None) -> dict:
-        """Propose a column mapping for one uploaded file.
+        """Map one uploaded file's columns and confirm the mapping, in one
+        step; the file is then ready to load.
 
-        For an Excel workbook, ``extraction`` names the sheet and 1-based
-        header row (defaults: the only sheet, the suggested header row).
-        The resolved choice becomes part of the reviewed spec and of its
-        digest, so the reviewer approves *which* rows were read, and every
-        later rebuild reads exactly those rows again.
+        Checking the columns map right is a data check, not a sign-off, so
+        there is no second person. For an Excel workbook, ``extraction``
+        names the sheet and 1-based header row (defaults: the only sheet,
+        the suggested header row). The choice becomes part of the spec and
+        of its digest, so every later rebuild reads exactly those rows again.
         """
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         headers, _, resolved, _ = self._artifact_table(artifact_id, extraction)
         artifact = self._conn.execute(
             "SELECT sha256 FROM artifact WHERE artifact_id = ?",
@@ -381,8 +347,8 @@ class WorkbenchService:
             params = {k: resolved[k] for k in keys}
             stored["extraction"] = params
             if recipe is not None:
-                # What the recipe checked, kept and left out, for the reviewer
-                # deciding on approval. Derived from the file, so outside the
+                # What the recipe checked, kept and left out, shown with the
+                # mapping. Derived from the file, so outside the
                 # digest; normalization recomputes it from the vaulted bytes.
                 stored["recipe_report"] = resolved["recipe_report"]
             digest = hashlib.sha256(
@@ -390,36 +356,37 @@ class WorkbenchService:
                 .encode("utf-8")).hexdigest()
 
         def handler(uow):
-            spec_id = uow.mappings.propose(
+            spec_id = uow.mappings.confirm(
                 engagement_id, role=role, spec=stored,
-                spec_digest=digest, proposed_by=actor,
+                spec_digest=digest, confirmed_by=actor,
                 artifact_id=artifact_id)
-            return {"spec_id": spec_id, "column_map": spec.column_map,
+            return {"spec_id": spec_id, "status": "approved",
+                    "column_map": spec.column_map,
                     "unmapped_headers": list(spec.unmapped_headers),
                     "refused_fields": list(spec.refused_fields),
                     "extraction": resolved}
         return run_command(
             self._conn,
-            self._command(actor, "mapping.propose", engagement_id),
+            self._command(actor, "mapping.confirm", engagement_id),
             handler).result
 
-    def approve_source_mapping(self, actor: str, engagement_id: str,
-                               spec_id: str) -> dict:
+    def confirm_pending_mapping(self, actor: str, engagement_id: str,
+                                spec_id: str) -> dict:
+        """Confirm a mapping proposed before 2 Oct 2026 and never approved,
+        so older engagements are not stuck with it."""
         self._require_open(engagement_id)
 
         def handler(uow):
-            if "reviewer" not in uow.principals.roles_for(engagement_id, actor):
-                raise AuthorizationError("mapping approval requires a reviewer")
-            uow.mappings.approve(spec_id, approved_by=actor)
+            uow.mappings.confirm_pending(spec_id, confirmed_by=actor)
             return {"spec_id": spec_id, "status": "approved"}
         return run_command(
             self._conn,
-            self._command(actor, "mapping.approve", engagement_id),
+            self._command(actor, "mapping.confirm", engagement_id),
             handler).result
 
     def normalize_source(self, actor: str, engagement_id: str,
                          spec_id: str, *, mode: str | None = None) -> dict:
-        """Load an approved mapping as a dataset.
+        """Load a confirmed mapping as a dataset.
 
         When the role already has data, ``mode`` must say what this file
         does: ``"replace"`` (a revised file supersedes what is in use) or
@@ -428,7 +395,6 @@ class WorkbenchService:
         what every procedure reads, so a load without one is refused.
         """
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         # The file and the approved mapping are immutable, so a second load
         # could only repeat the same rows as a confusing duplicate dataset.
         existing = self._conn.execute(
@@ -483,22 +449,20 @@ class WorkbenchService:
             self._command(actor, "dataset.normalize", engagement_id),
             handler).result
 
-    # Bulk loading batches the *clicks*, never the review: each batch method
-    # loops the corresponding single-item use case, so every item keeps its
-    # own journaled command, its own role check, and the same separation-of-
-    # duties gates. Items fail or are skipped individually — one bad file
+    # Bulk loading batches the clicks: each batch method loops the
+    # single-item use case, so every item keeps its own journaled command and
+    # its own checks. Items fail or are skipped individually — one bad file
     # never blocks the other nine — and the caller gets a per-item report.
 
-    def propose_source_mappings(self, actor: str, engagement_id: str,
+    def confirm_source_mappings(self, actor: str, engagement_id: str,
                                 items: list[dict]) -> dict:
-        """Batch propose. Each item: artifact_id plus an optional role; a
-        missing role is inferred from the artifact's filename (still just a
-        proposal for the reviewer). A file already under an active spec
-        *for the same role* is skipped, so 'propose all' is safe to repeat;
+        """Batch map and confirm. Each item: artifact_id plus an optional
+        role; a missing role is inferred from the artifact's filename or
+        columns. A file already under an active spec *for the same role* is
+        skipped, so 'map all' is safe to repeat;
         one file may still feed several roles (a QuickBooks Transaction List
         by Vendor holds both bills and purchase orders)."""
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         active = {(row["artifact_id"], row["role"]) for row in self._conn.execute(
             """SELECT artifact_id, role FROM mapping_spec
                WHERE engagement_id = ? AND status != 'superseded'""",
@@ -532,56 +496,25 @@ class WorkbenchService:
                                         f"maps this file as {role}")
                     results.append(entry)
                     continue
-                entry.update(self.propose_source_mapping(
+                entry.update(self.confirm_source_mapping(
                     actor, engagement_id, role=role,
                     artifact_id=artifact_id,
                     extraction=extraction if isinstance(extraction, dict)
                     else None))
-                entry.update(status="proposed", role=role)
+                entry.update(status="confirmed", role=role)
                 active.add((artifact_id, role))
             except (ValueError, KeyError, NotFoundError) as exc:
                 entry.update(status="error", error=str(exc))
             results.append(entry)
-        return _batch_report(results, done="proposed")
-
-    def approve_source_mappings(self, actor: str, engagement_id: str,
-                                spec_ids: list[str]) -> dict:
-        """Batch approve, for the reviewer's single pass over a bulk load.
-        Non-proposed specs are skipped; separation of duties still refuses,
-        per item, any spec the approver proposed themselves."""
-        self._require_open(engagement_id)
-        self._require(engagement_id, actor, "reviewer")
-        results = []
-        for spec_id in spec_ids:
-            entry: dict = {"spec_id": str(spec_id)}
-            try:
-                row = self._conn.execute(
-                    "SELECT status FROM mapping_spec WHERE spec_id = ?",
-                    (str(spec_id),)).fetchone()
-                if row is None:
-                    raise KeyError(f"mapping_spec {spec_id}")
-                if row["status"] != "proposed":
-                    entry.update(status="skipped",
-                                 reason=f"spec is {row['status']}, "
-                                        "not proposed")
-                else:
-                    self.approve_source_mapping(actor, engagement_id,
-                                                str(spec_id))
-                    entry.update(status="approved")
-            except (ValueError, KeyError, NotFoundError, ConflictError,
-                    SeparationOfDutiesError) as exc:
-                entry.update(status="error", error=str(exc))
-            results.append(entry)
-        return _batch_report(results, done="approved")
+        return _batch_report(results, done="confirmed")
 
     def normalize_sources(self, actor: str, engagement_id: str,
                           spec_ids: list[str],
                           modes: dict[str, str] | None = None) -> dict:
-        """Batch normalize approved specs. Specs that already produced a
+        """Batch normalize confirmed specs. Specs that already produced a
         dataset are skipped rather than re-recorded. ``modes`` gives the
         replace/add choice per spec where its role already has data."""
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         normalized = {row["mapping_spec_id"] for row in self._conn.execute(
             "SELECT mapping_spec_id FROM normalized_dataset "
             "WHERE engagement_id = ?", (engagement_id,))}
@@ -760,7 +693,6 @@ class WorkbenchService:
                       procedure_id: str,
                       policies: dict | None = None) -> dict:
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         tables = {role: list(t.engine_view().records)
                   for role, t in self._tables(engagement_id).items()}
         # Which loaded files the run read, so a combined input is on record.
@@ -896,9 +828,6 @@ class WorkbenchService:
                 f"{list(_DISPOSITION_STATUSES)}")
 
         def handler(uow):
-            roles = uow.principals.roles_for(engagement_id, actor)
-            if not roles & {"preparer", "reviewer", "partner"}:
-                raise AuthorizationError("dispositions require a team role")
             version = uow.dispositions.set(
                 engagement_id, finding_uid, status, note=note,
                 expected_version=expected_version, proposed_by=actor)
@@ -1063,7 +992,6 @@ class WorkbenchService:
         from procedures_ap.contracts import RISK_LEVELS
         from procedures_cycles.contracts import REGISTER_ASSERTIONS as ASSERTIONS
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         if assertion not in ASSERTIONS:
             raise ValueError(
                 f"unknown assertion {assertion!r}; one of {sorted(ASSERTIONS)}")
@@ -1096,7 +1024,6 @@ class WorkbenchService:
         """Link the procedures that respond to a risk (the audit response)."""
         from procedures_ap.contracts import CONTRACTS_BY_ID
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         document, _ = self.workflow_document(engagement_id)
         allowed = {contract.procedure_id for contract in self._contracts(document)}
         known = set(CONTRACTS_BY_ID) | set(CYCLE_CONTRACTS_BY_ID)
@@ -1120,7 +1047,6 @@ class WorkbenchService:
     def archive_risk(self, actor: str, engagement_id: str, *, risk_id: str,
                      expected_version: int) -> dict:
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
 
         def handler(uow):
             version = uow.risks.archive(
@@ -1254,7 +1180,6 @@ class WorkbenchService:
                         section: str, values: dict) -> dict:
         """Constrained workflow updates: materiality, stages, completion."""
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer", "partner")
         document, version = self.workflow_document(engagement_id)
         if section == "materiality":
             # Given a benchmark amount and a percentage, the amount is their
@@ -1302,7 +1227,6 @@ class WorkbenchService:
             # The client's own trial-balance label (or one account) mapped to
             # a statement line the procedures read (K8). The preparer or the
             # partner sets it; it reaches every run as a recorded policy.
-            self._require(engagement_id, actor, "preparer", "partner")
             from procedures_cycles.common import key_text as _key
             from procedures_cycles.statements import LINES
             if isinstance(values.get("accounts"), dict):
@@ -1334,7 +1258,6 @@ class WorkbenchService:
             # A judgment the draft opinion asks for (pervasiveness, the
             # going-concern conclusion). The partner's alone; kept, with who
             # and why, in the engagement record.
-            self._require(engagement_id, actor, "partner")
             from assurance_domain.opinion import DECISION_ANSWERS
             decision = str(values.get("decision") or "")
             answer = str(values.get("answer") or "")
@@ -1353,7 +1276,6 @@ class WorkbenchService:
         elif section == "period":
             # The period's first day, when it is not the twelve months ending at
             # period end (a first year, a changed year end). The partner owns it.
-            self._require(engagement_id, actor, "partner")
             from datetime import date as _date
             info = self._engagement(engagement_id)
             end = _date.fromisoformat(str(info["period_end"])[:10])
@@ -1381,7 +1303,6 @@ class WorkbenchService:
             # decides which cycle contracts coverage (and readiness) consider.
             # (Kept apart from document["scope"], which holds scope-limitation
             # decisions.)
-            self._require(engagement_id, actor, "partner")
             cycles = [str(c) for c in values.get("cycles", [])]
             unknown = [c for c in cycles if c not in SCOPES]
             if unknown:
@@ -1446,7 +1367,6 @@ class WorkbenchService:
                     f"{SCOPE_OF[procedure_id]!r} cycle, which is not in scope")
             # Leaving a procedure out is a scope decision: the partner's, and
             # never without the reason that goes into the engagement record.
-            self._require(engagement_id, actor, "partner")
             selected = bool(values.get("selected", True))
             rationale = " ".join(str(values.get("rationale", "")).split())
             if not selected and len(rationale) < 10:
@@ -1461,7 +1381,6 @@ class WorkbenchService:
             # every procedure gate, so readiness could silently pass with no
             # substantive work. The silence must be owned — by the partner,
             # on the record, with a reason that enters the exported record.
-            self._require(engagement_id, actor, "partner")
             asserted = bool(values.get("asserted", False))
             reason = " ".join(str(values.get("reason", "")).split())
             if asserted and len(reason) < 10:
@@ -1918,7 +1837,6 @@ class WorkbenchService:
         let anyone check it is internally consistent (see the packet's
         limits for what they do not prove)."""
         from assurance_workpapers.packet import packet_digest, seal_packet
-        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         packet = seal_packet(self._packet_body(engagement_id))
         digest = packet_digest(packet)
 
@@ -1936,7 +1854,6 @@ class WorkbenchService:
     def workpaper_html(self, actor: str, engagement_id: str) -> str:
         """The working paper, rendered from the record as it stands now."""
         from assurance_workpapers.workpaper import render_workpaper
-        self._require(engagement_id, actor, "preparer", "reviewer", "partner")
         from assurance_workpapers.packet import seal_packet
         return render_workpaper(seal_packet(self._packet_body(engagement_id)))
 
@@ -2062,7 +1979,6 @@ class WorkbenchService:
         file: the preparer builds it, a reviewer approves its mapping.
         """
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
         sub = books.get(subledger_artifact_id)
         if ledger_artifact_id == TB_LEDGER:
@@ -2160,7 +2076,6 @@ class WorkbenchService:
         then goes through propose, approve and normalize like any other file.
         """
         self._require_open(engagement_id)
-        self._require(engagement_id, actor, "preparer")
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
         chosen = {"current": books.get(current_artifact_id)}
         if prior_artifact_id:

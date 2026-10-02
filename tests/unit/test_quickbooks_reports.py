@@ -175,8 +175,6 @@ def service(tmp_path):
     svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"),
                            ensure_tenant(conn, "qbo-tb"))
     eid = svc.create_engagement(PARTNER, "xx", "2026-06-30")["engagement_id"]
-    svc.assign_team(PARTNER, eid, PREPARER, "preparer")
-    svc.assign_team(PARTNER, eid, REVIEWER, "reviewer")
     yield svc, eid
     conn.close()
 
@@ -201,11 +199,10 @@ def test_the_trial_balance_is_built_from_this_year_and_last_and_loaded(service):
     assert (built["as_of"], built["prior_as_of"], built["accounts"]) == \
         ("2026-06-30", "2025-06-30", 9)
     assert built["notes"] == []
-    proposal = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+    proposal = svc.confirm_source_mapping(PREPARER, eid, role="Trial_balance",
                                           artifact_id=built["artifact_id"])
     assert proposal["column_map"] == {"account": "Account", "description": "Description",
                                       "balance": "Balance", "prior_balance": "Prior Balance"}
-    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
     svc.normalize_source(PREPARER, eid, proposal["spec_id"])
     records = svc._rebuild_table(proposal["spec_id"]).records
     cash = next(r for r in records if r["account"] == "10100")
@@ -230,10 +227,9 @@ def test_the_journal_and_aging_load_through_their_recipes(service):
             (INVENTORY, "Inventory Valuation Summary.xlsx", "Inventory_listing",
              "qbo.inventory_valuation_summary.inventory_listing")):
         artifact_id = _store(svc, eid, content, name)
-        proposal = svc.propose_source_mapping(PREPARER, eid, role=role,
+        proposal = svc.confirm_source_mapping(PREPARER, eid, role=role,
                                               artifact_id=artifact_id,
                                               extraction={"recipe": recipe})
-        svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
         rec = svc.normalize_source(PREPARER, eid, proposal["spec_id"])["reconciliation"]
         assert rec["rows_rejected"] == 0, (name, rec)
     journal = next(d for d in svc.sources(eid)["datasets"] if d["role"] == "Journal_entries")
@@ -246,10 +242,9 @@ def test_an_added_journal_that_repeats_loaded_entries_is_refused(service):
     svc, eid = service
 
     def load(content, name, mode=None):
-        proposal = svc.propose_source_mapping(
+        proposal = svc.confirm_source_mapping(
             PREPARER, eid, role="Journal_entries", artifact_id=_store(svc, eid, content, name),
             extraction={"recipe": "qbo.journal_created.journal_entries"})
-        svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
         return svc.normalize_source(PREPARER, eid, proposal["spec_id"], mode=mode)
 
     load(JOURNAL_CREATED, "Journal.xlsx")
@@ -267,9 +262,8 @@ def test_a_line_mapping_counts_only_when_it_reaches_a_loaded_account(service):
     svc.update_workflow(PARTNER, eid, "cycles", {"cycles": ["planning"]})
     built = svc.build_trial_balance(PREPARER, eid,
                                     current_artifact_id=_store(svc, eid, TB, "TB.xlsx"))
-    proposal = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+    proposal = svc.confirm_source_mapping(PREPARER, eid, role="Trial_balance",
                                           artifact_id=built["artifact_id"])
-    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
     svc.normalize_source(PREPARER, eid, proposal["spec_id"])
 
     def status():
@@ -288,9 +282,8 @@ def test_a_quickbooks_trial_balance_is_mapped_account_by_account(service):
     svc, eid = service
     built = svc.build_trial_balance(PREPARER, eid,
                                     current_artifact_id=_store(svc, eid, TB, "TB.xlsx"))
-    proposal = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+    proposal = svc.confirm_source_mapping(PREPARER, eid, role="Trial_balance",
                                           artifact_id=built["artifact_id"])
-    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
     svc.normalize_source(PREPARER, eid, proposal["spec_id"])
 
     listed = svc.trial_balance_lines(eid)["accounts"]
@@ -338,14 +331,11 @@ def test_a_trial_balance_off_the_period_end_stays_in_view_on_coverage(service):
     # Coverage and Runs screens) now carries it while the file is in use.
     svc, _ = service
     eid = svc.create_engagement(PARTNER, "xx", "2025-12-31")["engagement_id"]
-    svc.assign_team(PARTNER, eid, PREPARER, "preparer")
-    svc.assign_team(PARTNER, eid, REVIEWER, "reviewer")
     built = svc.build_trial_balance(PREPARER, eid,
                                     current_artifact_id=_store(svc, eid, TB, "TB.xlsx"))
     assert svc.coverage(eid)["source_notes"] == []     # built, not yet loaded
-    proposal = svc.propose_source_mapping(PREPARER, eid, role="Trial_balance",
+    proposal = svc.confirm_source_mapping(PREPARER, eid, role="Trial_balance",
                                           artifact_id=built["artifact_id"])
-    svc.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
     svc.normalize_source(PREPARER, eid, proposal["spec_id"])
     notes = svc.coverage(eid)["source_notes"]
     assert [(n["role"], n["note"]) for n in notes] == [

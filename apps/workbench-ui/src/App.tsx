@@ -1,9 +1,8 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 import { useCallback, useEffect, useState } from "react";
-import { Client, Engagement, TeamMember } from "./api";
+import { Client, Engagement } from "./api";
 import {
   CoverageScreen, ExportScreen, RunsScreen, SadScreen, SourcesScreen,
-  TeamScreen,
 } from "./screens";
 import { FlowMapScreen } from "./screens/FlowMap";
 import { FraudScreen } from "./screens/Fraud";
@@ -15,7 +14,7 @@ import { WhatChangedScreen } from "./screens/WhatChanged";
 import { useTheme } from "./lib/theme";
 
 const TABS = [
-  "Flow Map", "Team", "Scope & Policies", "Planning & Risk", "Sources & Mappings",
+  "Flow Map", "Scope & Policies", "Planning & Risk", "Sources & Mappings",
   "Coverage", "Runs & Findings", "Fraud", "What Changed", "SAD & Completion", "Draft Opinion",
   "Export",
 ] as const;
@@ -56,8 +55,6 @@ function Workbench({ client }: { client: Client }) {
   const [newPeriod, setNewPeriod] = useState("");
   const [theme, toggleTheme] = useTheme();
   const [sessionPrincipal, setSessionPrincipal] = useState("");
-  const [acting, setActing] = useState("");
-  const [team, setTeam] = useState<TeamMember[]>([]);
   const [manualOpen, setManualOpen] = useState(false);
   const [archived, setArchived] = useState<Engagement[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -137,30 +134,9 @@ function Workbench({ client }: { client: Client }) {
 
   useEffect(() => {
     client.session()
-      .then(({ principal_id }) => {
-        setSessionPrincipal(principal_id);
-        setActing((current) => current || principal_id);
-      })
+      .then(({ principal_id }) => setSessionPrincipal(principal_id))
       .catch(report);
   }, [client]);
-
-  // The chairs the operator can sit in: the session default plus everyone
-  // assigned to the open engagement. Free text is allowed — a chair that
-  // does not hold the required role is refused by the server, loudly.
-  useEffect(() => {
-    if (!selected) { setTeam([]); return; }
-    client.team(selected.engagement_id)
-      .then(({ team: members }) => setTeam(members))
-      .catch(() => setTeam([]));
-  }, [client, selected, engagements]);
-
-  function switchChair(next: string) {
-    const principal = next.trim();
-    if (!principal || principal === acting) return;
-    client.actingAs = principal;
-    setActing(principal);
-    setError("");
-  }
 
   async function create() {
     try {
@@ -184,8 +160,11 @@ function Workbench({ client }: { client: Client }) {
             </span>
           </span>
         )}
-        <ChairSwitcher acting={acting} sessionPrincipal={sessionPrincipal}
-                       team={team} onSwitch={switchChair} />
+        {sessionPrincipal && (
+          <span className="who" title="Every step is recorded under this user">
+            user <code>{sessionPrincipal}</code>
+          </span>
+        )}
         <button className={`manual-toggle ${manualOpen ? "active" : ""}`}
                 onClick={() => setManualOpen((open) => !open)}
                 title="The manual: the audit process and the workbench, taught together">
@@ -326,9 +305,8 @@ function Workbench({ client }: { client: Client }) {
               </>
             )}
             <p className="note">
-              Creating an engagement makes the acting principal (top right)
-              its partner. Preparing, reviewing, and approving are separate
-              chairs — switch up there when a gate refuses you.
+              One user per engagement: you do every step, and each one is
+              recorded under your name (top right).
             </p>
           </>
         ) : (
@@ -354,54 +332,6 @@ function Workbench({ client }: { client: Client }) {
   );
 }
 
-/** One operator, several chairs. Server-side gates treat chairs as people:
- *  a proposal's author cannot approve it, a run's executor cannot review
- *  it. Which chair performed each action is journaled and appears on the
- *  workpaper — switching is explicit and always visible here. */
-function ChairSwitcher({ acting, sessionPrincipal, team, onSwitch }: {
-  acting: string;
-  sessionPrincipal: string;
-  team: TeamMember[];
-  onSwitch: (principal: string) => void;
-}) {
-  const [draft, setDraft] = useState(acting);
-  useEffect(() => { setDraft(acting); }, [acting]);
-  const roles = new Map<string, string[]>();
-  if (sessionPrincipal) roles.set(sessionPrincipal, ["session"]);
-  for (const member of team) {
-    roles.set(member.principal_id,
-              [...(roles.get(member.principal_id) ?? []), member.role]);
-  }
-  const actingRoles = team
-    .filter((m) => m.principal_id === acting)
-    .map((m) => m.role);
-  return (
-    <span className="who">
-      acting as
-      <input className="chair-input" list="chair-options" value={draft}
-             style={{ width: `${Math.max(13, Math.ceil(draft.length * 1.3) + 2)}ch` }}
-             aria-label="acting principal"
-             onChange={(e) => setDraft(e.target.value)}
-             onBlur={() => (draft.trim() ? onSwitch(draft) : setDraft(acting))}
-             onKeyDown={(e) => {
-               if (e.key === "Enter") {
-                 e.preventDefault();
-                 onSwitch(draft);
-                 (e.target as HTMLInputElement).blur();
-               }
-             }} />
-      <datalist id="chair-options">
-        {[...roles.entries()].map(([id, held]) => (
-          <option key={id} value={id}>{held.join(", ")}</option>
-        ))}
-      </datalist>
-      {actingRoles.length > 0 && (
-        <span className="chair-roles">{actingRoles.join(" · ")}</span>
-      )}
-    </span>
-  );
-}
-
 function ScreenBody({ tab, client, engagement, onError, onNavigate }: {
   tab: Tab;
   client: Client;
@@ -417,8 +347,6 @@ function ScreenBody({ tab, client, engagement, onError, onNavigate }: {
     case "Flow Map":
       return <FlowMapScreen client={client} eid={eid} onError={onError}
                             onGoToSources={() => onNavigate("Sources & Mappings")} />;
-    case "Team":
-      return <TeamScreen client={client} eid={eid} onError={onError} />;
     case "Scope & Policies":
       return <ScopeScreen client={client} eid={eid} onError={onError} />;
     case "Planning & Risk":

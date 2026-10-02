@@ -172,9 +172,9 @@ def test_going_concern_answers():
         "pervasiveness_of_misstatement"]
 
 
-def test_only_the_partner_records_a_decision_with_a_reason(tmp_path):
+def test_a_decision_is_recorded_with_a_reason(tmp_path):
     import pytest as _pytest
-    from assurance_application.service import AuthorizationError, WorkbenchService
+    from assurance_application.service import WorkbenchService
     from assurance_artifacts.vault import ArtifactVault
     from assurance_persistence.database import connect, migrate
     from assurance_persistence.legacy_import import ensure_tenant
@@ -182,11 +182,8 @@ def test_only_the_partner_records_a_decision_with_a_reason(tmp_path):
     migrate(conn)
     svc = WorkbenchService(conn, ArtifactVault(tmp_path / "v"), ensure_tenant(conn, "o"))
     eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team("pa", eid, "pr", "preparer")
     decide = {"decision": "pervasiveness_of_misstatement", "answer": "not_pervasive",
               "note": "confined to inventory; statements usable"}
-    with _pytest.raises(AuthorizationError):
-        svc.update_workflow("pr", eid, "opinion_decision", decide)
     with _pytest.raises(ValueError, match="reason"):
         svc.update_workflow("pa", eid, "opinion_decision", {**decide, "note": "ok"})
     with _pytest.raises(ValueError, match="takes one of"):

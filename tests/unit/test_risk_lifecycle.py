@@ -24,8 +24,6 @@ def service(tmp_path):
 
 def _engagement(service):
     eid = service.create_engagement(ALICE, "Zenith", "2025-06-30")["engagement_id"]
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    service.assign_team(ALICE, eid, CARE, "reviewer")
     return eid
 
 

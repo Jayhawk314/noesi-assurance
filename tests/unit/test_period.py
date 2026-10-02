@@ -7,7 +7,7 @@ from decimal import Decimal as D
 
 import pytest
 
-from assurance_application.service import AuthorizationError, WorkbenchService
+from assurance_application.service import WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -24,7 +24,6 @@ def service(tmp_path):
     svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"),
                            ensure_tenant(conn, "period"))
     eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team("pa", eid, "pr", "preparer")
     yield svc, eid
     conn.close()
 
@@ -55,10 +54,8 @@ def test_an_impossible_period_start_is_refused(service, start, message):
         svc.update_workflow("pa", eid, "period", {"start": start})
 
 
-def test_only_the_partner_sets_it_and_never_as_a_policy(service):
+def test_the_period_start_is_never_set_as_a_policy(service):
     svc, eid = service
-    with pytest.raises(AuthorizationError):
-        svc.update_workflow("pr", eid, "period", {"start": "2025-04-01"})
     with pytest.raises(ValueError, match="engagement record"):
         svc.update_workflow("pa", eid, "policy",
                             {"name": "period_start", "value": "2025-04-01"})

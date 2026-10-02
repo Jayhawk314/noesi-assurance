@@ -430,51 +430,51 @@ class ArtifactRepository:
 
 
 class MappingSpecRepository:
-    """Durable reviewed-transformation objects: proposed, then approved."""
+    """Column mappings. One person maps a file and confirms it in one step
+    (D9 stage 3, 2 Oct 2026); the stored status for a confirmed mapping stays
+    'approved' so older records read the same way."""
 
     def __init__(self, uow: UnitOfWork):
         self._uow = uow
 
-    def propose(self, engagement_id: str, *, role: str, spec: dict,
-                spec_digest: str, proposed_by: str,
+    def confirm(self, engagement_id: str, *, role: str, spec: dict,
+                spec_digest: str, confirmed_by: str,
                 artifact_id: str | None = None) -> str:
         spec_id = new_id()
+        now = utcnow()
         self._uow.execute(
             """INSERT INTO mapping_spec (spec_id, tenant_id, engagement_id,
-               role, artifact_id, spec, spec_digest, proposed_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               role, artifact_id, spec, spec_digest, status, proposed_by,
+               approved_by, approved_at, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)""",
             (spec_id, self._uow.command.tenant_id, engagement_id, role,
              artifact_id, json.dumps(spec, ensure_ascii=False, sort_keys=True),
-             spec_digest, proposed_by, utcnow()))
+             spec_digest, confirmed_by, confirmed_by, now, now))
         self._uow.emit(
             entity_type="mapping_spec", entity_id=spec_id,
-            event_type="mapping.proposed", after_version=1,
+            event_type="mapping.confirmed", after_version=1,
             payload={"role": role, "spec_digest": spec_digest,
-                     "proposed_by": proposed_by},
+                     "confirmed_by": confirmed_by},
             engagement_id=engagement_id)
         return spec_id
 
-    def approve(self, spec_id: str, *, approved_by: str) -> None:
-        from assurance_domain.lifecycle import require_separation
-        row = self._uow.execute(
-            "SELECT proposed_by, status FROM mapping_spec "
-            "WHERE spec_id = ? AND tenant_id = ?",
-            (spec_id, self._uow.command.tenant_id)).fetchone()
-        if row is None:
-            raise NotFoundError(f"mapping_spec {spec_id}")
-        # Enforced server-side, never a UI nicety.
-        require_separation(prepared_by=row["proposed_by"],
-                           approved_by=approved_by)
+    def confirm_pending(self, spec_id: str, *, confirmed_by: str) -> None:
+        """Confirm a mapping proposed before 2 Oct 2026 and never approved."""
         cursor = self._uow.execute(
             """UPDATE mapping_spec SET status = 'approved', approved_by = ?,
-               approved_at = ? WHERE spec_id = ? AND status = 'proposed'""",
-            (approved_by, utcnow(), spec_id))
+               approved_at = ? WHERE spec_id = ? AND tenant_id = ?
+               AND status = 'proposed'""",
+            (confirmed_by, utcnow(), spec_id, self._uow.command.tenant_id))
         if cursor.rowcount == 0:
+            if self._uow.execute(
+                    "SELECT 1 FROM mapping_spec WHERE spec_id = ? AND tenant_id = ?",
+                    (spec_id, self._uow.command.tenant_id)).fetchone() is None:
+                raise NotFoundError(f"mapping_spec {spec_id}")
             raise ConflictError("mapping_spec", spec_id, 1)
         self._uow.emit(
             entity_type="mapping_spec", entity_id=spec_id,
-            event_type="mapping.approved",
-            payload={"approved_by": approved_by})
+            event_type="mapping.confirmed",
+            payload={"confirmed_by": confirmed_by})
 
     def get(self, spec_id: str) -> sqlite3.Row:
         row = self._uow.execute(
@@ -525,7 +525,9 @@ class DatasetRepository:
 
 
 class PrincipalRepository:
-    """Engagement role assignments: the only authorization input."""
+    """Who is on an engagement's record: its creator, plus any chairs
+    assigned before chairs were removed (2 Oct 2026). Not an authorization
+    input."""
 
     ROLES = ("preparer", "reviewer", "partner")
 
@@ -553,24 +555,12 @@ class PrincipalRepository:
             payload={"principal_id": principal_id, "role": role},
             engagement_id=engagement_id)
 
-    def roles_for(self, engagement_id: str, principal_id: str) -> set[str]:
-        rows = self._uow.execute(
-            """SELECT role FROM principal_assignment
-               WHERE engagement_id = ? AND principal_id = ?""",
-            (engagement_id, principal_id)).fetchall()
-        return {row["role"] for row in rows}
-
     def team(self, engagement_id: str) -> list[sqlite3.Row]:
         return self._uow.execute(
             """SELECT principal_id, role, assigned_at
                FROM principal_assignment WHERE engagement_id = ?
                ORDER BY role, principal_id""",
             (engagement_id,)).fetchall()
-
-    def any_assigned(self, engagement_id: str) -> bool:
-        return self._uow.execute(
-            "SELECT 1 FROM principal_assignment WHERE engagement_id = ? LIMIT 1",
-            (engagement_id,)).fetchone() is not None
 
 
 class ProcedureRunRepository:

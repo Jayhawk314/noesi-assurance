@@ -26,7 +26,8 @@ def test_sad_summary_matches_golden_exactly():
 
 def test_readiness_matches_golden_exactly():
     # The golden was updated on 1 Oct 2026 when sign-offs were removed: the
-    # stage, completion-check, review and concurrence gates are gone.
+    # stage, completion-check, review and concurrence gates are gone; and on
+    # 2 Oct 2026 when chairs were removed: the team gate is gone.
     golden = _load("readiness_blank.json")
     partial = _load("coverage_partial.json")["coverage"]  # legacy-shaped input
     report = {"company": "Acme", "fye": "2025-12-31", "verdicts": [],

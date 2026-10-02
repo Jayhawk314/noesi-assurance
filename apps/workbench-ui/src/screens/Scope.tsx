@@ -1,8 +1,6 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 /** Scope & Policies: which audit areas this engagement covers, the period
- *  it covers, and the auditor's settings each area needs. All three are the
- *  partner's decisions; the server refuses them from any other chair. The
- *  list of areas, procedures and settings comes from the server
+ *  it covers, and the auditor's settings each area needs. The list of areas, procedures and settings comes from the server
  *  (GET /api/cycles), so this screen never drifts from the engine. */
 
 import { useCallback, useState } from "react";

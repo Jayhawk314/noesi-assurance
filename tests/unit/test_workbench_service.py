@@ -1,10 +1,10 @@
 # Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 """The six screens as one journey: engagement -> sources -> coverage ->
-runs -> SAD/readiness -> lock, with server-side authorization throughout."""
+runs -> SAD/readiness -> export, with one user throughout."""
 
 import pytest
 
-from assurance_application.service import AuthorizationError, WorkbenchService
+from assurance_application.service import WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -36,31 +36,39 @@ def service(tmp_path):
 @pytest.fixture()
 def engagement(service):
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    service.assign_team(ALICE, eid, CAROL, "reviewer")
     return eid
 
 
 def _ingest(service, eid, content, name, role):
     artifact = service.store_source(
         BOB, eid, content=content, media_type="text/csv", original_name=name)
-    proposal = service.propose_source_mapping(
+    proposal = service.confirm_source_mapping(
         BOB, eid, role=role, artifact_id=artifact["artifact_id"])
-    service.approve_source_mapping(CAROL, eid, proposal["spec_id"])
     return service.normalize_source(BOB, eid, proposal["spec_id"])
 
 
-def test_engagement_creator_becomes_partner_and_assigns_team(service):
+def test_the_engagement_creator_is_its_one_user_on_record(service):
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    team = service.team(eid)
-    assert {(m["principal_id"], m["role"]) for m in team} == {
-        (ALICE, "partner"), (BOB, "preparer")}
-    with pytest.raises(AuthorizationError):
-        service.assign_team(BOB, eid, CAROL, "reviewer")
+    assert [(m["principal_id"], m["role"]) for m in service.team(eid)] == [
+        (ALICE, "partner")]
+    assert not hasattr(service, "assign_team")
 
 
-def test_source_to_normalized_dataset_with_review_gate(service, engagement):
+def test_one_user_maps_confirms_and_loads_a_file(service):
+    eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
+    artifact = service.store_source(ALICE, eid, content=PAYMENTS_CSV,
+                                    media_type="text/csv", original_name="p.csv")
+    spec = service.confirm_source_mapping(ALICE, eid, role="Payments",
+                                          artifact_id=artifact["artifact_id"])
+    assert spec["status"] == "approved"
+    row = service._conn.execute(
+        "SELECT status, proposed_by, approved_by FROM mapping_spec").fetchone()
+    assert tuple(row) == ("approved", ALICE, ALICE)
+    loaded = service.normalize_source(ALICE, eid, spec["spec_id"])
+    assert loaded["reconciliation"]["rows_loaded"] == 3
+
+
+def test_source_to_normalized_dataset(service, engagement):
     result = _ingest(service, engagement, PAYMENTS_CSV, "payments.csv",
                      "Payments")
     recon = result["reconciliation"]
@@ -81,26 +89,16 @@ def test_unreadable_workbooks_are_refused_at_mapping_with_instructions(
                    ".spreadsheetml.sheet",
         original_name="payments.xlsx")
     with pytest.raises(ValueError, match="damaged"):
-        service.propose_source_mapping(
+        service.confirm_source_mapping(
             BOB, engagement, role="Payments",
             artifact_id=damaged["artifact_id"])
     legacy = service.store_source(
         BOB, engagement, content=b"\xd0\xcf\x11\xe0" + b"\x00" * 64,
         media_type="application/vnd.ms-excel", original_name="payments.xls")
     with pytest.raises(ValueError, match=r"save it as \.xlsx"):
-        service.propose_source_mapping(
+        service.confirm_source_mapping(
             BOB, engagement, role="Payments",
             artifact_id=legacy["artifact_id"])
-
-
-def test_unassigned_principals_cannot_touch_sources(service, engagement):
-    with pytest.raises(AuthorizationError):
-        service.store_source("principal-stranger", engagement,
-                             content=PAYMENTS_CSV, media_type="text/csv",
-                             original_name="x.csv")
-    with pytest.raises(AuthorizationError):
-        service.propose_source_mapping(CAROL, engagement, role="Payments",
-                                       artifact_id="whatever")
 
 
 def test_coverage_reflects_normalized_datasets(service, engagement):

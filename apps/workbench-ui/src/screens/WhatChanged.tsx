@@ -3,8 +3,8 @@
  *  Read-only. The report compares the newest file for each role with the
  *  one before it, names the runs whose inputs moved, and shows — per
  *  finding — what a rerun would change and which judgment to revisit.
- *  Acting on it (rerun, re-review, re-dispose) happens on the other tabs,
- *  under the right chair, journaled as usual. */
+ *  Acting on it (rerun, re-dispose) happens on the other tabs, journaled
+ *  as usual. */
 
 import { useCallback } from "react";
 import { Client, Impact, ImpactCard, Significance } from "../api";

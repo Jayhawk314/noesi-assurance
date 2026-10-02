@@ -4,12 +4,12 @@ materiality from a benchmark."""
 
 import pytest
 
-from assurance_application.service import AuthorizationError, WorkbenchService
+from assurance_application.service import WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 
-ALICE, BOB, CAROL = "principal-alice", "principal-bob", "principal-carol"
+ALICE = "principal-alice"
 
 
 @pytest.fixture()
@@ -24,8 +24,6 @@ def service(tmp_path):
 @pytest.fixture()
 def eid(service):
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    service.assign_team(ALICE, eid, CAROL, "reviewer")
     service.update_workflow(ALICE, eid, "cycles", {"cycles": ["receivables"]})
     return eid
 
@@ -36,12 +34,8 @@ def doc(service, eid):
 
 # ------------------------------------------------------------------ D1
 
-def test_excluding_a_procedure_needs_the_partner_and_a_reason(service, eid):
+def test_excluding_a_procedure_needs_a_reason(service, eid):
     pid = "ar.confirmations_mus"
-    with pytest.raises(AuthorizationError):
-        service.update_workflow(BOB, eid, "procedure_selection",
-                                {"procedure_id": pid, "selected": False,
-                                 "rationale": "nonstatistical method chosen"})
     with pytest.raises(ValueError, match="say why"):
         service.update_workflow(ALICE, eid, "procedure_selection",
                                 {"procedure_id": pid, "selected": False,

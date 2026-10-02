@@ -10,11 +10,6 @@ export interface Engagement {
   version: number;
 }
 
-export interface TeamMember {
-  principal_id: string;
-  role: "preparer" | "reviewer" | "partner";
-}
-
 export interface Artifact {
   artifact_id: string;
   sha256: string;
@@ -35,7 +30,7 @@ export interface BatchItem {
   artifact_id?: string;
   spec_id?: string;
   role?: string;
-  status: "proposed" | "approved" | "normalized" | "skipped" | "error";
+  status: "confirmed" | "normalized" | "skipped" | "error";
   reason?: string;
   error?: string;
   reconciliation?: Record<string, unknown>;
@@ -45,8 +40,7 @@ export interface BatchOutcome {
   results: BatchItem[];
   skipped: number;
   errors: number;
-  proposed?: number;
-  approved?: number;
+  confirmed?: number;
   normalized?: number;
 }
 
@@ -54,6 +48,8 @@ export interface MappingSpec {
   spec_id: string;
   role: string;
   artifact_id: string;
+  /** "approved" means confirmed; "proposed" only on mappings from before
+   *  2 Oct 2026 that were never approved. */
   status: "proposed" | "approved" | "superseded";
   proposed_by: string;
   approved_by: string;
@@ -414,15 +410,11 @@ export class ApiError extends Error {
 }
 
 export class Client {
-  /** Chair this session acts from; empty means the server's default. */
-  actingAs = "";
-
   constructor(private token: string) {}
 
   private async request<T>(method: string, path: string, body?: unknown,
                            raw?: { data: Blob | ArrayBuffer; headers: Record<string, string> }): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
-    if (this.actingAs) headers["X-Acting-Principal"] = this.actingAs;
     let payload: BodyInit | undefined;
     if (raw) {
       payload = raw.data;
@@ -442,7 +434,6 @@ export class Client {
   /** The working paper as HTML, rendered from the record as it stands. */
   workpaperHtml = async (eid: string): Promise<string> => {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` };
-    if (this.actingAs) headers["X-Acting-Principal"] = this.actingAs;
     const response = await fetch(`/api/engagements/${eid}/workpaper`, { headers });
     const text = await response.text();
     if (!response.ok) {
@@ -480,18 +471,14 @@ export class Client {
   loadCase = (name: string) =>
     this.request<{ engagement_id: string; seeded: boolean }>("POST", `/api/cases/${name}/load`, {});
 
-  team = (eid: string) =>
-    this.request<{ team: TeamMember[] }>("GET", `/api/engagements/${eid}/team`);
-  assignTeam = (eid: string, principal_id: string, role: string) =>
-    this.request("POST", `/api/engagements/${eid}/team`, { principal_id, role });
-
   sources = (eid: string) =>
     this.request<Sources>("GET", `/api/engagements/${eid}/sources`);
   uploadSource = (eid: string, file: File) =>
     this.request<{ artifact_id: string; sha256: string }>(
       "POST", `/api/engagements/${eid}/sources`, undefined,
       { data: file, headers: { "Content-Type": file.type || "text/csv", "X-Original-Name": file.name } });
-  proposeMapping = (eid: string, role: string, artifact_id: string, extraction?: Extraction) =>
+  /** Map a file's columns and confirm the mapping, in one step. */
+  confirmMapping = (eid: string, role: string, artifact_id: string, extraction?: Extraction) =>
     this.request<{ spec_id: string; column_map: Record<string, string> }>(
       "POST", `/api/engagements/${eid}/mappings`, { role, artifact_id, extraction });
   apControlCandidates = (eid: string) =>
@@ -507,18 +494,16 @@ export class Client {
       { current_artifact_id, prior_artifact_id: prior_artifact_id || null });
   workbookPreview = (eid: string, artifact_id: string) =>
     this.request<WorkbookPreview>("GET", `/api/engagements/${eid}/artifacts/${artifact_id}/sheets`);
-  approveMapping = (eid: string, spec_id: string) =>
-    this.request("POST", `/api/engagements/${eid}/mappings/${spec_id}/approve`, {});
+  /** Confirm a mapping proposed before 2 Oct 2026 and never approved. */
+  confirmPendingMapping = (eid: string, spec_id: string) =>
+    this.request("POST", `/api/engagements/${eid}/mappings/${spec_id}/confirm`, {});
   /** mode: required when the role already has data — "replace" or "add". */
   normalize = (eid: string, spec_id: string, mode?: LoadMode) =>
     this.request<{ dataset_id: string; load_mode: string; reconciliation: Record<string, unknown> }>(
       "POST", `/api/engagements/${eid}/mappings/${spec_id}/normalize`, mode ? { mode } : {});
-  proposeMappings = (eid: string, items: { artifact_id: string; role?: string; extraction?: Extraction }[]) =>
+  confirmMappings = (eid: string, items: { artifact_id: string; role?: string; extraction?: Extraction }[]) =>
     this.request<BatchOutcome>(
-      "POST", `/api/engagements/${eid}/mappings/propose-batch`, { items });
-  approveMappings = (eid: string, spec_ids: string[]) =>
-    this.request<BatchOutcome>(
-      "POST", `/api/engagements/${eid}/mappings/approve-batch`, { spec_ids });
+      "POST", `/api/engagements/${eid}/mappings/confirm-batch`, { items });
   normalizeBatch = (eid: string, spec_ids: string[]) =>
     this.request<BatchOutcome>(
       "POST", `/api/engagements/${eid}/mappings/normalize-batch`, { spec_ids });

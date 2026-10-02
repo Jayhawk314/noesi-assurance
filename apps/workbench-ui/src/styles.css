@@ -95,25 +95,7 @@ header.app .who {
   align-items: center;
   gap: 0.45rem;
 }
-header.app .chair-input {
-  min-width: 13ch;
-  max-width: 32ch;   /* grows with the name (see App.tsx), never clipped */
-  font: inherit;
-  font-weight: 650;
-  padding: 0.15rem 0.4rem;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--header-fg);
-}
-header.app .chair-input:focus { outline: 2px solid rgba(255, 255, 255, 0.5); }
-header.app .chair-roles {
-  font-size: 0.72rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  opacity: 0.85;
-}
+header.app .who code { color: var(--header-fg); font-weight: 650; }
 
 main { padding: 1.1rem 1.4rem 3rem; max-width: 92rem; margin: 0 auto; }
 

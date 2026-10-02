@@ -21,7 +21,7 @@ export const LESSONS: Lesson[] = [
     objectives: [
       "Say why the period, materiality and team are fixed before any procedure runs",
       "Read a QuickBooks trial balance export and find the period it covers",
-      "Name the three chairs of an engagement and why they are kept apart",
+      "Name the three roles on an engagement team and why they are kept apart",
     ],
     sections: [
       {
@@ -43,10 +43,10 @@ export const LESSONS: Lesson[] = [
         ],
       },
       {
-        heading: "Three chairs",
+        heading: "The team, and where review happens",
         blocks: [
           { p: "Quality management expects the work to be **prepared** by one person, **reviewed** by another, and **signed off** by the partner. The separation is the point: a reviewer who also prepared the work is checking their own answer." },
-          { watch: "On a practice laptop one person sits in every chair. That is role-play, and the record should say so rather than pretend a second person looked." },
+          { watch: "Noesi supplements the audit, so it has one user per engagement and no review or sign-off steps. The team's review happens in the firm, outside Noesi. A second login on the same laptop would be the same person twice, and Noesi does not pretend otherwise." },
         ],
       },
       {
@@ -71,7 +71,7 @@ export const LESSONS: Lesson[] = [
       { q: "A reviewer approves a file mapping they prepared themselves. What is wrong?",
         options: ["Nothing, if the mapping is right", "The review is not independent of the preparation, so it adds no second look", "Only the partner may map files", "Mappings do not need review"],
         answer: 1,
-        why: "The value of review is a second person. The same person in both chairs is one look, recorded twice." },
+        why: "The value of review is a second person. The same person in both roles is one look, recorded twice." },
     ],
     byHand: {
       files: ["quickbooks/Trial_Balance_2026-06-30.xlsx", "quickbooks/Trial_Balance_2025-06-30.xlsx", "the Policies table in the case README.md"],
@@ -80,20 +80,19 @@ export const LESSONS: Lesson[] = [
         "Open this year's trial balance. Read the **As of** line under the title: that is the period end.",
         "Open the prior year's trial balance. The period starts the day after its **As of** date.",
         "Read the partner's approved materiality in the Policies table of the case README.",
-        "Write down the three chairs an engagement needs, and who at the firm may sit in each.",
+        "Write down the three roles an engagement team needs, and who at the firm may hold each.",
       ],
       asks: [
         { label: "Period start", row: "period start" },
         { label: "Period end", row: "period end" },
         { label: "Materiality", row: "materiality" },
-        { label: "The three chairs", row: "team: partner, preparer, reviewer" },
       ],
     },
     inNoesi: {
-      procedures: ["Team", "Scope & Policies", "Planning & Risk", "Sources & Mappings"],
+      procedures: ["Scope & Policies", "Planning & Risk", "Sources & Mappings"],
       steps: [
         DEMO_START,
-        "**Team:** see the partner, preparer and reviewer, each a different login.",
+        "**Header:** see the one user every step is recorded under.",
         "**Scope & Policies:** read the period start, the audit areas switched on, and every approved policy.",
         "**Planning & Risk:** read materiality and its basis (SAD & Completion shows it too).",
         "**Sources & Mappings:** check that every file loaded and none was refused. Note which files say they were **prepared by hand** from the case files (the count tags, the reconciliations, the auditor's schedules), and that the trial balance was **built from QuickBooks' own exports**.",
@@ -102,17 +101,16 @@ export const LESSONS: Lesson[] = [
     keyModule: "Engagement setup",
     noesi: {
       coverage: "partial",
-      summary: "Noesi records the frame (period, materiality, team, areas, policies) and holds every procedure to it. Choosing them stays with the partner.",
+      summary: "Noesi records the frame (period, materiality, areas, policies) and holds every procedure to it. Choosing them stays with the auditor.",
       does: [
-        "Keeps materiality, the period and the policies on the engagement record, changed only by the partner and journaled with who changed what.",
-        "Keeps the three chairs apart: a reviewer cannot approve their own mapping.",
+        "Keeps materiality, the period and the policies on the engagement record, journaled with who changed what and when.",
         "Shows each file's provenance, including files prepared by hand from an export.",
       ],
-      where: ["Workbench → Team", "Workbench → Scope & Policies", "Workbench → Planning & Risk", "Workbench → Sources & Mappings"],
+      where: ["Workbench → Scope & Policies", "Workbench → Planning & Risk", "Workbench → Sources & Mappings"],
       doesNot: [
-        "It does not decide acceptance, independence or materiality; it records the partner's decisions.",
+        "It does not decide acceptance, independence or materiality; it records the auditor's decisions.",
         "It has no engagement-letter or independence checklist.",
-        "On one laptop the chairs are role-play; the tool cannot know that two logins are two people.",
+        "It has no review or sign-off steps: one user per engagement, and the team's review happens in the firm.",
       ],
     },
   },

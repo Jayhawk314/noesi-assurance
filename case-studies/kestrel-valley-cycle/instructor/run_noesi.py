@@ -24,7 +24,7 @@ import openpyxl
 CASE = Path(__file__).resolve().parent.parent
 DATA = CASE / "data"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-PARTNER, PREPARER, REVIEWER = "kv-partner", "kv-preparer", "kv-reviewer"
+PARTNER = PREPARER = "kv-auditor"   # one user per engagement (D9 stage 3)
 
 AS_DELIVERED = [  # (file, role)
     ("quickbooks/Trial_Balance_2026-06-30.xlsx", "Trial_balance"),
@@ -221,8 +221,6 @@ def run(pass_name: str) -> int:
                                    ensure_tenant(conn, "kestrel-verify"))
         eid = service.create_engagement(PARTNER, "Kestrel Valley Cycle Supply",
                                         "2026-06-30")["engagement_id"]
-        service.assign_team(PARTNER, eid, PREPARER, "preparer")
-        service.assign_team(PARTNER, eid, REVIEWER, "reviewer")
         service.update_workflow(PARTNER, eid, "materiality",
                                 {"amount": 15000, "basis": "pretax income",
                                  "rationale": "about 4.6% of pretax income"})
@@ -244,7 +242,7 @@ def run(pass_name: str) -> int:
                 art = service.store_source(PREPARER, eid, content=content,
                                            media_type=media,
                                            original_name=Path(name).name)
-                prop = service.propose_source_mapping(PREPARER, eid, role=role,
+                prop = service.confirm_source_mapping(PREPARER, eid, role=role,
                                                       artifact_id=art["artifact_id"])
                 print(f"    header row {(prop['extraction'] or {}).get('header_row', '-')}"
                       f"  map {prop['column_map']}")
@@ -252,7 +250,6 @@ def run(pass_name: str) -> int:
                     print(f"    unmapped {prop['unmapped_headers']}")
                 if prop["refused_fields"]:
                     print(f"    refused {prop['refused_fields']}")
-                service.approve_source_mapping(REVIEWER, eid, prop["spec_id"])
                 rec = service.normalize_source(PREPARER, eid,
                                                prop["spec_id"])["reconciliation"]
                 print(f"    loaded {rec['rows_loaded']} rejected {rec['rows_rejected']}"

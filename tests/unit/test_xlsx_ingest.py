@@ -80,10 +80,9 @@ def service(tmp_path):
 def _load(service, eid, content, name, media, extraction=None, mode=None):
     artifact = service.store_source(PREPARER, eid, content=content,
                                     media_type=media, original_name=name)
-    proposal = service.propose_source_mapping(
+    proposal = service.confirm_source_mapping(
         PREPARER, eid, role="Payments", artifact_id=artifact["artifact_id"],
         extraction=extraction)
-    service.approve_source_mapping(REVIEWER, eid, proposal["spec_id"])
     normalized = service.normalize_source(PREPARER, eid, proposal["spec_id"],
                                           mode=mode)
     return artifact, proposal, normalized
@@ -91,8 +90,6 @@ def _load(service, eid, content, name, media, extraction=None, mode=None):
 
 def test_workbook_and_csv_normalize_to_the_same_dataset(service):
     eid = service.create_engagement(PARTNER, "Harborline", "2026-12-31")["engagement_id"]
-    service.assign_team(PARTNER, eid, PREPARER, "preparer")
-    service.assign_team(PARTNER, eid, REVIEWER, "reviewer")
 
     _, csv_prop, csv_norm = _load(service, eid, PAYMENTS_CSV.read_bytes(),
                                   "payments.csv", "text/csv")
@@ -216,10 +213,9 @@ KESTREL_REC = (ROOT / "case-studies" / "kestrel-valley-cycle" / "data" / "quickb
 @pytest.mark.skipif(not KESTREL_REC.is_file(), reason="case data not in tree")
 def test_k2_quickbooks_reconciliation_report_is_refused_not_misread(service):
     eid = service.create_engagement(PARTNER, "Kestrel", "2026-06-30")["engagement_id"]
-    service.assign_team(PARTNER, eid, PREPARER, "preparer")
     art = service.store_source(PREPARER, eid, content=KESTREL_REC.read_bytes(),
                                media_type=XLSX_TYPE,
                                original_name="Checking_Reconciliation.xlsx")
     with pytest.raises(ValueError, match="report of several sections"):
-        service.propose_source_mapping(PREPARER, eid, role="Bank_reconciliation",
+        service.confirm_source_mapping(PREPARER, eid, role="Bank_reconciliation",
                                        artifact_id=art["artifact_id"])

@@ -153,16 +153,13 @@ def service(tmp_path):
 
 def test_journal_entry_scope_runs_from_a_plain_export(service):
     eid = service.create_engagement("pa", "Acme", PE)["engagement_id"]
-    service.assign_team("pa", eid, "pr", "preparer")
-    service.assign_team("pa", eid, "rv", "reviewer")
     service.update_workflow("pa", eid, "cycles", {"cycles": ["journal_entries"]})
     art = service.store_source("pr", eid, content=CSV, media_type="text/csv",
                                original_name="journal entries.csv")
-    prop = service.propose_source_mapping("pr", eid, role="Journal_entries",
+    prop = service.confirm_source_mapping("pr", eid, role="Journal_entries",
                                           artifact_id=art["artifact_id"])
     assert {"entry_id", "entry_date", "account", "debit", "credit", "description",
             "posted_by"} <= set(prop["column_map"])
-    service.approve_source_mapping("rv", eid, prop["spec_id"])
     service.normalize_source("pr", eid, prop["spec_id"])
     rows = {r["procedure_id"]: r["status"] for r in service.coverage(eid)["procedures"]}
     assert rows["je.journal_entry_testing"] == "executable"

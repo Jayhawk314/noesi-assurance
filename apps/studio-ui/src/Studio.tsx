@@ -2,24 +2,18 @@
 /** Noesi Studio — the visual practitioner view.
  *
  *  The Workbench (at /) is the full-control instrument and the teaching
- *  surface. The Studio answers three questions at a glance: where is this
- *  engagement, what is the next step, and who has to take it. It reads the
- *  same server records, sends the same journaled commands, and is refused by
- *  the same separation-of-duties gates — it only arranges them visually. */
+ *  surface. The Studio answers two questions at a glance: where is this
+ *  engagement, and what is the next step. It reads the same server records
+ *  and sends the same journaled commands — it only arranges them visually.
+ *  One user per engagement (D9 stage 3, 2 Oct 2026): there are no chairs. */
 
 import { useCallback, useEffect, useState } from "react";
-import { Client, Engagement, TeamMember } from "../../workbench-ui/src/api";
+import { Client, Engagement } from "../../workbench-ui/src/api";
 import { Bundle, NextStep, Stage, ViewId, journey, loadBundle } from "./data";
 import { Overview } from "./views/Overview";
 import { Findings } from "./views/Findings";
 import { Changes } from "./views/Changes";
 import { Conclude } from "./views/Conclude";
-
-const CHAIR_HELP: Record<string, string> = {
-  partner: "Partner — sets materiality and makes the partner's decisions",
-  preparer: "Preparer — loads data, runs tests, proposes judgments",
-  reviewer: "Reviewer — approves file mappings",
-};
 
 const VIEWS: { id: ViewId; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -33,7 +27,6 @@ export function Studio({ client }: { client: Client }) {
   const [selected, setSelected] = useState<Engagement | null>(null);
   const [bundle, setBundle] = useState<Bundle | null>(null);
   const [sessionPrincipal, setSessionPrincipal] = useState("");
-  const [acting, setActing] = useState("");
   const [view, setView] = useState<ViewId>("overview");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -43,8 +36,7 @@ export function Studio({ client }: { client: Client }) {
   }, []);
 
   useEffect(() => {
-    client.session().then((s) => { setSessionPrincipal(s.principal_id); setActing(s.principal_id); })
-      .catch(onError);
+    client.session().then((s) => setSessionPrincipal(s.principal_id)).catch(onError);
     client.listEngagements().then(({ engagements: list }) => {
       setEngagements(list);
       if (list.length === 1) setSelected(list[0]);
@@ -59,12 +51,6 @@ export function Studio({ client }: { client: Client }) {
   }, [client, selected]);
 
   useEffect(() => { setBundle(null); reload().catch(onError); }, [reload, onError]);
-
-  const sitAs = (principal: string) => {
-    client.actingAs = principal === sessionPrincipal ? "" : principal;
-    setActing(principal);
-    setError("");
-  };
 
   const perform = async (label: string, work: () => Promise<unknown>) => {
     setBusy(label); setError("");
@@ -100,8 +86,6 @@ export function Studio({ client }: { client: Client }) {
     );
   }
 
-  const roles = (principal: string) => bundle?.team.filter((m) => m.principal_id === principal)
-    .map((m) => m.role) ?? [];
   const { stages, next } = bundle ? journey(bundle) : { stages: [] as Stage[], next: null };
 
   return (
@@ -115,8 +99,10 @@ export function Studio({ client }: { client: Client }) {
           )}
         </span>
         <span className="spacer" />
-        {bundle && (
-          <ChairPicker team={bundle.team} acting={acting} session={sessionPrincipal} onSit={sitAs} />
+        {sessionPrincipal && (
+          <span className="chair" title="Every step is recorded under this user">
+            user <code>{sessionPrincipal}</code>
+          </span>
         )}
         <a className="to-workbench" href="#/learn">Learn the audit</a>
         <a className="to-workbench" href="/">Workbench ↗</a>
@@ -140,9 +126,8 @@ export function Studio({ client }: { client: Client }) {
 
           <main className="content">
             {next && (
-              <NextStepCard next={next} bundle={bundle} client={client} acting={acting}
-                            actingRoles={roles(acting)} busy={busy} perform={perform}
-                            onSit={sitAs} onView={setView} />
+              <NextStepCard next={next} bundle={bundle} client={client}
+                            busy={busy} perform={perform} onView={setView} />
             )}
             {!next && (
               <div className="next done-all">
@@ -167,8 +152,7 @@ export function Studio({ client }: { client: Client }) {
 
             {view === "overview" && <Overview bundle={bundle} onView={setView} />}
             {view === "findings" && (
-              <Findings bundle={bundle} client={client} actingRoles={roles(acting)}
-                        perform={perform} busy={busy} />
+              <Findings bundle={bundle} client={client} perform={perform} busy={busy} />
             )}
             {view === "changes" && <Changes bundle={bundle} />}
             {view === "conclude" && <Conclude bundle={bundle} />}
@@ -188,42 +172,17 @@ function Progress({ value: [done, total] }: { value: [number, number] }) {
   );
 }
 
-function ChairPicker({ team, acting, session, onSit }: {
-  team: TeamMember[]; acting: string; session: string; onSit: (p: string) => void;
-}) {
-  const people = new Map<string, string[]>();
-  for (const m of team) people.set(m.principal_id, [...(people.get(m.principal_id) ?? []), m.role]);
-  if (!people.has(session)) people.set(session, []);
-  return (
-    <label className="chair">
-      <span>Sitting as</span>
-      <select value={acting} onChange={(e) => onSit(e.target.value)}>
-        {[...people.entries()].map(([principal, rs]) => (
-          <option key={principal} value={principal}>
-            {rs.length ? rs.map((r) => r[0].toUpperCase() + r.slice(1)).join(" + ") : "no role"} · {principal}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function NextStepCard({ next, bundle, client, acting, actingRoles, busy, perform, onSit, onView }: {
-  next: NextStep; bundle: Bundle; client: Client; acting: string; actingRoles: string[];
+function NextStepCard({ next, bundle, client, busy, perform, onView }: {
+  next: NextStep; bundle: Bundle; client: Client;
   busy: string; perform: (label: string, work: () => Promise<unknown>) => Promise<void>;
-  onSit: (p: string) => void; onView: (v: ViewId) => void;
+  onView: (v: ViewId) => void;
 }) {
   const eid = bundle.engagement.engagement_id;
   const [amount, setAmount] = useState("");
-  const seated = !next.chair || actingRoles.includes(next.chair);
-  const holder = next.chair
-    ? bundle.team.find((m) => m.role === next.chair && m.principal_id !== acting)
-      ?? bundle.team.find((m) => m.role === next.chair)
-    : undefined;
   const action = next.action;
 
   let button: JSX.Element | null = null;
-  if (action && seated) {
+  if (action) {
     switch (action.kind) {
       case "run":
         button = (
@@ -260,17 +219,7 @@ function NextStepCard({ next, bundle, client, acting, actingRoles, busy, perform
       <h2>{next.headline}</h2>
       <p>{next.why}</p>
       <div className="next-actions">
-        {next.chair && !seated && (
-          holder ? (
-            <button className="secondary" onClick={() => onSit(holder.principal_id)}>
-              Sit in the {next.chair} chair ({holder.principal_id})
-            </button>
-          ) : (
-            <span className="muted">No one holds the {next.chair} role yet — add them on the Workbench Team tab.</span>
-          )
-        )}
         {button}
-        {next.chair && <span className="chair-hint">{CHAIR_HELP[next.chair]}</span>}
       </div>
     </section>
   );

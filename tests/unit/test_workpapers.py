@@ -42,8 +42,6 @@ def service(tmp_path):
 def worked_engagement(service):
     """A fully worked engagement: data, runs, dispositions."""
     eid = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
-    service.assign_team(ALICE, eid, BOB, "preparer")
-    service.assign_team(ALICE, eid, CAROL, "reviewer")
 
     for content, name, role in ((PAYMENTS_CSV, "payments.csv", "Payments"),
                                 (BALANCES_CSV, "recon.csv",
@@ -51,9 +49,8 @@ def worked_engagement(service):
         artifact = service.store_source(BOB, eid, content=content,
                                         media_type="text/csv",
                                         original_name=name)
-        proposal = service.propose_source_mapping(
+        proposal = service.confirm_source_mapping(
             BOB, eid, role=role, artifact_id=artifact["artifact_id"])
-        service.approve_source_mapping(CAROL, eid, proposal["spec_id"])
         service.normalize_source(BOB, eid, proposal["spec_id"])
 
     executed = {}

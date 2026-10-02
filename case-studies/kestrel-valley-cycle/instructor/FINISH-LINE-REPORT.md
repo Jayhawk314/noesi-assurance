@@ -22,7 +22,7 @@
 
 ## 1. Engagement setup
 
-Matches: every procedure run is in the audit; materiality; period start; period end; team: partner, preparer, reviewer; every file loads (none refused).
+Matches: every procedure run is in the audit; materiality; period start; period end; one user on record; every file loads (none refused).
 
 ## 2. Planning
 

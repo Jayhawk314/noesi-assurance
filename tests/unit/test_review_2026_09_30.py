@@ -32,13 +32,14 @@ def test_1_an_archived_engagement_refuses_every_change(svc):
     eid = svc.create_engagement(PA, "Acme", "2025-12-31")["engagement_id"]
     svc.archive_engagement(PA, eid, reason="practice run, file it away")
     with pytest.raises(EngagementArchivedError, match="archived"):
-        svc.assign_team(PA, eid, PREP, "preparer")
+        svc.store_source(PA, eid, content=b"a,b\n1,2\n", media_type="text/csv",
+                         original_name="x.csv")
     with pytest.raises(EngagementArchivedError, match="archived"):
         svc.update_workflow(PA, eid, "materiality", {"amount": 5000})
     with pytest.raises(EngagementArchivedError, match="archived"):
         svc.assess_risk(PA, eid, title="x", assertion="occurrence")
     svc.restore_engagement(PA, eid)
-    svc.assign_team(PA, eid, PREP, "preparer")        # writable again
+    svc.update_workflow(PA, eid, "materiality", {"amount": 5000})   # writable again
 
 
 # 2. old-style archives come back as open engagements --------------------
@@ -131,15 +132,12 @@ def test_5_an_engagement_deletes_completely(svc):
 
 def test_6_a_rerun_does_not_double_count_fraud_findings(svc):
     eid = svc.create_engagement(PA, "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team(PA, eid, PREP, "preparer")
-    svc.assign_team(PA, eid, REV, "reviewer")
     svc.update_workflow(PA, eid, "cycles", {"cycles": ["payables"]})
     csv = ("Voucher Number,Invoice Number,Vendor Number,Voucher Amount,Voucher Date\n"
            "V1,A-100,Acme Supply,500.00,2025-03-03\n"
            "V2,a 100,Acme Supply,500.00,2025-03-17\n").encode()
     art = svc.store_source(PREP, eid, content=csv, media_type="text/csv", original_name="v.csv")
-    spec = svc.propose_source_mapping(PREP, eid, role="Vouchers", artifact_id=art["artifact_id"])
-    svc.approve_source_mapping(REV, eid, spec["spec_id"])
+    spec = svc.confirm_source_mapping(PREP, eid, role="Vouchers", artifact_id=art["artifact_id"])
     svc.normalize_source(PREP, eid, spec["spec_id"])
     for _ in range(2):
         run = svc.run_procedure(PREP, eid, procedure_id="ap.duplicate_bills")
@@ -212,7 +210,6 @@ def test_b2_rows_sharing_a_key_are_compared_not_dropped():
 
 def test_b5_a_fraud_test_that_errored_is_not_counted_as_run(svc):
     eid = svc.create_engagement(PA, "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team(PA, eid, PREP, "preparer")
     svc.update_workflow(PA, eid, "cycles", {"cycles": ["payables"]})
     run = svc.run_procedure(PREP, eid, procedure_id="ap.duplicate_bills")
     assert run["status"] == "error"          # no vouchers loaded

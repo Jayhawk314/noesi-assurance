@@ -26,12 +26,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 from assurance_application.service import (
-    AuthorizationError, EngagementArchivedError, EvidenceIntegrityError,
+    EngagementArchivedError, EvidenceIntegrityError,
     WorkbenchService,
 )
 from assurance_artifacts.vault import VaultIntegrityError
 from assurance_domain.errors import ConflictError, NotFoundError
-from assurance_domain.lifecycle import SeparationOfDutiesError
 
 MAX_JSON_BODY = 2 * 1024 * 1024          # JSON commands stay small
 MAX_UPLOAD_BODY = 200 * 1024 * 1024      # artifact uploads match vault policy
@@ -49,13 +48,9 @@ _SECURITY_HEADERS = (
 class SessionAuth:
     """One local session: a random bearer token held by one operator.
 
-    ``principal_id`` is the chair the operator sits in by default. A request
-    may act as a different principal via ``X-Acting-Principal`` — on a local
-    single-operator pilot the console owner already controls every local
-    identity (they could restart with any ``--principal``), so the header
-    changes convenience, not the trust boundary. Every command is journaled
-    under the chair that performed it, and the separation-of-duties gates
-    apply to chairs exactly as they would to distinct people.
+    ``principal_id`` is the one user; every command is journaled under it.
+    There are no chairs (D9 stage 3, 2 Oct 2026), so the old
+    ``X-Acting-Principal`` header is ignored.
     """
 
     principal_id: str
@@ -64,21 +59,6 @@ class SessionAuth:
     @classmethod
     def create(cls, principal_id: str) -> "SessionAuth":
         return cls(principal_id, secrets.token_urlsafe(32))
-
-
-_MAX_PRINCIPAL_LEN = 120
-
-
-def _acting_principal(header_value: str | None, default: str) -> str:
-    """Validate the acting-principal header; fail closed on nonsense."""
-    if header_value is None or header_value == "":
-        return default
-    principal = header_value.strip()
-    if (not principal or len(principal) > _MAX_PRINCIPAL_LEN
-            or any(ch.isspace() for ch in principal)
-            or not principal.isprintable()):
-        raise ApiError(400, "invalid X-Acting-Principal header")
-    return principal
 
 
 def _json_default(value):
@@ -186,8 +166,7 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             if scheme != "Bearer" or not secrets.compare_digest(
                     token.strip(), auth.token):
                 raise ApiError(401, "missing or invalid session token")
-            return _acting_principal(
-                self.headers.get("X-Acting-Principal"), auth.principal_id)
+            return auth.principal_id
 
         def _read_body(self, limit: int) -> bytes:
             self._body_consumed = True
@@ -220,14 +199,6 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
             if not isinstance(payload, dict):
                 raise ApiError(400, "request body must be a JSON object")
             return payload
-
-        def _spec_ids(self) -> list[str]:
-            body = self._read_json()
-            spec_ids = body.get("spec_ids")
-            if (not isinstance(spec_ids, list)
-                    or not all(isinstance(s, str) for s in spec_ids)):
-                raise ApiError(400, "spec_ids must be a list of strings")
-            return spec_ids
 
         # ------------------------------------------------------- routing
 
@@ -346,12 +317,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     self._reply(200, result)
             except ApiError as exc:
                 self._reply(exc.status, {"error": str(exc)})
-            except AuthorizationError as exc:
-                self._reply(403, {"error": str(exc)})
             except EngagementArchivedError as exc:
                 self._reply(423, {"error": str(exc)})
-            except SeparationOfDutiesError as exc:
-                self._reply(409, {"error": str(exc)})
             except ConflictError as exc:
                 self._reply(409, {"error": str(exc)})
             except (VaultIntegrityError, EvidenceIntegrityError) as exc:
@@ -451,11 +418,6 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     return service.create_engagement(
                         actor, str(body["client_name"]),
                         str(body["period_end"]))
-                case ["engagements", eid, "team"]:
-                    body = self._read_json()
-                    return service.assign_team(
-                        actor, eid, str(body["principal_id"]),
-                        str(body["role"]))
                 case ["engagements", eid, "sources"]:
                     content = self._read_body(MAX_UPLOAD_BODY)
                     return service.store_source(
@@ -483,23 +445,20 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     extraction = body.get("extraction")
                     if extraction is not None and not isinstance(extraction, dict):
                         raise ApiError(400, "extraction must be an object")
-                    return service.propose_source_mapping(
+                    return service.confirm_source_mapping(
                         actor, eid, role=str(body["role"]),
                         artifact_id=str(body["artifact_id"]),
                         extraction=extraction)
                 # Bulk loading: batch endpoints compress the round trips of a
-                # ten-file engagement into one pass per chair. The gates are
-                # unchanged — the service loops the single-item use cases.
-                case ["engagements", eid, "mappings", "propose-batch"]:
+                # ten-file engagement into one pass; the service loops the
+                # single-item use cases.
+                case ["engagements", eid, "mappings", "confirm-batch"]:
                     body = self._read_json()
                     items = body.get("items")
                     if (not isinstance(items, list)
                             or not all(isinstance(i, dict) for i in items)):
                         raise ApiError(400, "items must be a list of objects")
-                    return service.propose_source_mappings(actor, eid, items)
-                case ["engagements", eid, "mappings", "approve-batch"]:
-                    return service.approve_source_mappings(
-                        actor, eid, self._spec_ids())
+                    return service.confirm_source_mappings(actor, eid, items)
                 case ["engagements", eid, "mappings", "normalize-batch"]:
                     body = self._read_json()
                     spec_ids = body.get("spec_ids")
@@ -512,8 +471,8 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                                             "'replace' or 'add'")
                     return service.normalize_sources(actor, eid, spec_ids,
                                                      modes=modes)
-                case ["engagements", eid, "mappings", spec_id, "approve"]:
-                    return service.approve_source_mapping(actor, eid, spec_id)
+                case ["engagements", eid, "mappings", spec_id, "confirm"]:
+                    return service.confirm_pending_mapping(actor, eid, spec_id)
                 case ["engagements", eid, "mappings", spec_id, "normalize"]:
                     mode = self._read_json().get("mode")
                     return service.normalize_source(

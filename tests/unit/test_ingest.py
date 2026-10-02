@@ -240,14 +240,11 @@ def test_k1_quickbooks_aging_total_does_not_double_the_listing(tmp_path):
     svc = WorkbenchService(conn, ArtifactVault(tmp_path / "vault"),
                            ensure_tenant(conn, "k1"))
     eid = svc.create_engagement("pa", "Kestrel", "2026-06-30")["engagement_id"]
-    svc.assign_team("pa", eid, "pr", "preparer")
-    svc.assign_team("pa", eid, "rv", "reviewer")
     art = svc.store_source(
         "pr", eid, content=KESTREL_AGING.read_bytes(), original_name="AR_Aging_Summary.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    prop = svc.propose_source_mapping("pr", eid, role="AR_listing",
+    prop = svc.confirm_source_mapping("pr", eid, role="AR_listing",
                                       artifact_id=art["artifact_id"])
-    svc.approve_source_mapping("rv", eid, prop["spec_id"])
     rec = svc.normalize_source("pr", eid, prop["spec_id"])["reconciliation"]
     assert rec["control_total"] == "264883.70"          # was 529767.40
     assert (rec["rows_loaded"], rec["rows_rejected"]) == (20, 1)

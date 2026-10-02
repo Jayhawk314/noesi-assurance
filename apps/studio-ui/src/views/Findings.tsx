@@ -16,15 +16,15 @@ const CHOICES: { status: string; label: string; help: string }[] = [
 
 type Filter = "todo" | "all";
 
-export function Findings({ bundle, client, actingRoles, perform, busy }: {
-  bundle: Bundle; client: Client; actingRoles: string[]; busy: string;
+export function Findings({ bundle, client, perform, busy }: {
+  bundle: Bundle; client: Client; busy: string;
   perform: (label: string, work: () => Promise<unknown>) => Promise<void>;
 }) {
   const all = currentFindings(bundle);
   const todo = all.filter((f) => f.disposition.status === "undisposed");
   const [filter, setFilter] = useState<Filter>(todo.length ? "todo" : "all");
   const shown = filter === "todo" ? todo : all;
-  const canJudge = actingRoles.length > 0;
+  const canJudge = true;   // one user per engagement (D9 stage 3)
 
   return (
     <div>

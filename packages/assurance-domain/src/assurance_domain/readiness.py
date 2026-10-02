@@ -88,13 +88,7 @@ def readiness(report: dict, engagement: dict, sad: dict,
     missing_procedure_links = []
     have_procedure_contracts = bool(
         (report.get("procedure_coverage") or {}).get("procedures"))
-    if have_procedure_contracts:
-        team = engagement.get("team", {})
-        missing_team = [role for role in ("preparer", "reviewer")
-                        if not team.get(role)]
-        if missing_team:
-            blockers.append({"code": "TEAM_ASSIGNMENTS_INCOMPLETE",
-                             "count": len(missing_team), "items": missing_team})
+    # No team gate: one user per engagement (D9 stage 3, 2 Oct 2026).
     for fid in risk_ids:
         assessment = engagement.get("risks", {}).get(fid, {})
         level = assessment.get("level", "unassessed")

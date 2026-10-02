@@ -14,7 +14,9 @@ from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
 from procedures_ap.contracts import PROCEDURES
-from workbench_api.demo import DEMO_PREPARER, DEMO_REVIEWER, seed_demo
+from workbench_api.demo import seed_demo
+
+USER = "local:partner"
 
 CASE = Path(__file__).resolve().parents[2] / "case-studies" / "harborline-marine"
 LIMITS = thresholds(420000)
@@ -76,14 +78,13 @@ def service(tmp_path):
 def _load_revision(service, eid):
     content = (CASE / "revision" / "vouchers_revised.csv").read_bytes()
     artifact = service.store_source(
-        DEMO_PREPARER, eid, content=content, media_type="text/csv",
+        USER, eid, content=content, media_type="text/csv",
         original_name="vouchers_revised.csv")
-    spec_id = service.propose_source_mappings(
-        DEMO_PREPARER, eid,
+    spec_id = service.confirm_source_mappings(
+        USER, eid,
         [{"artifact_id": artifact["artifact_id"]}])["results"][0]["spec_id"]
-    service.approve_source_mappings(DEMO_REVIEWER, eid, [spec_id])
     # A corrected client file supersedes the original: an explicit replace.
-    result = service.normalize_sources(DEMO_PREPARER, eid, [spec_id],
+    result = service.normalize_sources(USER, eid, [spec_id],
                                        modes={spec_id: "replace"})
     assert result["normalized"] == 1, result
 
@@ -91,11 +92,11 @@ def _load_revision(service, eid):
 @pytest.mark.skipif(not (CASE / "revision" / "vouchers_revised.csv").is_file(),
                     reason="case data not in tree")
 def test_harborline_revised_vouchers_reach_runs_findings_and_judgments(service):
-    eid = seed_demo(service, "local:partner")["engagement_id"]
+    eid = seed_demo(service, USER)["engagement_id"]
     service.update_workflow("local:partner", eid, "materiality",
                             {"amount": "420000"})
     for contract in PROCEDURES:
-        service.run_procedure(DEMO_PREPARER, eid,
+        service.run_procedure(USER, eid,
                               procedure_id=contract.procedure_id)
     assert service.revision_impact(eid)["summary"]["stale_runs"] == 0
 
@@ -107,9 +108,9 @@ def test_harborline_revised_vouchers_reach_runs_findings_and_judgments(service):
                     and key in json.dumps(f["verdict"]["key"]))
     receipt_gap = uid("ap.three_way_receipt_match", "VCH-2026-0009")
     orphan_payment = uid("ap.payment_voucher_reference", "PAY-2026-0013")
-    service.set_disposition(DEMO_PREPARER, eid, finding_uid=receipt_gap,
+    service.set_disposition(USER, eid, finding_uid=receipt_gap,
                             status="unadjusted", note="exceeds receipts")
-    service.set_disposition(DEMO_PREPARER, eid, finding_uid=orphan_payment,
+    service.set_disposition(USER, eid, finding_uid=orphan_payment,
                             status="follow_up", note="voucher requested")
     runs_before = len(service.runs(eid))
 

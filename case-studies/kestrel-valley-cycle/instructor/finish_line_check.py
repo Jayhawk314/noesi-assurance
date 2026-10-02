@@ -169,8 +169,8 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("materiality", K1["materiality"], mat.get("amount", NOT_IN))
     c("period start", K2["period"]["start"], (wf.get("period") or {}).get("start", NOT_IN))
     c("period end", K1["period_end"], wf.get("fye", NOT_IN))
-    roles = sorted({t["role"] for t in d["team"]})
-    c("team: partner, preparer, reviewer", ["partner", "preparer", "reviewer"], roles)
+    # One user per engagement (D9 stage 3, 2 Oct 2026): no chairs.
+    c("one user on record", 1, len({t["principal_id"] for t in d["team"]}))
     c("every file loads (none refused)", 0, len(d.get("refused", [])))
 
     # ---- 2 Planning

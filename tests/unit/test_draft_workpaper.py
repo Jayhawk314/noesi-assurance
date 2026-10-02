@@ -5,7 +5,7 @@ journaled as one; downloading the record is."""
 
 import pytest
 
-from assurance_application.service import AuthorizationError, WorkbenchService
+from assurance_application.service import WorkbenchService
 from assurance_artifacts.vault import ArtifactVault
 from assurance_persistence.database import connect, migrate
 from assurance_persistence.legacy_import import ensure_tenant
@@ -26,14 +26,11 @@ def _exports(svc):
 
 def test_the_working_paper_says_it_is_unsigned_and_is_not_an_export(svc):
     eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
-    svc.assign_team("pa", eid, "rev", "reviewer")
     html = svc.workpaper_html("rev", eid)
     assert "<title>Working paper — Acme" in html
     assert "unsigned" in html and "sign-off are outside it" in html
     assert "Lock signed by" not in html and "DRAFT" not in html
     assert _exports(svc) == 0
-    with pytest.raises(AuthorizationError):
-        svc.workpaper_html("stranger", eid)
 
 
 def test_downloading_the_record_is_journaled_each_time(svc):

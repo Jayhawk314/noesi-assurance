@@ -238,15 +238,6 @@ def test_full_engagement_journey_over_http(api):
     assert status == 200
     eid = created["engagement_id"]
 
-    # The session principal is the partner; assign themselves preparer +
-    # reviewer roles is forbidden by separation later, so add a second
-    # role only where the matrix allows single-user work.
-    status, _ = _request(port, "POST", f"/api/engagements/{eid}/team",
-                         token=token,
-                         body={"principal_id": "principal-alice",
-                               "role": "preparer"})
-    assert status == 200
-
     status, artifact = _request(
         port, "POST", f"/api/engagements/{eid}/sources", token=token,
         raw_body=PAYMENTS_CSV,
@@ -259,14 +250,7 @@ def test_full_engagement_journey_over_http(api):
         body={"role": "Payments", "artifact_id": artifact["artifact_id"]})
     assert status == 200
     assert proposal["column_map"]["payment_number"] == "Payment No"
-
-    # A proposal's author cannot approve it, whatever roles they hold — the
-    # separation gates treat chairs as people.
-    status, denied = _request(
-        port, "POST",
-        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
-        token=token, body={})
-    assert status == 403
+    assert proposal["status"] == "approved"     # confirmed in the same step
 
     status, coverage = _request(port, "GET",
                                 f"/api/engagements/{eid}/coverage",
@@ -290,10 +274,10 @@ def test_full_engagement_journey_over_http(api):
         assert status == 404
 
 
-# ---------------------------------------------------------- chair switching
+# ------------------------------------------------------------ one user
 
-def test_acting_principal_header_completes_the_review_loop(api):
-    """One operator, several chairs: the loop that used to dead-end."""
+def test_one_user_maps_confirms_and_loads_with_no_chairs(api):
+    """D9 stage 3: map and confirm is one step, by the session's user."""
     port, auth = api
     token = auth.token
 
@@ -305,60 +289,44 @@ def test_acting_principal_header_completes_the_review_loop(api):
         port, "POST", "/api/engagements", token=token,
         body={"client_name": "Acme", "period_end": "2025-12-31"})
     eid = created["engagement_id"]
-    for principal, role in (("pat-preparer", "preparer"),
-                            ("rae-reviewer", "reviewer")):
-        status, _ = _request(port, "POST", f"/api/engagements/{eid}/team",
-                             token=token,
-                             body={"principal_id": principal, "role": role})
-        assert status == 200
-
-    as_pat = {"X-Acting-Principal": "pat-preparer"}
-    as_rae = {"X-Acting-Principal": "rae-reviewer"}
+    status, _ = _request(port, "POST", f"/api/engagements/{eid}/team",
+                         token=token, body={"principal_id": "x", "role": "preparer"})
+    assert status == 404                         # no team assignment any more
 
     status, artifact = _request(
         port, "POST", f"/api/engagements/{eid}/sources", token=token,
         raw_body=PAYMENTS_CSV,
-        headers={**as_pat, "Content-Type": "text/csv",
-                 "X-Original-Name": "payments.csv"})
+        headers={"Content-Type": "text/csv", "X-Original-Name": "payments.csv"})
     assert status == 200
-    status, proposal = _request(
+    status, spec = _request(
         port, "POST", f"/api/engagements/{eid}/mappings", token=token,
-        headers=as_pat,
         body={"role": "Payments", "artifact_id": artifact["artifact_id"]})
-    assert status == 200
-
-    # The preparer still cannot approve their own proposal…
-    status, _ = _request(
-        port, "POST",
-        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
-        token=token, headers=as_pat, body={})
-    assert status == 403
-    # …but the reviewer chair can, and the preparer then normalizes.
-    status, _ = _request(
-        port, "POST",
-        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
-        token=token, headers=as_rae, body={})
-    assert status == 200
+    assert status == 200 and spec["status"] == "approved"
     status, normalized = _request(
         port, "POST",
-        f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/normalize",
-        token=token, headers=as_pat, body={})
+        f"/api/engagements/{eid}/mappings/{spec['spec_id']}/normalize",
+        token=token, body={})
     assert status == 200
     assert normalized["reconciliation"]["rows_loaded"] == 2
 
 
-def test_garbage_acting_principal_header_is_refused(api):
+def test_the_old_acting_principal_header_changes_nothing(api):
+    """Every command is journaled under the session's user, whatever a
+    client sends in the removed X-Acting-Principal header."""
     port, auth = api
-    for bad in ("two words", "x" * 121, "tab\there"):
-        status, body = _request(
-            port, "GET", "/api/engagements", token=auth.token,
-            headers={"X-Acting-Principal": bad})
-        assert status == 400, bad
-        assert "X-Acting-Principal" in body["error"]
+    status, created = _request(
+        port, "POST", "/api/engagements", token=auth.token,
+        headers={"X-Acting-Principal": "someone-else"},
+        body={"client_name": "Acme", "period_end": "2025-12-31"})
+    assert status == 200
+    status, team = _request(
+        port, "GET", f"/api/engagements/{created['engagement_id']}/team",
+        token=auth.token)
+    assert [m["principal_id"] for m in team["team"]] == ["principal-alice"]
 
 
-def test_batch_endpoints_bulk_load_in_one_pass_per_chair(api):
-    """Ten round trips per file become three batch calls across the chairs."""
+def test_batch_endpoints_bulk_load_in_two_calls(api):
+    """Ten round trips per file become two batch calls: map all, load all."""
     port, auth = api
     token = auth.token
 
@@ -366,12 +334,6 @@ def test_batch_endpoints_bulk_load_in_one_pass_per_chair(api):
         port, "POST", "/api/engagements", token=token,
         body={"client_name": "Acme", "period_end": "2025-12-31"})
     eid = created["engagement_id"]
-    for principal, role in (("pat-preparer", "preparer"),
-                            ("rae-reviewer", "reviewer")):
-        _request(port, "POST", f"/api/engagements/{eid}/team", token=token,
-                 body={"principal_id": principal, "role": role})
-    as_pat = {"X-Acting-Principal": "pat-preparer"}
-    as_rae = {"X-Acting-Principal": "rae-reviewer"}
 
     ids = []
     for name, payload in (("payments.csv", PAYMENTS_CSV),
@@ -381,47 +343,39 @@ def test_batch_endpoints_bulk_load_in_one_pass_per_chair(api):
         status, artifact = _request(
             port, "POST", f"/api/engagements/{eid}/sources", token=token,
             raw_body=payload,
-            headers={**as_pat, "Content-Type": "text/csv",
-                     "X-Original-Name": name})
+            headers={"Content-Type": "text/csv", "X-Original-Name": name})
         assert status == 200
         ids.append(artifact["artifact_id"])
 
-    # Preparer pass: one call, roles inferred from the filenames.
-    status, proposals = _request(
-        port, "POST", f"/api/engagements/{eid}/mappings/propose-batch",
-        token=token, headers=as_pat,
-        body={"items": [{"artifact_id": aid} for aid in ids]})
+    # One call maps and confirms both, roles inferred from the filenames.
+    status, mapped = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/confirm-batch",
+        token=token, body={"items": [{"artifact_id": aid} for aid in ids]})
     assert status == 200
-    assert proposals["proposed"] == 2 and proposals["errors"] == 0
-    spec_ids = [r["spec_id"] for r in proposals["results"]]
+    assert mapped["confirmed"] == 2 and mapped["errors"] == 0
+    spec_ids = [r["spec_id"] for r in mapped["results"]]
 
-    # Reviewer pass; the proposing chair is refused outright.
-    status, _ = _request(
-        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
-        token=token, headers=as_pat, body={"spec_ids": spec_ids})
-    assert status == 403
-    status, approvals = _request(
-        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
-        token=token, headers=as_rae, body={"spec_ids": spec_ids})
-    assert status == 200
-    assert approvals["approved"] == 2
-
-    # Preparer pass: batch normalize closes the loop.
+    # One call loads them.
     status, normalized = _request(
         port, "POST", f"/api/engagements/{eid}/mappings/normalize-batch",
-        token=token, headers=as_pat, body={"spec_ids": spec_ids})
+        token=token, body={"spec_ids": spec_ids})
     assert status == 200
     assert normalized["normalized"] == 2
 
     # Malformed batch bodies are refused before touching the service.
     status, body = _request(
-        port, "POST", f"/api/engagements/{eid}/mappings/propose-batch",
-        token=token, headers=as_pat, body={"items": "nope"})
+        port, "POST", f"/api/engagements/{eid}/mappings/confirm-batch",
+        token=token, body={"items": "nope"})
     assert status == 400
     status, body = _request(
-        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
-        token=token, headers=as_rae, body={"spec_ids": "nope"})
+        port, "POST", f"/api/engagements/{eid}/mappings/normalize-batch",
+        token=token, body={"spec_ids": "nope"})
     assert status == 400
+    # The removed approve routes are gone.
+    status, _ = _request(
+        port, "POST", f"/api/engagements/{eid}/mappings/approve-batch",
+        token=token, body={"spec_ids": spec_ids})
+    assert status == 404
 
 
 def test_integrity_refusal_is_named_at_the_boundary(api, tmp_path):
@@ -434,28 +388,17 @@ def test_integrity_refusal_is_named_at_the_boundary(api, tmp_path):
         port, "POST", "/api/engagements", token=token,
         body={"client_name": "Acme", "period_end": "2025-12-31"})
     eid = created["engagement_id"]
-    for principal, role in (("pat-preparer", "preparer"),
-                            ("rae-reviewer", "reviewer")):
-        _request(port, "POST", f"/api/engagements/{eid}/team", token=token,
-                 body={"principal_id": principal, "role": role})
-    as_pat = {"X-Acting-Principal": "pat-preparer"}
     _, artifact = _request(
         port, "POST", f"/api/engagements/{eid}/sources", token=token,
         raw_body=PAYMENTS_CSV,
-        headers={**as_pat, "Content-Type": "text/csv",
-                 "X-Original-Name": "payments.csv"})
+        headers={"Content-Type": "text/csv", "X-Original-Name": "payments.csv"})
     _, proposal = _request(
         port, "POST", f"/api/engagements/{eid}/mappings", token=token,
-        headers=as_pat,
         body={"role": "Payments", "artifact_id": artifact["artifact_id"]})
-    _request(port, "POST",
-             f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/approve",
-             token=token, headers={"X-Acting-Principal": "rae-reviewer"},
-             body={})
     status, _ = _request(
         port, "POST",
         f"/api/engagements/{eid}/mappings/{proposal['spec_id']}/normalize",
-        token=token, headers=as_pat, body={})
+        token=token, body={})
     assert status == 200
 
     # Tamper behind the API's back through a second connection to the

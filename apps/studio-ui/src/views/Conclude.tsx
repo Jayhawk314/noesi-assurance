@@ -6,7 +6,6 @@ import { MaterialityRuler } from "./MaterialityRuler";
 
 const BLOCKER_TEXT: Record<string, string> = {
   MATERIALITY_NOT_SET: "materiality is not set",
-  TEAM_ASSIGNMENTS_INCOMPLETE: "team roles are not all assigned",
   RISKS_UNASSESSED: "risks are not assessed",
   HIGH_RISKS_WITHOUT_RESPONSE: "high risks have no planned response",
   HIGH_RISKS_WITHOUT_PROCEDURE: "high risks have no procedure answering them",

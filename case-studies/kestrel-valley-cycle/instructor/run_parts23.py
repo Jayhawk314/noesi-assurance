@@ -22,7 +22,7 @@ import run_noesi  # noqa: E402  (the pass-B trial balance and aging preparation)
 CASE = Path(__file__).resolve().parent.parent
 DATA = CASE / "data"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-P, R, S = "kv-partner", "kv-preparer", "kv-reviewer"
+P = R = "kv-auditor"   # one user per engagement (D9 stage 3)
 K2 = json.loads((CASE / "instructor" / "answer_key_part2.json").read_text(encoding="utf-8"))
 K3 = json.loads((CASE / "instructor" / "answer_key_part3.json").read_text(encoding="utf-8"))
 
@@ -63,8 +63,6 @@ def main() -> int:
         svc = WorkbenchService(conn, ArtifactVault(root / "vault"),
                                ensure_tenant(conn, "kv23"))
         eid = svc.create_engagement(P, "Kestrel Valley", "2026-06-30")["engagement_id"]
-        svc.assign_team(P, eid, R, "preparer")
-        svc.assign_team(P, eid, S, "reviewer")
         svc.update_workflow(P, eid, "materiality", {"amount": 15000, "basis": "pretax",
                                                     "rationale": "~4.6% of pretax"})
         svc.update_workflow(P, eid, "cycles", {"cycles": CYCLES})
@@ -76,9 +74,8 @@ def main() -> int:
                 art = svc.store_source(R, eid, content=content,
                                        media_type=XLSX if kind == "xlsx" else "text/csv",
                                        original_name=name)
-                prop = svc.propose_source_mapping(R, eid, role=role,
+                prop = svc.confirm_source_mapping(R, eid, role=role,
                                                   artifact_id=art["artifact_id"])
-                svc.approve_source_mapping(S, eid, prop["spec_id"])
                 rec = svc.normalize_source(R, eid, prop["spec_id"])["reconciliation"]
                 print(f"  {role:<20} loaded {rec['rows_loaded']:>4} set aside "
                       f"{rec['rows_rejected']:>4}  refused {prop['refused_fields']}")
