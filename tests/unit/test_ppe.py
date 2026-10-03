@@ -194,3 +194,33 @@ def test_declining_balance_refuses_a_bad_factor_and_a_cleared_disposal():
     findings, stats = execute_procedure(
         "ppe.depreciation_recompute", {"Fixed_assets": sold}, base)
     assert findings == [] and stats["not_recomputed"] == ["e2"]
+
+
+def test_additions_projection_key_items_and_the_sample():
+    # Depth pass (2 Oct 2026), worked by hand. Threshold 10000.
+    #   K1 20000, vouched to 19500: key item, misstatement 500 (in full)
+    #   S1  2000, vouched in full; S2 3000, vouched to 2700: sample 5000, misstated 300
+    #   U1  5000, not vouched: stratum below the threshold is 10000
+    #   projected 300 x 10000 / 5000 = 600; likely 500 + 600 = 1100
+    register = [asset(a, c, "2025-03-01", "5", "0.00", "0.00")
+                for a, c in (("K1", "20000"), ("S1", "2000"), ("S2", "3000"), ("U1", "5000"))]
+    vouching = [{"asset_id": "K1", "vouched_amount": D("19500.00"), "capitalize": "yes"},
+                {"asset_id": "S1", "vouched_amount": D("2000.00"), "capitalize": "yes"},
+                {"asset_id": "S2", "vouched_amount": D("2700.00"), "capitalize": "yes"}]
+    tables = {"Fixed_assets": register, "Additions_vouching": vouching}
+    base = {"period_end": PE, "ppe_vouch_threshold": "10000"}
+    findings, stats = execute_procedure("ppe.additions_vouching", tables,
+                                        {**base, "ppe_tolerable_misstatement": "1000"})
+    p = stats["projection"]
+    assert (p["key_misstatement"], p["sample_value"], p["sample_misstatement"],
+            p["stratum_value"], p["projected"], p["likely_misstatement"]) == (
+        "500.00", "5000.00", "300.00", "10000.00", "600.00", "1100.00")
+    assert ("additions", "likely_misstatement_reaches_tolerable") in keys(findings)
+    findings, stats = execute_procedure("ppe.additions_vouching", tables,
+                                        {**base, "ppe_tolerable_misstatement": "2000"})
+    assert ("additions", "likely_misstatement_reaches_tolerable") not in keys(findings)
+    assert stats["projection"]["allowance_for_sampling_risk"] == "900.00"
+    # no tolerable set: shown, not compared
+    findings, stats = execute_procedure("ppe.additions_vouching", tables, base)
+    assert stats["projection"]["tolerable"] is None
+    assert ("additions", "likely_misstatement_reaches_tolerable") not in keys(findings)

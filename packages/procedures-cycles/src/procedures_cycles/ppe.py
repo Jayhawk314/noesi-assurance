@@ -350,10 +350,71 @@ def additions_vouching(tables: dict, policies: dict):
                 f"addition {aid} ({cost}) is at or above {threshold} and was not vouched",
                 {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "ppe"}, cost))
     total = sum((money(a.get("cost")) for a in additions.values()), ZERO)
+    projection = _project_additions(pid, additions, vouched, findings, threshold,
+                                    dec(policies.get("ppe_tolerable_misstatement")))
     stats = {"population": len(additions), "additions_value": total,
              "vouched": len([a for a in additions if a in vouched]),
              "unvouched_value": unvouched_value,
              "coverage": (str(((total - unvouched_value) / total).quantize(Decimal("0.0001")))
                           if total else None),
-             "vouch_threshold": threshold, "exceptions": len(findings)}
+             "vouch_threshold": threshold, "projection": projection,
+             "exceptions": len(findings)}
     return findings, stats
+
+
+def _project_additions(pid, additions: dict, vouched: dict, findings: list,
+                       threshold: Decimal | None, tolerable: Decimal | None) -> dict:
+    """Project the misstatement found in the vouched additions (depth pass,
+    2 Oct 2026; AUDIT-FRAME-PLAN). Additions at or above the vouch threshold
+    are key items, counted in full; the vouched additions below it are the
+    sample, and their misstatement is projected by ratio to every addition
+    below it (sampling.ratio_projection). Their sum, the likely misstatement,
+    is compared with the auditor's tolerable misstatement when one is set.
+
+    Limit, stated: the projection assumes the vouched items below the
+    threshold were selected to represent the rest; the engine cannot know
+    how they were chosen. With no threshold, every addition is in one
+    stratum."""
+    from procedures_cycles.sampling import allowance_for_sampling_risk, ratio_projection
+    found: dict[str, Decimal] = {}
+    for f in findings:
+        aid, kind = f.key[1], f.key[2] if len(f.key) > 2 else ""
+        if f.score is None:
+            continue
+        if kind == "should_be_expensed":
+            found[aid] = Decimal(str(f.score))   # the whole cost is misstated
+        elif kind == "cost_differs" and aid not in found:
+            found[aid] = Decimal(str(f.score))   # recorded less supported
+    key, rest = {}, {}
+    for aid, asset in additions.items():
+        cost = money(asset.get("cost"))
+        (key if threshold is not None and cost >= threshold else rest)[aid] = cost
+    key_found = money(sum((found.get(a, ZERO) for a in key if a in vouched), ZERO))
+    sample = {a: c for a, c in rest.items() if a in vouched}
+    sample_value = money(sum(sample.values(), ZERO))
+    sample_found = money(sum((found.get(a, ZERO) for a in sample), ZERO))
+    rest_value = money(sum(rest.values(), ZERO))
+    out = {"key_items": len(key), "key_misstatement": key_found,
+           "sample_items": len(sample), "sample_value": sample_value,
+           "sample_misstatement": sample_found, "stratum_value": rest_value,
+           "projected": None, "likely_misstatement": key_found,
+           "tolerable": tolerable, "allowance_for_sampling_risk": None}
+    if sample_value:
+        out["projected"] = money(ratio_projection(sample_found, sample_value, rest_value))
+        out["likely_misstatement"] = money(key_found + out["projected"])
+    elif rest_value:
+        out["note"] = ("no addition below the vouch threshold was vouched, so nothing "
+                       "could be projected to them")
+    if tolerable is not None:
+        out["allowance_for_sampling_risk"] = allowance_for_sampling_risk(
+            tolerable, out["likely_misstatement"])
+        if abs(out["likely_misstatement"]) >= tolerable:
+            findings.append(receipt(
+                pid, ("additions", "likely_misstatement_reaches_tolerable"), "CLASH",
+                f"additions: likely misstatement {out['likely_misstatement']} (key items "
+                f"{key_found}, projected {out['projected'] or ZERO}) reaches tolerable "
+                f"misstatement {money(tolerable)}",
+                {"finding_class": "PROVED_EXCEPTION", "cycle": "ppe", **{
+                    k: v for k, v in out.items() if k != "note"}},
+                out["likely_misstatement"]))
+    return out

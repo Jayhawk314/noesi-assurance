@@ -160,6 +160,10 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
         "For assets the register calls plain \"declining balance\": 2 for double "
         "declining, 1.5 for 150%. Double declining and 150% named as such need no "
         "setting. Left empty, those assets are listed as not recomputed."),
+    "ppe_tolerable_misstatement": (
+        "Additions: tolerable misstatement ($)", AMOUNT,
+        "The vouched additions' misstatement, projected to the additions not vouched, "
+        "is compared with this. Left empty, the projection is shown but not compared."),
     "ppe_vouch_threshold": (
         "Additions: vouch every addition from ($)", AMOUNT,
         "An addition at or above this amount that was not vouched is flagged."),

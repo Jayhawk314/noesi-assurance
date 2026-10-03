@@ -405,15 +405,20 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "ppe.additions_vouching", "Additions vouching",
         "Compare the period's additions with the auditor's vouching: amounts that "
         "differ from the invoice, items that should have been expensed, unvouched "
-        "additions above the threshold.",
+        "additions above the threshold; project the sample's misstatement to the "
+        "additions not vouched and compare the likely misstatement with tolerable.",
         "ppe", ("existence", "accuracy", "classification"),
         {"Fixed_assets": ("asset_id", "cost", "acquired_date"),
          "Additions_vouching": ("asset_id",)},
         required_policies=("period_end",),
         evidence_source="invoices and approvals inspected by the auditor",
         denominator_role="Fixed_assets",
-        limitations="Evaluates the vouching recorded; it does not select the sample "
-                    "or project errors to the unvouched additions.",
+        limitations="Evaluates the vouching recorded; it does not select the sample. "
+                    "Additions at or above the vouch threshold count in full; the "
+                    "misstatement in vouched additions below it is projected by ratio "
+                    "to every addition below it, which assumes those were selected to "
+                    "represent the rest. With no tolerable misstatement set, the "
+                    "projection is shown but not compared.",
     ),
     ProcedureContract(
         "debt.rollforward_and_interest", "Debt rollforward and interest",
@@ -628,7 +633,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "je_seldom_used_max", "je_holidays", "je_manual_sources", "rev_credit_memo_days",
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
-    "ppe_declining_balance_factor",
+    "ppe_declining_balance_factor", "ppe_tolerable_misstatement",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
     "accruals_rounding_tolerance", "estimates_bias_min_count",
     "report_date", "gc_current_ratio_floor", "rep_signers", "misstatement_likely_basis",
@@ -676,7 +681,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "rev_credit_memo_days": {"receivables"},
     "payroll_final_pay_days": {"payroll"},
     "ppe_accumulated_depreciation_accounts": {"ppe"}, "ppe_rounding_tolerance": {"ppe"},
-    "ppe_declining_balance_factor": {"ppe"},
+    "ppe_declining_balance_factor": {"ppe"}, "ppe_tolerable_misstatement": {"ppe"},
     "ppe_depreciation_accounts": {"ppe"}, "ppe_vouch_threshold": {"ppe"},
     "debt_interest_tolerance_pct": {"debt_equity"},
     "debt_interest_accounts": {"debt_equity"},
