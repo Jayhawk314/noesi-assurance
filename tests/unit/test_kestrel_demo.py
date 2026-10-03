@@ -50,4 +50,12 @@ def test_kestrel_demo_seeds_runs_and_is_idempotent(tmp_path):
     opinion = svc.draft_opinion(first["engagement_id"])
     assert opinion["proposed_opinion"] == "disclaimer"
     assert opinion["missing_representations"] == ["related_parties"]
+    # The raw exports a built schedule was made from are marked as its
+    # inputs, so "map all" leaves them out (2 Oct 2026); nothing else is.
+    marked = {a["original_name"]: a["built_into"]
+              for a in svc.sources(first["engagement_id"])["artifacts"] if a["built_into"]}
+    assert marked == {
+        "Trial_Balance_2026-06-30.xlsx": "Trial balance 2026-06-30 - QuickBooks.csv",
+        "Trial_Balance_2025-06-30.xlsx": "Trial balance 2026-06-30 - QuickBooks.csv",
+        "Unpaid_Bills.xlsx": "AP control balance 2026-06-30 - QuickBooks.csv"}
     conn.close()

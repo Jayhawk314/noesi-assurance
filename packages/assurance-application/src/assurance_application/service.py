@@ -550,6 +550,25 @@ class WorkbenchService:
             item["inferred_role"], item["inferred_from"] = self._guess_role(
                 item["artifact_id"], item["original_name"])
             artifacts.append(item)
+        # A schedule the Workbench built (trial balance, AP control balance)
+        # names its source exports in its provenance. Those exports are its
+        # inputs, not data to load as well, so they are marked: "map all"
+        # leaves them out (seen on Kestrel, 2 Oct 2026); mapping one on its
+        # own stays possible.
+        built_from: dict[str, str] = {}
+        for item in artifacts:
+            try:
+                prov = json.loads(item["provenance"] or "")
+            except ValueError:
+                continue
+            if not (isinstance(prov, dict)
+                    and str(prov.get("prepared_by", "")).startswith("noesi build_")):
+                continue
+            for part in prov.values():
+                if isinstance(part, dict) and part.get("artifact_id"):
+                    built_from[str(part["artifact_id"])] = item["original_name"]
+        for item in artifacts:
+            item["built_into"] = built_from.get(item["artifact_id"])
         specs = []
         for row in self._conn.execute(
                 """SELECT spec_id, role, artifact_id, spec, status,
@@ -2075,7 +2094,7 @@ class WorkbenchService:
         by account here. Each export is footed against its TOTAL first and a
         report that does not foot is refused. The schedule is stored as an
         ordinary source file whose provenance names both exports by SHA-256,
-        then goes through propose, approve and normalize like any other file.
+        then is mapped and loaded like any other file.
         """
         self._require_open(engagement_id)
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}

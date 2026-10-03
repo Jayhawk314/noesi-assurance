@@ -323,10 +323,11 @@ scripts first, James approves scripts and credits before voicing.
   column, "Paycheck" name unverified (HANDOFF_2026-10-02-fixes.md "Not done").
 - Second round of 2 Oct fixes (C1-C3) committed without a second-agent
   check, by James's decision: no more check rounds.
-- Sources: "map all" offers the raw files a built schedule was made from
-  (Kestrel: both Trial Balance exports and Unpaid Bills). One click now maps
-  and confirms them (before D9 stage 3 they waited at approval); loading
-  still needs its own step. Seen 2 Oct; leave such files out of "map all".
+- ~~Sources: "map all" offered the raw files a built schedule was made from~~
+  **Fixed 2 Oct:** a schedule's source exports (named in its provenance) are
+  marked "used to build …" and left out of "map all"; their own button still
+  maps them. Tested on the Kestrel seed (the two Trial Balance exports and
+  Unpaid Bills, nothing else). Not checked on screen.
 - Oceanview's offline scripts (run_full.py, run_noesi.py, workflow_full.py)
   still call the signing key and the lock removed in D9 stage 2, so they do
   not run; the Workbench's Oceanview loader (load_workbench.py) was fixed.

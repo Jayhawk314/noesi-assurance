@@ -23,6 +23,9 @@ export interface Artifact {
   inferred_role: string | null;
   /** how the role was suggested: from the file's name or from its columns */
   inferred_from?: "filename" | "columns" | "";
+  /** The schedule the Workbench built from this file, if any: its input,
+   *  so "map all" leaves it out. */
+  built_into?: string | null;
 }
 
 /** One item of a batch outcome; exactly one of the statuses applies. */

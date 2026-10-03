@@ -138,8 +138,11 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   const mapped = (a: Artifact) => mappedAs.has(`${a.artifact_id}|${chosenRole(a)}`);
   // The batch takes only files with no mapping yet; a second role for a mapped
   // file is always a deliberate, one-at-a-time choice.
+  // A file a built schedule was made from is that schedule's input, not
+  // more data: "map all" leaves it out; its own button still maps it.
   const mappable = (data?.artifacts ?? []).filter(
-    (a) => a.state === "promoted" && !mapped(a) && chosenRole(a) && !rolesOf(a).length);
+    (a) => a.state === "promoted" && !mapped(a) && chosenRole(a) && !rolesOf(a).length
+           && !a.built_into);
   const normalizedSpecs = new Set(
     (data?.datasets ?? []).map((d) => d.mapping_spec_id));
   // A role that already has data needs your replace/add choice
@@ -177,6 +180,8 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
                   <div className="note">
                     mapped as {rolesOf(artifact).map((r) => r.replace(/_/g, " ")).join(", ")}
                   </div>
+                ) : artifact.built_into ? (
+                  <div className="note">used to build {artifact.built_into}; not in "map all"</div>
                 ) : artifact.inferred_from === "columns" && !mapRole[artifact.artifact_id] && (
                   <div className="note">guessed from its columns: check it</div>
                 )}
