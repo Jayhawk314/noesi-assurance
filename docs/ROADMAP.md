@@ -143,6 +143,16 @@ Accountant company, holding a few invented Kestrel-style transactions
 - Still open from C: PO overrun and unrecorded liability (the 2 finish-line
   lines): they need bills linked to POs and payments, which none of these
   reports carry.
+- **C closed 2 Oct 2026 (James):** the real exports in
+  `tests/fixtures/quickbooks/kestrel_qbo/` are all the QuickBooks material
+  there is; no QuickBooks company holds a complete Kestrel set to export
+  more from. So: the bank reconciliation stays a hand-prepared schedule
+  (QuickBooks gives that report only as PDF, and no real one exists to build
+  a reader from; a reader built from a guessed layout would be fitting, not
+  testing). The PO overrun and the unrecorded liability stay as known gaps,
+  pinned in the finish-line check as "not in Noesi" with their reasons.
+  Reopen C only if a real Reconciliation Report PDF, or an export linking
+  bills to POs and payments, becomes available.
 
 ### D. Screens
 Checked: cycles and policies, period start, and the Draft Opinion screens
@@ -274,6 +284,10 @@ lines in answer_key_part3.json `forensic` and answer_key_payables.json
 
 **Order:** A and B now (no outside dependency) → D1-D4 → E1 → C when exports arrive
 → E2/E3 alongside. Phase 1 is done when A, B, C and E are done.
+**Status 2 Oct 2026:** A, B, D1-D10 done; C closed as it stands (above);
+E1 pushed (a541e50, James's go); E3 done. Left in Phase 1: **E2**, James
+working Oceanview by hand in his Workbench. Open decisions for James sit in
+the parking lot (Benford minimum and default; "map all" offering raw files).
 
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
