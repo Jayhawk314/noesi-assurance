@@ -313,11 +313,13 @@ scripts first, James approves scripts and credits before voicing.
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,
   sample projection for additions, adjusted covenants).
 - Wiring the cycles into the structural layer (agreed as later, 2026-09-26).
-- Benford minimum population (2 Oct): set at 1,000, from memory of Nigrini,
-  source not verified. At 1,000 Kestrel tests nothing (3 "not tested" open
-  findings on the demo); at 100 all three Kestrel groups fail. James to decide.
-- Benford default-off: non-Kestrel engagements show "left out without a
-  reason" until a default is chosen (HANDOFF_2026-10-02-fixes.md, M5).
+- **Benford decided 2 Oct (Claude, James: "you decide"):** the demo's
+  minimum stays 1,000 (Nigrini 2012 as recalled; the page is still not
+  checked). Below it the test says "not tested" rather than judge a hundred
+  amounts on bands meant for large populations; a "fail" at 100 would be a
+  false lead. The test is now **in by default** for every engagement, so it
+  no longer reads "left out without a reason"; Coverage asks the auditor for
+  the minimum, which stays the auditor's choice.
 - Lesson checker (C4): accepts a number from another line of the same module.
 - From the 2 Oct review: **L2 and L6 fixed 2 Oct** (masked numbers not
   compared and counted, phones on their last seven digits, first/last

@@ -304,7 +304,9 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "prices, amounts with a ceiling); nonconformity says where to look, "
                     "not that anything is wrong. A population below the minimum is not "
                     "tested.",
-        default_selected=False,
+        # In by default (decided 2 Oct 2026): left out, it read as "left out
+        # without a reason" on every engagement; in, Coverage asks the
+        # auditor for the minimum, which stays the auditor's choice.
     ),
     ProcedureContract(
         "cash.bank_reconciliation", "Bank reconciliation re-performance",

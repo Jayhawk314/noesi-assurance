@@ -194,16 +194,13 @@ def seed(service, partner: str) -> dict:
             "procedure_id": pid, "selected": False,
             "rationale": "the confirmations are evaluated nonstatistically; "
                          "this method is not the one chosen for the audit"})
-    # The first-digit test starts left out (it needs the auditor's minimum
-    # population). The demo includes it, like every other forensic test, and
-    # shows what it finds with its limits, although Kestrel's key has no
-    # lines for it yet (roadmap D10). The minimum is Nigrini's published
-    # 1,000, not a figure chosen for this case: a population below it is
-    # reported as not tested.
+    # The first-digit test is in by default and needs the auditor's minimum
+    # population. The minimum is 1,000 (Nigrini, Benford's Law, 2012, as
+    # recalled; the page was not checked), not a figure chosen for this case:
+    # every Kestrel population is below it, so each is reported as not tested
+    # rather than judged on too few amounts (decided 2 Oct 2026).
     service.update_workflow(partner, eid, "policy", {
         "name": "benford_min_population", "value": "1000"})
-    service.update_workflow(partner, eid, "procedure_selection", {
-        "procedure_id": "forensic.benford_first_digit", "selected": True})
 
     runs = 0
     for row in service.coverage(eid)["procedures"]:
