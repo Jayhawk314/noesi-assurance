@@ -300,6 +300,12 @@ L1, L3 accepted). Phase 2's lessons exist; its videos wait for James's
 script and credit approvals. Product work goes on with the depth pass
 (parking lot, AUDIT-FRAME-PLAN).
 
+**3 Oct qualification:** Later Workbench walkthroughs found and fixed real
+UI and export defects after the statement above. Do not use “Phase 1 done”
+as a current product-readiness verdict. The remaining verification order and
+client-data boundary are in `docs/WORKBENCH-FINISH-MAP-2026-10-03.md`.
+Videos remain paused until that Workbench finish map is checked.
+
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
 duplicate bills needs the supplier's invoice number; `je_manual_sources`;
