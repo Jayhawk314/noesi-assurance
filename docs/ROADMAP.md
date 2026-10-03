@@ -306,6 +306,13 @@ duplicate bills needs the supplier's invoice number; `je_manual_sources`;
 Codex's fraud-readiness review and its three fixes; tests not performed on
 the Runs screen. Kestrel's fraud and journal-entry results agree with the key.
 
+**Walkthrough 3 Oct 2026 (AGENT-WARNINGS §2):** every tab read on a fresh
+Kestrel demo; list in docs/WORKBENCH-WALKTHROUGH-2026-10-03.md. Two possible
+bugs (a raw `rockwood_structural` key on Draft Opinion and Export; the Fraud
+tab counts Benford's "not tested" as findings) and stale "partner"/"Approved"
+wording are to be fixed before videos. Layout and data-changing buttons were
+not checked.
+
 ## Phase 2: the Kestrel Learn app
 Starts after Phase 1. Details in `docs/LEARN-KESTREL-PLAN.md`: a copy of the
 Learn app with the same layout; 13 modules, one per audit area (idea, by
