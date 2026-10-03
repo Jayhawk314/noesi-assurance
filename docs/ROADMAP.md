@@ -311,10 +311,12 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
-- Inventory matching (Codex, 2026-09-29): later count tags for an item can
-  carry conflicting identity data that is dropped, and description
-  differences are never a finding. Known limits; changing identity rules
-  needs a policy decision, not a quick patch.
+- ~~Inventory matching (Codex, 2026-09-29): later count tags for an item can
+  carry conflicting identity data that is dropped~~ **fixed 2 Oct:** each
+  later tag is compared with the item's first: a different model is a lead
+  (`tags_disagree`), a different description alone is recorded
+  (`tag_descriptions_differ`), as K7 does for count against listing.
+  Kestrel unchanged (174/176).
 - ~~Stale accruals, checks to vendors with no bills, employee/vendor shared
   addresses~~ **done** (checked 2 Oct: `accruals.recompute` stale accrual,
   `ap.payments_without_bills`, `payroll.register_tests` address match; each

@@ -59,6 +59,8 @@ def count_listing_trace(tables: dict, policies: dict):
     counted: dict[str, dict] = {}
     tags_per_item: dict[str, int] = {}
     seen_tags: dict[str, dict] = {}
+    first_tag: dict[str, dict] = {}
+    tag_descriptions: list[dict] = []
     for r in count_rows:
         tag = key_text(r.get("tag_number"))
         if tag and tag in seen_tags:
@@ -77,7 +79,28 @@ def count_listing_trace(tables: dict, policies: dict):
         tags_per_item[key] = tags_per_item.get(key, 0) + 1
         if key not in counted:
             counted[key] = dict(r)
+            first_tag[key] = r
             continue
+        # A later tag for the same item is compared with the first, not
+        # dropped (Codex, 2026-09-29; parking lot, fixed 2 Oct): a different
+        # model is a lead, a different description alone is recorded.
+        first = first_tag[key]
+        if _norm(first.get("model")) and _norm(r.get("model")) and \
+                _norm(first.get("model")) != _norm(r.get("model")):
+            findings.append(receipt(
+                pid, ("tags_disagree", key, tag or str(r.get("source_row"))), "TENSION",
+                f"item {key}: tag {tag or '(no tag)'} says model {text(r.get('model'))}, "
+                f"tag {key_text(first.get('tag_number')) or '(no tag)'} says "
+                f"{text(first.get('model'))}. One item, or two items under one stock "
+                "number?",
+                {"finding_class": "CONJECTURE", "cycle": "inventory",
+                 "source_rows": [source_ref("Inventory_count", first, "tag_number"),
+                                 source_ref("Inventory_count", r, "tag_number")]}))
+        elif _norm(first.get("description")) and _norm(r.get("description")) and \
+                _norm(first.get("description")) != _norm(r.get("description")):
+            tag_descriptions.append({"item": key, "tag": tag,
+                                     "first": text(first.get("description")),
+                                     "this": text(r.get("description"))})
         total, more = dec(counted[key].get("quantity")), dec(r.get("quantity"))
         counted[key]["quantity"] = (None if total is None or more is None
                                     else total + more)
@@ -140,6 +163,7 @@ def count_listing_trace(tables: dict, policies: dict):
                       "listed_not_counted": not_counted, "details_differ": mismatched,
                       "items_with_several_tags": several_tags,
                       "description_differs_only": description_only,
+                      "tag_descriptions_differ": tag_descriptions,
                       "extension_errors": extension_errors, "exceptions": len(findings)}
 
 

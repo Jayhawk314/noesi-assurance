@@ -671,3 +671,22 @@ def test_k7_k12_description_shorthand_and_credit_balances():
                                          "Inventory_count": count}, {})
     assert ("details_differ", "a") not in keys(findings)
     assert stats["description_differs_only"][0]["count"] == "Carbon bar"
+
+
+def test_later_count_tags_are_compared_with_the_first_not_dropped():
+    # Codex 2026-09-29 (parking lot), fixed 2 Oct: two tags for one stock number.
+    from decimal import Decimal as _D
+    listing = [{"stock_number": "S1", "description": "Bolt kit", "model": "M1",
+                "quantity": _D("10"), "unit_cost": _D("2"), "cost": _D("20")}]
+    count = [{"tag_number": "T1", "stock_number": "S1", "description": "Bolt kit",
+              "model": "M1", "quantity": _D("6")},
+             {"tag_number": "T2", "stock_number": "S1", "description": "Bolts",
+              "model": "M2", "quantity": _D("4")},
+             {"tag_number": "T3", "stock_number": "S1", "description": "Bolt kit (bin 4)",
+              "model": "M1", "quantity": _D("0")}]
+    findings, stats = execute_procedure(
+        "inventory.count_listing_trace",
+        {"Inventory_listing": listing, "Inventory_count": count}, {})
+    assert ("tags_disagree", "s1", "t2") in {tuple(f.key[1:]) for f in findings}
+    assert [d["tag"] for d in stats["tag_descriptions_differ"]] == ["t3"]
+    assert stats["items_with_several_tags"] == ["s1"]
