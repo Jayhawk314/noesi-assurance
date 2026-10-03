@@ -261,6 +261,12 @@ lines in answer_key_part3.json `forensic` and answer_key_payables.json
 - E1. Push to GitHub (James approves).
 - E2. James works Oceanview by hand in his Workbench (loaded 2026-09-29);
   anything he hits goes to the private friction log, then to section B.
+  **Engine pass done 2 Oct 2026 (Claude, Run 4 in the private log):** the
+  full Oceanview audit runs on the current product (one user, export
+  verified offline); readiness holds only on the three follow-ups the case
+  gives no evidence to close, as in Runs 2-3; the forensic check sequence is
+  clean on a second, independently written case. No engine defect found.
+  The hand pass stays James's, for learning; it is not a product blocker.
 - E3. Decided 1 Oct 2026: add both schemes (self-approved payments,
   round-tripped money) to Kestrel, the public case, with key lines.
   **Done 2 Oct 2026 (Claude, local, not reviewed by a second agent):**
@@ -285,9 +291,10 @@ lines in answer_key_part3.json `forensic` and answer_key_payables.json
 **Order:** A and B now (no outside dependency) → D1-D4 → E1 → C when exports arrive
 → E2/E3 alongside. Phase 1 is done when A, B, C and E are done.
 **Status 2 Oct 2026:** A, B, D1-D10 done; C closed as it stands (above);
-E1 pushed (a541e50, James's go); E3 done. Left in Phase 1: **E2**, James
-working Oceanview by hand in his Workbench. Open decisions for James sit in
-the parking lot (Benford minimum and default; "map all" offering raw files).
+E1 pushed (a541e50, James's go); E3 done; E2's engine pass done (Run 4).
+**Phase 1 is done for the product.** James's hand pass of Oceanview is for
+his learning, not a blocker. Next: Phase 2 (the Kestrel Learn app), and the
+parking lot's open engine items (review L1, L3, L5).
 
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
