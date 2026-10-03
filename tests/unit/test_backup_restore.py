@@ -1,4 +1,5 @@
 """P0 2.3: backup and restore of the control DB and vault together (invented data)."""
+import hashlib
 import json
 import zipfile
 
@@ -159,3 +160,79 @@ def test_backup_never_overwrites_and_leaves_out_unnamed_files(tmp_path):
     assert report["files"] == 2 and report["left_out_files_no_record_names"] == 1
     with pytest.raises(BackupRefused):
         create_backup(tmp_path / "live", tmp_path / "b.zip")
+
+
+@pytest.mark.parametrize("manifest", [[], {}, {"format": "noesi-backup/1"}])
+def test_a_malformed_manifest_is_a_named_refusal(tmp_path, manifest):
+    _store(tmp_path / "live")
+    create_backup(tmp_path / "live", tmp_path / "b.zip")
+    _rewrite(tmp_path / "b.zip", tmp_path / "bad.zip",
+             lambda n, d: json.dumps(manifest) if n == "manifest.json" else d)
+    with pytest.raises(BackupRefused) as err:
+        verify_backup(tmp_path / "bad.zip")
+    assert err.value.problems
+
+
+def test_backup_does_not_overwrite_a_sibling_partial_file(tmp_path):
+    _store(tmp_path / "live")
+    partial = tmp_path / "b.zip.part"
+    partial.write_bytes(b"belongs to another operation")
+    create_backup(tmp_path / "live", tmp_path / "b.zip")
+    assert partial.read_bytes() == b"belongs to another operation"
+
+
+def test_an_unreadable_database_is_a_named_refusal(tmp_path):
+    _store(tmp_path / "live")
+    create_backup(tmp_path / "live", tmp_path / "b.zip")
+    damaged = b"not a sqlite database"
+
+    def replace_database(name, data):
+        if name == "control.db":
+            return damaged
+        if name == "manifest.json":
+            manifest = json.loads(data)
+            manifest["control_db"] = {
+                "sha256": hashlib.sha256(damaged).hexdigest(),
+                "size_bytes": len(damaged),
+            }
+            return json.dumps(manifest)
+        return data
+
+    _rewrite(tmp_path / "b.zip", tmp_path / "bad.zip", replace_database)
+    with pytest.raises(BackupRefused) as err:
+        verify_backup(tmp_path / "bad.zip")
+    assert any("database cannot be read" in p for p in err.value.problems)
+
+
+def test_backup_cli_creates_verifies_and_restores(tmp_path, capsys):
+    from workbench_api.backup import main
+
+    live, backup, restored = tmp_path / "live", tmp_path / "backup.zip", tmp_path / "new"
+    eid = _store(live)
+    assert main(["create", "--data", str(live), "--to", str(backup)]) == 0
+    created = json.loads(capsys.readouterr().out)
+    assert created["files"] == 2 and created["engagements"] == 1
+
+    assert main(["verify", str(backup)]) == 0
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["journal"]["ok"] is True
+
+    assert main(["restore", str(backup), "--data", str(restored)]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["restored_to"] == str(restored)
+    svc = _service(restored)
+    assert [e["engagement_id"] for e in svc.list_engagements()] == [eid]
+    svc._conn.close()
+
+
+def test_backup_cli_prints_every_refusal_problem_and_exits_one(tmp_path, capsys):
+    from workbench_api.backup import main
+
+    _store(tmp_path / "live")
+    create_backup(tmp_path / "live", tmp_path / "backup.zip")
+    assert main(["restore", str(tmp_path / "backup.zip"),
+                 "--data", str(tmp_path / "live")]) == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert "backup operation refused" in output.err
+    assert "not empty" in output.err

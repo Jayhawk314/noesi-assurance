@@ -291,7 +291,9 @@ lines in answer_key_part3.json `forensic` and answer_key_payables.json
 **Order:** A and B now (no outside dependency) → D1-D4 → E1 → C when exports arrive
 → E2/E3 alongside. Phase 1 is done when A, B, C and E are done.
 **Status 2 Oct 2026:** A, B, D1-D10 done; C closed as it stands (above);
-E1 pushed (a541e50, James's go); E3 done; E2's engine pass done (Run 4).
+E1 pushed (a541e50, James's go); E3 done; E2's engine pass done (Run 4);
+the depth pass and inventory count-tag follow-up are done; P0 2.3 backup and
+restore is built with an offline command and independent review fixes.
 **Phase 1 is done for the product.** James's hand pass of Oceanview is for
 his learning, not a blocker. The 2 Oct review is closed (L2, L5, L6 fixed;
 L1, L3 accepted). Phase 2's lessons exist; its videos wait for James's
@@ -326,7 +328,15 @@ scripts first, James approves scripts and credits before voicing.
   denominator is "not measurable after the adjustments" (2); the breach
   follows the adjusted figures and says its basis (3); an add-back needs its
   note (4); the trailing basis needs a real twelve months, day to day (5).
-- PRODUCTION-READINESS P0/P1 (real-client use): after Phase 2 and a real user.
+- **PRODUCTION-READINESS P0 2.3 done 2 Oct:** one verified backup zip carries
+  the SQLite snapshot and exactly its named vault blobs; restore refuses a
+  damaged/missing/mismatched database or vault and never overwrites a store.
+  Offline `create`, `verify`, and `restore` commands are tested on invented
+  data. Independent review fixed malformed manifests escaping as raw errors
+  and a sibling `.part` file being overwritten. The manifest is unsigned, so
+  it detects damage/mismatch, not deliberate whole-backup forgery. The
+  readiness document is rewritten for the one-user, no-sign-off supplement;
+  encryption and the other remaining local-use controls stay there.
 - Partner report sign-off (Codex's patch broke 17 tests; the print button covers it).
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,
   sample projection for additions, adjusted covenants). **Benford done**

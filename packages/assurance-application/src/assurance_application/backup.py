@@ -37,6 +37,7 @@ from assurance_persistence.spine import verify_journal
 FORMAT = "noesi-backup/1"
 _CHUNK = 1024 * 1024
 _BLOB_NAME = re.compile(r"^vault/blobs/([0-9a-f]{2})/([0-9a-f]{2})/([0-9a-f]{64})$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _KNOWN_SCHEMA = max(version for version, _name, _sql in MIGRATIONS)
 
 
@@ -57,17 +58,20 @@ def _record_facts(db_path: Path) -> dict:
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     try:
-        check = conn.execute("PRAGMA integrity_check").fetchone()[0]
-        has_schema = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' "
-            "AND name = 'schema_migrations'").fetchone()
-        if check != "ok" or not has_schema:
-            return {"integrity": check, "schema_version": None}
-        schema = conn.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
-        shas = {row[0] for row in conn.execute(
-            "SELECT sha256 FROM artifact WHERE state = 'promoted'")}
-        engagements = conn.execute("SELECT COUNT(*) FROM engagement").fetchone()[0]
-        journal = verify_journal(conn)
+        try:
+            check = conn.execute("PRAGMA integrity_check").fetchone()[0]
+            has_schema = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+                "AND name = 'schema_migrations'").fetchone()
+            if check != "ok" or not has_schema:
+                return {"integrity": check, "schema_version": None}
+            schema = conn.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
+            shas = {row[0] for row in conn.execute(
+                "SELECT sha256 FROM artifact WHERE state = 'promoted'")}
+            engagements = conn.execute("SELECT COUNT(*) FROM engagement").fetchone()[0]
+            journal = verify_journal(conn)
+        except sqlite3.DatabaseError as exc:
+            return {"integrity": f"database cannot be read: {exc}", "schema_version": None}
     finally:
         conn.close()
     return {"integrity": check, "schema_version": schema, "shas": shas,
@@ -95,6 +99,59 @@ def _hash_path(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _checked_manifest(raw: object) -> dict:
+    """Return a structurally safe v1 manifest or a named refusal.
+
+    The zip is untrusted input. Validate every field used below before any
+    indexing so a damaged manifest cannot escape as KeyError/TypeError.
+    """
+    if not isinstance(raw, dict):
+        raise BackupRefused(["the manifest must be a JSON object"])
+    if raw.get("format") != FORMAT:
+        raise BackupRefused([f"unknown backup format {raw.get('format')!r}; "
+                             f"this software reads {FORMAT}"])
+
+    problems = []
+    control = raw.get("control_db")
+    if not isinstance(control, dict):
+        problems.append("the manifest has no control database fingerprint")
+    else:
+        if not isinstance(control.get("sha256"), str) or not _SHA256.fullmatch(
+                control["sha256"]):
+            problems.append("the manifest's control database digest is not a sha256")
+        if not isinstance(control.get("size_bytes"), int) or control["size_bytes"] < 0:
+            problems.append("the manifest's control database size is invalid")
+
+    blobs = raw.get("blobs")
+    if not isinstance(blobs, list):
+        problems.append("the manifest's vault file list is missing or invalid")
+    else:
+        seen = set()
+        for index, blob in enumerate(blobs, 1):
+            if not isinstance(blob, dict):
+                problems.append(f"vault fingerprint {index} is not an object")
+                continue
+            sha, size = blob.get("sha256"), blob.get("size_bytes")
+            if not isinstance(sha, str) or not _SHA256.fullmatch(sha):
+                problems.append(f"vault fingerprint {index} has an invalid sha256")
+            elif sha in seen:
+                problems.append(f"the manifest lists vault file {sha[:12]}… twice")
+            else:
+                seen.add(sha)
+            if not isinstance(size, int) or size < 0:
+                problems.append(f"vault fingerprint {index} has an invalid size")
+
+    for field in ("schema_version", "engagements"):
+        value = raw.get(field)
+        if not isinstance(value, int) or value < 0:
+            problems.append(f"the manifest's {field.replace('_', ' ')} is invalid")
+    if not isinstance(raw.get("journal"), dict):
+        problems.append("the manifest's journal check is missing or invalid")
+    if problems:
+        raise BackupRefused(problems)
+    return raw
+
+
 # ---------------------------------------------------------------- create
 
 def create_backup(data_dir: str | Path, dest: str | Path) -> dict:
@@ -114,7 +171,9 @@ def create_backup(data_dir: str | Path, dest: str | Path) -> dict:
         raise BackupRefused([f"{dest} already exists; a backup never overwrites a file"])
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    part = dest.with_name(dest.name + ".part")
+    # A unique sibling keeps concurrent attempts apart and never commandeers
+    # a user's pre-existing ``<name>.part`` file.
+    part = dest.with_name(f".{dest.name}.{uuid.uuid4().hex}.part")
     with tempfile.TemporaryDirectory(dir=dest.parent) as tmp:
         snap = Path(tmp) / "control.db"
         _snapshot(db_path, snap)
@@ -175,10 +234,21 @@ def create_backup(data_dir: str | Path, dest: str | Path) -> dict:
     except BaseException:
         part.unlink(missing_ok=True)
         raise
-    os.replace(part, dest)
-    report["file"] = str(dest)
-    report["left_out_files_no_record_names"] = manifest["left_out_files_no_record_names"]
-    return report
+    try:
+        # Hard-link publication is atomic and fails if another backup created
+        # the destination after our initial check. Unlike os.replace, it never
+        # overwrites that winner.
+        try:
+            os.link(part, dest)
+        except FileExistsError as exc:
+            raise BackupRefused(
+                [f"{dest} already exists; a backup never overwrites a file"]) from exc
+        report["file"] = str(dest)
+        report["left_out_files_no_record_names"] = manifest[
+            "left_out_files_no_record_names"]
+        return report
+    finally:
+        part.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------- check
@@ -211,20 +281,20 @@ def _unpack_and_check(backup: Path, into: Path) -> dict:
             raise BackupRefused(problems)
 
         try:
-            manifest = json.loads(zf.read("manifest.json"))
+            manifest = _checked_manifest(json.loads(zf.read("manifest.json")))
         except ValueError as exc:
             raise BackupRefused([f"the manifest cannot be read: {exc}"]) from exc
-        if manifest.get("format") != FORMAT:
-            raise BackupRefused([f"unknown backup format {manifest.get('format')!r}; "
-                                 f"this software reads {FORMAT}"])
 
         db_path = into / "control.db"
+        if zf.getinfo("control.db").file_size != manifest["control_db"]["size_bytes"]:
+            problems.append("the control database size does not match the manifest")
         with zf.open("control.db") as src, db_path.open("wb") as out:
             shutil.copyfileobj(src, out, _CHUNK)
         if _hash_path(db_path) != manifest["control_db"]["sha256"]:
             problems.append("the control database does not match the digest the manifest "
                             "recorded: it is not the database this backup was made with")
 
+        blob_sizes = {b["sha256"]: b["size_bytes"] for b in manifest["blobs"]}
         in_zip = set()
         for name in names:
             m = _BLOB_NAME.match(name)
@@ -240,6 +310,8 @@ def _unpack_and_check(backup: Path, into: Path) -> dict:
                     out.write(chunk)
             if digest.hexdigest() != sha:
                 problems.append(f"vault file {sha[:12]}… does not hash to its name (damaged)")
+            if sha in blob_sizes and target.stat().st_size != blob_sizes[sha]:
+                problems.append(f"vault file {sha[:12]}… has a different size than the manifest")
             in_zip.add(sha)
 
     listed = {b["sha256"] for b in manifest.get("blobs", [])}
@@ -255,6 +327,12 @@ def _unpack_and_check(backup: Path, into: Path) -> dict:
     if facts["schema_version"] > _KNOWN_SCHEMA:
         problems.append(f"the backup was made by newer software (schema {facts['schema_version']}, "
                         f"this software knows up to {_KNOWN_SCHEMA})")
+    if facts["schema_version"] != manifest["schema_version"]:
+        problems.append("the control database schema does not match the manifest")
+    if facts["engagements"] != manifest["engagements"]:
+        problems.append("the control database engagement count does not match the manifest")
+    if facts["journal"] != manifest["journal"]:
+        problems.append("the control database journal check does not match the manifest")
     for sha in sorted(facts["shas"] - in_zip):
         problems.append(f"the records name file {sha[:12]}…, which the backup's vault does not hold")
     for sha in sorted(in_zip - facts["shas"]):
