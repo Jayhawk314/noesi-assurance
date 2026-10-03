@@ -561,14 +561,22 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     op = d["opinion"]
     do = K3["draft_opinion"]
     c("proposed opinion", do["proposal"], op.get("proposed_opinion", NOT_IN))
+    # Checked on the opinion's structured fields, not its sentences (3 Oct:
+    # the sentences now read in words), plus that the sentence names each.
     basis = " ".join(op.get("basis") or [])
     c("basis: related-parties representation not provided", True,
-      "related_parties" in basis)
+      "related_parties" in (op.get("missing_representations") or [])
+      and "related parties" in basis)
+    largest_amount = f"{Decimal(fm['largest']):,.2f}"
     c("basis: misstatements above materiality on current assets", True,
-      "current_assets" in basis and fm["largest"] in basis)
+      (op.get("misstatements") or {}).get("largest_line") == "current_assets"
+      and Decimal(str((op.get("misstatements") or {}).get("amount"))) == Decimal(fm["largest"])
+      and "current assets" in basis and largest_amount in basis)
     decisions = {x["decision"]: x["why"] for x in op.get("decisions_required") or []}
     c("decision: going-concern conclusion (incl. covenant breach)", True,
-      "covenant_breached" in decisions.get("going_concern_conclusion", ""))
+      "going_concern_conclusion" in decisions
+      and any(i.startswith("covenant_breached")
+              for i in op.get("going_concern_indicators") or []))
     c("decision: re-date the representation letter", True,
       "correct_the_representation_letter" in decisions)
     return c

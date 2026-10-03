@@ -515,7 +515,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
                 ) : (
                   <div>
                     <button className="action"
-                            title="Partner: leave this procedure out of the audit, with the reason"
+                            title="Leave this procedure out of the audit, with the reason"
                             onClick={() => { setExcluding(row.procedure_id); setReason(d.rationale); }}>
                       {d.selected ? "leave out…" : d.rationale ? "change reason" : "give reason"}
                     </button>
@@ -656,6 +656,13 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
     if (run.status !== "error") latestRun[run.procedure_id] = run.run_id;
   }
   const all = data?.findings ?? [];
+  // A run whose every finding is a refusal completed but tested nothing.
+  const runClasses: Record<string, Set<string>> = {};
+  for (const f of all) (runClasses[f.run_id] ??= new Set()).add(f.tags.class);
+  const testedNothing = (runId: string) => {
+    const c = runClasses[runId];
+    return !!c && c.size === 1 && c.has("refusal");
+  };
   const fromLatest = all.filter((f) => latestRun[f.procedure_id] === f.run_id);
   const current = latestOnly ? fromLatest : all;
   const earlier = all.length - fromLatest.length;
@@ -720,7 +727,9 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           {(data?.runs ?? []).map((run: Run) => (
             <tr key={run.run_id}>
               <td><b>{named(run.procedure_id)}</b><br /><code>{run.procedure_id}</code></td>
-              <td><span className={`status ${run.status}`}>{run.status}</span></td>
+              <td><span className={`status ${run.status}`}>{run.status}</span>
+                {run.status !== "error" && testedNothing(run.run_id) && (
+                  <div className="status bad">tested nothing: see its findings</div>)}</td>
               <td><code>{run.executed_by}</code></td>
               <td className="note">{run.error || "—"}</td>
               <td><RunDetails summary={run.summary ?? {}} /></td>
@@ -835,7 +844,24 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
                 <input value={noteDraft[finding.finding_uid] ?? finding.disposition.note}
                        placeholder="note"
                        onChange={(e) => setNoteDraft({
-                         ...noteDraft, [finding.finding_uid]: e.target.value })} />
+                         ...noteDraft, [finding.finding_uid]: e.target.value })}
+                       // A note changed after the disposition was chosen is saved
+                       // when you leave the box; before, it stayed on screen only.
+                       onBlur={() => {
+                         const draft = noteDraft[finding.finding_uid];
+                         if (draft === undefined || draft === finding.disposition.note
+                             || finding.disposition.status === "undisposed") return;
+                         act(() => client.setDisposition(eid, finding.finding_uid,
+                           finding.disposition.status, draft,
+                           finding.disposition.version))();
+                       }} />
+                {(() => {
+                  const draft = noteDraft[finding.finding_uid];
+                  if (draft === undefined || draft === finding.disposition.note) return null;
+                  return finding.disposition.status === "undisposed"
+                    ? <div className="status pending">not saved: choose a disposition to save the note</div>
+                    : <div className="status pending">saving when you leave the box…</div>;
+                })()}
               </td>
               <td><code>{short(finding.verdict.receipt_id)}</code></td>
             </tr>
@@ -978,6 +1004,7 @@ const BLOCKERS: Record<string, [string, string | null]> = {
   RISKS_UNASSESSED: ["Some risks have no level assessed.", "Planning & Risk"],
   HIGH_RISKS_WITHOUT_RESPONSE: ["A high or significant risk has no planned response.", "Planning & Risk"],
   HIGH_RISKS_WITHOUT_PROCEDURE: ["A high or significant risk has no procedure linked to answer it.", "Planning & Risk"],
+  HIGH_RISK_RESPONSES_NOT_PERFORMED: ["A high or significant risk is answered by a procedure that did not run (blocked, partly supplied, left out or not run). A link alone is not a response.", "Planning & Risk"],
   CONTROLS_UNASSESSED: ["Some controls are not assessed (no screen for this yet).", null],
   CONTROL_RELIANCE_UNSUPPORTED: ["Reliance is placed on a control not assessed as effective (no screen for this yet).", null],
   SELECTED_PROCEDURES_BLOCKED: ["Procedures in the audit cannot run: data missing. Load it, or leave them out with a reason.", "Coverage"],
@@ -992,7 +1019,7 @@ const BLOCKERS: Record<string, [string, string | null]> = {
   FINDINGS_OPEN: ["Findings are undisposed or marked for follow-up.", "Runs & Findings"],
   WAIVERS_ABOVE_TRIVIAL_THRESHOLD: ["Findings above clearly trivial are waived; waiving is only for trivial amounts.", "Runs & Findings"],
   SCOPE_ITEMS_UNRESOLVED: ["Scope refusals are not yet resolved (no screen for this yet).", null],
-  NO_DATA_WITHOUT_PARTNER_ASSERTION: ["No data is loaded; the partner must say why no data-dependent procedure applies.", "SAD & Completion"],
+  NO_DATA_WITHOUT_PARTNER_ASSERTION: ["No data is loaded; record why no data-dependent procedure applies.", "SAD & Completion"],
   DECISION_TRAIL_BROKEN: ["The journal's hash chain does not verify. Suspect the record.", null],
 };
 

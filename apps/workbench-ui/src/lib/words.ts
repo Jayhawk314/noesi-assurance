@@ -11,8 +11,10 @@
  *  anything followed by %, "percent", "days" or "×", anything after "account",
  *  "AS", "section" or "§" (references, sub-accounts like 1200.10), dotted dates
  *  ("2026.06.30"), and numbers joined to letters, dashes or slashes (dates,
- *  invoice and check numbers). Not for text a person typed. */
-const AMOUNT = /(?<![\w./-])(-?)(\d+)\.(\d{1,2})(?![\d\w]|\.\d|\s*(?:%|percent\b|days?\b|×))/g;
+ *  invoice and check numbers), and an amount already written with commas
+ *  ("15,000.00" stays; its "000.00" is not a number of its own). Not for text
+ *  a person typed. */
+const AMOUNT = /(?<![\w./-])(?<!\d,)(-?)(\d+)\.(\d{1,2})(?![\d\w]|\.\d|\s*(?:%|percent\b|days?\b|×))/g;
 const REFERENCE = /(?:\baccount|\bacct|\bAS|\bsection|§)\s*$/i;
 
 export function amountsInWords(text: string): string {

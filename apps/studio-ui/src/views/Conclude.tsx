@@ -9,6 +9,7 @@ const BLOCKER_TEXT: Record<string, string> = {
   RISKS_UNASSESSED: "risks are not assessed",
   HIGH_RISKS_WITHOUT_RESPONSE: "high risks have no planned response",
   HIGH_RISKS_WITHOUT_PROCEDURE: "high risks have no procedure answering them",
+  HIGH_RISK_RESPONSES_NOT_PERFORMED: "high risks are answered by procedures that did not run",
   RISKS_AWAITING_CONCURRENCE: "risk assessments await a second person",
   CONTROLS_UNASSESSED: "controls are not assessed",
   CONTROL_RELIANCE_UNSUPPORTED: "control reliance is not supported by tests",

@@ -1696,7 +1696,7 @@ class WorkbenchService:
         # the readiness gates already read.
         document["risks"] = {
             r["risk_id"]: {
-                "manual": True, "archived": False,
+                "manual": True, "archived": False, "title": r["title"],
                 "assertion": r["assertion"], "level": r["level"],
                 "response": r["response"], "procedure_ids": r["procedure_ids"],
                 "proposed_by": r["proposed_by"],
@@ -1731,6 +1731,12 @@ class WorkbenchService:
         latest: dict[str, dict] = {}
         for run in self.runs(engagement_id):
             latest[run["procedure_id"]] = run
+        # A run whose every finding is a refusal ("too few amounts", "nothing
+        # numbered") completed but tested nothing; say so beside "completed".
+        classes: dict[str, set] = {}
+        for finding in self.findings(engagement_id):
+            classes.setdefault(finding["run_id"], set()).add(
+                finding["tags"].get("class"))
         for row in coverage.get("procedures", []):
             run = latest.get(row["procedure_id"])
             if not run:
@@ -1740,6 +1746,8 @@ class WorkbenchService:
             else:
                 row["execution_status"] = "completed"
                 row["procedure_run"] = {"run_id": run["run_id"], "status": "completed"}
+                if classes.get(run["run_id"]) == {"refusal"}:
+                    row["tested_nothing"] = True
         return coverage
 
     # ----------------------------------------------- screen 6: the record
@@ -1798,8 +1806,8 @@ class WorkbenchService:
                 "SELECT finding_uid, status, note, proposed_by, version "
                 "FROM disposition WHERE engagement_id = ? ORDER BY finding_uid"),
             "risks": rows(
-                "SELECT risk_id, assertion, level, response, procedure_ids, "
-                "proposed_by, archived, fraud, version FROM risk_assessment "
+                "SELECT risk_id, title, rationale, assertion, level, response, "
+                "procedure_ids, proposed_by, archived, fraud, version FROM risk_assessment "
                 "WHERE engagement_id = ? ORDER BY risk_id"),
             "team": rows(
                 "SELECT principal_id, role FROM principal_assignment "

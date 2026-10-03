@@ -20,6 +20,14 @@ def _row(cells: list, tag: str = "td") -> str:
     return f"<tr>{inner}</tr>"
 
 
+def _cents(value) -> str:
+    """An amount to the cent with thousands commas; anything else as it is."""
+    try:
+        return f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return "" if value is None else str(value)
+
+
 def _table(headers: list[str], rows: list[list]) -> str:
     head = _row(headers, "th")
     body = "".join(_row(row) for row in rows)
@@ -85,9 +93,9 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
             + "".join(f"<li>{_esc(b)}</li>" for b in opinion.get("basis", []))
             + "</ul>"
             + f"<p class='meta'>Uncorrected misstatements: "
-              f"{_esc(opinion.get('misstatements', {}).get('amount'))} on "
-              f"{_esc(opinion.get('misstatements', {}).get('largest_line'))} against "
-              f"materiality {_esc(opinion.get('materiality'))}. Source: "
+              f"{_esc(_cents(opinion.get('misstatements', {}).get('amount')))} on "
+              f"{_esc(str(opinion.get('misstatements', {}).get('largest_line', '')).replace('_', ' '))} against "
+              f"materiality {_esc(_cents(opinion.get('materiality')))}. Source: "
               f"{_esc(opinion.get('misstatements', {}).get('source'))}.</p>"
             + ("<h3>Partner's decisions</h3>" + _table(
                 ["Decision", "Answer", "Reason", "Decided by"],
@@ -126,6 +134,32 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
                                        for c in scope.get("cycles", [])) or "payables"]]
             + [[f"setting: {k.replace('_', ' ')}", v]
                for k, v in sorted((scope.get("policies") or {}).items())]))
+
+    # The risk assessment and how each risk is answered. A linked procedure
+    # that did not run answers nothing; readiness names it, and so does this.
+    risks = [r for r in manifest.get("risks", []) if not r.get("archived")]
+    if risks:
+        not_performed = []
+        for blocker in (opinion or {}).get("readiness_blockers") or []:
+            if blocker.get("code") == "HIGH_RISK_RESPONSES_NOT_PERFORMED":
+                not_performed = list(blocker.get("items") or [])
+        rows = []
+        for r in risks:
+            title = r.get("title") or r.get("risk_id")
+            linked = r.get("procedure_ids") or []
+            if isinstance(linked, str):
+                linked = json.loads(linked or "[]")
+            prefix = f"{title}: "      # a title may itself hold ": "
+            gaps = [item[len(prefix):] for item in not_performed
+                    if item.startswith(prefix)]
+            rows.append([
+                title + (" (fraud risk)" if r.get("fraud") else ""),
+                r.get("assertion", ""), r.get("level", ""), r.get("response", ""),
+                ", ".join(linked) or "none linked",
+                "; ".join(gaps) or "—"])
+        sections.append("<h2>Risks of material misstatement</h2>" + _table(
+            ["Risk", "Assertion", "Level", "Planned response", "Responding procedures",
+             "Responses that did not run"], rows))
 
     sections.append("<h2>Source inventory</h2>" + _table(
         ["File", "SHA-256", "Bytes", "State"],

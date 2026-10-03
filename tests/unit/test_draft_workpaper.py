@@ -54,3 +54,22 @@ def test_mappings_read_as_confirmed_by_the_one_user_not_approved(svc):
     assert "Confirmed mappings and datasets" in html
     assert "<td>confirmed</td><td>pa</td>" in html
     assert "Approved" not in html and "Proposed by" not in html
+
+
+def test_the_working_paper_shows_each_risk_and_any_response_that_did_not_run(svc):
+    eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
+    art = svc.store_source("pa", eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J1,1,2025-03-01,6000,150.00,\nJ1,2,2025-03-01,1000,,150.00\n"),
+        media_type="text/csv", original_name="journal.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Journal_entries", artifact_id=art["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    svc.update_workflow("pa", eid, "cycles", {"cycles": ["journal_entries", "receivables"]})
+    out = svc.assess_risk("pa", eid, title="Revenue: early sales", assertion="occurrence",
+                          level="significant", response="cutoff testing", fraud=True)
+    svc.link_risk_procedures("pa", eid, risk_id=out["risk_id"],
+                             procedure_ids=["rev.sales_cutoff"], expected_version=out["version"])
+    html = svc.workpaper_html("pa", eid)
+    assert "Risks of material misstatement" in html
+    assert "Revenue: early sales (fraud risk)" in html
+    assert "<td>rev.sales_cutoff (blocked)</td>" in html   # the title's ": " is not split

@@ -174,6 +174,36 @@ def readiness(report: dict, engagement: dict, sad: dict,
                          "count": len(unjustified_exclusions),
                          "items": unjustified_exclusions})
 
+    # A high or significant risk answered only on paper: a linked procedure
+    # that is blocked, partly supplied, left out or not yet run responds to
+    # nothing. Each such link is named, so the response is never overstated.
+    status_of = {}
+    for procedure in procedure_coverage.get("procedures", []):
+        pid = procedure.get("procedure_id")
+        decision = engagement.get("procedures", {}).get(pid, {})
+        if not decision.get("selected", procedure.get("selected", True)):
+            status_of[pid] = "left out"
+        elif procedure.get("status") in ("blocked", "partial", "unsupported"):
+            status_of[pid] = {"partial": "partly supplied"}.get(
+                procedure["status"], procedure["status"])
+        elif procedure.get("execution_status") in ("ready_to_run", "not_run", "error"):
+            status_of[pid] = "not run"
+        elif procedure.get("tested_nothing"):
+            status_of[pid] = "ran, but tested nothing"
+    unanswered = []
+    if status_of or procedure_coverage.get("procedures"):
+        for fid in risk_ids:
+            assessment = engagement.get("risks", {}).get(fid, {})
+            if assessment.get("level") not in ("high", "significant"):
+                continue
+            for pid in assessment.get("procedure_ids") or []:
+                if pid in status_of:
+                    unanswered.append(f"{assessment.get('title') or fid}: "
+                                      f"{pid} ({status_of[pid]})")
+    if unanswered:
+        blockers.append({"code": "HIGH_RISK_RESPONSES_NOT_PERFORMED",
+                         "count": len(unanswered), "items": unanswered})
+
     # A data-less engagement skips every procedure gate above, so readiness
     # could pass with no substantive work without anyone saying so. When
     # the application layer marks the assertion required (dataset count is

@@ -88,3 +88,59 @@ def test_significant_risk_gates_the_lock_until_answered(service):
     assert "HIGH_RISKS_WITHOUT_RESPONSE" not in codes
     assert "HIGH_RISKS_WITHOUT_PROCEDURE" not in codes
     assert "RISKS_AWAITING_CONCURRENCE" not in codes
+
+
+def test_a_significant_risk_answered_by_a_procedure_that_did_not_run_is_named(service):
+    # 3 Oct use of the Workbench: a fraud risk linked to sales cutoff, which
+    # had no data, looked answered. A link alone is not a response.
+    eid = _engagement(service)
+    art = service.store_source(BOB, eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J1,1,2025-03-01,6000,150.00,\nJ1,2,2025-03-01,1000,,150.00\n"),
+        media_type="text/csv", original_name="journal.csv")
+    spec = service.confirm_source_mapping(BOB, eid, role="Journal_entries",
+                                          artifact_id=art["artifact_id"])
+    service.normalize_source(BOB, eid, spec["spec_id"])
+    service.update_workflow(BOB, eid, "cycles", {"cycles": ["journal_entries", "receivables"]})
+    service.update_workflow(BOB, eid, "policy", {"name": "benford_min_population", "value": "1"})
+    out = service.assess_risk(BOB, eid, title="Revenue recognition", assertion="occurrence",
+                              level="significant", response="cutoff and journal entries",
+                              fraud=True)
+    service.link_risk_procedures(BOB, eid, risk_id=out["risk_id"],
+                                 procedure_ids=["rev.sales_cutoff", "forensic.benford_first_digit"],
+                                 expected_version=out["version"])
+
+    def unanswered():
+        for b in service.readiness(eid)["blockers"]:
+            if b["code"] == "HIGH_RISK_RESPONSES_NOT_PERFORMED":
+                return b["items"]
+        return []
+
+    items = unanswered()
+    assert "Revenue recognition: rev.sales_cutoff (blocked)" in items
+    assert "Revenue recognition: forensic.benford_first_digit (not run)" in items
+    service.run_procedure(BOB, eid, procedure_id="forensic.benford_first_digit")
+    assert unanswered() == ["Revenue recognition: rev.sales_cutoff (blocked)"]
+
+
+def test_a_response_that_ran_but_tested_nothing_does_not_answer_the_risk(service):
+    eid = _engagement(service)
+    art = service.store_source(BOB, eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J1,1,2025-03-01,6000,150.00,\nJ1,2,2025-03-01,1000,,150.00\n"),
+        media_type="text/csv", original_name="journal.csv")
+    spec = service.confirm_source_mapping(BOB, eid, role="Journal_entries",
+                                          artifact_id=art["artifact_id"])
+    service.normalize_source(BOB, eid, spec["spec_id"])
+    service.update_workflow(BOB, eid, "cycles", {"cycles": ["journal_entries"]})
+    # two amounts against a minimum of 1,000: Benford refuses, tests nothing
+    service.update_workflow(BOB, eid, "policy", {"name": "benford_min_population", "value": "1000"})
+    out = service.assess_risk(BOB, eid, title="Invented figures", assertion="occurrence",
+                              level="high", response="first-digit test", fraud=True)
+    service.link_risk_procedures(BOB, eid, risk_id=out["risk_id"],
+                                 procedure_ids=["forensic.benford_first_digit"],
+                                 expected_version=out["version"])
+    service.run_procedure(BOB, eid, procedure_id="forensic.benford_first_digit")
+    items = [i for b in service.readiness(eid)["blockers"]
+             if b["code"] == "HIGH_RISK_RESPONSES_NOT_PERFORMED" for i in b["items"]]
+    assert items == ["Invented figures: forensic.benford_first_digit (ran, but tested nothing)"]

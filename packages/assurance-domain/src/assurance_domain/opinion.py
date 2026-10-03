@@ -28,6 +28,27 @@ from decimal import Decimal
 
 _OPEN = ("undisposed", "follow_up")
 
+# How an internal code reads in the opinion's sentences. The structured
+# fields (missing_representations, going_concern_indicators, largest_line,
+# decision keys) keep the codes; only the words shown change.
+_WORDS = {
+    "not_dated_report_date": "it is not dated on the report date",
+    "undated": "it is not dated",
+    "unsigned": "it is not signed",
+    "negative_working_capital": "working capital is negative",
+    "equity_deficit": "equity is a deficit",
+    "net_loss": "a net loss for the period",
+    "recurring_losses": "recurring losses",
+    "current_ratio_below_floor": "the current ratio is below the floor set",
+}
+
+
+def _say(code: str) -> str:
+    """A code in words: a known phrase, else the code with spaces."""
+    if code.startswith("covenant_breached:"):
+        return f"a loan covenant is breached ({code.split(':', 1)[1].strip()})"
+    return _WORDS.get(code, code.replace("_", " "))
+
 
 def _open(finding: dict) -> bool:
     return (finding.get("disposition") or {}).get("status", "undisposed") in _OPEN
@@ -51,7 +72,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                             if str(f["verdict"]["key"][1]) == "letter"})
     if letter_issues:
         decisions.append({"decision": "correct_the_representation_letter",
-                          "why": f"the letter has: {', '.join(letter_issues)}; it must "
+                          "why": f"{'; '.join(_say(i) for i in letter_issues)}. It must "
                                  "be signed and dated as of the report date"})
 
     # --- scope limitations: refusals nobody has resolved
@@ -93,7 +114,8 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     if indicators and not gc_concluded:
         decisions.append({
             "decision": "going_concern_conclusion",
-            "why": f"indicators present ({', '.join(indicators)}); record whether "
+            "why": f"indicators present: {'; '.join(_say(i) for i in indicators)}. "
+                   "Record whether "
                    "substantial doubt exists, and whether it is adequately disclosed"})
     # Doubt the statements do not adequately disclose is itself a
     # misstatement of the disclosures (AU-C 570).
@@ -114,8 +136,8 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                                      "(AU-C 705)"})
     if material or gc_undisclosed:
         if material:
-            reasons.append(f"uncorrected misstatements of {largest} on "
-                           f"{misstatement['largest_line']} reach materiality {m}")
+            reasons.append(f"uncorrected misstatements of {largest:,.2f} on "
+                           f"{_say(misstatement['largest_line'])} reach materiality {m:,.2f}")
         if gc_undisclosed:
             reasons.append("substantial doubt about going concern is not adequately "
                            "disclosed (AU-C 570)")
@@ -127,7 +149,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     if missing_reps:
         proposal = "disclaimer"
         reasons.insert(0, f"required written representations not provided: "
-                          f"{', '.join(missing_reps)} (AU-C 580 requires a disclaimer "
+                          f"{', '.join(_say(r) for r in missing_reps)} (AU-C 580 requires a disclaimer "
                           "or withdrawal)")
     elif refusals and modified:
         proposal = "qualified_adverse_or_disclaimer"
@@ -137,8 +159,8 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
         proposal = "qualified_or_adverse"
     else:
         proposal = "unmodified"
-        reasons.append(f"uncorrected misstatements ({largest}) are below materiality "
-                       f"({m}); no open scope limitation; no missing written "
+        reasons.append(f"uncorrected misstatements ({largest:,.2f}) are below materiality "
+                       f"({m:,.2f}); no open scope limitation; no missing written "
                        "representation recorded")
     if indicators and gc_concluded:
         reasons.append("going-concern conclusion recorded: "
@@ -179,7 +201,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
         "missing_representations": missing_reps,
         "going_concern_indicators": indicators,
         "note": "A draft for the engagement partner. The opinion, and every "
-                "judgment listed under decisions_required, is the partner's.",
+                "judgment listed under the decisions to record, is the partner's.",
     }
 
 
