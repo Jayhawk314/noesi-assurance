@@ -46,6 +46,35 @@ memorizing a frozen list:
 | Cash and inventory | bank reconciliation, transfers, count/listing trace and pricing projection | cutoff evidence is account-specific; observation and ownership cannot be automated from a spreadsheet |
 | Estimates and related parties | retrospective review and matching | bias patterns and name/address matches are leads, not conclusions about intent or completeness |
 | Completion | adjusted trial balance, subsequent events, going concern, representations and uncorrected misstatements | the engine assembles evidence and contradictions; the partner records the report judgments |
+| Fraud and forensic | check-number sequence, vendors that match an employee, payments approved by their preparer, round trips in a flow-of-funds schedule, first-digit (Benford) test | every result is a lead for follow-up, never a conclusion of fraud; each test also says what it could not compare |
+
+**The forensic tests, one by one** (all on the **Fraud** tab, with the other
+fraud tests):
+
+- **Check-number sequence** runs every check number in the Journal (or the
+  payment records and payroll register when the Journal carries none), one
+  run per bank account and payroll apart, and lists the numbers missing
+  between the first and last check and any number used for two payees. A gap
+  is voided, issued outside the records, or hidden; account for it with the
+  voided check or the bank's paid-check images.
+- **Vendors that match an employee** compares the vendor list with the
+  employee master by bank account, phone, tax ID and full name, and states
+  which fields one side did not carry.
+- **Payments approved by their preparer** reads an approval or signature log
+  (a bill-pay approval report, or the signers the team read off the bank's
+  paid-check images; role *Payment approvals*) and lists each payment signed
+  or approved by the person who prepared it, and each with no approver. It
+  tests only the payments in the log, and cannot see a stamp or a forgery.
+- **Round trips** (closed value flow) look for money that leaves and returns
+  to the client for about the same amount within a month, through up to four
+  transfers, in the *Value flows* file. Every leg must be in that file,
+  including the client's own payment: the tool does not trace money beyond
+  the books. A cycle with a flow typed as a reversal, a correction, an
+  intercompany or shared-service settlement is not reported, and the run
+  counts it as suppressed.
+- **First-digit (Benford) test** compares the first digits of journal lines,
+  bills and payments with Benford's law, once the population reaches the
+  minimum the team sets; below it, the result says *not tested*.
 
 Every finding arrives as a **receipt**: verdict, reason, the source rows
 (with content hashes), the tolerance applied, and a stated limitation —
@@ -68,6 +97,14 @@ and reconcile each result to your own work. Useful anchors:
   pricing result.
 - Completion finds all five above-threshold July transactions, but the team
   must decide which reflect conditions at year end and which are routine.
+- The forensic tests find one gap in the check sequence (three numbers the
+  client cannot produce), one vendor carrying an employee's name (QuickBooks'
+  vendor export has no bank account to compare), the consulting firm's checks
+  signed by the bookkeeper who prepared them (from
+  `auditor/check_signatures.csv`), and one round trip through a related-party
+  customer (from `auditor/flow_of_funds.csv`). The first-digit test reports
+  every Kestrel population as *not tested*: each is below the minimum the
+  demo sets.
 
 Where the tool and your hand work differ, trace the source rows and policy
 before reading the answer key. A mismatch can be an engine defect, a mapping

@@ -7,8 +7,10 @@
  *  (`row`, in `module`) and paths into the answer key (`key`), and
  *  scripts/check-lessons.mjs refuses prose numbers the key does not hold.
  *
- *  Kestrel has no self-approved payments and no money sent out and back to a
- *  related party (ROADMAP E3); the track says so rather than invent them. */
+ *  The forensic tests and the two schemes added on 2 Oct 2026 (ROADMAP D10,
+ *  E3) are taught here too: missing check numbers, a vendor named after an
+ *  employee, checks signed by the person who prepared them, and money sent
+ *  out and back through a related party. */
 
 import { Lesson } from "./types";
 
@@ -269,6 +271,14 @@ export const FRAUD_LESSONS: Lesson[] = [
           { kestrel: "Kestrel has both. One supplier appears twice on the vendor list, and one invoice was entered under each record and paid twice. And one vendor, a \"consulting\" firm, was paid by checks with no bills at all." },
         ],
       },
+      {
+        heading: "A vendor named after an employee",
+        blocks: [
+          { p: "An employee who sets up a vendor in their own name, or a relative's, can bill the company for work they are already paid to do, or for work never done. The trace is a vendor that shares a bank account, phone number or tax ID with an employee, or carries an employee's full name." },
+          { kestrel: "Kestrel's vendor list includes a hauling firm carrying the full name of a warehouse employee. It billed freight three times during the year. QuickBooks' vendor export carries no bank account or tax ID, so the name is the only match these records allow." },
+          { watch: "A shared name can be a coincidence or a relative. It is a question for the employee and their manager, and a reason to look at what the vendor was paid for." },
+        ],
+      },
     ],
     standards: [
       ["AU-C 240", "Fraud risk factors and responses: asset misappropriation"],
@@ -292,6 +302,7 @@ export const FRAUD_LESSONS: Lesson[] = [
         "In the Transaction List by Vendor, sort the bills by **Num** and find an invoice number under two vendors.",
         "Filter **Transaction type** for Check. Find the vendor with checks but no bills and no other support; total the checks.",
         "Compare that vendor's address with the employee master.",
+        "Compare every vendor name with every employee's full name.",
       ],
       asks: [
         { label: "The twin of Moraine Cycle Components", row: "vendor twins", module: PAYABLES, key: "payables.duplicate_bill.vendor" },
@@ -299,13 +310,18 @@ export const FRAUD_LESSONS: Lesson[] = [
         { label: "Its amount", row: "duplicate's misstatement", module: PAYABLES },
         { label: "Vendor paid by checks with no bills", row: "checks without bills: DM Consulting", module: PAYABLES, key: "payables.checks_without_bills.vendor" },
         { label: "Those checks' total", row: "checks without bills: DM Consulting", module: PAYABLES },
+        { label: "Vendor carrying an employee's name", row: "vendor named after an employee: Owen Pike Hauling (E08)", module: PAYABLES, key: "payables.vendor_employee_match.vendor" },
+        { label: "That employee (ID)", row: "vendor named after an employee: Owen Pike Hauling (E08)", module: PAYABLES, key: "payables.vendor_employee_match.employee" },
+        { label: "Paid to that vendor", row: "vendor named after an employee: Owen Pike Hauling (E08)", module: PAYABLES, key: "payables.vendor_employee_match.paid" },
       ],
     },
     inNoesi: {
-      procedures: ["ap.vendor_relational_twins", "ap.duplicate_bills", "ap.payments_without_bills"],
+      procedures: ["ap.vendor_relational_twins", "ap.duplicate_bills", "ap.payments_without_bills",
+                   "forensic.vendor_employee_match"],
       steps: [
         DEMO_START,
         "**Runs & Findings:** open each procedure above. The vendor list and payables exports load raw from QuickBooks.",
+        "In `forensic.vendor_employee_match`, read which fields were compared and which were not, and why.",
         "Open **The documents** page of this course to see the duplicate trail laid out, document by document.",
       ],
     },
@@ -315,14 +331,17 @@ export const FRAUD_LESSONS: Lesson[] = [
       [PAYABLES, "duplicate bill MC-25009"],
       [PAYABLES, "duplicate's misstatement"],
       [PAYABLES, "checks without bills: DM Consulting"],
+      [PAYABLES, "vendor named after an employee: Owen Pike Hauling (E08)"],
+      [PAYABLES, "vendors matching an employee (leads)"],
     ],
     noesi: {
       coverage: "partial",
-      summary: "Noesi finds twin vendors, duplicate invoices and checks without bills across every row of QuickBooks' own exports.",
+      summary: "Noesi finds twin vendors, duplicate invoices, checks without bills and vendors that match an employee, across every row of QuickBooks' own exports.",
       does: [
         "Pairs vendor records by name, address and phone.",
         "Finds a supplier invoice number entered more than once, across vendor records, and states the amount.",
         "Lists payees paid by check with no bills.",
+        "Compares vendors with the employee master by bank account, phone, tax ID and full name, and says which fields could not be compared.",
       ],
       where: ["Workbench → Runs & Findings (payables)"],
       doesNot: [
@@ -364,10 +383,24 @@ export const FRAUD_LESSONS: Lesson[] = [
         ],
       },
       {
+        heading: "Missing check numbers",
+        blocks: [
+          { p: "Checks are numbered in order. A number missing between the first and last check of the year was voided, issued outside the records, or used for a payment someone wanted hidden. Each bank account, and payroll, is its own run of numbers; a number used for two different payees is a second check under one number." },
+          { p: "A gap is accounted for with the voided check itself, or with the bank's paid-check images for the months around it." },
+        ],
+      },
+      {
+        heading: "Who signed the check",
+        blocks: [
+          { p: "A check should be prepared by one person and signed by another. The bank's paid-check images show the signature, so the auditor can read who signed each check selected and compare it with who prepared it. A check signed by the person who prepared it passed through no second pair of eyes." },
+        ],
+      },
+      {
         heading: "Kestrel",
         blocks: [
           { kestrel: "Kestrel's approval limit is in the partner's policies. One vendor billed display fixtures three times in one week, each just under it. On the June reconciliation, one check written on a Saturday never cleared, and another cleared at a different amount from the one recorded, leaving part of a bill open." },
-          { watch: "Kestrel's exports record no approver, so the records cannot show whether any bill was approved at all. The split is visible; the approval that was dodged is not." },
+          { kestrel: "Kestrel's checks run in one unbroken sequence for the year, except for three numbers the client cannot produce. And the team read the signer off the bank's images for the larger checks and for the payees under inquiry: the managing member signs, except on the consulting firm's checks, which the bookkeeper both prepared and signed." },
+          { watch: "Kestrel's QuickBooks exports record no approver, so the records cannot show whether any bill was approved at all. The split is visible; the approval that was dodged is not. The signer comes from separate evidence, the bank's images, and only for the checks inspected." },
         ],
       },
     ],
@@ -384,14 +417,24 @@ export const FRAUD_LESSONS: Lesson[] = [
         options: ["Nothing; checks take time", "Trace it to the cutoff statement, ask whether it was mailed, and confirm the payee exists", "Void it", "Add it to income"],
         answer: 1,
         why: "An uncleared check may never have been sent, or may pay someone who does not exist." },
+      { q: "Three check numbers in the middle of the year are missing from the books, and the client cannot produce them. What do you do?",
+        options: ["Nothing; checks get lost", "Ask for the voided checks, and if they cannot be produced, inspect the bank's paid-check images for those months", "Assume they were voided", "Report fraud"],
+        answer: 1,
+        why: "A gap is a lead until the checks are accounted for. The bank shows whether any of them cleared." },
+      { q: "A check was prepared and signed by the same person. Why does it matter?",
+        options: ["It does not, if the amount is right", "No second person saw the payment before it left; it is the opening for a false one", "Signatures are a formality", "Only the bank can judge a signature"],
+        answer: 1,
+        why: "The second signer is the control. Without one, the payment's support is the only thing left to check." },
     ],
     byHand: {
-      files: ["quickbooks/Transaction_List_by_Vendor.xlsx", "quickbooks/Checking_Reconciliation.xlsx", "bank/first_prairie_xxxx2208_2026-07-01_to_2026-07-15.csv", "quickbooks/Unpaid_Bills.xlsx"],
-      intro: "Find the split and trace the reconciliation's checks.",
+      files: ["quickbooks/Transaction_List_by_Vendor.xlsx", "quickbooks/Checking_Reconciliation.xlsx", "bank/first_prairie_xxxx2208_2026-07-01_to_2026-07-15.csv", "quickbooks/Unpaid_Bills.xlsx", "quickbooks/Journal.xlsx", "quickbooks/Journal_2026-07.xlsx", "auditor/check_signatures.csv"],
+      intro: "Find the split, trace the reconciliation's checks, run the check numbers, and read the signers.",
       steps: [
         "Filter bills under the approval limit; sort by vendor and date; find several to one vendor within a week.",
         "Trace each uncleared check on the June reconciliation to the July cutoff statement.",
         "For the check that cleared at another amount, find its bill in Unpaid Bills.",
+        "From both Journals, list every **Check** and **Bill Payment (Check)** number, sort them, and find the numbers missing between the first and the last.",
+        "In the check signatures file, find the checks whose **Signed By** is the same person as **Prepared By**.",
       ],
       asks: [
         { label: "Approval limit", row: "split bills: Hyalite total", module: PAYABLES, key: "payables.split_bills.approval_limit" },
@@ -399,15 +442,21 @@ export const FRAUD_LESSONS: Lesson[] = [
         { label: "Their total", row: "split bills: Hyalite total", module: PAYABLES },
         { label: "Check that never cleared", row: "check 4421 did not clear by 07-15", module: CASH, key: "part1.cash.bank_reconciliation.outstanding_check_not_cleared_by_07-15.0.check" },
         { label: "Amount left open by the short payment", row: "short payment on check 4425 (left open)", module: PAYABLES },
+        { label: "First of the missing check numbers", row: "check sequence: the one gap, checks 4422-4424", module: PAYABLES, key: "part3.forensic.check_number_sequence.disbursements.gaps.0.first_missing" },
+        { label: "How many numbers are missing", row: "check sequence: the one gap, checks 4422-4424", module: PAYABLES, key: "part3.forensic.check_number_sequence.disbursements.gaps.0.count" },
+        { label: "Who signed the checks they prepared", row: "self-signed checks: Dana Merritt's DM Consulting checks", module: PAYABLES, key: "payables.self_approved_payments.self_signed_by" },
+        { label: "Those checks' total", row: "self-signed checks: Dana Merritt's DM Consulting checks", module: PAYABLES, key: "payables.self_approved_payments.self_signed_total" },
       ],
     },
     inNoesi: {
-      procedures: ["ap.split_payment_review", "cash.bank_reconciliation", "je.journal_entry_testing"],
+      procedures: ["ap.split_payment_review", "cash.bank_reconciliation", "je.journal_entry_testing",
+                   "forensic.check_number_sequence", "forensic.self_approved_payments"],
       steps: [
         DEMO_START,
         "**Runs & Findings:** open `ap.split_payment_review` for the split, and `cash.bank_reconciliation` for the two checks.",
         "In `je.journal_entry_testing`, find the check that never cleared among the weekend entries.",
-        "The demo loads the reconciliation and cutoff statement prepared by hand from their exports (roadmap C).",
+        "Open `forensic.check_number_sequence`: read the run (first and last check) and the one gap. Then `forensic.self_approved_payments` for the self-signed checks.",
+        "The demo loads the reconciliation and cutoff statement prepared by hand from their exports (roadmap C), and the signatures as the team recorded them from the bank's images.",
       ],
     },
     keyModule: PAYABLES,
@@ -417,18 +466,27 @@ export const FRAUD_LESSONS: Lesson[] = [
       [CASH, "check 4425 cleared at another amount"],
       [PAYABLES, "short payment on check 4425 (left open)"],
       [JOURNAL, "weekend or holiday: entries"],
+      [PAYABLES, "check sequence: first to last check"],
+      [PAYABLES, "check sequence: the one gap, checks 4422-4424"],
+      [PAYABLES, "check sequence: reused numbers"],
+      [PAYABLES, "checks inspected for their signer"],
+      [PAYABLES, "self-signed checks: Dana Merritt's DM Consulting checks"],
+      [PAYABLES, "checks with no signer"],
     ],
     noesi: {
       coverage: "partial",
-      summary: "Noesi finds splits under the approved threshold and window, and traces every reconciling check to the bank.",
+      summary: "Noesi finds splits under the approved threshold and window, traces every reconciling check to the bank, finds missing and reused check numbers, and compares each inspected check's signer with its preparer.",
       does: [
         "Groups bills by vendor within the split window and flags clusters under the threshold.",
         "Traces each uncleared item to the cutoff statement, and flags a check that did not clear or cleared at another amount.",
+        "Runs every check number in the Journal, by bank account, and lists gaps and numbers used twice.",
+        "Reads a signature or approval log and lists checks signed by their preparer, and checks with no signer.",
       ],
       where: ["Workbench → Runs & Findings (payables, cash)"],
       doesNot: [
-        "It cannot test approval: the exports carry no approver.",
-        "It cannot see a check image, so it cannot tell an altered check from a keying error.",
+        "It cannot test approval of bills: QuickBooks' exports carry no approver.",
+        "It cannot read a check image itself; the signer is what the team recorded, and only for the checks inspected.",
+        "It cannot say why a check number is missing; the voided check or the bank's images can.",
       ],
     },
   },
@@ -556,7 +614,7 @@ export const FRAUD_LESSONS: Lesson[] = [
         heading: "What comes next",
         blocks: [
           { p: "When findings point at one person, the auditor does not confront them. The auditor tells the right level of management, or those charged with governance when management is involved, and considers the effect on the audit. Investigating is a separate job, often for forensic specialists, with evidence handled so it can be used." },
-          { kestrel: "At Kestrel, one person posts the entries in QuickBooks and reconciles the bank. Their home address is the address of a vendor paid by checks with no bills, and that vendor is not on management's related-party list." },
+          { kestrel: "At Kestrel, one person posts the entries in QuickBooks and reconciles the bank. Their home address is the address of a vendor paid by checks with no bills, that vendor is not on management's related-party list, and the bank's images show they signed that vendor's checks themselves." },
         ],
       },
     ],
@@ -582,19 +640,22 @@ export const FRAUD_LESSONS: Lesson[] = [
         "Take the vendor at an employee's address. Who is the employee, and what is their job?",
         "Total that vendor's payments and look for its bills.",
         "Look for the vendor on management's related-party list.",
+        "In the check signatures file, find who signed that vendor's checks.",
       ],
       asks: [
         { label: "The employee", row: "bookkeeper's address is a vendor's (E07, DM Consulting)", module: PAYROLL, key: "part2.payroll.bookkeeper_address_is_a_vendor_address.employee" },
         { label: "The vendor at their address", row: "bookkeeper's address is a vendor's (E07, DM Consulting)", module: PAYROLL, key: "part2.payroll.bookkeeper_address_is_a_vendor_address.vendor" },
         { label: "Paid to it without bills", row: "checks without bills: DM Consulting", module: PAYABLES },
         { label: "Party missing from management's list", row: "DM Consulting not findable by matching management's list", module: ESTIMATES, key: "part3.related_parties.undisclosed_not_findable_by_matching.party" },
+        { label: "Who signed that vendor's checks", row: "self-signed checks: Dana Merritt's DM Consulting checks", module: PAYABLES, key: "payables.self_approved_payments.self_signed_by" },
       ],
     },
     inNoesi: {
-      procedures: ["payroll.register_tests", "ap.payments_without_bills", "related_parties.matching"],
+      procedures: ["payroll.register_tests", "ap.payments_without_bills", "related_parties.matching",
+                   "forensic.self_approved_payments"],
       steps: [
         DEMO_START,
-        "**Runs & Findings:** read the three procedures above and line their findings up by name.",
+        "**Runs & Findings:** read the four procedures above and line their findings up by name.",
         "Note what `related_parties.matching` does **not** report, and why.",
       ],
     },
@@ -604,12 +665,13 @@ export const FRAUD_LESSONS: Lesson[] = [
       [PAYABLES, "checks without bills: DM Consulting"],
       [ESTIMATES, "DM Consulting not findable by matching management's list"],
       [PAYABLES, "segregation of duties not testable"],
+      [PAYABLES, "self-signed checks: Dana Merritt's DM Consulting checks"],
     ],
     noesi: {
       coverage: "partial",
       summary: "Noesi reports each finding with its evidence; lining them up by person, and deciding what they mean, is the auditor's.",
       does: [
-        "Finds the shared address and the checks without bills.",
+        "Finds the shared address, the checks without bills, and the checks signed by the person who prepared them.",
         "Matches management's related-party list, and says what matching cannot find.",
       ],
       where: ["Workbench → Runs & Findings"],
@@ -625,12 +687,12 @@ export const FRAUD_LESSONS: Lesson[] = [
     slug: "fraud-following-the-money",
     title: "Following the money",
     phase: "Fraud",
-    question: "Cash moved between accounts at year end. How do you tell a scheme from a normal transfer?",
-    minutes: 30,
+    question: "Cash moved between accounts at year end, and money left and came back. How do you tell a scheme from a normal transfer?",
+    minutes: 40,
     objectives: [
       "Explain kiting: cash counted in two accounts at once",
       "Test interbank transfers around year end, books against bank",
-      "Say what Kestrel's case cannot teach about money sent out and back",
+      "Recognize a round trip: money sent out and brought back as something else",
     ],
     sections: [
       {
@@ -648,9 +710,12 @@ export const FRAUD_LESSONS: Lesson[] = [
         ],
       },
       {
-        heading: "What this case cannot teach",
+        heading: "Round trips",
         blocks: [
-          { p: "Kestrel has no money sent out to a related party and brought back, and no payments approved by the person who entered them. Those schemes are not in this case, and this track does not invent them." },
+          { p: "In a round trip the company's own money leaves, passes through one or more outsiders, and comes back dressed as something else: a customer's payment, a loan, a sale. On the company's books each leg looks ordinary. It shows only when the money is followed beyond the books: whose account a check was deposited to, and who paid the money back." },
+          { p: "The auditor's tool is a flow-of-funds schedule: every payment out above a size, plus each leg traced through endorsements, deposit records or the counterparty's statements. A cycle in it, out and back for about the same amount within days, is a lead." },
+          { kestrel: "Kestrel paid a new vendor for display racks. The team traced the check: it was deposited by Summit Loop Racing, a customer owned by a related party, which a few days later paid the same amount back to Kestrel. QuickBooks records it as a customer's payment." },
+          { watch: "A round trip is not fraud by itself; businesses settle debts through third parties. The questions are whether the racks were ever received, and why the customer's \"payment\" was Kestrel's own money." },
         ],
       },
     ],
@@ -667,27 +732,37 @@ export const FRAUD_LESSONS: Lesson[] = [
         options: ["It does not", "It gives a reason to present cash or ratios favourably at year end", "It proves fraud", "It changes the transfer's date"],
         answer: 1,
         why: "It is an incentive to consider, not evidence of intent." },
+      { q: "A vendor's check is deposited by one of your client's customers, who then pays the same amount back to your client. What is it?",
+        options: ["A normal collection", "A round trip: a lead to follow, starting with whether the vendor delivered anything", "Kiting", "A duplicate payment"],
+        answer: 1,
+        why: "The client's own money came back as a customer's payment. The bill behind the first leg is the first thing to test." },
     ],
     byHand: {
-      files: ["auditor/interbank_transfers.csv", "quickbooks/Checking_Reconciliation.xlsx", "quickbooks/Journal_2026-07.xlsx"],
-      intro: "Work the team's transfer schedule.",
+      files: ["auditor/interbank_transfers.csv", "quickbooks/Checking_Reconciliation.xlsx", "quickbooks/Journal_2026-07.xlsx", "auditor/flow_of_funds.csv"],
+      intro: "Work the team's transfer schedule, then its flow-of-funds schedule.",
       steps: [
         "For each transfer, compare the books' received date with the books' disbursed date, around June 30.",
         "Find the transfer received in one year and disbursed in the next.",
         "Find its July check in the July journal.",
+        "In the flow-of-funds schedule, follow each row whose **From** is not Kestrel: where did the money go next, and does any of it come back to Kestrel?",
       ],
       asks: [
         { label: "The transfer counted twice", row: "transfer T-0701", module: CASH, key: "part1.cash.interbank_transfers.T-0701" },
         { label: "Its July check", row: "subsequent-event lead: check 4429 25000.00", module: COMPLETION },
         { label: "Transfers clearing after the adjustment", row: "adjusted 10900 Transfers Clearing", module: COMPLETION },
+        { label: "Amount that went out and came back", row: "round trip: Kestrel to Gallatin to Summit Loop and back", module: PAYABLES, key: "payables.round_trip.amount" },
+        { label: "The vendor it went out to", row: "round trip: Kestrel to Gallatin to Summit Loop and back", module: PAYABLES, key: "payables.round_trip.legs.0.to" },
+        { label: "Who paid it back", row: "round trip: Kestrel to Gallatin to Summit Loop and back", module: PAYABLES, key: "payables.round_trip.legs.2.from" },
       ],
     },
     inNoesi: {
-      procedures: ["cash.interbank_transfers", "completion.subsequent_events", "fs.adjusted_trial_balance"],
+      procedures: ["cash.interbank_transfers", "completion.subsequent_events", "fs.adjusted_trial_balance",
+                   "forensic.closed_value_flow"],
       steps: [
         DEMO_START,
         "**Runs & Findings:** open `cash.interbank_transfers` and read the transfer flagged, and `fs.adjusted_trial_balance` for the adjustment.",
-        "The demo loads the transfer schedule and reconciliation prepared by hand (roadmap C).",
+        "Open `forensic.closed_value_flow` and read the round trip's path, leg by leg.",
+        "The demo loads the transfer schedule and reconciliation prepared by hand (roadmap C), and the flow-of-funds schedule as the team prepared it.",
       ],
     },
     keyModule: CASH,
@@ -697,18 +772,21 @@ export const FRAUD_LESSONS: Lesson[] = [
       [CASH, "transfer T-0701"],
       [COMPLETION, "subsequent-event lead: check 4429 25000.00"],
       [COMPLETION, "adjusted 10900 Transfers Clearing"],
+      [PAYABLES, "round trip: Kestrel to Gallatin to Summit Loop and back"],
+      [PAYABLES, "round trips found (leads)"],
     ],
     noesi: {
       coverage: "partial",
-      summary: "Noesi tests every transfer's four dates and flags cash counted twice; the adjusted trial balance shows the fix.",
+      summary: "Noesi tests every transfer's four dates and flags cash counted twice, and finds money that goes out and comes back in the flow-of-funds schedule.",
       does: [
         "Compares books and bank dates for each transfer around year end.",
         "Lists post-year-end payments above the threshold as leads.",
+        "Finds cycles in the flow-of-funds schedule that return to the client for about the same amount within a month.",
       ],
-      where: ["Workbench → Runs & Findings (cash, completion)"],
+      where: ["Workbench → Runs & Findings (cash, completion, payables)"],
       doesNot: [
         "It cannot say whether a transfer was booked that way on purpose.",
-        "Kestrel has no money sent out and back to a related party, so this case cannot show that test.",
+        "It cannot trace money beyond the books itself: every leg must be in the schedule the team prepared.",
       ],
     },
   },
@@ -823,6 +901,10 @@ export const FRAUD_LESSONS: Lesson[] = [
             ["Ghost employee, pay after termination", "The employee master kept by someone who does not run payroll; payroll reviewed against it"],
             ["Owner's weekend entry", "Review of all manual entries by someone independent of those who post them"],
             ["Transfer counted twice", "Transfers recorded on both sides on the same date; a monthly transfer schedule reviewed"],
+            ["Vendor named after an employee", "New vendors checked against the employee master before their first payment"],
+            ["Checks signed by their preparer", "A signer who never prepares checks; the bookkeeper off the bank's signature card"],
+            ["Missing check numbers", "Blank check stock kept locked, voids kept and logged, the sequence reviewed monthly"],
+            ["Money sent out and back", "Related-party payments and receipts reviewed by someone outside the transaction; new vendors' existence and deliveries confirmed"],
           ] } },
         ],
       },
