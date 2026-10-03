@@ -570,7 +570,7 @@ export const LESSONS: Lesson[] = [
       where: ["Workbench → Sources & Mappings", "Workbench → Coverage", "Workbench → Runs & Findings"],
       doesNot: [
         "It cannot link a bill to its purchase order: QuickBooks keeps the PO number only in the memo, so the PO overrun is not found (waits for roadmap C).",
-        "It cannot tie the payables subledger to the ledger without a General Ledger export (roadmap C).",
+        "It ties Unpaid Bills to the trial balance's Accounts Payable balance; with no General Ledger export it cannot show the ledger's detail behind that balance.",
         "It cannot inspect an invoice, ask the supplier, or judge whether a payment was authorized. A finding is a lead; the follow-up is yours.",
       ],
     },
@@ -1263,7 +1263,7 @@ export const LESSONS: Lesson[] = [
         DEMO_START,
         "**Runs & Findings:** open each procedure above. Read the subsequent-event leads, the missing representation and the date finding, the totals by line, and the going-concern indicators.",
         "**SAD & Completion:** see the summary of audit differences, with the line that reaches materiality.",
-        "Note in **Sources & Mappings** that the trial balance, the July journal and the adjusting entries were prepared by hand from their exports; the Workbench does not yet read those reports raw (roadmap C).",
+        "Note in **Sources & Mappings** that the trial balance (built from QuickBooks' two Trial Balance exports) and the July journal load raw from QuickBooks, and that the adjusting entries are the team's own schedule.",
       ],
     },
     keyModule: "Completion",

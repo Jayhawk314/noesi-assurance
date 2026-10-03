@@ -15,7 +15,7 @@
 import { Lesson } from "./types";
 
 const DEMO_START = "Start the Workbench with the Kestrel demo: `python -m workbench_api --demo`, open the address it prints, and open **Kestrel Valley Cycle Supply (demo)**. (Without `--demo`, choose Kestrel under **load teaching case**.)";
-const JOURNAL_NOTE = "The demo loads the QuickBooks Journal prepared by hand from its export (roadmap C); **Sources & Mappings** says so.";
+const JOURNAL_NOTE = "The demo loads QuickBooks' Journal export raw, through its QuickBooks recipe; **Sources & Mappings** shows the rows loaded and footed.";
 const PAYABLES = "Payables", PAYROLL = "Payroll", JOURNAL = "Journal entries", CASH = "Cash";
 const ESTIMATES = "Estimates and related parties", COMPLETION = "Completion";
 
@@ -224,7 +224,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       where: ["Workbench → Scope & Policies", "Workbench → Runs & Findings (journal entries)"],
       doesNot: [
         "It cannot say why an entry was posted; the support and the conversation are yours.",
-        "It does not yet read QuickBooks' Journal export raw (roadmap C).",
+        "It tests only the entries in the Journal it is given; the population check is what says whether that is all of them.",
       ],
     },
   },
@@ -873,7 +873,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       where: ["Workbench → Runs & Findings (journal entries)"],
       doesNot: [
-        "It does not yet read the QuickBooks Journal raw (roadmap C).",
+        "It cannot see entries made outside the Journal it is given.",
         "A silent test is silent only about its own question.",
       ],
     },

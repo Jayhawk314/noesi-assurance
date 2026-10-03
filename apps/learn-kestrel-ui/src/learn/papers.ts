@@ -195,7 +195,7 @@ export const PAPERS: Paper[] = [
       { mark: 1, title: "It foots", text: "Debits equal credits. That proves the arithmetic of double entry, not that each entry is right: the duplicate is in here, on both sides." },
       { mark: 2, title: "Where the duplicate sits", text: "The second bill debited inventory. As goods are sold, inventory cost moves to cost of goods sold, so the overstatement sits in one or the other; the payables side cleared when the check was paid." },
     ],
-    noesi: "fs.trial_balance_analytics reads this report (the demo loads it hand-prepared from the export; roadmap C) and foots it before any analytic.",
+    noesi: "fs.trial_balance_analytics reads this report (the demo builds the trial balance from QuickBooks' two Trial Balance exports, raw) and foots it before any analytic.",
     lessons: [1, 5],
   },
   {
