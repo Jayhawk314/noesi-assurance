@@ -134,6 +134,8 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "employee_id": ["employee id", "employee number", "employee no", "emp id",
                         "employee"],
         "name": ["name", "employee name", "full name"],
+        "first_name": ["first name", "given name"],
+        "last_name": ["last name", "surname", "family name"],
         "status": ["status", "employment status"],
         "hire_date": ["hire date", "date hired", "start date"],
         "termination_date": ["termination date", "release date", "date terminated",

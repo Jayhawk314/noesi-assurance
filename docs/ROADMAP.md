@@ -319,8 +319,18 @@ scripts first, James approves scripts and credits before voicing.
 - Benford default-off: non-Kestrel engagements show "left out without a
   reason" until a default is chosen (HANDOFF_2026-10-02-fixes.md, M5).
 - Lesson checker (C4): accepts a number from another line of the same module.
-- Open from the 2 Oct review: L1-L3, L5, L6, check runs with no bank-account
-  column, "Paycheck" name unverified (HANDOFF_2026-10-02-fixes.md "Not done").
+- From the 2 Oct review: **L2 and L6 fixed 2 Oct** (masked numbers not
+  compared and counted, phones on their last seven digits, first/last
+  names joined; dead `requires_concurrence` removed, INDEPENDENT-REVIEW.md
+  invariants 3-4 rewritten for one user and the unsigned record). Still
+  open, each for a reason: **L1** (migration 12 reopened locked engagements
+  with no journal line: it has already run on existing stores, and a
+  journal line written now would be dated wrongly); **L3** (payments fall
+  back to `payment_number` as the check number: needed, because QuickBooks'
+  Bill Payment List puts the check number in Num, which maps there); **L5**
+  (check sequence requires Payments even when the Journal suffices:
+  coverage has no "either of these roles" yet). Also: check runs with no
+  bank-account column, "Paycheck" name unverified.
 - Second round of 2 Oct fixes (C1-C3) committed without a second-agent
   check, by James's decision: no more check rounds.
 - ~~Sources: "map all" offered the raw files a built schedule was made from~~

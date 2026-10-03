@@ -35,16 +35,20 @@ during development, so none is beyond question:
    immutable artifact through the approved mapping on every read and
    digest-verified. Attack: tamper with a vault file or the control DB and
    confirm the workbench *refuses* rather than serves unverifiable data.
-3. **Separation of duties is server-side.** Proposer cannot approve their
-   own mapping; executor cannot review their own run; disposition proposer
-   cannot concur with themselves; only the partner locks. Attack: drive
-   the HTTP API directly (ignore the UI) with `X-Acting-Principal` and try
-   every self-approval.
-4. **The lock is evidence, not decoration.** Lock = signed manifest
-   anchored to a hash-chained journal; unlock = supersession with a
-   permanent reason, never deletion; export refuses when verification
-   fails; packets re-verify offline. Attack: mutate post-lock state and
-   check drift is named; verify a packet with an independent script.
+3. **The record never claims a review that did not happen.** Noesi has one
+   user per engagement and no sign-offs, approvals, locks or concurrence
+   (removed 1-2 Oct 2026: it supplements an audit). Every command is
+   journaled under the session's user; a mapping is confirmed in one step
+   by that user. Attack: drive the HTTP API directly and look for any path
+   that records a second person, a review, or a sign-off, or that acts
+   under a name other than the session's (the old `X-Acting-Principal`
+   header must change nothing).
+4. **The exported record is evidence, not decoration.** The record exports
+   any time, unsigned: a manifest with file and dataset digests and the
+   decision trail's check at export, on a hash-chained journal. Verified
+   offline, a record taken over a broken trail, or edited afterwards,
+   fails and says why. Attack: break the journal or edit the record, and
+   verify it with an independent script.
 5. **The API boundary is hardened.** Bearer token on every request (reads
    included), Host/Origin checks, body limits, security headers,
    loopback-only. Attack: unauthenticated reads, forged Origin, oversize

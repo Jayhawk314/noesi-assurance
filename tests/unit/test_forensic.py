@@ -299,3 +299,28 @@ def test_a_round_trip_needs_every_leg_in_the_value_flows():
                                      {"Payments": payments, "Value_flows": [out, back]}, {})
     assert len(found) == 1 and stats["cycles"] == 1
     assert "Rockwood" not in str(found[0].evidence)
+
+
+def test_vendor_employee_masked_numbers_short_phones_and_split_names():
+    # Review 2026-10-02 L2.
+    vendors = [
+        {"vendor_number": "V1", "vendor_name": "Alpha", "bank_account": "****4821",
+         "phone": "555-1234", "source_row": 2},
+        {"vendor_number": "V2", "vendor_name": "Ann Lee Design", "bank_account": "",
+         "phone": "", "source_row": 3},
+    ]
+    employees = [
+        {"employee_id": "E1", "name": "Bo Diaz", "bank_account": "XXXX4821",
+         "phone": "(415) 555-1234", "source_row": 2},
+        {"employee_id": "E3", "first_name": "Ann", "last_name": "Lee",
+         "bank_account": "", "phone": "", "source_row": 3},
+        {"employee_id": "E4", "bank_account": "", "phone": "", "source_row": 4},
+    ]
+    findings, stats = forensic.vendor_employee_match(
+        {"Vendors": vendors, "Payroll_master": employees}, {})
+    assert sorted(_keys(findings)) == [
+        ("e1", "alpha", "shared_phone"),             # 555-1234 meets (415) 555-1234
+        ("e3", "ann lee design", "name_in_vendor_name"),   # first + last joined
+    ]
+    assert stats["masked_numbers_not_compared"] == 2     # neither ****4821 nor XXXX4821
+    assert stats["employees_without_a_name"] == 1

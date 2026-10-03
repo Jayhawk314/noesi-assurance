@@ -270,7 +270,9 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         limitations="A match is a lead, not proof: the employee may own or control the "
                     "vendor, or it may be a coincidence. Addresses are compared in the "
                     "payroll register tests. A field missing on either side is reported "
-                    "as not compared.",
+                    "as not compared; a masked number (****4821) is not compared and is "
+                    "counted; phones compare on their last seven digits, so a match "
+                    "without an area code is weaker.",
     ),
     ProcedureContract(
         "forensic.self_approved_payments", "Payments approved by the person who prepared them",

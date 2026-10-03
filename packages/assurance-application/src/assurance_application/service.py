@@ -107,7 +107,7 @@ def _performance_rate(document: dict) -> Decimal:
 
 def _trivial_rate(document: dict) -> Decimal:
     """B1: the firm's clearly-trivial rate (policy clearly_trivial_pct), or
-    the 5% default; one rate for the SAD, concurrence and revision impact."""
+    the 5% default; one rate for the SAD and revision impact."""
     return trivial_rate((document.get("policies") or {}).get("clearly_trivial_pct"))
 
 

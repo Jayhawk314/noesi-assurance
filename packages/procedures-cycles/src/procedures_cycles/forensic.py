@@ -204,6 +204,27 @@ def _digits(value) -> str:
     return "".join(c for c in text(value) if c.isdigit())
 
 
+def _masked(value) -> bool:
+    """A number shown only in part (****4821, XXXX4821): its visible digits
+    are shared by many accounts, so it is not compared (review L2)."""
+    raw = text(value)
+    return "*" in raw or "xxx" in raw.lower() or "•" in raw
+
+
+def _phone(value) -> str:
+    """The digits compared for a phone: the last seven, so 555-1234 and
+    (415) 555-1234 meet; a number with no area code cannot be told apart
+    from one in another area, so the match stays a lead (review L2)."""
+    return _digits(value)[-7:]
+
+
+def _employee_name(row: dict) -> str:
+    """The full name, or first and last name joined when the master splits
+    them (review L2: split names were skipped without saying so)."""
+    return text(row.get("name")) or " ".join(
+        p for p in (text(row.get("first_name")), text(row.get("last_name"))) if p)
+
+
 def _words(value) -> frozenset[str]:
     noise = {"inc", "llc", "ltd", "co", "corp", "company", "the", "and", "of",
              "consulting", "services", "service", "group"}
@@ -224,9 +245,10 @@ def vendor_employee_match(tables: dict, policies: dict):
     employees = records(tables, "Payroll_master")
     findings = []
     compared, not_compared = [], []
+    masked = 0
     for field, label, normalize, minimum in (
             ("bank_account", "bank account", _digits, 4),
-            ("phone", "phone number", _digits, 7),
+            ("phone", "phone number", _phone, 7),
             ("tax_id", "tax ID", _digits, 9)):
         on_vendors = any(text(v.get(field)) for v in vendors)
         on_employees = any(text(e.get(field)) for e in employees)
@@ -234,26 +256,35 @@ def vendor_employee_match(tables: dict, policies: dict):
             not_compared.append(field)
             continue
         compared.append(field)
+
+        def usable(row):
+            nonlocal masked
+            if field != "phone" and _masked(row.get(field)):
+                masked += 1
+                return ""
+            value = normalize(row.get(field))
+            return value if len(value) >= minimum else ""
         by_value: dict[str, list[dict]] = {}
         for e in employees:
-            value = normalize(e.get(field))
-            if len(value) >= minimum:
+            value = usable(e)
+            if value:
                 by_value.setdefault(value, []).append(e)
         for v in vendors:
-            value = normalize(v.get(field))
-            for e in by_value.get(value, []) if len(value) >= minimum else []:
+            value = usable(v)
+            for e in by_value.get(value, []) if value else []:
                 vendor = text(v.get("vendor_name")) or text(v.get("vendor_number"))
                 emp = key_text(e.get("employee_id"))
                 findings.append(receipt(
                     pid, (emp, key_text(vendor), f"shared_{field}"), "TENSION",
                     f"vendor {vendor} has the same {label} as employee {emp} "
-                    f"({text(e.get('name'))}). Does the employee own or control it? "
+                    f"({_employee_name(e)}). Does the employee own or control it? "
                     "Check what it was paid and whether it is a disclosed related party",
                     {"finding_class": "CONJECTURE", "cycle": "forensic",
                      "employee": emp, "vendor": vendor, "field": field,
                      "source_rows": [source_ref("Vendors", v, "vendor_number"),
                                      source_ref("Payroll_master", e, "employee_id")]}))
-    names = [(e, _words(e.get("name"))) for e in employees]
+    names = [(e, _words(_employee_name(e))) for e in employees]
+    unnamed = sum(1 for _, n in names if not n)
     if any(n for _, n in names) and vendors:
         compared.append("name")
         for v in vendors:
@@ -265,7 +296,7 @@ def vendor_employee_match(tables: dict, policies: dict):
                     findings.append(receipt(
                         pid, (emp, key_text(vendor), "name_in_vendor_name"), "TENSION",
                         f"vendor {vendor} carries the name of employee {emp} "
-                        f"({text(e.get('name'))}). The same person, a relative, or a "
+                        f"({_employee_name(e)}). The same person, a relative, or a "
                         "coincidence? Ask, and check what it was paid",
                         {"finding_class": "CONJECTURE", "cycle": "forensic",
                          "employee": emp, "vendor": vendor, "field": "name",
@@ -275,6 +306,9 @@ def vendor_employee_match(tables: dict, policies: dict):
         not_compared.append("name")
     stats = {"population": len(vendors), "employees": len(employees),
              "fields_compared": compared, "fields_not_compared": not_compared,
+             # Said, not skipped in silence (review L2):
+             "masked_numbers_not_compared": masked,
+             "employees_without_a_name": unnamed,
              "exceptions": len(findings)}
     return findings, stats
 
