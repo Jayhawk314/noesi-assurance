@@ -134,3 +134,14 @@ def test_harborline_revised_vouchers_reach_runs_findings_and_judgments(service):
     new = [c for c in cards.values() if c["change"] == "new_after_revision"]
     assert [c["key"] for c in new] == [["document_chain", "PAY-2026-0009"]]
     assert report["summary"]["sad_effect"]["unadjusted"] == -1081.33
+
+
+def test_a_row_that_only_moved_is_not_changed():
+    # 3 Oct: a revised file listed every row's source_hash as a change.
+    old = [{"voucher_number": "V1", "amount": "100.00", "source_hash": "a" * 64, "source_row": 2}]
+    new = [{"voucher_number": "V1", "amount": "100.00", "source_hash": "b" * 64, "source_row": 5},
+           ]
+    assert diff_records(old, new, ("voucher_number",), LIMITS)["changed"] == []
+    new[0]["amount"] = "120.00"
+    [changed] = diff_records(old, new, ("voucher_number",), LIMITS)["changed"]
+    assert [f["field"] for f in changed["fields"]] == ["amount"]

@@ -1,10 +1,10 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
 /** What Changed: a newer client file and everything it reaches.
- *  Read-only. The report compares the newest file for each role with the
- *  one before it, names the runs whose inputs moved, and shows — per
- *  finding — what a rerun would change and which judgment to revisit.
- *  Acting on it (rerun, re-dispose) happens on the other tabs, journaled
- *  as usual. */
+ *  The report compares the newest file for each role with the one before
+ *  it, names the runs whose inputs moved, and shows — per finding — what a
+ *  rerun would change and which judgment to revisit. The report itself
+ *  records nothing; a stale run can be rerun from here (journaled as any
+ *  run), and judgments are revisited on Runs & Findings. */
 
 import { useCallback } from "react";
 import { Client, Impact, ImpactCard, Significance } from "../api";
@@ -42,7 +42,7 @@ function Sig({ level }: { level: Significance }) {
   return <span className={`pill ${cls}`}>{label}</span>;
 }
 
-export function WhatChangedScreen({ client, eid, onError: _onError }: {
+export function WhatChangedScreen({ client, eid, onError }: {
   client: Client;
   eid: string;
   onError: (exc: unknown) => void;
@@ -142,7 +142,11 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
                 <td>{run.changed_inputs.join(", ")}</td>
                 <td>{run.findings_before} → {run.findings_after}</td>
                 <td className={`status ${run.status}`}>{run.status}</td>
-                <td>{run.action}</td>
+                <td>{run.action === "rerun"
+                  ? <button className="action"
+                            onClick={() => client.runProcedure(eid, run.procedure_id, {})
+                              .then(reload).catch(onError)}>rerun</button>
+                  : run.action}</td>
               </tr>
             ))}
           </tbody>
@@ -160,7 +164,7 @@ export function WhatChangedScreen({ client, eid, onError: _onError }: {
                 : card.change === "resolved_by_revision" ? "ok" : "pending"}`}>
                 {CHANGE_LABEL[card.change]}
               </span>
-              <b>{card.procedure_id}</b> · {JSON.stringify(card.key)}
+              <b>{card.procedure_id}</b>
               <Sig level={card.significance} />
             </div>
             <div className="impact-body">

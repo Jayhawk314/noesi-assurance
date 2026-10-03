@@ -250,8 +250,11 @@ def diff_records(old: list[dict], new: list[dict],
                         "significance": _measure(amount, limits)})
     for key in sorted(before.keys() & after.keys()):
         old_row, new_row = before[key], after[key]
+        # Where the row came from (file fingerprint, row number) is not what it
+        # says: a moved or re-exported row with the same content is unchanged.
         fields = sorted(field for field in set(old_row) | set(new_row)
-                        if old_row.get(field) != new_row.get(field))
+                        if field not in _LOCATION_FIELDS
+                        and old_row.get(field) != new_row.get(field))
         if not fields:
             continue
         old_amount = _record_amount(old_row, role)
