@@ -40,3 +40,17 @@ def test_downloading_the_record_is_journaled_each_time(svc):
     second = svc.export_record("pa", eid)
     assert _exports(svc) == 2
     assert first["seal"]["packet_digest"] != second["seal"]["packet_digest"]
+
+
+def test_mappings_read_as_confirmed_by_the_one_user_not_approved(svc):
+    eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
+    art = svc.store_source("pa", eid, content=(
+        b"payment_number,vendor_id,payment_date,amount\n"
+        b"P1,V1,2025-03-01,100.00\nP2,V2,2025-04-01,250.00\n"),
+        media_type="text/csv", original_name="p.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Payments", artifact_id=art["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    html = svc.workpaper_html("pa", eid)
+    assert "Confirmed mappings and datasets" in html
+    assert "<td>confirmed</td><td>pa</td>" in html
+    assert "Approved" not in html and "Proposed by" not in html

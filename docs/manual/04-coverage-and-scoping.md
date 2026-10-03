@@ -18,7 +18,7 @@ procedure's meaning depends on them.
 ## In the workbench
 
 The **Coverage** tab compiles every procedure contract against the data
-actually normalized and the policies actually approved, and reports one of
+actually normalized and the policies actually set, and reports one of
 four statuses — each an honest, distinct claim:
 
 | Status | Claim |
@@ -38,13 +38,14 @@ executor registry exists because of that defect.)
 **Evidence requests.** Missing roles, fields, and policies are grouped
 into a request list — effectively the incremental PBC list, each item
 annotated with the procedures it would unlock. Received evidence changes
-coverage only after a preparer validates it and a *different* reviewer
-approves the validation; a newly supported procedure becomes
-`ready_to_run`, because receiving a file is not execution.
+coverage once you load it: upload the file, confirm its mapping and load it
+on Sources & Mappings. Coverage then recompiles. A newly supported procedure
+shows as executable but has not run, because receiving a file is not
+execution.
 
 **Policies.** Engagement policies are set on Scope & Policies (or the
 workflow API) and take effect for every subsequent run: the run inherits the
-approved value and records it in its manifest. The catalog names each
+value set and records it in its manifest. The catalog names each
 procedure's required and optional policies. Examples include a split-payment
 threshold and window, allowance rates by aging bucket, journal-entry
 authorization and round-amount thresholds, sampling tolerable misstatement,
@@ -56,7 +57,7 @@ rationale*, which travels to the workpaper ("procedures not executed").
 
 ## In Kestrel
 
-The demo scopes the full audit and records the partner's approved policies.
+The demo scopes the full audit and records the auditor's policies.
 Read Coverage before reading any findings. It should distinguish executable
 procedures from procedures blocked by genuinely absent populations and from
 alternative sampling methods that were not selected. In particular, missing

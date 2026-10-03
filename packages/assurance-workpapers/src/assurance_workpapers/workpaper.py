@@ -132,16 +132,17 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
         [[a["original_name"], a["sha256"][:16] + "…", a["size_bytes"],
           a["state"]] for a in manifest.get("artifacts", [])]))
 
-    sections.append("<h2>Approved mappings and datasets</h2>" + _table(
-        ["Role", "Mapping status", "Proposed by", "Approved by",
-         "Rows in/loaded/rejected", "Control total"],
+    # One user confirms a mapping (D9). Old records may show a proposer and a
+    # different approver; the confirmer is whoever confirmed it last.
+    specs = {m["spec_id"]: m for m in manifest["mapping_specs"]}
+    sections.append("<h2>Confirmed mappings and datasets</h2>" + _table(
+        ["Role", "Mapping", "Confirmed by", "Rows in/loaded/rejected", "Control total"],
         [[d["role"],
-          next((m["status"] for m in manifest["mapping_specs"]
-                if m["spec_id"] == d["mapping_spec_id"]), "?"),
-          next((m["proposed_by"] for m in manifest["mapping_specs"]
-                if m["spec_id"] == d["mapping_spec_id"]), "?"),
-          next((m["approved_by"] for m in manifest["mapping_specs"]
-                if m["spec_id"] == d["mapping_spec_id"]), "?"),
+          {"approved": "confirmed", "proposed": "not confirmed"}.get(
+              specs.get(d["mapping_spec_id"], {}).get("status", "?"),
+              specs.get(d["mapping_spec_id"], {}).get("status", "?")),
+          (specs.get(d["mapping_spec_id"], {}).get("approved_by")
+           or specs.get(d["mapping_spec_id"], {}).get("proposed_by") or "?"),
           f"{d['rows_in']}/{d['rows_loaded']}/{d['rows_rejected']}",
           d["control_total"]]
          for d in manifest.get("datasets", [])]))
