@@ -62,8 +62,11 @@ export function ScopeScreen({ client, eid, onError }: {
       setDraft((d) => { const n = { ...d }; delete n[name]; return n; }));
   }
 
-  const PolicyRow = ({ name, required }: { name: string; required: boolean }) => (
-    <tr>
+  // A plain function, not a component defined in render: a component made
+  // anew on every render remounts its row on each keystroke, and the input
+  // loses focus after one character (seen 3 Oct, setting never saved).
+  const policyRow = (name: string, required: boolean) => (
+    <tr key={name}>
       <td>
         {catalog.data?.policy_text?.[name]?.label || words(name)}
         {required && <span className="status pending"> required</span>}
@@ -251,7 +254,7 @@ export function ScopeScreen({ client, eid, onError }: {
           <table className="dense">
             <thead><tr><th>Setting</th><th>Current</th><th>Change</th></tr></thead>
             <tbody>
-              {catalog.data.general_policies.map((n) => <PolicyRow key={n} name={n} required={false} />)}
+              {catalog.data.general_policies.map((n) => policyRow(n, false))}
             </tbody>
           </table>
         </div>
@@ -264,8 +267,8 @@ export function ScopeScreen({ client, eid, onError }: {
           <table className="dense">
             <thead><tr><th>Setting</th><th>Current</th><th>Change</th></tr></thead>
             <tbody>
-              {area.required_policies.map((n) => <PolicyRow key={n} name={n} required />)}
-              {area.optional_policies.map((n) => <PolicyRow key={n} name={n} required={false} />)}
+              {area.required_policies.map((n) => policyRow(n, true))}
+              {area.optional_policies.map((n) => policyRow(n, false))}
             </tbody>
           </table>
         </div>
