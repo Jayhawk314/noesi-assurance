@@ -127,3 +127,38 @@ def test_equity_rollforward_without_a_trial_balance_only_foots():
         "equity.rollforward", {"Equity_rollforward": EQUITY}, {})
     assert keys(findings) == {("retained earnings", "does_not_foot")}
     assert "ties_to_ledger" in stats["not_performed"]
+
+
+def test_covenants_after_the_audit_adjustments():
+    # Depth pass (2 Oct 2026). An adjustment writes 30000 off account 1100:
+    # current ratio (50000 + 40000) / 80000 = 1.125, below 1.25 -> compliance
+    # changes. Debt to equity is untouched (still breached, no change finding).
+    ajes = [{"entry_id": "AJE-1", "account": "1100", "debit": "", "credit": D("30000")},
+            {"entry_id": "AJE-1", "account": "6000", "debit": D("30000"), "credit": ""}]
+    findings, stats = execute_procedure(
+        "debt.covenants",
+        {"Covenants": COVENANTS, "Trial_balance": TB, "Adjusting_entries": ajes}, {})
+    assert ("current ratio", "adjustments_change_compliance") in keys(findings)
+    assert ("debt to equity", "adjustments_change_compliance") not in keys(findings)
+    adjusted = {m["covenant"]: m.get("adjusted_value") for m in stats["measured"]}
+    assert adjusted["Current ratio"] == "1.1250" and adjusted["Debt to equity"] == "2.4600"
+
+
+def test_covenant_add_backs_and_the_trailing_basis():
+    # Add-back: debt to equity with 30000 added to equity: 246000 / 130000 = 1.8923, met.
+    added = [dict(COVENANTS[1], denominator_adjustment=D("30000"),
+                  adjustment_note="subordinated loan counted as equity (s. 7.2)")]
+    findings, stats = execute_procedure(
+        "debt.covenants", {"Covenants": added, "Trial_balance": TB}, {})
+    assert findings == [] and stats["measured"][0]["value"] == "1.8923"
+    # Trailing twelve months: measured on a twelve-month period, refused on six.
+    ttm = [dict(COVENANTS[0], basis="TTM")]
+    year = {"period_start": "2025-01-01", "period_end": PE}
+    findings, stats = execute_procedure(
+        "debt.covenants", {"Covenants": ttm, "Trial_balance": TB}, year)
+    assert findings == [] and stats["measured"][0]["value"] == "1.5000"
+    half = {"period_start": "2025-07-01", "period_end": PE}
+    findings, _ = execute_procedure(
+        "debt.covenants", {"Covenants": ttm, "Trial_balance": TB}, half)
+    assert keys(findings) == {("current ratio", "not_measurable")}
+    assert "6 months" in findings[0].reason

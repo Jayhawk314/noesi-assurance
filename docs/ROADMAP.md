@@ -325,8 +325,15 @@ scripts first, James approves scripts and credits before voicing.
   name, plain "declining balance" with the policy
   `ppe_declining_balance_factor`; on the register's implied opening book
   value, never below salvage, no switch to straight line (stated limit).
-  Tested on invented data (worked by hand). Left: additions projection,
-  adjusted covenants.
+  Tested on invented data (worked by hand). **Additions projection done
+  2 Oct:** key items in full, the vouched sample below the threshold
+  projected by ratio, likely misstatement against `ppe_tolerable_misstatement`
+  (representativeness stated as a limit). **Adjusted covenants done 2 Oct:**
+  each covenant measured again after the adjusting entries (a change in
+  compliance is a finding), agreement add-backs with a note, and a
+  trailing-twelve-month basis measured only on a twelve-month period.
+  Kestrel: current ratio 1.1291 before, 1.1258 after (key line added;
+  finish line 174/176). **The depth pass is done.**
 - Wiring the cycles into the structural layer (agreed as later, 2026-09-26).
 - **Batch review (docs/reviews/REVIEW-2026-10-02-batch.md) fixed 2 Oct:**
   M1 (a file or mapping from another engagement could be confirmed and

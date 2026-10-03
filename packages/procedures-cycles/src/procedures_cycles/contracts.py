@@ -437,16 +437,21 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ),
     ProcedureContract(
         "debt.covenants", "Loan covenant compliance",
-        "Measure each covenant from the trial balance accounts the auditor names and "
-        "compare it with the limit in the loan agreement.",
+        "Measure each covenant from the trial balance accounts the auditor names, with "
+        "the agreement's add-backs, and compare it with the limit in the loan "
+        "agreement; when adjusting entries are loaded, measure it again after them "
+        "and flag a covenant whose compliance the adjustments change.",
         "debt_equity", ("classification", "presentation"),
         {"Covenants": ("covenant", "numerator_accounts", "operator", "threshold"),
          "Trial_balance": ("account", "balance")},
         evidence_source="the auditor's reading of the loan agreements",
         denominator_role="Covenants",
-        limitations="Ratios are magnitudes of account sums; covenants defined on "
-                    "adjusted or trailing figures need the auditor's own measure. A "
-                    "breach may be waived: inspect the waiver.",
+        limitations="Ratios are magnitudes of account sums. Add-backs are the fixed "
+                    "amounts the auditor enters from the agreement, with a note; the "
+                    "tool does not read the agreement. A trailing-twelve-month "
+                    "covenant is measured only when the period is twelve months (an "
+                    "annual trial balance has no quarterly figures). A breach may be "
+                    "waived: inspect the waiver.",
     ),
     ProcedureContract(
         "equity.rollforward", "Equity rollforward",

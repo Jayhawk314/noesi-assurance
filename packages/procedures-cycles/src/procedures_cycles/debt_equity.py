@@ -129,11 +129,52 @@ _OPERATORS = {">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b,
               "min": lambda a, b: a >= b, "max": lambda a, b: a <= b}
 
 
+_TRAILING = ("ttm", "trailing", "trailing twelve months", "ltm", "last twelve months",
+             "rolling")
+
+
+def _adjustments(tables: dict) -> dict[str, Decimal] | None:
+    """Debit-positive net of the adjusting entries per account, or None when
+    none are loaded."""
+    entries = records(tables, "Adjusting_entries")
+    if not entries:
+        return None
+    out: dict[str, Decimal] = {}
+    for e in entries:
+        account = key_text(e.get("account"))
+        out[account] = out.get(account, ZERO) + money(e.get("debit")) - money(e.get("credit"))
+    return out
+
+
+def _measure(num, den, balance, add_num: Decimal, add_den: Decimal):
+    """(value, denominator) with the agreement's add-backs; None if the
+    denominator is zero."""
+    numerator = abs(sum((balance(a) for a in num), ZERO)) + add_num
+    if not den:
+        return money(numerator), None
+    denominator = abs(sum((balance(a) for a in den), ZERO)) + add_den
+    if denominator == 0:
+        return None, ZERO
+    return (numerator / denominator).quantize(Decimal("0.0001")), denominator
+
+
 def covenants(tables: dict, policies: dict):
+    """Each covenant measured from the trial balance, with the agreement's
+    add-backs (numerator/denominator adjustments), and, when adjusting
+    entries are loaded, again on the adjusted balances (depth pass, 2 Oct
+    2026): a covenant that passes before the audit adjustments and fails
+    after them, or the reverse, is a finding. A trailing-twelve-month
+    covenant is measured only when the period is twelve months; quarterly
+    figures are not in an annual trial balance."""
     pid = "debt.covenants"
     tb = _tb(tables)
+    adjusting = _adjustments(tables)
     findings, measured = [], []
     rows = records(tables, COVENANTS)
+    months = None
+    if policies.get("period_start") and policies.get("period_end"):
+        s, e = policy_date(policies, "period_start"), policy_date(policies, "period_end")
+        months = (e.year - s.year) * 12 + e.month - s.month + 1
     for row in rows:
         name = text(row.get("covenant")) or f"row-{row.get('source_row')}"
         key = key_text(name)
@@ -143,30 +184,59 @@ def covenants(tables: dict, policies: dict):
         op = text(row.get("operator")).lower()
         limit = dec(row.get("threshold"))
         missing = sorted({a for a in num + den if a not in tb})
-        if not num or op not in _OPERATORS or limit is None or missing:
-            why = (f"accounts not on the trial balance: {', '.join(missing)}" if missing
-                   else "the covenant needs numerator accounts, an operator (>=, <=) "
-                        "and a limit")
+        basis = text(row.get("basis")).lower()
+        trailing = any(t in basis for t in _TRAILING)
+        why = ""
+        if missing:
+            why = f"accounts not on the trial balance: {', '.join(missing)}"
+        elif not num or op not in _OPERATORS or limit is None:
+            why = "the covenant needs numerator accounts, an operator (>=, <=) and a limit"
+        elif trailing and months != 12:
+            why = ("it is measured on a trailing twelve months, and the period here is "
+                   f"{f'{months} months' if months else 'not dated (period start unset)'}: "
+                   "an annual trial balance does not give quarterly figures")
+        if why:
             findings.append(receipt(pid, (key, "not_measurable"), "AMBIGUOUS",
                                     f"covenant {name}: {why}",
                                     {"finding_class": "REFUSAL", "cycle": "debt_equity",
                                      "source_rows": src}))
             continue
-        numerator = abs(sum((_signed(tb[a]) or ZERO for a in num), ZERO))
-        if den:
-            denominator = abs(sum((_signed(tb[a]) or ZERO for a in den), ZERO))
-            if denominator == 0:
-                findings.append(receipt(pid, (key, "not_measurable"), "AMBIGUOUS",
-                                        f"covenant {name}: the denominator is zero",
-                                        {"finding_class": "REFUSAL",
-                                         "cycle": "debt_equity", "source_rows": src}))
-                continue
-            value = (numerator / denominator).quantize(Decimal("0.0001"))
-        else:
-            value = money(numerator)
-        measured.append({"covenant": name, "value": value, "operator": op,
-                         "limit": limit})
-        if not _OPERATORS[op](value, limit):
+        add_num = money(row.get("numerator_adjustment"))
+        add_den = money(row.get("denominator_adjustment"))
+        value, denominator = _measure(num, den, lambda a: _signed(tb[a]) or ZERO,
+                                      add_num, add_den)
+        if value is None:
+            findings.append(receipt(pid, (key, "not_measurable"), "AMBIGUOUS",
+                                    f"covenant {name}: the denominator is zero",
+                                    {"finding_class": "REFUSAL",
+                                     "cycle": "debt_equity", "source_rows": src}))
+            continue
+        entry = {"covenant": name, "value": value, "operator": op, "limit": limit}
+        if add_num or add_den:
+            entry["agreement_adjustments"] = {
+                "numerator": add_num, "denominator": add_den,
+                "note": text(row.get("adjustment_note"))}
+        if trailing:
+            entry["basis"] = "trailing twelve months = the twelve-month period"
+        adjusted = None
+        if adjusting is not None:
+            adjusted, _ = _measure(
+                num, den, lambda a: (_signed(tb[a]) or ZERO) + adjusting.get(a, ZERO),
+                add_num, add_den)
+            entry["adjusted_value"] = adjusted
+        measured.append(entry)
+        passes = _OPERATORS[op](value, limit)
+        if adjusted is not None and _OPERATORS[op](adjusted, limit) != passes:
+            findings.append(receipt(
+                pid, (key, "adjustments_change_compliance"), "CLASH",
+                f"covenant {name}: {value} before the audit adjustments "
+                f"({'meets' if passes else 'breaches'} {op} {limit}), {adjusted} after them "
+                f"({'breaches' if passes else 'meets'} it). The adjustments decide "
+                "compliance: discuss them with management, and consider the lender",
+                {"finding_class": "PROVED_EXCEPTION", "cycle": "debt_equity",
+                 "assertion": "classification", "value": value, "adjusted_value": adjusted,
+                 "limit": limit, "source_rows": src}))
+        if not passes:
             findings.append(receipt(
                 pid, (key, "breached"), "CLASH",
                 f"covenant {name}: measured {value} against a limit of {op} {limit} — "

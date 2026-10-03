@@ -185,6 +185,17 @@ def debt_equity(key):
     ca = abs(sum(bal(CUR, n) for n in current))
     cl = abs(sum(bal(CUR, n) for n in liabilities))
     ratio = (ca / cl).quantize(D("0.0001"), rounding=ROUND_HALF_UP)
+    # The same ratio after the audit adjustments (auditor/adjusting_entries.csv,
+    # written by generate.py): the covenant is measured again on them.
+    import csv as _csv
+    with (AUDITOR / "adjusting_entries.csv").open(encoding="utf-8") as f:
+        effect: dict[str, D] = {}
+        for r in _csv.DictReader(f):
+            n = r["Account"].split(" ", 1)[0]
+            effect[n] = effect.get(n, D("0")) + m(r["Debit"] or "0") - m(r["Credit"] or "0")
+    ca_adj = abs(sum(bal(CUR, n) + effect.get(n, D("0")) for n in current))
+    cl_adj = abs(sum(bal(CUR, n) + effect.get(n, D("0")) for n in liabilities))
+    ratio_adj = (ca_adj / cl_adj).quantize(D("0.0001"), rounding=ROUND_HALF_UP)
     g.write_csv(AUDITOR / "covenants.csv",
                 ["Covenant", "Numerator Accounts", "Denominator Accounts", "Operator",
                  "Threshold"],
@@ -207,7 +218,12 @@ def debt_equity(key):
                                                 .quantize(D("0.1")))},
         "covenant_current_ratio": {"current_assets": str(ca), "current_liabilities": str(cl),
                                    "ratio": str(ratio), "minimum": "1.20",
-                                   "breached": ratio < D("1.20")},
+                                   "breached": ratio < D("1.20"),
+                                   "after_adjustments": {
+                                       "current_assets": str(ca_adj),
+                                       "current_liabilities": str(cl_adj),
+                                       "ratio": str(ratio_adj),
+                                       "breached": ratio_adj < D("1.20")}},
         "equity": {"members_capital": "schedule adds a 5,000 contribution the ledger "
                                       "does not have: foots (60,000 + 5,000 = 65,000) "
                                       "but does not tie (TB 60,000.00)",

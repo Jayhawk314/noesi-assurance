@@ -459,6 +459,13 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
     c("loan ending", loan["ending"], s.get("ending_debt", NOT_IN))
     c("interest within tolerance (4.8% < 10%)", 0, s.get("exceptions", NOT_IN))
     c("current-ratio covenant breached", True, has("debt.covenants", "breached"))
+    # Depth pass (2 Oct 2026): measured again after the audit adjustments.
+    cov_adj = K2["debt_equity"]["covenant_current_ratio"]["after_adjustments"]
+    measured = (run("debt.covenants").get("measured") or [{}])[0]
+    c("current ratio after the audit adjustments", cov_adj["ratio"],
+      measured.get("adjusted_value", NOT_IN))
+    c("adjustments do not change compliance (breached either way)", False,
+      has("debt.covenants", "adjustments_change_compliance"))
     c("members' capital does not tie", True,
       has("equity.rollforward", "members' capital", "ending_to_ledger"))
     c("retained earnings ties", False, has("equity.rollforward", "retained earnings"))

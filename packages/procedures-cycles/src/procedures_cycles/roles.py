@@ -239,6 +239,11 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "denominator_accounts": ["denominator accounts", "denominator"],
         "operator": ["operator", "direction", "test"],
         "threshold": ["threshold", "limit", "required", "minimum or maximum"],
+        "numerator_adjustment": ["numerator adjustment", "add back", "add-back",
+                                 "numerator add back"],
+        "denominator_adjustment": ["denominator adjustment", "denominator add back"],
+        "adjustment_note": ["adjustment note", "add back note", "adjustment basis"],
+        "basis": ["basis", "measurement basis", "period basis"],
     },
     "Estimates": {
         "estimate": ["estimate", "estimate name", "description", "item"],

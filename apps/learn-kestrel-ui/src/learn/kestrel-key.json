@@ -889,6 +889,20 @@
     "noesi": "yes"
    },
    {
+    "item": "current ratio after the audit adjustments",
+    "status": "match",
+    "why": "",
+    "key": "1.1258",
+    "noesi": "1.1258"
+   },
+   {
+    "item": "adjustments do not change compliance (breached either way)",
+    "status": "match",
+    "why": "",
+    "key": "yes",
+    "noesi": "yes"
+   },
+   {
     "item": "members' capital does not tie",
     "status": "match",
     "why": "",
@@ -1994,7 +2008,13 @@
      "current_liabilities": "489767.62",
      "ratio": "1.1291",
      "minimum": "1.20",
-     "breached": true
+     "breached": true,
+     "after_adjustments": {
+      "current_assets": "551390.17",
+      "current_liabilities": "489767.62",
+      "ratio": "1.1258",
+      "breached": true
+     }
     },
     "equity": {
      "members_capital": "schedule adds a 5,000 contribution the ledger does not have: foots (60,000 + 5,000 = 65,000) but does not tie (TB 60,000.00)",

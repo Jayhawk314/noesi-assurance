@@ -2,7 +2,7 @@
 
 *Written by `finish_line_check.py` (ROADMAP step 0). It seeds the Workbench demo through the real service path, as `--demo` does, and compares each Learn module with `answer_key*.json`. Do not edit by hand; re-run the script.*
 
-**172 match, 0 differ, 2 not in Noesi** (37 procedures run).
+**174 match, 0 differ, 2 not in Noesi** (37 procedures run).
 
 | # | Module | Match | Differ | Not in Noesi |
 |---|---|---|---|---|
@@ -15,7 +15,7 @@
 | 7 | Inventory | 10 | 0 | 0 |
 | 8 | Payroll | 8 | 0 | 0 |
 | 9 | Property and equipment | 8 | 0 | 0 |
-| 10 | Debt, equity, accruals | 11 | 0 | 0 |
+| 10 | Debt, equity, accruals | 13 | 0 | 0 |
 | 11 | Estimates and related parties | 5 | 0 | 0 |
 | 12 | Completion | 32 | 0 | 1 |
 | 13 | The opinion | 5 | 0 | 0 |
@@ -60,7 +60,7 @@ Matches: beginning cost; additions; disposals; ending cost; accumulated; depreci
 
 ## 10. Debt, equity, accruals
 
-Matches: loan beginning; loan ending; interest within tolerance (4.8% < 10%); current-ratio covenant breached; members' capital does not tie; retained earnings ties; accruals and prepaids tie to the ledger; insurance premium recompute differs by; audit fee recompute differs by; not recomputed; stale accrual: Accrued payroll unchanged all year.
+Matches: loan beginning; loan ending; interest within tolerance (4.8% < 10%); current-ratio covenant breached; current ratio after the audit adjustments; adjustments do not change compliance (breached either way); members' capital does not tie; retained earnings ties; accruals and prepaids tie to the ledger; insurance premium recompute differs by; audit fee recompute differs by; not recomputed; stale accrual: Accrued payroll unchanged all year.
 
 ## 11. Estimates and related parties
 
