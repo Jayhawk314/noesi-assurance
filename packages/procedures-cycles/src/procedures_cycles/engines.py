@@ -97,9 +97,12 @@ def execute_procedure(procedure_id: str, tables: dict,
     # A mapped column is not the same as a value on every row: a blank
     # required value must not turn into a zero or a skipped row (review
     # 2026-09-28, F2). Rows missing one are set aside, named, and not tested.
-    tables, incomplete, excluded = _drop_incomplete_rows(procedure_id, contract, tables)
-    empty_roles = [role for role in contract.required_fields
-                   if not records(tables, role)]
+    # The input set this run uses: the required one, or an alternative the
+    # contract accepts when that is what was loaded (review L5).
+    from procedures_ap.contracts import active_input_set
+    fields = active_input_set(contract, lambda role: bool(records(tables, role)))
+    tables, incomplete, excluded = _drop_incomplete_rows(procedure_id, fields, tables)
+    empty_roles = [role for role in fields if not records(tables, role)]
     if empty_roles:
         findings = [
             receipt(
@@ -158,11 +161,11 @@ def _blank(value) -> bool:
     return value is None or (isinstance(value, str) and not value.strip())
 
 
-def _drop_incomplete_rows(procedure_id: str, contract, tables: dict):
+def _drop_incomplete_rows(procedure_id: str, input_fields: dict, tables: dict):
     tables = dict(tables)
     findings, excluded = [], {}
     optional = VALUE_OPTIONAL.get(procedure_id, frozenset())
-    for role, fields in contract.required_fields.items():
+    for role, fields in input_fields.items():
         needed = [f for f in fields if f not in optional and (role, f) not in optional]
         keep, bad = [], []
         for row in records(tables, role):

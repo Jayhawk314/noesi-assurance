@@ -27,6 +27,13 @@ class ProcedureContract:
     denominator_role: str = "Payments"
     default_selected: bool = True
     limitations: str = ""
+    # Other input sets that serve as well as required_fields (review L5,
+    # 2 Oct 2026): a test that can read the Journal or the payment records
+    # is runnable with either. Coverage uses the first set fully loaded.
+    alternative_fields: tuple[dict[str, tuple[str, ...]], ...] = ()
+
+    def input_sets(self) -> tuple[dict[str, tuple[str, ...]], ...]:
+        return (self.required_fields, *self.alternative_fields)
 
     def to_dict(self) -> dict:
         value = asdict(self)
@@ -34,8 +41,25 @@ class ProcedureContract:
         value["required_fields"] = {
             role: list(fields) for role, fields in self.required_fields.items()
         }
+        if self.alternative_fields:
+            value["alternative_fields"] = [
+                {role: list(fields) for role, fields in alt.items()}
+                for alt in self.alternative_fields]
+        else:
+            value.pop("alternative_fields", None)
         value["required_policies"] = list(self.required_policies)
         return value
+
+
+def active_input_set(contract: ProcedureContract,
+                     has_rows) -> dict[str, tuple[str, ...]]:
+    """The input set a run uses: required_fields when every one of its roles
+    has rows, else the first alternative whose roles all do, else
+    required_fields (so the refusal names what the contract asks for)."""
+    for fields in contract.input_sets():
+        if all(has_rows(role) for role in fields):
+            return fields
+    return contract.required_fields
 
 
 PROCEDURES: tuple[ProcedureContract, ...] = (

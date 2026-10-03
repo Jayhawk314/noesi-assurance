@@ -324,3 +324,25 @@ def test_vendor_employee_masked_numbers_short_phones_and_split_names():
     ]
     assert stats["masked_numbers_not_compared"] == 2     # neither ****4821 nor XXXX4821
     assert stats["employees_without_a_name"] == 1
+
+
+def test_the_check_sequence_runs_on_the_journal_alone():
+    # Review 2026-10-02 L5: with no payment records, the Journal is enough.
+    from procedures_ap.coverage import compile_coverage
+    from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID
+    from procedures_cycles.engines import execute_procedure
+    contract = CYCLE_CONTRACTS_BY_ID["forensic.check_number_sequence"]
+    inventory = {"Journal_entries": {"rows": 4, "fields": ["entry_id", "account"]}}
+    row = compile_coverage(inventory, contracts=(contract,),
+                           executors=frozenset({contract.procedure_id}))["procedures"][0]
+    assert row["status"] == "executable" and row["satisfied_by"] == ["Journal_entries"]
+    assert row["population"] == 4
+    nothing = compile_coverage({}, contracts=(contract,),
+                               executors=frozenset({contract.procedure_id}))["procedures"][0]
+    assert nothing["status"] == "blocked" and nothing["missing_roles"] == ["Payments"]
+    journal = _check("a", "1001", "Check", "10100", "50") + \
+        _check("b", "1003", "Check", "10100", "60")
+    findings, stats = execute_procedure("forensic.check_number_sequence",
+                                        {"Journal_entries": journal}, {})
+    assert _keys(findings) == [("disbursements", "1002", "gap")]
+    assert stats["disbursements_from"] == "Journal"

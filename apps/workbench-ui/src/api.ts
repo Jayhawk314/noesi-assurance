@@ -159,6 +159,8 @@ export interface CoverageRow {
   selected: boolean;
   default_selected?: boolean;
   missing_roles: string[];
+  /** Present when an alternative input set (not the required one) serves. */
+  satisfied_by?: string[];
   missing_fields: Record<string, string[]>;
   missing_policies: string[];
   population: number | null;

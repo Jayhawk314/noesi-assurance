@@ -56,23 +56,35 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
     policies = policies or {}
     supported = registered_procedures() if executors is None else executors
     rows = []
-    for contract in contracts:
+    def gaps(fields: dict) -> tuple[list[str], dict[str, list[str]]]:
         # A header-only or fully rejected file is not a population. Treat it
         # exactly like a missing dataset so coverage can never advertise a
         # procedure as executable over zero records.
-        missing_roles = [
-            role for role in contract.required_fields
-            if role not in inventory
-            or int(inventory.get(role, {}).get("rows") or 0) <= 0
-        ]
-        missing_fields: dict[str, list[str]] = {}
-        for role, required in contract.required_fields.items():
-            if role in missing_roles:
+        roles = [role for role in fields
+                 if role not in inventory
+                 or int(inventory.get(role, {}).get("rows") or 0) <= 0]
+        absent_fields: dict[str, list[str]] = {}
+        for role, required in fields.items():
+            if role in roles:
                 continue
             have = set(inventory.get(role, {}).get("fields", []))
             absent = [f for f in required if f not in have]
             if absent:
-                missing_fields[role] = absent
+                absent_fields[role] = absent
+        return roles, absent_fields
+
+    for contract in contracts:
+        # The first input set fully loaded serves (review L5); when none is,
+        # the gaps reported are the required set's, as the contract asks.
+        missing_roles, missing_fields = gaps(contract.required_fields)
+        satisfied_by = list(contract.required_fields)
+        if missing_roles or missing_fields:
+            for alternative in contract.alternative_fields:
+                roles, absent = gaps(alternative)
+                if not roles and not absent:
+                    missing_roles, missing_fields = [], {}
+                    satisfied_by = list(alternative)
+                    break
         missing_policies = [name for name in contract.required_policies
                             if policies.get(name) in (None, "")]
         # D3: a software gap outranks any data status.
@@ -91,10 +103,16 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
             "missing_roles": missing_roles,
             "missing_fields": missing_fields,
             "missing_policies": missing_policies,
-            "population": inventory.get(contract.denominator_role, {}).get("rows"),
+            "population": inventory.get(
+                contract.denominator_role
+                if satisfied_by == list(contract.required_fields)
+                or contract.denominator_role in satisfied_by
+                else satisfied_by[0], {}).get("rows"),
             # D1: never "completed" at compile time.
             "execution_status": "not_run",
         })
+        if satisfied_by != list(contract.required_fields):
+            row["satisfied_by"] = satisfied_by   # an alternative input set serves
         if status == "unsupported":
             row["unsupported_reason"] = _UNSUPPORTED_REASON
         rows.append(row)

@@ -250,7 +250,10 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "records and the payroll register.",
         "payables", ("completeness", "occurrence"),
         {"Payments": ("payment_number",)},
-        evidence_source="client payment records, checks with no bill and payroll register",
+        # The Journal alone serves: it holds every check (review L5).
+        alternative_fields=({"Journal_entries": ("entry_id",)},),
+        evidence_source="client Journal, or payment records, checks with no bill and "
+                        "payroll register",
         denominator_role="Payments",
         limitations="A gap is a lead: a voided check is a normal gap; inspect the void "
                     "or the bank statement. EFTs and text references carry no check "

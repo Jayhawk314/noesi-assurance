@@ -535,6 +535,9 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
                   <div className="note">{row.unsupported_reason}</div>
                 )}
                 {row.missing_roles.map((role) => <div key={role}>dataset: {role}</div>)}
+                {row.satisfied_by && (
+                  <div className="note">runs on {row.satisfied_by.join(", ").replace(/_/g, " ")}</div>
+                )}
                 {Object.entries(row.missing_fields).map(([role, fields]) => (
                   <div key={role}>fields: {role}.{fields.join(", ")}</div>
                 ))}

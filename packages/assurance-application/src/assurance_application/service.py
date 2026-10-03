@@ -914,7 +914,8 @@ class WorkbenchService:
                     KEY_FIELDS.get(role, ()), limits, role),
             })
 
-        needs = {p.procedure_id: set(p.required_fields)
+        # Every role any of a procedure's input sets reads (review L5).
+        needs = {p.procedure_id: {role for fields in p.input_sets() for role in fields}
                  for p in PROCEDURES + tuple(CYCLE_CONTRACTS_BY_ID.values())}
         latest_runs: dict[str, sqlite3.Row] = {}
         for run in self._conn.execute(
