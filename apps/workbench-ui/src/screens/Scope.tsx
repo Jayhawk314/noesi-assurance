@@ -45,9 +45,11 @@ export function ScopeScreen({ client, eid, onError }: {
   const policies = document.policies ?? {};
   const periodStart = start ?? document.period?.start ?? "";
 
+  // Resolves true when saved, false when refused (the error is shown).
   const save = (section: string, values: Record<string, unknown>) =>
     client.updateWorkflow(eid, section, values)
-      .then(() => { doc.reload(); tbLines.reload(); }).catch(onError);
+      .then(() => { doc.reload(); tbLines.reload(); return true; })
+      .catch((exc) => { onError(exc); return false; });
 
   function toggle(area: CycleArea) {
     const next = new Set(inScope);
@@ -58,8 +60,11 @@ export function ScopeScreen({ client, eid, onError }: {
   function savePolicy(name: string) {
     const value = (draft[name] ?? "").trim();
     if (!value) return;
-    void save("policy", { name, value }).then(() =>
-      setDraft((d) => { const n = { ...d }; delete n[name]; return n; }));
+    // A refused value stays in the box to correct, not retyped from nothing
+    // (Codex review 3 Oct).
+    void save("policy", { name, value }).then((saved) => {
+      if (saved) setDraft((d) => { const n = { ...d }; delete n[name]; return n; });
+    });
   }
 
   // A plain function, not a component defined in render: a component made

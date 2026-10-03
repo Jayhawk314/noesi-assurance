@@ -73,3 +73,29 @@ def test_the_working_paper_shows_each_risk_and_any_response_that_did_not_run(svc
     assert "Risks of material misstatement" in html
     assert "Revenue: early sales (fraud risk)" in html
     assert "<td>rev.sales_cutoff (blocked)</td>" in html   # the title's ": " is not split
+
+
+def test_two_risks_with_one_title_keep_their_own_unperformed_responses(svc):
+    # Codex review 3 Oct: the unperformed response was matched by title, so
+    # it appeared on both risks named "Revenue".
+    eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
+    art = svc.store_source("pa", eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J1,1,2025-03-01,6000,150.00,\nJ1,2,2025-03-01,1000,,150.00\n"),
+        media_type="text/csv", original_name="journal.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Journal_entries", artifact_id=art["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    svc.update_workflow("pa", eid, "cycles", {"cycles": ["journal_entries", "receivables"]})
+    svc.update_workflow("pa", eid, "policy", {"name": "benford_min_population", "value": "1"})
+    a = svc.assess_risk("pa", eid, title="Revenue", assertion="occurrence", level="significant",
+                        response="cutoff")
+    svc.link_risk_procedures("pa", eid, risk_id=a["risk_id"], procedure_ids=["rev.sales_cutoff"],
+                             expected_version=a["version"])
+    b = svc.assess_risk("pa", eid, title="Revenue", assertion="completeness", level="significant",
+                        response="first digits")
+    svc.link_risk_procedures("pa", eid, risk_id=b["risk_id"],
+                             procedure_ids=["forensic.benford_first_digit"],
+                             expected_version=b["version"])
+    svc.run_procedure("pa", eid, procedure_id="forensic.benford_first_digit")
+    html = svc.workpaper_html("pa", eid)
+    assert html.count("rev.sales_cutoff (blocked)") == 1

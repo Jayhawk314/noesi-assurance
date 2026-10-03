@@ -1,6 +1,20 @@
 """The fraud view: AU-C 240's tests, risks and findings in one place."""
 import pytest
 
+from assurance_application.service import _how_much_tested
+
+
+def test_a_source_population_does_not_prove_a_refused_procedure_tested_it():
+    # Difference estimation can have five AR accounts but only one evaluated
+    # confirmation, so it refuses the test. Five source rows are not five
+    # tested rows. Use invented inputs, not Kestrel's answer key.
+    refusal = {"evidence": {"finding_class": "REFUSAL"}}
+    assert _how_much_tested({"population": 5, "confirmations": 1}, [refusal]) == "limited"
+    assert _how_much_tested({"population": 0}, [refusal]) == "nothing"
+    assert _how_much_tested({"populations": {
+        "journal lines": {"tested": True}, "payments": {"tested": False}}},
+        [refusal]) == "partly"
+
 
 @pytest.fixture
 def svc(tmp_path):
@@ -91,3 +105,34 @@ def test_open_findings_are_counted_by_the_procedure_that_found_them(svc):
     assert not found[0]["finding_uid"].startswith("forensic.closed_value_flow")
     blocker = next(b for b in svc.readiness(eid)["blockers"] if b["code"] == "FINDINGS_OPEN")
     assert blocker["by_procedure"] == {"forensic.closed_value_flow": blocker["count"]}
+
+
+def test_a_test_that_tested_one_population_and_refused_another_is_partly_tested(svc):
+    # Codex review 3 Oct: Benford tested the journal but refused the payments
+    # (too few), and the Fraud view called the whole test "did not test".
+    eid = svc.create_engagement("pa", "Acme", "2025-12-31")["engagement_id"]
+    journal = svc.store_source("pa", eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J1,1,2025-03-01,6000,150.00,\nJ1,2,2025-03-01,1000,,150.00\n"
+        b"J2,1,2025-04-01,6000,275.00,\nJ2,2,2025-04-01,1000,,275.00\n"
+        b"J3,1,2025-05-01,6000,310.00,\nJ3,2,2025-05-01,1000,,310.00\n"
+        b"J4,1,2025-06-01,6000,1200.00,\nJ4,2,2025-06-01,1000,,1200.00\n"),
+        media_type="text/csv", original_name="journal.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Journal_entries",
+                                      artifact_id=journal["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    payments = svc.store_source("pa", eid, content=(
+        b"payment_number,vendor_id,payment_date,amount\nP1,V1,2025-03-01,100.00\n"),
+        media_type="text/csv", original_name="p.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Payments", artifact_id=payments["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    svc.update_workflow("pa", eid, "cycles", {"cycles": ["journal_entries"]})
+    svc.update_workflow("pa", eid, "policy", {"name": "benford_min_population", "value": "4"})
+    svc.run_procedure("pa", eid, procedure_id="forensic.benford_first_digit")
+    view = svc.fraud_view(eid)
+    benford = next(t for t in view["tests"] if t["procedure_id"] == "forensic.benford_first_digit")
+    assert benford["tested"] == "partly"
+    assert benford["not_tested"] and "payments" in benford["not_tested"][0]
+    assert view["summary"]["not_tested"] == 0 and view["summary"]["partly_tested"] == 1
+    [run] = [r for r in svc.runs(eid) if r["procedure_id"] == "forensic.benford_first_digit"]
+    assert run["tested"] == "partly"

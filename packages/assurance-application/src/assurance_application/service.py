@@ -814,13 +814,16 @@ class WorkbenchService:
     def runs(self, engagement_id: str) -> list[dict]:
         rows = self._conn.execute(
             """SELECT run_id, procedure_id, job_id, status, summary, error,
-               executed_by, version, created_at
+               executed_by, version, created_at, findings
                FROM procedure_run WHERE engagement_id = ?
                ORDER BY created_at, rowid""", (engagement_id,)).fetchall()
         out = []
         for row in rows:
             item = dict(row)
             item["summary"] = json.loads(item["summary"])
+            findings = json.loads(item.pop("findings") or "[]")
+            item["tested"] = (None if item["status"] == "error"
+                              else _how_much_tested(item["summary"], findings))
             out.append(item)
         return out
 
@@ -1173,6 +1176,7 @@ class WorkbenchService:
                             if f["disposition"]["status"] in ("undisposed", "follow_up")),
                 "not_tested": [f["verdict"].get("reason", "") for f in refusals
                                if f["procedure_id"] == pid],
+                "tested": run["tested"] if run else None,
             })
         risks = [r for r in self.risks(engagement_id)["risks"] if r["fraud"]]
         return {
@@ -1190,7 +1194,11 @@ class WorkbenchService:
                 "partly": sum(1 for t in tests if t["coverage"] == "partial"),
                 "findings": len(findings),
                 "open_findings": sum(t["open"] for t in tests),
-                "not_tested": sum(1 for t in tests if t["not_tested"]),
+                # a run that tested one population and refused another is
+                # partly tested, not untested (Codex review 3 Oct)
+                "not_tested": sum(1 for t in tests if t["tested"] == "nothing"),
+                "partly_tested": sum(1 for t in tests if t["tested"] == "partly"),
+                "limited": sum(1 for t in tests if t["tested"] == "limited"),
                 "fraud_risks": len(risks),
             },
             "presumed_risks": [
@@ -1731,12 +1739,6 @@ class WorkbenchService:
         latest: dict[str, dict] = {}
         for run in self.runs(engagement_id):
             latest[run["procedure_id"]] = run
-        # A run whose every finding is a refusal ("too few amounts", "nothing
-        # numbered") completed but tested nothing; say so beside "completed".
-        classes: dict[str, set] = {}
-        for finding in self.findings(engagement_id):
-            classes.setdefault(finding["run_id"], set()).add(
-                finding["tags"].get("class"))
         for row in coverage.get("procedures", []):
             run = latest.get(row["procedure_id"])
             if not run:
@@ -1746,8 +1748,13 @@ class WorkbenchService:
             else:
                 row["execution_status"] = "completed"
                 row["procedure_run"] = {"run_id": run["run_id"], "status": "completed"}
-                if classes.get(run["run_id"]) == {"refusal"}:
+                # "completed" is not "tested": say how much the run tested
+                if run["tested"] == "nothing":
                     row["tested_nothing"] = True
+                elif run["tested"] == "partly":
+                    row["tested_partly"] = True
+                elif run["tested"] == "limited":
+                    row["tested_extent_unclear"] = True
         return coverage
 
     # ----------------------------------------------- screen 6: the record
@@ -2410,6 +2417,30 @@ def _batch_report(results: list[dict], *, done: str) -> dict:
             done: sum(r["status"] == done for r in results),
             "skipped": sum(r["status"] == "skipped" for r in results),
             "errors": sum(r["status"] == "error" for r in results)}
+
+
+def _how_much_tested(summary: dict, findings: list[dict]) -> str:
+    """Classify a run only as far as its receipts and summary establish.
+
+    A generic ``population`` may count source rows, not rows actually tested
+    (for example, AR difference estimation with too few confirmations).
+    Therefore it cannot turn a refusal-only run into "partly tested".
+    """
+    refusals = [f for f in findings
+                if (f.get("evidence") or {}).get("finding_class") == "REFUSAL"]
+    if not refusals:
+        return "all"
+    if len(refusals) != len(findings):
+        return "partly"
+    # Benford reports explicit per-population test status. A clean tested
+    # population leaves no finding, so this is the only safe way to see it.
+    populations = (summary or {}).get("populations")
+    if isinstance(populations, dict):
+        return ("partly" if any(isinstance(v, dict) and v.get("tested") is True
+                             for v in populations.values()) else "nothing")
+    if (summary or {}).get("population") == 0:
+        return "nothing"
+    return "limited"  # refusal present; the extent cannot be proved here
 
 
 def _tags(verdict: dict) -> dict:

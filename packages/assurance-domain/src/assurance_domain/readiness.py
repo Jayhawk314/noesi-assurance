@@ -190,7 +190,11 @@ def readiness(report: dict, engagement: dict, sad: dict,
             status_of[pid] = "not run"
         elif procedure.get("tested_nothing"):
             status_of[pid] = "ran, but tested nothing"
-    unanswered = []
+        elif procedure.get("tested_partly"):
+            status_of[pid] = "ran, but only partly tested"
+        elif procedure.get("tested_extent_unclear"):
+            status_of[pid] = "ran with a refusal; tested extent is unclear"
+    unanswered, by_risk = [], {}
     if status_of or procedure_coverage.get("procedures"):
         for fid in risk_ids:
             assessment = engagement.get("risks", {}).get(fid, {})
@@ -200,9 +204,12 @@ def readiness(report: dict, engagement: dict, sad: dict,
                 if pid in status_of:
                     unanswered.append(f"{assessment.get('title') or fid}: "
                                       f"{pid} ({status_of[pid]})")
+                    # keyed by risk id: two risks may share a title
+                    by_risk.setdefault(fid, []).append(f"{pid} ({status_of[pid]})")
     if unanswered:
         blockers.append({"code": "HIGH_RISK_RESPONSES_NOT_PERFORMED",
-                         "count": len(unanswered), "items": unanswered})
+                         "count": len(unanswered), "items": unanswered,
+                         "by_risk": by_risk})
 
     # A data-less engagement skips every procedure gate above, so readiness
     # could pass with no substantive work without anyone saying so. When

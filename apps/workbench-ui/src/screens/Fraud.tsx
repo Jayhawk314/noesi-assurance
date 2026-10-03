@@ -51,6 +51,8 @@ export function FraudScreen({ client, eid, onError: _onError }: {
           {summary.partly} can run only in part ·{" "}
           {summary.cannot_run} cannot run on these records ·{" "}
           {summary.not_tested} ran but did not test ·{" "}
+          {summary.partly_tested} only partly tested ·{" "}
+          {summary.limited} ran with a refusal; tested extent unclear ·{" "}
           {summary.findings} finding{summary.findings === 1 ? "" : "s"},{" "}
           <b>{summary.open_findings} still open</b>
         </p>
@@ -104,9 +106,11 @@ export function FraudScreen({ client, eid, onError: _onError }: {
                 <td><CanRun t={t} /></td>
                 <td>{t.last_run ? `${t.last_run.status}, ${t.last_run.at.slice(0, 10)}`
                   : <span className="note">not run</span>}</td>
-                <td>{t.not_tested.length > 0 && t.findings === 0
+                <td>{t.tested === "nothing"
                   ? <span className="status bad">not tested</span>
-                  : <>{t.findings}{t.open > 0 && <span className="status pending"> ({t.open} open)</span>}</>}</td>
+                  : <>{t.findings}{t.open > 0 && <span className="status pending"> ({t.open} open)</span>}
+                      {t.tested === "partly" && <div className="status pending">partly tested</div>}
+                      {t.tested === "limited" && <div className="status pending">tested extent unclear</div>}</>}</td>
                 <td className="note">
                   {t.not_tested.map((reason) => <div key={reason}>not tested: {amountsInWords(reason)}</div>)}
                   {t.missing.length > 0 && <div>needs: {t.missing.join(", ")}</div>}

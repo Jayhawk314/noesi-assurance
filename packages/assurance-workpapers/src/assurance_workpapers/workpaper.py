@@ -139,19 +139,18 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
     # that did not run answers nothing; readiness names it, and so does this.
     risks = [r for r in manifest.get("risks", []) if not r.get("archived")]
     if risks:
-        not_performed = []
+        not_performed: dict = {}
         for blocker in (opinion or {}).get("readiness_blockers") or []:
             if blocker.get("code") == "HIGH_RISK_RESPONSES_NOT_PERFORMED":
-                not_performed = list(blocker.get("items") or [])
+                not_performed = dict(blocker.get("by_risk") or {})
         rows = []
         for r in risks:
             title = r.get("title") or r.get("risk_id")
             linked = r.get("procedure_ids") or []
             if isinstance(linked, str):
                 linked = json.loads(linked or "[]")
-            prefix = f"{title}: "      # a title may itself hold ": "
-            gaps = [item[len(prefix):] for item in not_performed
-                    if item.startswith(prefix)]
+            # matched by risk id, never by title: two risks may share one
+            gaps = list(not_performed.get(r.get("risk_id"), []))
             rows.append([
                 title + (" (fraud risk)" if r.get("fraud") else ""),
                 r.get("assertion", ""), r.get("level", ""), r.get("response", ""),

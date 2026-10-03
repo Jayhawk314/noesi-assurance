@@ -629,6 +629,27 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
   const { data, reload } = useLoader(load, onError);
   const [procedureId, setProcedureId] = useState("");
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  // One save at a time per finding, each on the version the previous one
+  // returned. Leaving a changed note to pick a new disposition fires two
+  // saves; both on the screen's version, the second would be refused as a
+  // conflict (Codex review 3 Oct).
+  const saving = useRef<Record<string, Promise<number>>>({});
+  const saveDisposition = (finding: Finding, status: string, note: string) => {
+    const uid = finding.finding_uid;
+    const after = saving.current[uid] ?? Promise.resolve(finding.disposition.version);
+    const next = after
+      .then((version) => client.setDisposition(eid, uid, status, note, version))
+      .then((out) => (out as { version: number }).version);
+    saving.current[uid] = next;
+    next.then(() => {
+      if (saving.current[uid] === next) delete saving.current[uid];
+      reload();
+    }).catch((exc) => {
+      if (saving.current[uid] === next) delete saving.current[uid];
+      onError(exc);
+      reload();
+    });
+  };
   const [onlyProc, setOnlyProc] = useState("");
   const [onlyStatus, setOnlyStatus] = useState("");
   const [latestOnly, setLatestOnly] = useState(true);
@@ -656,13 +677,6 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
     if (run.status !== "error") latestRun[run.procedure_id] = run.run_id;
   }
   const all = data?.findings ?? [];
-  // A run whose every finding is a refusal completed but tested nothing.
-  const runClasses: Record<string, Set<string>> = {};
-  for (const f of all) (runClasses[f.run_id] ??= new Set()).add(f.tags.class);
-  const testedNothing = (runId: string) => {
-    const c = runClasses[runId];
-    return !!c && c.size === 1 && c.has("refusal");
-  };
   const fromLatest = all.filter((f) => latestRun[f.procedure_id] === f.run_id);
   const current = latestOnly ? fromLatest : all;
   const earlier = all.length - fromLatest.length;
@@ -728,8 +742,12 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
             <tr key={run.run_id}>
               <td><b>{named(run.procedure_id)}</b><br /><code>{run.procedure_id}</code></td>
               <td><span className={`status ${run.status}`}>{run.status}</span>
-                {run.status !== "error" && testedNothing(run.run_id) && (
-                  <div className="status bad">tested nothing: see its findings</div>)}</td>
+                {run.tested === "nothing" && (
+                  <div className="status bad">tested nothing: see its findings</div>)}
+                {run.tested === "partly" && (
+                  <div className="status pending">partly tested: see its findings</div>)}
+                {run.tested === "limited" && (
+                  <div className="status pending">ran with a refusal; tested extent unclear</div>)}</td>
               <td><code>{run.executed_by}</code></td>
               <td className="note">{run.error || "—"}</td>
               <td><RunDetails summary={run.summary ?? {}} /></td>
@@ -832,10 +850,8 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
               <td>
                 <select value={finding.disposition.status === "undisposed"
                           ? "" : finding.disposition.status}
-                        onChange={(e) => act(() => client.setDisposition(
-                          eid, finding.finding_uid, e.target.value,
-                          noteDraft[finding.finding_uid] ?? finding.disposition.note,
-                          finding.disposition.version))()}>
+                        onChange={(e) => saveDisposition(finding, e.target.value,
+                          noteDraft[finding.finding_uid] ?? finding.disposition.note)}>
                   <option value="">undisposed</option>
                   {DISPOSITIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -851,9 +867,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
                          const draft = noteDraft[finding.finding_uid];
                          if (draft === undefined || draft === finding.disposition.note
                              || finding.disposition.status === "undisposed") return;
-                         act(() => client.setDisposition(eid, finding.finding_uid,
-                           finding.disposition.status, draft,
-                           finding.disposition.version))();
+                         saveDisposition(finding, finding.disposition.status, draft);
                        }} />
                 {(() => {
                   const draft = noteDraft[finding.finding_uid];
