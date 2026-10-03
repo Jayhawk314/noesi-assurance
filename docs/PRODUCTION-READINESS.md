@@ -113,6 +113,14 @@ support. Kestrel calibrates the engine; it is not proof that another client's
 data is complete. Oceanview is a private second calibration case and must
 never be published.
 
+**Verification status, 3 October:** later Workbench UI defects show that a
+passing procedure suite and case-key check are insufficient to call the
+product finished. The remaining end-to-end UI and independent-review checks
+are tracked in `docs/ROADMAP.md` and
+`docs/WORKBENCH-FINISH-MAP-2026-10-03.md`. The P0 client-data controls in
+this document are a separate requirement; passing the UI checks will not
+waive them.
+
 ### Remaining operational gaps
 
 | # | Item | Status now | Needed for broader use |

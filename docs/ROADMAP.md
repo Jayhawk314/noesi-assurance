@@ -306,6 +306,14 @@ as a current product-readiness verdict. The remaining verification order and
 client-data boundary are in `docs/WORKBENCH-FINISH-MAP-2026-10-03.md`.
 Videos remain paused until that Workbench finish map is checked.
 
+**Current Phase 1 exit checks (3 Oct):** independent review of `04d3c5f`
+and `c38d567`; a complete invented-data engagement through the ordinary
+Workbench UI (upload, mapping, run, disposition, reopen, verified download);
+and a screen-by-screen check for truthful tested/untested wording and usable
+actions. Reproduce suspected issues before fixing them. The Kestrel 174/176
+check stays a calibration check, not a replacement for these exit checks.
+Client-data custody requirements remain in `docs/PRODUCTION-READINESS.md`.
+
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
 duplicate bills needs the supplier's invoice number; `je_manual_sources`;
@@ -320,7 +328,8 @@ wording are to be fixed before videos. Layout and data-changing buttons were
 not checked. **Both bugs and the stale wording fixed 3 Oct** (see that file).
 
 ## Phase 2: the Kestrel Learn app
-Starts after Phase 1. Details in `docs/LEARN-KESTREL-PLAN.md`: a copy of the
+Resumes only after the current Phase 1 exit checks above. Details in
+`docs/LEARN-KESTREL-PLAN.md`: a copy of the
 Learn app with the same layout; 13 modules, one per audit area (idea, by
 hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
