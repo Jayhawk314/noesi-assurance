@@ -332,17 +332,86 @@ def test_the_check_sequence_runs_on_the_journal_alone():
     from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID
     from procedures_cycles.engines import execute_procedure
     contract = CYCLE_CONTRACTS_BY_ID["forensic.check_number_sequence"]
+    run = frozenset({contract.procedure_id})
     inventory = {"Journal_entries": {"rows": 4, "fields": ["entry_id", "account"]}}
-    row = compile_coverage(inventory, contracts=(contract,),
-                           executors=frozenset({contract.procedure_id}))["procedures"][0]
-    assert row["status"] == "executable" and row["satisfied_by"] == ["Journal_entries"]
+    row = compile_coverage(inventory, contracts=(contract,), executors=run)["procedures"][0]
+    assert row["status"] == "executable" and "satisfied_by" not in row
     assert row["population"] == 4
-    nothing = compile_coverage({}, contracts=(contract,),
-                               executors=frozenset({contract.procedure_id}))["procedures"][0]
-    assert nothing["status"] == "blocked" and nothing["missing_roles"] == ["Payments"]
+    payments = {"Payments": {"rows": 3, "fields": ["payment_number"]}}
+    row = compile_coverage(payments, contracts=(contract,), executors=run)["procedures"][0]
+    assert row["status"] == "executable" and row["satisfied_by"] == ["Payments"]
+    assert row["population"] == 3
+    nothing = compile_coverage({}, contracts=(contract,), executors=run)["procedures"][0]
+    assert nothing["status"] == "blocked" and nothing["missing_roles"] == ["Journal_entries"]
     journal = _check("a", "1001", "Check", "10100", "50") + \
         _check("b", "1003", "Check", "10100", "60")
     findings, stats = execute_procedure("forensic.check_number_sequence",
                                         {"Journal_entries": journal}, {})
     assert _keys(findings) == [("disbursements", "1002", "gap")]
     assert stats["disbursements_from"] == "Journal"
+
+
+def test_a_voided_check_in_the_journal_is_accounted_for_not_missing():
+    # Review 2026-10-02 batch, M2: a void carries its lines with no amounts.
+    void = [{"entry_id": "v", "line": "1", "source": "Check", "document_number": "1002",
+             "entry_date": "2026-01-06", "account": "60000", "debit": "", "credit": "",
+             "source_row": 2},
+            {"entry_id": "v", "line": "2", "source": "Check", "document_number": "1002",
+             "entry_date": "2026-01-06", "account": "10100", "debit": "", "credit": "",
+             "source_row": 3}]
+    journal = (_check("a", "1001", "Check", "10100", "50") + void
+               + _check("c", "1003", "Check", "10100", "70"))
+    findings, stats = forensic.check_number_sequence({"Journal_entries": journal}, {})
+    assert findings == []
+    assert list(stats["sequences"]) == ["disbursements"]
+    assert stats["sequences"]["disbursements"]["voided"] == 1
+
+
+def test_no_numbered_check_anywhere_is_not_a_clean_result():
+    # Review 2026-10-02 batch, M3: a Journal with no checks and no payments.
+    journal = [{"entry_id": "je1", "line": "1", "source": "Journal Entry",
+                "document_number": "1", "entry_date": "2026-01-05", "account": "60000",
+                "debit": "10", "credit": "", "source_row": 2}]
+    findings, stats = forensic.check_number_sequence({"Journal_entries": journal}, {})
+    assert _keys(findings) == [("not_performed",)]
+    assert findings[0].evidence["finding_class"] == "REFUSAL"
+    assert stats["disbursements_from"] == "none" and stats["population"] == 0
+
+
+def test_with_both_files_the_run_reads_the_journal_and_sets_no_payment_aside():
+    # Review 2026-10-02 batch, L1.
+    from procedures_cycles.engines import execute_procedure
+    journal = _check("a", "1001", "Check", "10100", "50") + \
+        _check("b", "1003", "Check", "10100", "60")
+    payments = [{"payment_number": "", "vendor_number": "Acme", "payment_amount": "5",
+                 "source_row": 2}]
+    findings, stats = execute_procedure("forensic.check_number_sequence",
+                                        {"Journal_entries": journal, "Payments": payments}, {})
+    assert _keys(findings) == [("disbursements", "1002", "gap")]
+    assert stats["disbursements_from"] == "Journal"
+
+
+def test_self_approval_by_payment_cosigned_and_missing_preparer():
+    # Review 2026-10-02 batch, L4.
+    log = [
+        {"payment_number": "601", "payee": "Acme", "payment_amount": "100",
+         "prepared_by": "Pat Lee", "approved_by": "Pat Lee", "source_row": 2},
+        {"payment_number": "601", "payee": "Acme", "payment_amount": "100",
+         "prepared_by": "Pat Lee", "approved_by": "Sam Ortiz", "source_row": 3},
+        {"payment_number": "602", "payee": "Bolt", "payment_amount": "50",
+         "prepared_by": "", "approved_by": "Sam Ortiz", "source_row": 4},
+        {"payment_number": "603", "payee": "Cord", "payment_amount": "70",
+         "prepared_by": "Pat Lee", "approved_by": "Pat Lee", "source_row": 5},
+    ]
+    findings, stats = forensic.self_approved_payments({"Payment_approvals": log}, {})
+    assert sorted(_keys(findings)) == [("602", "no_preparer"), ("603", "self_approved")]
+    assert (stats["population"], stats["log_rows"], stats["no_preparer"]) == (3, 4, 1)
+
+
+def test_one_word_employee_names_are_counted_not_skipped_in_silence():
+    # Review 2026-10-02 batch, L5.
+    vendors = [{"vendor_number": "V1", "vendor_name": "Pike Hauling", "source_row": 2}]
+    employees = [{"employee_id": "E8", "name": "Pike", "source_row": 2}]
+    findings, stats = forensic.vendor_employee_match(
+        {"Vendors": vendors, "Payroll_master": employees}, {})
+    assert findings == [] and stats["employees_with_one_word_names_not_compared"] == 1

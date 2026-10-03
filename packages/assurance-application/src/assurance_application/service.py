@@ -145,6 +145,21 @@ class WorkbenchService:
         return Command(command_id or new_id(), self._tenant, actor, kind,
                        engagement_id=engagement_id)
 
+    def _require_own(self, engagement_id: str, *, artifact_id: str | None = None,
+                     spec_id: str | None = None) -> None:
+        """The file or mapping belongs to this engagement (review 2026-10-02
+        batch, M1: another engagement's file could be confirmed and loaded
+        here). Refused as not found, so nothing about the other is said."""
+        for table, key, value in (("artifact", "artifact_id", artifact_id),
+                                  ("mapping_spec", "spec_id", spec_id)):
+            if value is None:
+                continue
+            row = self._conn.execute(
+                f"SELECT engagement_id FROM {table} WHERE {key} = ? AND tenant_id = ?",
+                (value, self._tenant)).fetchone()
+            if row is None or row["engagement_id"] != engagement_id:
+                raise NotFoundError(f"{table} {value}")
+
     def _require_open(self, engagement_id: str) -> None:
         if self._engagement(engagement_id)["archived_at"]:
             raise EngagementArchivedError(
@@ -322,6 +337,7 @@ class WorkbenchService:
         of its digest, so every later rebuild reads exactly those rows again.
         """
         self._require_open(engagement_id)
+        self._require_own(engagement_id, artifact_id=artifact_id)
         headers, _, resolved, _ = self._artifact_table(artifact_id, extraction)
         artifact = self._conn.execute(
             "SELECT sha256 FROM artifact WHERE artifact_id = ?",
@@ -377,9 +393,11 @@ class WorkbenchService:
         """Confirm a mapping proposed before 2 Oct 2026 and never approved,
         so older engagements are not stuck with it."""
         self._require_open(engagement_id)
+        self._require_own(engagement_id, spec_id=spec_id)
 
         def handler(uow):
-            uow.mappings.confirm_pending(spec_id, confirmed_by=actor)
+            uow.mappings.confirm_pending(spec_id, confirmed_by=actor,
+                                         engagement_id=engagement_id)
             return {"spec_id": spec_id, "status": "approved"}
         return run_command(
             self._conn,
@@ -397,6 +415,7 @@ class WorkbenchService:
         what every procedure reads, so a load without one is refused.
         """
         self._require_open(engagement_id)
+        self._require_own(engagement_id, spec_id=spec_id)
         # The file and the approved mapping are immutable, so a second load
         # could only repeat the same rows as a confusing duplicate dataset.
         existing = self._conn.execute(
@@ -1933,7 +1952,7 @@ class WorkbenchService:
                 raise ValueError(
                     f"this spec was read with {recipe.report} recipe version "
                     f"{version!r}; this build reads it as {recipe.version!r}. "
-                    f"Propose and approve the file again")
+                    f"Map and confirm the file again")
             headers, rows, source_rows, report = quickbooks.apply(
                 recipe.recipe_id, headers, rows, resolved["header_row"] + 1)
             resolved.update(recipe=recipe.recipe_id,
@@ -1996,9 +2015,8 @@ class WorkbenchService:
         ledger balance is the Accounts Payable account's ending balance in
         the General Ledger export. Both are footed first, and a report that
         does not foot is refused. The schedule is stored as an ordinary
-        source file whose provenance names both exports by SHA-256, then goes
-        through the same propose, approve and normalize path as any other
-        file: the preparer builds it, a reviewer approves its mapping.
+        source file whose provenance names both exports by SHA-256, then is
+        mapped, confirmed and loaded like any other file.
         """
         self._require_open(engagement_id)
         books = {b["artifact_id"]: b for b in self._qbo_workbooks(engagement_id)}
@@ -2261,7 +2279,7 @@ class WorkbenchService:
     def _guess_role(self, artifact_id: str, filename: str) -> tuple[str | None, str]:
         """The role a stored file most likely carries: its name first, then
         its column headings when the name says nothing. A suggestion for the
-        preparer and reviewer, cached per file (stored files never change)."""
+        user to check, cached per file (stored files never change)."""
         role = infer_role(filename)
         if role:
             return role, "filename"

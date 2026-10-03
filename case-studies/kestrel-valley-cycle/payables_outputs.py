@@ -168,8 +168,9 @@ def write_check_signatures(txs):
     g.write_csv(g.AUDITOR / "check_signatures.csv",
                 ["Check Number", "Payee", "Check Date", "Amount", "Prepared By",
                  "Signed By", "Image Reference"], rows)
-    return {"inspected": len(rows), "selection": "every check of 2,500.00 or more, and "
-            "every check to DM Consulting, Owen Pike Hauling and Gallatin Display Works",
+    return {"inspected": len(rows), "selection": "every check of 2,500.00 or more in the "
+            "year to 30 June 2026, and every check that year to DM Consulting, Owen Pike "
+            "Hauling and Gallatin Display Works (July's checks are not in the log)",
             "self_signed": self_signed, "self_signed_by": BOOKKEEPER,
             "self_signed_total": str(sum(r[3] for r in rows if r[0] in self_signed)),
             "no_signer": 0}

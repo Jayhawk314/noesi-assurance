@@ -247,7 +247,7 @@ made sequential, keeping every check number the key names, before a
 planted gap means anything. Plant with it: one vendor matching an employee
 by bank account, and the E3 schemes below.
 **Kestrel lines done 2 Oct 2026 (Claude, local, not reviewed by a second
-agent):** checks renumbered 4267–4433 without a break (June 4411–4426;
+agent):** checks renumbered 4266–4433 without a break (June 4411–4426;
 4421, 4425, 4429, 4433 kept; four routine July checks added), one planted
 gap 4422–4424; a vendor named after employee E08, Owen Pike Hauling
 (5,925.00, freight budget moved from Velo, trial balances unchanged). **By
@@ -328,6 +328,20 @@ scripts first, James approves scripts and credits before voicing.
   Tested on invented data (worked by hand). Left: additions projection,
   adjusted covenants.
 - Wiring the cycles into the structural layer (agreed as later, 2026-09-26).
+- **Batch review (docs/reviews/REVIEW-2026-10-02-batch.md) fixed 2 Oct:**
+  M1 (a file or mapping from another engagement could be confirmed and
+  loaded: now refused as not found); M2 (a voided check, lines with no
+  amounts, joins its bank's run and is counted as voided, not missing; the
+  QuickBooks void layout is the reviewer's understanding, not seen in a
+  real export); M3 (nothing numbered anywhere is "not tested", never a clean
+  result); L1 (the Journal is the check sequence's required input, payments
+  the alternative); L2 (a disposal with cleared accumulated depreciation is
+  not recomputed); L3 ("200%" read as 2; factors outside 1-3 refused); L4
+  (approval logs grouped by payment, co-signed checks not flagged, missing
+  preparer flagged); L5 (one-word names counted); L6 (first check 4266;
+  the signature log is the year to 30 June; check_key checks first and
+  last); L7 wording. Left as history: old engagements' `principal_assignment`
+  rows still fill a display-only "reviewer" slot in readiness's team.
 - **Benford decided 2 Oct (Claude, James: "you decide"):** the demo's
   minimum stays 1,000 (Nigrini 2012 as recalled; the page is still not
   checked). Below it the test says "not tested" rather than judge a hundred

@@ -458,23 +458,28 @@ class MappingSpecRepository:
             engagement_id=engagement_id)
         return spec_id
 
-    def confirm_pending(self, spec_id: str, *, confirmed_by: str) -> None:
-        """Confirm a mapping proposed before 2 Oct 2026 and never approved."""
+    def confirm_pending(self, spec_id: str, *, confirmed_by: str,
+                        engagement_id: str) -> None:
+        """Confirm a mapping proposed before 2 Oct 2026 and never approved,
+        only within its own engagement (review 2026-10-02 batch, M1)."""
         cursor = self._uow.execute(
             """UPDATE mapping_spec SET status = 'approved', approved_by = ?,
                approved_at = ? WHERE spec_id = ? AND tenant_id = ?
-               AND status = 'proposed'""",
-            (confirmed_by, utcnow(), spec_id, self._uow.command.tenant_id))
+               AND engagement_id = ? AND status = 'proposed'""",
+            (confirmed_by, utcnow(), spec_id, self._uow.command.tenant_id,
+             engagement_id))
         if cursor.rowcount == 0:
             if self._uow.execute(
-                    "SELECT 1 FROM mapping_spec WHERE spec_id = ? AND tenant_id = ?",
-                    (spec_id, self._uow.command.tenant_id)).fetchone() is None:
+                    "SELECT 1 FROM mapping_spec WHERE spec_id = ? AND tenant_id = ? "
+                    "AND engagement_id = ?",
+                    (spec_id, self._uow.command.tenant_id,
+                     engagement_id)).fetchone() is None:
                 raise NotFoundError(f"mapping_spec {spec_id}")
             raise ConflictError("mapping_spec", spec_id, 1)
         self._uow.emit(
             entity_type="mapping_spec", entity_id=spec_id,
             event_type="mapping.confirmed",
-            payload={"confirmed_by": confirmed_by})
+            payload={"confirmed_by": confirmed_by}, engagement_id=engagement_id)
 
     def get(self, spec_id: str) -> sqlite3.Row:
         row = self._uow.execute(

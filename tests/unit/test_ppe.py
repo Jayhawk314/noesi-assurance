@@ -173,3 +173,24 @@ def test_declining_balance_half_year_disposal():
         "ppe.depreciation_recompute", {"Fixed_assets": register},
         {"period_end": PE, "ppe_depreciation_convention": "half_year"})
     assert findings == [] and stats["recomputed_total"] == "1200.00"
+
+
+def test_declining_balance_refuses_a_bad_factor_and_a_cleared_disposal():
+    # Review 2026-10-02 batch, L2 and L3.
+    plain = [asset("E1", "10000", "2024-01-01", "5", "2400.00", "6400.00",
+                   method="declining balance")]
+    base = {"period_end": PE, "ppe_depreciation_convention": "full_month"}
+    for typed in ("200%", "2"):           # opening 10000 - 4000 = 6000 -> 2400
+        findings, stats = execute_procedure(
+            "ppe.depreciation_recompute", {"Fixed_assets": plain},
+            {**base, "ppe_declining_balance_factor": typed})
+        assert findings == [] and stats["recomputed_total"] == "2400.00", typed
+    with pytest.raises(PolicyError, match="between 1 and 3"):
+        execute_procedure("ppe.depreciation_recompute", {"Fixed_assets": plain},
+                          {**base, "ppe_declining_balance_factor": "200"})
+    # sold mid-year, accumulated depreciation cleared to 0 on the sale
+    sold = [asset("E2", "10000", "2024-01-01", "5", "600.00", "0.00", method="DDB",
+                  disposed="2025-06-30", salvage="1000")]
+    findings, stats = execute_procedure(
+        "ppe.depreciation_recompute", {"Fixed_assets": sold}, base)
+    assert findings == [] and stats["not_recomputed"] == ["e2"]

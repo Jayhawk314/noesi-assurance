@@ -188,7 +188,8 @@ def test_a_pending_mapping_from_before_2_oct_can_be_confirmed_once(env):
     conn.commit()
     confirm = lambda cid: run_command(  # noqa: E731
         conn, Command(cid, tenant, "auditor-1", "mapping.confirm"),
-        lambda uow: uow.mappings.confirm_pending("old-1", confirmed_by="auditor-1") or {})
+        lambda uow: uow.mappings.confirm_pending("old-1", confirmed_by="auditor-1",
+                                                 engagement_id=engagement) or {})
     confirm("confirm-old-1")
     row = conn.execute("SELECT status, approved_by FROM mapping_spec").fetchone()
     assert tuple(row) == ("approved", "auditor-1")

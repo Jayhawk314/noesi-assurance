@@ -147,6 +147,8 @@ def main():
     gaps = [f"{lo + 1}-{hi - 1}" for lo, hi in zip(numbers, numbers[1:]) if hi - lo > 1]
     results.append(check("check sequence: distinct checks", len(numbers),
                          seq["distinct_checks"]))
+    results.append(check("check sequence: first check", numbers[0], seq["first"]))
+    results.append(check("check sequence: last check", numbers[-1], seq["last"]))
     results.append(check("check sequence: gaps", len(gaps), len(seq["gaps"])))
     results.append(check("check sequence: the gap starts at", gaps[0].split("-")[0],
                          seq["gaps"][0]["first_missing"]))

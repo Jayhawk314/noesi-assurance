@@ -51,7 +51,8 @@ def check_number_sequence(tables: dict, policies: dict):
         sources["disbursements"] = "Journal"
         items += [i for i in journal if i[0] == "disbursements"]
     else:
-        sources["disbursements"] = "payment records"
+        sources["disbursements"] = ("payment records" if records(tables, "Payments")
+                                    or records(tables, "Direct_payments") else "none")
         for role in ("Payments", "Direct_payments"):
             for row in records(tables, role):
                 raw = row.get("check_number") if role == "Payments" else None
@@ -66,7 +67,8 @@ def check_number_sequence(tables: dict, policies: dict):
         sources["payroll"] = "Journal"
         items += [i for i in journal if i[0] == "payroll"]
     else:
-        sources["payroll"] = "payroll register"
+        sources["payroll"] = ("payroll register" if records(tables, "Payroll_register")
+                              else "none")
         for row in records(tables, "Payroll_register"):
             items.append(("payroll", key_text(row.get("bank_account")),
                           _check_number(row.get("check_number")), "Payroll_register",
@@ -136,11 +138,25 @@ def check_number_sequence(tables: dict, policies: dict):
             "rows": len(run), "numbered": len(run) - not_numbered,
             "not_numbered": not_numbered, "first": numbers[0], "last": numbers[-1],
             "distinct_checks": len(numbers),
+            # Journal checks with no amounts: voids, accounted for (M2).
+            "voided": sum(1 for i in run if i[3] == "Journal_entries" and i[7] == 0
+                          and i[2] is not None),
             "missing_numbers": sum(e - s + 1 for s, e in missing),
             "gaps": len(missing), "reused_numbers": reused}
     stats["disbursements_from"] = sources["disbursements"]
     stats["payroll_from"] = sources["payroll"]
-    stats["population"] = sum(s["rows"] for s in stats["sequences"].values())
+    stats["population"] = sum(s.get("numbered", 0) for s in stats["sequences"].values())
+    if not any(s.get("numbered") for s in stats["sequences"].values()):
+        # Nothing numbered anywhere: say so, never a clean result over
+        # nothing (review 2026-10-02 batch, M3).
+        findings.append(receipt(
+            pid, ("not_performed",), "AMBIGUOUS",
+            "no numbered check was found: the Journal numbers none of its checks and "
+            "no payment records or payroll register with check numbers are loaded. "
+            "The check sequence was not tested",
+            {"finding_class": "REFUSAL", "cycle": "forensic",
+             "disbursements_from": sources["disbursements"],
+             "payroll_from": sources["payroll"]}))
     stats["exceptions"] = len(findings)
     return findings, stats
 
@@ -175,12 +191,20 @@ def _journal_checks(rows: list[dict]) -> list[tuple]:
         if credits:
             account = max(credits, key=lambda a: (credited[a], credits[a][0]))
             amount, bank = credits[account]
+            bank_account = key_text(bank.get("account"))
         else:
+            # A voided check carries its lines with no amounts (review
+            # 2026-10-02 batch, M2): it belongs to the bank run its lines
+            # name, so its number is accounted for, not reported missing.
             amount, bank = Decimal("0"), lines[0]
+            named = [r for r in lines if key_text(r.get("account")) in credited]
+            bank_account = ""
+            if named:
+                bank = max(named, key=lambda r: credited[key_text(r.get("account"))])
+                bank_account = key_text(bank.get("account"))
         number = next((_check_number(r.get("document_number")) for r in lines
                        if text(r.get("document_number"))), None)
-        out.append((_check_kind(lines[0].get("source")),
-                    key_text(bank.get("account")) if credits else "",
+        out.append((_check_kind(lines[0].get("source")), bank_account,
                     number, "Journal_entries", bank, entry_id,
                     day(lines[0].get("entry_date")), amount, "entry_id"))
     return out
@@ -285,6 +309,9 @@ def vendor_employee_match(tables: dict, policies: dict):
                                      source_ref("Payroll_master", e, "employee_id")]}))
     names = [(e, _words(_employee_name(e))) for e in employees]
     unnamed = sum(1 for _, n in names if not n)
+    # One word ("Pike") is too weak to match on; counted, not skipped in
+    # silence (review 2026-10-02 batch, L5).
+    one_word = sum(1 for _, n in names if len(n) == 1)
     if any(n for _, n in names) and vendors:
         compared.append("name")
         for v in vendors:
@@ -309,6 +336,7 @@ def vendor_employee_match(tables: dict, policies: dict):
              # Said, not skipped in silence (review L2):
              "masked_numbers_not_compared": masked,
              "employees_without_a_name": unnamed,
+             "employees_with_one_word_names_not_compared": one_word,
              "exceptions": len(findings)}
     return findings, stats
 
@@ -331,12 +359,33 @@ def self_approved_payments(tables: dict, policies: dict):
     rows = records(tables, "Payment_approvals")
     findings = []
     by_person: dict[str, list[dict]] = {}
-    no_approver = 0
+    no_approver = no_preparer = 0
+    # One payment may be logged on several rows (a second signer). It is
+    # self-approved only when no row names someone other than the preparer
+    # (review 2026-10-02 batch, L4).
+    by_payment: dict[str, list[dict]] = {}
     for row in rows:
-        number = key_text(row.get("payment_number"))
-        preparer, approver = _person(row.get("prepared_by")), _person(row.get("approved_by"))
+        by_payment.setdefault(key_text(row.get("payment_number")), []).append(row)
+    for number, logged in by_payment.items():
+        row = logged[0]
+        preparers = {_person(r.get("prepared_by")) for r in logged} - {""}
+        approvers = {_person(r.get("approved_by")) for r in logged} - {""}
+        preparer = next(iter(preparers)) if len(preparers) == 1 else ""
+        approver = "" if not approvers else (
+            preparer if approvers == {preparer} else next(iter(approvers - {preparer})))
         amount = money(row.get("payment_amount"))
         payee = text(row.get("payee")) or "(no payee)"
+        if approver and not preparers:
+            no_preparer += 1
+            findings.append(receipt(
+                pid, (number, "no_preparer"), "ORPHAN",
+                f"payment {number} to {payee} ({amount}) has an approver but no "
+                "preparer recorded, so whether one person did both cannot be told",
+                {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "forensic",
+                 "payment": number, "approved_by": text(row.get("approved_by")),
+                 "source_rows": [source_ref("Payment_approvals", r, "payment_number")
+                                 for r in logged]}, amount))
+            continue
         if not approver:
             no_approver += 1
             findings.append(receipt(
@@ -360,8 +409,9 @@ def self_approved_payments(tables: dict, policies: dict):
                  "payee": payee, "date": str(day(row.get("payment_date")) or ""),
                  "source_rows": [source_ref("Payment_approvals", row, "payment_number")]},
                 amount))
-    stats = {"population": len(rows), "self_approved": sum(len(v) for v in by_person.values()),
-             "no_approver": no_approver,
+    stats = {"population": len(by_payment), "log_rows": len(rows),
+             "self_approved": sum(len(v) for v in by_person.values()),
+             "no_approver": no_approver, "no_preparer": no_preparer,
              "self_approved_by": {p: len(v) for p, v in sorted(by_person.items())},
              "exceptions": len(findings)}
     return findings, stats

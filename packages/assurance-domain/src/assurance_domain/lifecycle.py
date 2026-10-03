@@ -4,8 +4,9 @@
 The prototype had two run models (base procedures "completed" by inference,
 incremental ones with receipts). Here every procedure run walks one
 lifecycle, and presence of required fields means *executable*, never
-completed. Evidence changes coverage only after preparer validation and a
-different reviewer's approval; that separation is enforced here, not in a UI.
+completed. ``require_separation`` (one person may not prepare and approve)
+is kept for the domain's own helpers and tests; the Workbench has one user
+per engagement and no approval step since 2 Oct 2026, and does not call it.
 """
 
 from __future__ import annotations

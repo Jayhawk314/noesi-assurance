@@ -249,12 +249,14 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "their numbers, since it is the complete population; otherwise the payment "
         "records and the payroll register.",
         "payables", ("completeness", "occurrence"),
-        {"Payments": ("payment_number",)},
-        # The Journal alone serves: it holds every check (review L5).
-        alternative_fields=({"Journal_entries": ("entry_id",)},),
+        # The Journal first, since it holds every check; payment records serve
+        # when there is no Journal (review L5). With both loaded, the run
+        # reads the Journal and sets nothing aside from payments (batch L1).
+        {"Journal_entries": ("entry_id",)},
+        alternative_fields=({"Payments": ("payment_number",)},),
         evidence_source="client Journal, or payment records, checks with no bill and "
                         "payroll register",
-        denominator_role="Payments",
+        denominator_role="Journal_entries",
         limitations="A gap is a lead: a voided check is a normal gap; inspect the void "
                     "or the bank statement. EFTs and text references carry no check "
                     "number and are counted, not tested. In the Journal a check's "
@@ -392,7 +394,10 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         limitations="Straight line and declining balance (full_month or half_year); "
                     "declining balance is recomputed on the opening book value the "
                     "register implies, never below salvage, with no switch to "
-                    "straight line in later years. Other methods are listed as not "
+                    "straight line in later years; an asset whose accumulated "
+                    "depreciation was cleared (on a sale) is listed as not "
+                    "recomputed, since its opening value cannot be read from the "
+                    "register. Other methods are listed as not "
                     "recomputed. Whether lives and salvage are reasonable is the "
                     "auditor's judgment.",
     ),

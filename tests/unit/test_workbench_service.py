@@ -281,3 +281,24 @@ def test_tampered_digest_raises_a_named_integrity_error(service, engagement):
         "UPDATE normalized_dataset SET output_digest = 'tampered'")
     with pytest.raises(EvidenceIntegrityError, match="recorded digest"):
         service.coverage(engagement)
+
+
+def test_one_engagement_cannot_confirm_or_load_anothers_file_or_mapping(service):
+    # Review 2026-10-02 batch, M1: IDs from another engagement are refused as
+    # not found, even when that engagement is archived.
+    from assurance_domain.errors import NotFoundError
+    a = service.create_engagement(ALICE, "Acme", "2025-12-31")["engagement_id"]
+    b = service.create_engagement(ALICE, "Bolt", "2025-12-31")["engagement_id"]
+    b_file = service.store_source(ALICE, b, content=PAYMENTS_CSV, media_type="text/csv",
+                                  original_name="b_payments.csv")
+    b_spec = service.confirm_source_mapping(ALICE, b, role="Payments",
+                                            artifact_id=b_file["artifact_id"])
+    service.archive_engagement(ALICE, b, reason="kept for the record only")
+    with pytest.raises(NotFoundError):
+        service.confirm_source_mapping(ALICE, a, role="Payments",
+                                       artifact_id=b_file["artifact_id"])
+    with pytest.raises(NotFoundError):
+        service.normalize_source(ALICE, a, b_spec["spec_id"])
+    with pytest.raises(NotFoundError):
+        service.confirm_pending_mapping(ALICE, a, b_spec["spec_id"])
+    assert service.sources(a)["datasets"] == []

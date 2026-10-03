@@ -146,6 +146,8 @@ def apply_evidence_lifecycle(coverage: dict, records: dict) -> dict:
     Evidence changes coverage only after a preparer validates it and a
     different reviewer approves that validation. A procedure newly supported
     this way is ``ready_to_run``: receiving a file is not execution.
+    (Kept for the Phase 0 golden comparison; the Workbench does not call it,
+    and has no reviewer since 2 Oct 2026.)
     """
     result = json.loads(json.dumps(coverage))
     requests = result.get("evidence_requests", [])

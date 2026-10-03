@@ -399,7 +399,7 @@ export const FRAUD_LESSONS: Lesson[] = [
         heading: "Kestrel",
         blocks: [
           { kestrel: "Kestrel's approval limit is in the partner's policies. One vendor billed display fixtures three times in one week, each just under it. On the June reconciliation, one check written on a Saturday never cleared, and another cleared at a different amount from the one recorded, leaving part of a bill open." },
-          { kestrel: "Kestrel's checks run in one unbroken sequence for the year, except for three numbers the client cannot produce. And the team read the signer off the bank's images for the larger checks and for the payees under inquiry: the managing member signs, except on the consulting firm's checks, which the bookkeeper both prepared and signed." },
+          { kestrel: "Kestrel's checks run in one unbroken sequence for the year, except for three numbers the client cannot produce. And the team read the signer off the bank's images for the year's larger checks and for the payees under inquiry: the managing member signs, except on the consulting firm's checks, which the bookkeeper both prepared and signed." },
           { watch: "Kestrel's QuickBooks exports record no approver, so the records cannot show whether any bill was approved at all. The split is visible; the approval that was dodged is not. The signer comes from separate evidence, the bank's images, and only for the checks inspected." },
         ],
       },

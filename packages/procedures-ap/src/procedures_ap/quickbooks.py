@@ -37,9 +37,9 @@ row must match the standard layout the recipe was built from (verified
 against real QuickBooks Online exports, tests/fixtures/quickbooks/ and
 tests/fixtures/quickbooks/kestrel_qbo/). A
 report with customized columns is not recognized and falls back to the
-ordinary header mapping, which the reviewer checks as usual. A recipe is
-a proposal like any other mapping; the reviewer approves it, and its id is
-part of the reviewed spec's digest.
+ordinary header mapping, which the user checks as usual. A recipe is
+part of the mapping the user confirms, and its id is part of the spec's
+digest.
 
 What QuickBooks does not export is refused, not invented: bills usually
 carry no number (Num is blank unless someone typed the vendor's invoice
@@ -582,7 +582,7 @@ def combine_trial_balances(current: list[dict], prior: list[dict] | None) -> lis
 
 def _missing_required(recipe: Recipe, rows: list[dict]) -> list[dict]:
     """Kept rows whose required key is blank: normalization will quarantine
-    them. Said before approval, so the reviewer is not surprised after."""
+    them. Said with the mapping, before anything is loaded."""
     out = []
     for field_name in _REQUIRED.get(recipe.role, ()):
         heading = recipe.column_map.get(field_name)

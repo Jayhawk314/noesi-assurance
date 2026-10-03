@@ -243,7 +243,7 @@ Planted items:
   materiality.
 - The current ratio is below 1.20, and the covenant is breached.
 - **The check sequence** (both Journals, checking account 10100) runs
-  4267–4433 with one gap: **checks 4422–4424 are not in QuickBooks**, and
+  4266–4433 with one gap: **checks 4422–4424 are not in QuickBooks**, and
   the client cannot produce them. Nothing else is missing or reused. (On
   2 Oct 2026 the checks were renumbered to remove 16 gaps the generator had
   left by accident; the numbers the key names, 4421, 4425, 4429 and 4433,

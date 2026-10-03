@@ -2,10 +2,9 @@
 """Seed the Kestrel Valley case into a Workbench engagement — the Workbench
 demo.
 
-Everything goes through the real service path, as a team would do it: the
-partner sets materiality, period, audit areas and settings; the preparer
-uploads and maps each file; the reviewer approves each mapping; the
-preparer loads the data and runs every executable procedure. The QuickBooks
+Everything goes through the real service path, as one user would do it:
+set materiality, period, audit areas and settings; upload, map and confirm
+each file; load the data and run every executable procedure. The QuickBooks
 exports go in raw through their recipes (trial balance, A/R aging, inventory
 valuation, the Journal, the payables reports), built on real QuickBooks
 Online exports. Files the Workbench cannot yet take raw (the bank

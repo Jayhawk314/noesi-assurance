@@ -161,18 +161,30 @@ _STRAIGHT_LINE = ("sl", "straight line", "straightline")
 _DECLINING = {"ddb": Decimal("2"), "double declining": Decimal("2"),
               "double declining balance": Decimal("2"), "200% declining balance": Decimal("2"),
               "200 db": Decimal("2"), "150% declining balance": Decimal("1.5"),
-              "150 db": Decimal("1.5"), "150db": Decimal("1.5")}
+              "150 db": Decimal("1.5"), "150db": Decimal("1.5"), "150% db": Decimal("1.5"),
+              "200% db": Decimal("2")}
 
 
 def _declining_factor(method: str, policies: dict) -> Decimal | None:
     """The declining-balance factor a method names (double declining is 2,
     150% is 1.5); a plain "declining balance" takes the auditor's policy
-    ppe_declining_balance_factor. None when neither says."""
+    ppe_declining_balance_factor. None when neither says. A factor written
+    as a percentage ("200%") is read as one (2); outside 1 to 3 it is refused
+    (review 2026-10-02 batch, L3: "200%" was read as 200)."""
     if method in _DECLINING:
         return _DECLINING[method]
-    if method in ("db", "declining balance"):
-        return dec(policies.get("ppe_declining_balance_factor"))
-    return None
+    if method not in ("db", "declining balance"):
+        return None
+    raw = text(policies.get("ppe_declining_balance_factor"))
+    if not raw:
+        return None
+    factor = dec(raw)
+    if factor is not None and "%" in raw:
+        factor = factor / 100
+    if factor is None or not Decimal("1") <= factor <= Decimal("3"):
+        raise PolicyError(f"ppe_declining_balance_factor {raw!r} is not a factor "
+                          "between 1 and 3 (2 for double declining, 1.5 for 150%)")
+    return factor
 
 
 def _declining_balance(asset: dict, start: date, pe: date, convention: str,
@@ -198,7 +210,13 @@ def _declining_balance(asset: dict, start: date, pe: date, convention: str,
     elif ending_acc is None or expense is None:
         return None
     else:
-        base = cost - (money(ending_acc) - money(expense))
+        opening_acc = money(ending_acc) - money(expense)
+        if opening_acc < 0:
+            # The register's accumulated depreciation was cleared (an asset
+            # sold, its accumulated depreciation written off): the opening
+            # value cannot be read from it (review 2026-10-02 batch, L2).
+            return None
+        base = cost - opening_acc
     fraction = Decimal("1")
     if convention == "full_month":
         first = max(_months(acquired), _months(start))
