@@ -1,49 +1,50 @@
 # Noesi Assurance Workbench
 
-Local-first AP procedure coverage and evidence workbench: a modular monolith
-that compiles which audit procedures supplied data can honestly support,
-records why the others cannot run, and produces a reproducible
-evidence-linked workpaper.
+Local-first audit procedure and evidence workbench: a modular monolith that
+tests supplied data across audit cycles, including fraud and forensic work,
+records what it could not test, and produces an evidence-linked record.
 
 **Not an audit, not an opinion, not professional advice.** Free for
 noncommercial use (students, teaching, research); commercial use requires a
 license — see [License, use, and professional
 disclaimers](#license-use-and-professional-disclaimers).
 
-This is the v2 product repository. The audit logic (procedure contracts,
-coverage compiler, refusal semantics, review gates) was ported from the
-`noesi-cpa` prototype; the product boundaries around it (identity,
-persistence, evidence storage, API/UI) were rebuilt. **See
-`docs/ARCHITECTURE.md` for the current system description** and
-`docs/PRODUCTION-READINESS.md` for the tracked gap list between this pilot
-and real-industry deployment — `docs/architecture/` is the historical
-prototype assessment and porting notes, kept as record.
+This is the product repository. The audit logic (procedure contracts,
+coverage compiler and explicit refusals) grew from the `noesi-cpa` prototype;
+the persistence, evidence storage, API and UI were rebuilt. The Workbench
+supplements a complete human audit: it has one user per engagement and no
+approval or sign-off workflow. See the [roadmap](docs/ROADMAP.md) for the product
+direction and [production readiness](docs/PRODUCTION-READINESS.md) for the remaining
+local-use gaps. `docs/ARCHITECTURE.md` and `docs/architecture/` contain older
+design descriptions and must be checked against the current code.
 
 ## Layout
 
 ```
 apps/
-  workbench-api/          # hardened localhost HTTP boundary (token, Origin,
-                          # body limits, security headers; FastAPI swap-in
-                          # planned for the firm-hosted profile)
-  workbench-ui/           # dense review UI: React + TypeScript, nine tabs,
+  workbench-api/          # localhost HTTP boundary (token, Origin,
+                          # body limits, security headers)
+  workbench-ui/           # review UI: React + TypeScript,
                           # served as static assets by workbench-api
-  studio-ui/              # visual practitioner view and the Learn course,
+  studio-ui/              # visual practitioner view and Harborline Learn,
                           # served at /studio/
-  learn-streamlit/        # hosts the Learn course on Streamlit (static)
+  learn-streamlit/        # hosts Harborline Learn on Streamlit (static)
+  learn-kestrel-ui/       # separate public Kestrel Learn course
+  learn-kestrel-streamlit/ # hosts Kestrel Learn on Streamlit (static)
 packages/
-  assurance-domain/       # pure entities, state machines, money, receipts,
-                          # SAD, readiness, worker protocol — no I/O
+  assurance-domain/       # pure entities, money, receipts, SAD, readiness,
+                          # worker protocol — no I/O
   assurance-persistence/  # SQLite adapter, migrations, transactional spine
   assurance-artifacts/    # quarantine -> register -> promote evidence vault;
                           # the .xlsx reader
-  assurance-application/  # use cases behind the screens, authorization
-  assurance-workpapers/   # evidence packet sealing/verification, workpaper
+  assurance-application/  # use cases behind the screens, backup and restore
+  assurance-workpapers/   # unsigned record verification and workpaper
   procedures-ap/          # AP methodology: contracts, coverage, engines,
                           # structural layer, ingestion/mapping, QuickBooks
                           # report recipes
-  procedures-cycles/      # opt-in planning, controls, receivables, payables,
-                          # cash, inventory, and completion procedures
+  procedures-cycles/      # planning, controls, journal entries, receivables,
+                          # payroll, forensic, cash, inventory, PP&E, debt,
+                          # accruals, estimates and completion procedures
   structural-adapters/    # owned ports of the KOMPOSOS-derived methods
                           # (authorship verified: docs/PROVENANCE.md)
 tests/
@@ -63,8 +64,7 @@ docs/
 Boundary rule: `assurance-domain` and `procedures-ap` import no framework,
 database, or HTTP code. Adapters implement ports from the outside.
 
-Further pieces (out-of-process workers, a hosted API) are split out only
-when a boundary earns it — not preemptively.
+Further pieces are split out only when a boundary earns it.
 
 ## Development
 
@@ -99,48 +99,58 @@ Data lives under `~/.noesi-assurance` (control DB, evidence vault).
 .venv\Scripts\noesi-workbench --demo
 ```
 
-`--demo` seeds and runs a full Kestrel Valley Cycle Supply engagement through
-the real three-chair path: QuickBooks-shaped reports, client and auditor
-schedules, approved policies, reviewed trial-balance line mappings, and every
-currently executable selected procedure. Open the completed runs and read
-what the engine found — and what coverage refused to claim.
+`--demo` seeds and runs a Kestrel Valley Cycle Supply engagement through the
+same service path as the Workbench: QuickBooks-shaped reports, client and
+auditor schedules, engagement policies, confirmed mappings, and the selected
+procedures those inputs support. Open the completed runs and read what the
+engine found and what coverage could not test.
 
 ### Loading a client's files
 
 Upload CSV or Excel (.xlsx) exports in **Sources & Mappings**. For a
 workbook you choose the sheet and the heading row; the choice becomes part
-of the reviewed mapping. Standard **QuickBooks Online** report exports
+of the confirmed mapping. Standard **QuickBooks Online** report exports
 (Bill Payment List, Transaction List by Vendor, Unpaid Bills, Vendor
 Contact List) are recognized on upload and read by a recipe that flattens
 the report's groups and recomputes every subtotal before dropping it.
-With Unpaid Bills and the General Ledger uploaded, the workbench builds the
-AP subledger-to-ledger tie. What an export does not contain is refused,
-not invented. Manual chapter 3 explains each step.
+With Unpaid Bills and either a General Ledger export or a loaded trial balance,
+the Workbench can build the AP subledger-to-ledger tie. What an export does
+not contain is refused, not invented. Manual chapter 3 explains each step.
 
-### One operator, several chairs
+### One user per engagement
 
-Separation of duties is enforced server-side: whoever proposes a mapping
-cannot approve it. Runs, dispositions and risks carry no review, approval
-or concurrence step, and nothing is locked or signed (removed 1 Oct 2026:
-Noesi supplements an audit; the firm's own review and sign-off stay outside
-it). On a single laptop you play every part — the **acting as**
-control in the header switches which chair you sit in (the demo comes with
-`demo-preparer` and `demo-reviewer`; the Team screen adds more). Every action
-is journaled under the chair that performed it and appears that way in the
-exported record. This is the pilot's honest trust model: the console owner
-already controls every local identity, so the switcher changes convenience,
-not the security boundary. A firm-hosted profile with real per-person
-sessions replaces it.
+The session user maps, confirms, and loads files, runs procedures, records
+judgments, and exports the record. Confirming a mapping checks that its
+columns were understood; it is not an approval. Actions are journaled under
+the session's principal label, which is not proof of a person's identity.
+Noesi does not perform the firm's review or sign-off.
 
 ### The exported record
 
 The record exports at any time as one JSON file: a manifest of every
-entity (file digests, mappings, datasets, runs, dispositions, risks, team,
-journal position), every run with its findings and seals, the SAD,
+entity (file digests, mappings, datasets, runs, dispositions, risks,
+journal position), every run with its findings and digests, the SAD,
 readiness, scope and the draft opinion. Each export is journaled with its
 digest. `verify_packet` re-checks it offline. It is not signed: the digests
 show it is internally consistent, not who made it; the firm archives it
 like any other working paper.
+
+### Back up and restore
+
+The backup command captures the control database and the vault files named
+by it in one zip. Run these commands with the Workbench installed; restore
+to a new directory while that destination is offline:
+
+```text
+python -m workbench_api.backup create --data DIR --to FILE
+python -m workbench_api.backup verify FILE
+python -m workbench_api.backup restore FILE --data NEW_DIR
+```
+
+Start the Workbench with `--data NEW_DIR` to open the restored store. Backup
+files are not encrypted or signed by Noesi; use encrypted storage and verify
+a restore before relying on a backup. See [production readiness](docs/PRODUCTION-READINESS.md)
+for the recovery limits.
 
 ### The manual and the teaching case
 
@@ -162,16 +172,16 @@ the source for the legacy Studio course; it is not the manual's running case.
 `../noesi-cpa` is read-only reference material: golden-bundle capture runs
 there; ported code is copied from there. No new features land there.
 
-## Two faces, one record
+## Workbench views and separate Learn apps
 
 `noesi-workbench` serves two UIs over the same API and the same journaled
 commands:
 
-- **Workbench** (`/`) — the full-control instrument and teaching surface: every
-  screen, every chair, the manual.
-- **Studio** (`/studio/`) — the visual practitioner view: an eight-stage journey
-  read straight off the record, a "next step" card naming the chair that can
-  take it, the purchase-to-pay cycle drawn with each test's result, exceptions
+- **Workbench** (`/`) — the full-control instrument and teaching surface,
+  including the manual.
+- **Studio** (`/studio/`) — the visual practitioner view: a seven-stage journey
+  read straight off the record, a "next step" card, the purchase-to-pay cycle
+  drawn with each test's result, exceptions
   judged in plain words, the SAD against a materiality ruler, and a cascade of
   what a corrected client file reaches. Build it with
   `cd apps/studio-ui && npm install && npm run build`.
@@ -183,7 +193,7 @@ memory, and shows which findings appear, disappear or move and which recorded
 judgments to revisit. It is read-only: it records nothing and concludes nothing
 about misstatement. Harborline's Assignment 11 exercises it.
 
-**Learn the audit** (`/studio/#/learn`) is a ten-lesson course through a typical
+**Harborline Learn** (`/studio/#/learn`) is a ten-lesson course through a typical
 CPA financial-statement audit, from client acceptance to the report, taught on
 the Harborline case. Each lesson reveals section by section, checks
 understanding with explained questions, sets a hands-on task, and ends with an
@@ -199,6 +209,12 @@ ledger, the AP tie-out and a year-end bank reconciliation built from the case
 data, plus illustrative confirmations, a count sheet and a representation
 letter. Numbered markers point at each figure to check, with the assertion it
 evidences and the Noesi test that compares it.
+
+**Kestrel Learn** (`apps/learn-kestrel-ui`, with a separate Streamlit host in
+`apps/learn-kestrel-streamlit`) is a distinct public course built on the
+Kestrel Valley case. It is not the Studio journey or Harborline Learn. The
+Workbench remains the audit-supplement product; both Learn apps teach with
+case material.
 
 ## License, use, and professional disclaimers
 
@@ -222,8 +238,7 @@ Say plainly what this software is not:
 - **It is not professional advice.** Nothing in this software, its manual,
   or its teaching case is accounting, auditing, legal, or tax advice.
   Professional judgments remain the responsibility of the licensed
-  practitioners who make them, exactly as the workbench's own review gates
-  assume.
+  practitioners who make them.
 - **No warranty.** The software comes as is, without warranty or condition
   of any kind; see the "No Liability" section of LICENSE.md.
 

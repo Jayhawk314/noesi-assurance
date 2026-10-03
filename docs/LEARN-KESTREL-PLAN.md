@@ -1,4 +1,10 @@
-# Plan (for later): the Kestrel Learn app
+# Kestrel Learn app — original plan
+
+Status (2 Oct 2026): the separate Kestrel Learn app now exists in
+`apps/learn-kestrel-ui`, with its own Streamlit host in
+`apps/learn-kestrel-streamlit`. The planning language below records the
+original decision; `docs/ROADMAP.md` tracks current status. Harborline Learn
+remains inside `apps/studio-ui` and is not the Kestrel app.
 
 Agreed with James on 2026-09-29. **Nothing here starts until the engine and
 Workbench work in "When it starts" is done**, so lessons and videos are made
