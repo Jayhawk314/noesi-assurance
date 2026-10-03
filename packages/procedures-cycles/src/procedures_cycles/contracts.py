@@ -380,18 +380,21 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ),
     ProcedureContract(
         "ppe.depreciation_recompute", "Depreciation recompute",
-        "Recompute each asset's straight-line depreciation for the period under the "
-        "client's convention and compare it with the register; flag assets "
-        "depreciated below salvage.",
+        "Recompute each asset's depreciation for the period (straight line or "
+        "declining balance) under the client's convention and compare it with the "
+        "register; flag assets depreciated below salvage.",
         "ppe", ("valuation", "accuracy"),
         {"Fixed_assets": ("asset_id", "cost", "acquired_date", "useful_life_years",
                           "depreciation_expense")},
         required_policies=("period_end", "ppe_depreciation_convention"),
         evidence_source="client fixed-asset register",
         denominator_role="Fixed_assets",
-        limitations="Straight line only (full_month or half_year); other methods are "
-                    "listed as not recomputed. Whether lives and salvage are "
-                    "reasonable is the auditor's judgment.",
+        limitations="Straight line and declining balance (full_month or half_year); "
+                    "declining balance is recomputed on the opening book value the "
+                    "register implies, never below salvage, with no switch to "
+                    "straight line in later years. Other methods are listed as not "
+                    "recomputed. Whether lives and salvage are reasonable is the "
+                    "auditor's judgment.",
     ),
     ProcedureContract(
         "ppe.additions_vouching", "Additions vouching",
@@ -620,6 +623,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "je_seldom_used_max", "je_holidays", "je_manual_sources", "rev_credit_memo_days",
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
     "ppe_rounding_tolerance", "ppe_depreciation_accounts", "ppe_vouch_threshold",
+    "ppe_declining_balance_factor",
     "debt_interest_tolerance_pct", "debt_interest_accounts",
     "accruals_rounding_tolerance", "estimates_bias_min_count",
     "report_date", "gc_current_ratio_floor", "rep_signers", "misstatement_likely_basis",
@@ -667,6 +671,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "rev_credit_memo_days": {"receivables"},
     "payroll_final_pay_days": {"payroll"},
     "ppe_accumulated_depreciation_accounts": {"ppe"}, "ppe_rounding_tolerance": {"ppe"},
+    "ppe_declining_balance_factor": {"ppe"},
     "ppe_depreciation_accounts": {"ppe"}, "ppe_vouch_threshold": {"ppe"},
     "debt_interest_tolerance_pct": {"debt_equity"},
     "debt_interest_accounts": {"debt_equity"},

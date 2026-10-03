@@ -969,14 +969,14 @@ export const LESSONS: Lesson[] = [
       summary: "Noesi rolls the register forward, ties it to the ledger, recomputes every asset's depreciation, and measures how much of additions was vouched.",
       does: [
         "Rolls cost and accumulated depreciation forward and ties them to the ledger accounts in the policies.",
-        "Recomputes straight-line depreciation for every asset under the policy's convention.",
+        "Recomputes depreciation for every asset under the policy's convention (Kestrel's register is all straight line).",
         "Reports the share of additions vouched and any vouching exception the team recorded.",
       ],
       where: ["Workbench → Scope & Policies", "Workbench → Runs & Findings (PP&E)"],
       doesNot: [
         "It cannot see an asset: existence is physical inspection.",
         "It does not read invoices; it reads the team's vouching record of them.",
-        "It does not judge useful lives, salvage values or impairment, and it recomputes straight line only.",
+        "It does not judge useful lives, salvage values or impairment. It recomputes straight line and declining balance; other methods are listed as not recomputed.",
       ],
     },
   },

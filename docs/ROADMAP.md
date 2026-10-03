@@ -320,7 +320,13 @@ scripts first, James approves scripts and credits before voicing.
 - PRODUCTION-READINESS P0/P1 (real-client use): after Phase 2 and a real user.
 - Partner report sign-off (Codex's patch broke 17 tests; the print button covers it).
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,
-  sample projection for additions, adjusted covenants).
+  sample projection for additions, adjusted covenants). **Benford done**
+  (D10). **Declining balance done 2 Oct:** double declining and 150% by
+  name, plain "declining balance" with the policy
+  `ppe_declining_balance_factor`; on the register's implied opening book
+  value, never below salvage, no switch to straight line (stated limit).
+  Tested on invented data (worked by hand). Left: additions projection,
+  adjusted covenants.
 - Wiring the cycles into the structural layer (agreed as later, 2026-09-26).
 - **Benford decided 2 Oct (Claude, James: "you decide"):** the demo's
   minimum stays 1,000 (Nigrini 2012 as recalled; the page is still not

@@ -35,7 +35,7 @@ REGISTER = [
     asset("A3", "3000", "2020-03-01", "5", "600.00", "3100.00"),
     # disposed Jul 2025: Jan-Jun = 6 months of 800 -> 400
     asset("A4", "8000", "2019-06-01", "10", "400.00", "5200.00", disposed="2025-07-20"),
-    # addition on a method the engine does not recompute
+    # double declining addition: 2500 x 2/5 x 4/12 (Sep-Dec) = 333.33; recorded 300
     asset("A5", "2500", "2025-09-01", "5", "300.00", "300.00", method="DDB"),
     # acquired the last day of the prior year: a full 2025 -> 1000
     asset("A6", "4000", "2024-12-31", "4", "1000.00", "1083.33"),
@@ -83,8 +83,11 @@ def test_full_month_depreciation_recompute():
         {"period_end": PE, "ppe_depreciation_convention": "full_month",
          "ppe_depreciation_accounts": "6400"})
     assert keys(findings) == {("a3", "depreciation_differs"),
-                              ("a3", "depreciated_below_salvage")}
-    assert stats["not_recomputed"] == ["a5"]
+                              ("a3", "depreciated_below_salvage"),
+                              ("a5", "depreciation_differs")}
+    assert stats["not_recomputed"] == []
+    assert "declining balance at 2x" in next(
+        f.reason for f in findings if f.key[1:] == ("a5", "depreciation_differs"))
     # register 2400+900+600+400+300+1000 = 5600 = ledger
     assert stats["register_total"] == "5600.00"
     assert "difference 500.00" in next(
@@ -129,3 +132,44 @@ def test_additions_vouching():
                               ("a7", "not_vouched_above_threshold")}
     assert stats["additions_value"] == "23500.00"   # 6000 + 2500 + 15000
     assert stats["unvouched_value"] == "15000.00"
+
+
+def test_declining_balance_on_the_opening_book_value():
+    # Depth pass (2 Oct 2026). Life 5, double declining = 40% a year.
+    register = [
+        # held all year: opening book value 10000 - (6400 - 1440) = 5040 -> 2016;
+        # recorded 1440 (the year-3 figure on 3600): differs by -576
+        asset("C1", "10000", "2022-01-01", "5", "1440.00", "6400.00", method="DDB"),
+        # near the end: opening value 1296 - 0 salvage... floor at salvage 1000:
+        # 40% of 1296 = 518.40, but only 296 is left above salvage
+        asset("C2", "10000", "2020-01-01", "5", "296.00", "9000.00", method="DDB",
+              salvage="1000"),
+        # 150% declining, acquired 1 Jul (full month: 6/12): 8000 x 0.3 x 0.5 = 1200
+        asset("C3", "8000", "2025-07-01", "5", "1200.00", "1200.00",
+              method="150% declining balance"),
+        # plain "declining balance" with no factor set: not recomputed
+        asset("C4", "5000", "2024-01-01", "5", "800.00", "2800.00",
+              method="declining balance"),
+    ]
+    policies = {"period_end": PE, "ppe_depreciation_convention": "full_month"}
+    findings, stats = execute_procedure(
+        "ppe.depreciation_recompute", {"Fixed_assets": register}, policies)
+    assert keys(findings) == {("c1", "depreciation_differs")}
+    assert "gives 2016.00 (difference -576.00)" in findings[0].reason
+    assert stats["not_recomputed"] == ["c4"]
+    # with the auditor's factor (2), C4: opening 5000 - (2800 - 800) = 3000 -> 1200
+    findings, stats = execute_procedure(
+        "ppe.depreciation_recompute", {"Fixed_assets": register},
+        {**policies, "ppe_declining_balance_factor": "2"})
+    assert keys(findings) == {("c1", "depreciation_differs"), ("c4", "depreciation_differs")}
+    assert stats["not_recomputed"] == []
+
+
+def test_declining_balance_half_year_disposal():
+    # disposed during the year, half-year convention: 0.5 x 40% x opening 6000 = 1200
+    register = [asset("D1", "10000", "2023-01-01", "5", "1200.00", "5200.00",
+                      method="double declining", disposed="2025-06-30")]
+    findings, stats = execute_procedure(
+        "ppe.depreciation_recompute", {"Fixed_assets": register},
+        {"period_end": PE, "ppe_depreciation_convention": "half_year"})
+    assert findings == [] and stats["recomputed_total"] == "1200.00"

@@ -4,8 +4,9 @@ recompute, and additions vouching.
 
 The fixed-asset register is the client's subledger. The depreciation
 convention (full month, half year) is the client's accounting policy, which
-the auditor records as a policy rather than the engine assuming one;
-methods other than straight line are listed as not recomputed.
+the auditor records as a policy rather than the engine assuming one.
+Straight line and declining balance are recomputed; other methods (units of
+production, sum of the years' digits) are listed as not recomputed.
 """
 
 from __future__ import annotations
@@ -156,6 +157,63 @@ def _period_depreciation(asset: dict, start: date, pe: date,
                       "use full_month or half_year")
 
 
+_STRAIGHT_LINE = ("sl", "straight line", "straightline")
+_DECLINING = {"ddb": Decimal("2"), "double declining": Decimal("2"),
+              "double declining balance": Decimal("2"), "200% declining balance": Decimal("2"),
+              "200 db": Decimal("2"), "150% declining balance": Decimal("1.5"),
+              "150 db": Decimal("1.5"), "150db": Decimal("1.5")}
+
+
+def _declining_factor(method: str, policies: dict) -> Decimal | None:
+    """The declining-balance factor a method names (double declining is 2,
+    150% is 1.5); a plain "declining balance" takes the auditor's policy
+    ppe_declining_balance_factor. None when neither says."""
+    if method in _DECLINING:
+        return _DECLINING[method]
+    if method in ("db", "declining balance"):
+        return dec(policies.get("ppe_declining_balance_factor"))
+    return None
+
+
+def _declining_balance(asset: dict, start: date, pe: date, convention: str,
+                       factor: Decimal) -> Decimal | None:
+    """The period's declining-balance depreciation: factor / life times the
+    book value at the start of the period, never below salvage. The opening
+    book value is cost less the opening accumulated depreciation, which is
+    the register's ending accumulated depreciation less this period's
+    recorded expense (so the recompute tests the rate and the base, not the
+    rollforward). The year of acquisition and of disposal follow the
+    convention: full months held, or half a year. No switch to straight line
+    is made in later years (stated limit)."""
+    cost, salvage = money(asset.get("cost")), money(asset.get("salvage_value"))
+    life = dec(asset.get("useful_life_years"))
+    acquired, disposed = day(asset.get("acquired_date")), day(asset.get("disposal_date"))
+    ending_acc, expense = dec(asset.get("accumulated_depreciation")), dec(
+        asset.get("depreciation_expense"))
+    if (life is None or life <= 0 or acquired is None or acquired > pe
+            or (disposed is not None and disposed < start)):
+        return None
+    if acquired >= start:
+        base = cost
+    elif ending_acc is None or expense is None:
+        return None
+    else:
+        base = cost - (money(ending_acc) - money(expense))
+    fraction = Decimal("1")
+    if convention == "full_month":
+        first = max(_months(acquired), _months(start))
+        last = _months(pe) if disposed is None or disposed > pe else _months(disposed) - 1
+        fraction = Decimal(max(0, last - first + 1)) / 12
+    elif convention == "half_year":
+        if acquired >= start or (disposed is not None and disposed <= pe):
+            fraction = Decimal("0.5")
+    else:
+        raise PolicyError(f"depreciation convention {convention!r} is not supported; "
+                          "use full_month or half_year")
+    amount = base * factor / life * fraction
+    return money(max(ZERO, min(amount, base - salvage)))
+
+
 def depreciation_recompute(tables: dict, policies: dict):
     pid = "ppe.depreciation_recompute"
     start, pe = period_bounds(policies)
@@ -181,10 +239,16 @@ def depreciation_recompute(tables: dict, policies: dict):
                 f"less salvage {cost - salvage}",
                 {"finding_class": "PROVED_EXCEPTION", "cycle": "ppe", "source_rows": src},
                 money(accumulated) - (cost - salvage)))
-        if method and method not in ("sl", "straight line", "straightline"):
-            not_recomputed.append(aid)
-            continue
-        expected = _period_depreciation(asset, start, pe, convention)
+        if method and method not in _STRAIGHT_LINE:
+            factor = _declining_factor(method, policies)
+            if factor is None or factor <= 0:
+                not_recomputed.append(aid)
+                continue
+            expected = _declining_balance(asset, start, pe, convention, factor)
+            basis = f"declining balance at {factor}x"
+        else:
+            expected = _period_depreciation(asset, start, pe, convention)
+            basis = "straight line"
         recorded = dec(asset.get("depreciation_expense"))
         if expected is None or recorded is None:
             not_recomputed.append(aid)
@@ -196,7 +260,7 @@ def depreciation_recompute(tables: dict, policies: dict):
             findings.append(receipt(
                 pid, (aid, "depreciation_differs"), "CLASH",
                 f"asset {aid}: the register records {money(recorded)} depreciation for "
-                f"the period; straight line ({convention.replace('_', ' ')}) gives "
+                f"the period; {basis} ({convention.replace('_', ' ')}) gives "
                 f"{expected} (difference {gap})",
                 {"finding_class": "PROVED_EXCEPTION", "cycle": "ppe", "recorded": recorded,
                  "recomputed": expected, "source_rows": src}, gap))
