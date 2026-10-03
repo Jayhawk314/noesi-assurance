@@ -224,3 +224,17 @@ def test_additions_projection_key_items_and_the_sample():
     findings, stats = execute_procedure("ppe.additions_vouching", tables, base)
     assert stats["projection"]["tolerable"] is None
     assert ("additions", "likely_misstatement_reaches_tolerable") not in keys(findings)
+
+
+def test_a_vouching_row_with_no_result_is_not_vouched():
+    # Review 2026-10-02 depth (Codex) 1: two rows carrying only their asset IDs.
+    register = [asset("V1", "1000", "2025-03-01", "5", "0.00", "0.00"),
+                asset("V2", "3000", "2025-04-01", "5", "0.00", "0.00")]
+    vouching = [{"asset_id": "V1"}, {"asset_id": "V2"}]
+    findings, stats = execute_procedure(
+        "ppe.additions_vouching", {"Fixed_assets": register, "Additions_vouching": vouching},
+        {"period_end": PE, "ppe_tolerable_misstatement": "1"})
+    assert keys(findings) == {("v1", "vouch_row_without_result"),
+                              ("v2", "vouch_row_without_result")}
+    assert stats["vouched"] == 0 and stats["unvouched_value"] == "4000.00"
+    assert stats["projection"]["sample_items"] == 0 and stats["projection"]["projected"] is None

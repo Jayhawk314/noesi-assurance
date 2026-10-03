@@ -10,6 +10,7 @@ arithmetic and ties; it does not read agreements.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 
 from procedures_cycles.common import (
@@ -171,10 +172,15 @@ def covenants(tables: dict, policies: dict):
     adjusting = _adjustments(tables)
     findings, measured = [], []
     rows = records(tables, COVENANTS)
-    months = None
+    months, twelve = None, False
     if policies.get("period_start") and policies.get("period_end"):
         s, e = policy_date(policies, "period_start"), policy_date(policies, "period_end")
         months = (e.year - s.year) * 12 + e.month - s.month + 1
+        # A real twelve months, day to day: the day after the end is the
+        # start's anniversary (review 2026-10-02 depth, Codex 5: 31 Jan to
+        # 1 Dec touches twelve month names but is 305 days).
+        after = e + timedelta(days=1)
+        twelve = (after.year, after.month, after.day) == (s.year + 1, s.month, s.day)
     for row in rows:
         name = text(row.get("covenant")) or f"row-{row.get('source_row')}"
         key = key_text(name)
@@ -191,10 +197,14 @@ def covenants(tables: dict, policies: dict):
             why = f"accounts not on the trial balance: {', '.join(missing)}"
         elif not num or op not in _OPERATORS or limit is None:
             why = "the covenant needs numerator accounts, an operator (>=, <=) and a limit"
-        elif trailing and months != 12:
+        elif trailing and not twelve:
             why = ("it is measured on a trailing twelve months, and the period here is "
-                   f"{f'{months} months' if months else 'not dated (period start unset)'}: "
+                   f"{f'not twelve months ({months} calendar months touched)' if months else 'not dated (period start unset)'}: "
                    "an annual trial balance does not give quarterly figures")
+        elif (money(row.get("numerator_adjustment")) or money(row.get(
+                "denominator_adjustment"))) and not text(row.get("adjustment_note")):
+            why = ("an add-back is entered with no note: say which clause of the "
+                   "agreement allows it (review 2026-10-02 depth, Codex 4)")
         if why:
             findings.append(receipt(pid, (key, "not_measurable"), "AMBIGUOUS",
                                     f"covenant {name}: {why}",
@@ -224,6 +234,14 @@ def covenants(tables: dict, policies: dict):
                 num, den, lambda a: (_signed(tb[a]) or ZERO) + adjusting.get(a, ZERO),
                 add_num, add_den)
             entry["adjusted_value"] = adjusted
+            if adjusted is None:
+                # Codex 2: the adjustments take the denominator to zero.
+                findings.append(receipt(
+                    pid, (key, "adjusted_not_measurable"), "AMBIGUOUS",
+                    f"covenant {name}: {value} before the audit adjustments; after them "
+                    "the denominator is zero, so compliance on the adjusted figures "
+                    "cannot be measured", {"finding_class": "REFUSAL",
+                                           "cycle": "debt_equity", "source_rows": src}))
         measured.append(entry)
         passes = _OPERATORS[op](value, limit)
         if adjusted is not None and _OPERATORS[op](adjusted, limit) != passes:
@@ -236,14 +254,20 @@ def covenants(tables: dict, policies: dict):
                 {"finding_class": "PROVED_EXCEPTION", "cycle": "debt_equity",
                  "assertion": "classification", "value": value, "adjusted_value": adjusted,
                  "limit": limit, "source_rows": src}))
-        if not passes:
+        # The breach follows the adjusted figures when they are measured, and
+        # says which basis it describes (Codex 3: a breach the adjustments
+        # cure was still reported unconditionally).
+        final, on = (adjusted, "after the audit adjustments") if adjusted is not None \
+            else (value, "on the trial balance as loaded")
+        if not _OPERATORS[op](final, limit):
             findings.append(receipt(
                 pid, (key, "breached"), "CLASH",
-                f"covenant {name}: measured {value} against a limit of {op} {limit} — "
-                "breached. Is there a waiver? If not, the debt may be due on demand "
+                f"covenant {name}: measured {final} {on} against a limit of {op} {limit} "
+                "— breached. Is there a waiver? If not, the debt may be due on demand "
                 "(current), which also bears on going concern",
                 {"finding_class": "PROVED_EXCEPTION", "cycle": "debt_equity",
-                 "assertion": "classification", "value": value, "limit": limit,
+                 "assertion": "classification", "value": value,
+                 "adjusted_value": adjusted, "limit": limit, "basis": on,
                  "source_rows": src}))
     stats = {"population": len(rows), "measured": measured, "exceptions": len(findings)}
     return findings, stats

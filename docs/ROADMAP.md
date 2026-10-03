@@ -315,8 +315,15 @@ scripts first, James approves scripts and credits before voicing.
   carry conflicting identity data that is dropped, and description
   differences are never a finding. Known limits; changing identity rules
   needs a policy decision, not a quick patch.
-- Stale accruals, checks to vendors with no bills, employee/vendor shared
-  addresses (the finish-line check lists them).
+- ~~Stale accruals, checks to vendors with no bills, employee/vendor shared
+  addresses~~ **done** (checked 2 Oct: `accruals.recompute` stale accrual,
+  `ap.payments_without_bills`, `payroll.register_tests` address match; each
+  matches on the Kestrel finish line).
+- **Codex depth review (docs/reviews/REVIEW-2026-10-02-depth-codex.md) fixed
+  2 Oct:** a vouching row with no result is not vouched (1); a zero adjusted
+  denominator is "not measurable after the adjustments" (2); the breach
+  follows the adjusted figures and says its basis (3); an add-back needs its
+  note (4); the trailing basis needs a real twelve months, day to day (5).
 - PRODUCTION-READINESS P0/P1 (real-client use): after Phase 2 and a real user.
 - Partner report sign-off (Codex's patch broke 17 tests; the print button covers it).
 - Depth pass from AUDIT-FRAME-PLAN (Benford, declining-balance depreciation,

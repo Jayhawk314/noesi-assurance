@@ -312,8 +312,17 @@ def additions_vouching(tables: dict, policies: dict):
     findings = []
     for v in records(tables, VOUCHING):
         aid = key_text(v.get("asset_id"))
-        vouched[aid] = v
         src = [source_ref(VOUCHING, v, "asset_id")]
+        if dec(v.get("vouched_amount")) is None and not text(v.get("capitalize")):
+            # A row with only an asset ID records no test (review 2026-10-02
+            # depth, Codex 1): not vouched, so not in coverage or the sample.
+            findings.append(receipt(
+                pid, (aid, "vouch_row_without_result"), "AMBIGUOUS",
+                f"asset {aid} has a vouching row with no invoice amount and no "
+                "capitalization conclusion; it is treated as not vouched",
+                {"finding_class": "REFUSAL", "cycle": "ppe", "source_rows": src}))
+            continue
+        vouched[aid] = v
         asset = additions.get(aid)
         if asset is None:
             findings.append(receipt(

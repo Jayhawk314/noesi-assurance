@@ -161,4 +161,37 @@ def test_covenant_add_backs_and_the_trailing_basis():
     findings, _ = execute_procedure(
         "debt.covenants", {"Covenants": ttm, "Trial_balance": TB}, half)
     assert keys(findings) == {("current ratio", "not_measurable")}
-    assert "6 months" in findings[0].reason
+    assert "6 calendar months" in findings[0].reason
+
+
+def _cov(**extra):
+    return [{"covenant": "Cover", "numerator_accounts": "100", "denominator_accounts": "200",
+             "operator": ">=", "threshold": D("1.50"), **extra}]
+
+
+TB_SMALL = [{"account": "100", "balance": D("100")}, {"account": "200", "balance": D("-80")}]
+
+
+def test_codex_depth_review_covenant_cases():
+    # Review 2026-10-02 depth (Codex) 2-5, with its figures.
+    # 2: an 80 debit to the denominator takes it to zero after the adjustments.
+    ajes = [{"entry_id": "A", "account": "200", "debit": D("80"), "credit": ""}]
+    findings, _ = execute_procedure("debt.covenants", {
+        "Covenants": _cov(threshold=D("1.0")), "Trial_balance": TB_SMALL,
+        "Adjusting_entries": ajes}, {})
+    assert ("cover", "adjusted_not_measurable") in keys(findings)
+    # 3: 100/80 = 1.25 breaches 1.50; +40 to the numerator: 140/80 = 1.75 meets.
+    ajes = [{"entry_id": "A", "account": "100", "debit": D("40"), "credit": ""}]
+    findings, _ = execute_procedure("debt.covenants", {
+        "Covenants": _cov(), "Trial_balance": TB_SMALL, "Adjusting_entries": ajes}, {})
+    assert keys(findings) == {("cover", "adjustments_change_compliance")}
+    # 4: an add-back of 30 with no note is refused.
+    findings, _ = execute_procedure("debt.covenants", {
+        "Covenants": _cov(numerator_adjustment=D("30")), "Trial_balance": TB_SMALL}, {})
+    assert keys(findings) == {("cover", "not_measurable")}
+    assert "no note" in findings[0].reason
+    # 5: 31 Jan to 1 Dec touches twelve month names but is not twelve months.
+    findings, _ = execute_procedure("debt.covenants", {
+        "Covenants": _cov(basis="TTM", threshold=D("1.0")), "Trial_balance": TB_SMALL},
+        {"period_start": "2025-01-31", "period_end": "2025-12-01"})
+    assert keys(findings) == {("cover", "not_measurable")}
