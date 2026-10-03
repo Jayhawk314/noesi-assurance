@@ -293,8 +293,10 @@ lines in answer_key_part3.json `forensic` and answer_key_payables.json
 **Status 2 Oct 2026:** A, B, D1-D10 done; C closed as it stands (above);
 E1 pushed (a541e50, James's go); E3 done; E2's engine pass done (Run 4).
 **Phase 1 is done for the product.** James's hand pass of Oceanview is for
-his learning, not a blocker. Next: Phase 2 (the Kestrel Learn app), and the
-parking lot's open engine items (review L1, L3, L5).
+his learning, not a blocker. The 2 Oct review is closed (L2, L5, L6 fixed;
+L1, L3 accepted). Phase 2's lessons exist; its videos wait for James's
+script and credit approvals. Product work goes on with the depth pass
+(parking lot, AUDIT-FRAME-PLAN).
 
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
@@ -331,15 +333,17 @@ scripts first, James approves scripts and credits before voicing.
 - From the 2 Oct review: **L2 and L6 fixed 2 Oct** (masked numbers not
   compared and counted, phones on their last seven digits, first/last
   names joined; dead `requires_concurrence` removed, INDEPENDENT-REVIEW.md
-  invariants 3-4 rewritten for one user and the unsigned record). Still
-  open, each for a reason: **L1** (migration 12 reopened locked engagements
-  with no journal line: it has already run on existing stores, and a
-  journal line written now would be dated wrongly); **L3** (payments fall
-  back to `payment_number` as the check number: needed, because QuickBooks'
-  Bill Payment List puts the check number in Num, which maps there); **L5**
-  (check sequence requires Payments even when the Journal suffices:
-  coverage has no "either of these roles" yet). Also: check runs with no
-  bank-account column, "Paycheck" name unverified.
+  invariants 3-4 rewritten for one user and the unsigned record). **L5
+  fixed 2 Oct** (contracts may name alternative input sets; the check
+  sequence runs on the Journal alone; coverage says which set serves).
+  **Accepted as stated limits (decided 2 Oct):** L1 (migration 12 reopened
+  locked engagements with no journal line: it has already run on existing
+  stores, and a line written now would carry the wrong date; the old lock
+  rows remain as history); L3 (payments fall back to `payment_number` as the
+  check number: QuickBooks' Bill Payment List puts the check number in Num,
+  which maps there; a numeric internal ID would show as a gap, which the
+  finding's wording already allows). Also: check runs with no bank-account
+  column, "Paycheck" name unverified.
 - Second round of 2 Oct fixes (C1-C3) committed without a second-agent
   check, by James's decision: no more check rounds.
 - ~~Sources: "map all" offered the raw files a built schedule was made from~~
