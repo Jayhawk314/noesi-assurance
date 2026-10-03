@@ -574,6 +574,19 @@ export class Client {
   updateWorkflow = (eid: string, section: string, values: Record<string, unknown>) =>
     this.request("POST", `/api/engagements/${eid}/workflow`, { section, values });
 
-  exportRecord = (eid: string) =>
-    this.request<Record<string, unknown>>("POST", `/api/engagements/${eid}/export`, {});
+  /** Preserve the server's exact JSON bytes: parsing and re-serializing a
+   *  packet changes number representations and breaks its offline digests. */
+  exportRecord = async (eid: string): Promise<Blob> => {
+    const response = await fetch(`/api/engagements/${eid}/export`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new ApiError(response.status,
+        (data as { error?: string }).error ?? response.statusText);
+    }
+    return response.blob();
+  };
 }

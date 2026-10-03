@@ -1115,9 +1115,10 @@ export function ExportScreen({ client, engagement, onError, onNavigate }: {
   const { data: readiness } = useLoader<Readiness>(load, onError);
   const stamp = () => new Date().toISOString().slice(0, 10);
 
-  function save(content: string, type: string, name: string) {
+  function save(content: string | Blob, type: string, name: string) {
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([content], { type }));
+    link.href = URL.createObjectURL(content instanceof Blob
+      ? content : new Blob([content], { type }));
     link.download = name;
     link.click();
     URL.revokeObjectURL(link.href);
@@ -1126,7 +1127,7 @@ export function ExportScreen({ client, engagement, onError, onNavigate }: {
   async function downloadRecord() {
     try {
       const packet = await client.exportRecord(eid);
-      save(JSON.stringify(packet, null, 2), "application/json",
+      save(packet, "application/json",
            `record-${engagement.client_name}-${engagement.period_end}-${stamp()}.json`);
     } catch (exc) { onError(exc); }
   }
