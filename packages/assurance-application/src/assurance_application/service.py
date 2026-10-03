@@ -1140,10 +1140,14 @@ class WorkbenchService:
                 current[run["procedure_id"]] = run["run_id"]
         # Only the latest completed run's findings: an older run's findings
         # are superseded by the rerun, never counted twice.
-        findings = [f for f in self.findings(engagement_id)
+        gathered = [f for f in self.findings(engagement_id)
                     if f["procedure_id"] in FRAUD_TESTS
                     and f["run_id"] == current.get(f["procedure_id"])
                     and f["verdict"]["verdict"] != "AGREE"]
+        # A refusal ("too few amounts", "nothing numbered") says the test did
+        # not test; counting it as something found would overstate the work.
+        findings = [f for f in gathered if f["tags"].get("class") != "refusal"]
+        refusals = [f for f in gathered if f["tags"].get("class") == "refusal"]
         tests = []
         for pid, (scheme, basis) in FRAUD_TESTS.items():
             row = coverage.get(pid)
@@ -1167,12 +1171,15 @@ class WorkbenchService:
                 "findings": len(mine),
                 "open": sum(1 for f in mine
                             if f["disposition"]["status"] in ("undisposed", "follow_up")),
+                "not_tested": [f["verdict"].get("reason", "") for f in refusals
+                               if f["procedure_id"] == pid],
             })
         risks = [r for r in self.risks(engagement_id)["risks"] if r["fraud"]]
         return {
             "tests": tests,
             "risks": risks,
             "findings": findings,
+            "not_tested": refusals,
             "summary": {
                 "tests": len(tests),
                 # a run that ended in error ran nothing: not counted as run
@@ -1183,6 +1190,7 @@ class WorkbenchService:
                 "partly": sum(1 for t in tests if t["coverage"] == "partial"),
                 "findings": len(findings),
                 "open_findings": sum(t["open"] for t in tests),
+                "not_tested": sum(1 for t in tests if t["not_tested"]),
                 "fraud_risks": len(risks),
             },
             "presumed_risks": [
@@ -1509,6 +1517,7 @@ class WorkbenchService:
                 **({"audit_class": "evaluation"} if evaluation else {}),
                 "engagement": info["client_name"],
                 "finding_uid": uid,
+                "procedure_id": item["procedure_id"],
                 "domain": verdict["domain"],
                 "key": verdict["key"],
                 "verdict": verdict["verdict"],
@@ -1531,6 +1540,14 @@ class WorkbenchService:
             and row["disposition"] in ("undisposed", "follow_up")})
         summary["open_findings"] = open_findings
         summary["open_findings_count"] = len(open_findings)
+        # Which procedure each open finding came from, counted: a finding's
+        # uid names its domain and key, not its procedure, so the screens
+        # must not guess the procedure from the uid.
+        procedure_of = {row["finding_uid"]: row["procedure_id"] for row in rows}
+        by_procedure: dict[str, int] = {}
+        for uid in open_findings:
+            by_procedure[procedure_of[uid]] = by_procedure.get(procedure_of[uid], 0) + 1
+        summary["open_findings_by_procedure"] = by_procedure
         # B2: one summary. The misstatement schedule, once evaluated by
         # completion.uncorrected_misstatements, is the signed, projected,
         # by-statement-line view; it rides on the SAD, and the SAD cannot

@@ -7,6 +7,17 @@ so **layout was not checked**. **Not clicked:** buttons that change data
 (dispose, run, leave out, set, archive/delete, upload), "run details",
 "evidence", the Flow Map's other cycle tabs, and Studio.
 
+## Fixed the same day (Claude; tests on invented data; checked on a fresh demo
+through the service, not yet seen on screen)
+- 1: readiness now counts open findings by the procedure that found them
+  (`by_procedure`); the Workbench and Studio show that, so the round trip
+  reads `forensic.closed_value_flow: 1`. Finding uids are unchanged (the
+  `rockwood_structural` domain stays inside them, and in the exported record).
+- 2: the Fraud view keeps refusals apart ("ran but did not test", with the
+  reason); Kestrel's fraud findings 60 → 57, Benford "not tested".
+- 3, 4, 5, 6, 7: wording and amounts to the cent.
+Still open: 8-13, and layout and data-changing buttons not checked.
+
 ## Possible software bugs (fix before videos)
 1. **Raw internal key with the old case name on screen.** Draft Opinion and
    Export list an open item as

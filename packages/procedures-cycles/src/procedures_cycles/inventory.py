@@ -193,8 +193,10 @@ def pricing_projection(tables: dict, policies: dict):
         net += diff
         if diff:
             findings.append(receipt(pid, ("price_difference", key), "CLASH",
-                                    f"item {key}: recorded {recorded}, supported cost "
-                                    f"{audited} (overstatement positive: {diff})",
+                                    f"item {key}: recorded {recorded:,.2f}, supported cost "
+                                    f"{audited:,.2f}: "
+                                    f"{'overstated' if diff > 0 else 'understated'} by "
+                                    f"{abs(diff):,.2f}",
                                     {"finding_class": "PROVED_EXCEPTION", "cycle": "inventory",
                                      "source_rows": [source_ref("Pricing_tests", t,
                                                                 "stock_number")]}, diff))

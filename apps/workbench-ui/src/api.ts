@@ -248,14 +248,17 @@ export interface FraudTest {
   coverage: string; in_scope: boolean; missing: string[]; limitations: string;
   last_run: { status: string; at: string; run_id: string } | null;
   findings: number; open: number;
+  /** Why the test did not test (a refusal), one reason per refusal. */
+  not_tested: string[];
 }
 
 export interface FraudView {
   tests: FraudTest[];
   risks: Risk[];
   findings: Finding[];
+  not_tested: Finding[];
   summary: { tests: number; run: number; cannot_run: number; partly: number; findings: number;
-             open_findings: number; fraud_risks: number };
+             open_findings: number; not_tested: number; fraud_risks: number };
   presumed_risks: string[];
 }
 
@@ -288,6 +291,8 @@ export interface Blocker {
   code: string;
   count: number;
   items?: string[];
+  /** Open findings counted by the procedure that found them (FINDINGS_OPEN). */
+  by_procedure?: Record<string, number>;
 }
 
 export interface Readiness {

@@ -153,7 +153,8 @@ def related_party_matching(tables: dict, policies: dict):
                     eid = key_text(emp.get("employee_id"))
                     findings.append(receipt(
                         pid, (key_text(pname), f"employee_{field}", eid), "TENSION",
-                        f"related party {pname} shares a {field.replace('_', ' ')} with "
+                        f"related party {pname} shares "
+                        f"{'an' if field[0] in 'aeiou' else 'a'} {field.replace('_', ' ')} with "
                         f"employee {eid} — a family member on the payroll? Confirm the "
                         "role and pay are real and disclosed",
                         {"finding_class": "CONJECTURE", "cycle": "estimates",

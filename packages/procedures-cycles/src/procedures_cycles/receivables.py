@@ -202,8 +202,9 @@ def _misstatement_findings(pid: str, rows: list[dict], findings: list):
         if row["misstatement"]:
             findings.append(receipt(
                 pid, ("client_misstatement", row["customer"]), "CLASH",
-                f"customer {row['customer']}: client misstatement {row['misstatement']} "
-                "(overstatement positive)",
+                f"customer {row['customer']}: client misstatement "
+                f"{abs(row['misstatement']):,.2f} "
+                f"({'overstatement' if row['misstatement'] > 0 else 'understatement'})",
                 {"finding_class": "PROVED_EXCEPTION", "cycle": "receivables",
                  "book_value": row["book"], "confirmed_value": row["confirmed"],
                  "classification": row["classification"],

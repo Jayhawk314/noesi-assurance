@@ -311,7 +311,7 @@ Kestrel demo; list in docs/WORKBENCH-WALKTHROUGH-2026-10-03.md. Two possible
 bugs (a raw `rockwood_structural` key on Draft Opinion and Export; the Fraud
 tab counts Benford's "not tested" as findings) and stale "partner"/"Approved"
 wording are to be fixed before videos. Layout and data-changing buttons were
-not checked.
+not checked. **Both bugs and the stale wording fixed 3 Oct** (see that file).
 
 ## Phase 2: the Kestrel Learn app
 Starts after Phase 1. Details in `docs/LEARN-KESTREL-PLAN.md`: a copy of the

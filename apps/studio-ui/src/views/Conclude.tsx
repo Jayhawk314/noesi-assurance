@@ -71,7 +71,12 @@ export function Conclude({ bundle }: { bundle: Bundle }) {
             {readiness.blockers.map((b) => (
               <li key={b.code}>
                 <b>{b.count}</b> {blockerText(b.code)}
-                {b.items && b.items.length > 0 && <div className="muted small">{b.items.slice(0, 4).join(", ")}{b.items.length > 4 ? "…" : ""}</div>}
+                {b.by_procedure && Object.keys(b.by_procedure).length > 0
+                  ? <div className="muted small">{Object.entries(b.by_procedure)
+                      .sort((x, y) => y[1] - x[1]).slice(0, 4)
+                      .map(([procedure, n]) => `${procedure}: ${n}`).join(", ")}
+                      {Object.keys(b.by_procedure).length > 4 ? "…" : ""}</div>
+                  : b.items && b.items.length > 0 && <div className="muted small">{b.items.slice(0, 4).join(", ")}{b.items.length > 4 ? "…" : ""}</div>}
               </li>
             ))}
           </ul>

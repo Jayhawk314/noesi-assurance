@@ -225,7 +225,8 @@ def readiness(report: dict, engagement: dict, sad: dict,
     if sad.get("open_findings_count"):
         blockers.append({"code": "FINDINGS_OPEN",
                          "count": sad["open_findings_count"],
-                         "items": list(sad.get("open_findings", []))})
+                         "items": list(sad.get("open_findings", [])),
+                         "by_procedure": dict(sad.get("open_findings_by_procedure") or {})})
     if sad.get("invalid_waiver_count"):
         blockers.append({"code": "WAIVERS_ABOVE_TRIVIAL_THRESHOLD",
                          "count": sad["invalid_waiver_count"]})

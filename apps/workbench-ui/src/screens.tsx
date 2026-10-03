@@ -432,7 +432,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
       <SourceNotes notes={data.source_notes} />
       <p className="note">
         A procedure that cannot run, or that the audit does not need (for example
-        the confirmation methods not chosen), is left out by the partner with a
+        the confirmation methods not chosen), is left out with a
         reason. The reason goes into the engagement record; readiness lists a
         procedure left out without one, and a blocked or partial one still included.
       </p>
@@ -708,7 +708,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           run
         </button>
         <span className="note">
-          Approved engagement policies apply automatically via coverage.
+          The engagement's settings (Scope & Policies) apply to every run automatically.
         </span>
       </form>
       <table className="dense">
@@ -1048,7 +1048,11 @@ export function BlockerList({ blockers, onNavigate }: {
                   ? <button className="action" onClick={() => onNavigate(tab)}>go to {tab}</button>
                   : <span className="note">—</span>}
               </td>
-              <td className="note">{itemsInWords(blocker.items ?? [])}</td>
+              <td className="note">{blocker.by_procedure && Object.keys(blocker.by_procedure).length
+                ? Object.entries(blocker.by_procedure)
+                    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                    .map(([procedure, n]) => `${procedure}: ${n}`).join(", ")
+                : itemsInWords(blocker.items ?? [])}</td>
             </tr>
           );
         })}
