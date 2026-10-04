@@ -314,6 +314,15 @@ actions. Reproduce suspected issues before fixing them. The Kestrel 174/176
 check stays a calibration check, not a replacement for these exit checks.
 Client-data custody requirements remain in `docs/PRODUCTION-READINESS.md`.
 
+**3 Oct follow-up, local and unreviewed:** `docs/WORKBENCH-FINISH-VERIFICATION-2026-10-03.md`
+records the independent commit review, an invented-data UI journey, a
+reproduced stale-result bug and local fix, an older-packet compatibility fix,
+and an invented-store backup/restore drill. Full tests and the Kestrel
+calibration pass. A second agent reviewed the new code and found three stale
+result gaps, which received general fixes and invented-data regressions.
+The clicked UI evidence-replacement/What Changed check remains. Do not treat the earlier Phase 1
+status or green checks as a product-readiness verdict.
+
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
 duplicate bills needs the supplier's invoice number; `je_manual_sources`;
@@ -335,6 +344,12 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- **Team roles, review and sign-off (James, 4 Oct 2026): maybe one day.** Noesi has one user per
+  engagement and no preparer/reviewer/partner roles, review steps or sign-offs (decided 2 Oct: a
+  supplement, not audit software; see THE-REAL-GOAL.md). If Noesi grows toward full audit software,
+  these could come back as real features: separate logins per role, review notes, sign-off with a
+  date, and locks after sign-off. Learn module 1 teaches the roles as audit knowledge and says the
+  review happens in the firm, outside Noesi; update it if the features are added.
 - ~~Inventory matching (Codex, 2026-09-29): later count tags for an item can
   carry conflicting identity data that is dropped~~ **fixed 2 Oct:** each
   later tag is compared with the item's first: a different model is a lead
@@ -344,12 +359,6 @@ scripts first, James approves scripts and credits before voicing.
 - ~~Stale accruals, checks to vendors with no bills, employee/vendor shared
   addresses~~ **done** (checked 2 Oct: `accruals.recompute` stale accrual,
   `ap.payments_without_bills`, `payroll.register_tests` address match; each
-- **Team roles, review and sign-off (James, 4 Oct 2026): maybe one day.** Noesi has one user per
-  engagement and no preparer/reviewer/partner roles, review steps or sign-offs (decided 2 Oct: a
-  supplement, not audit software; see THE-REAL-GOAL.md). If Noesi grows toward full audit software,
-  these could come back as real features: separate logins per role, review notes, sign-off with a
-  date, and locks after sign-off. Learn module 1 teaches the roles as audit knowledge and says the
-  review happens in the firm, outside Noesi; update it if the features are added.
   matches on the Kestrel finish line).
 - **Codex depth review (docs/reviews/REVIEW-2026-10-02-depth-codex.md) fixed
   2 Oct:** a vouching row with no result is not vouched (1); a zero adjusted

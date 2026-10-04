@@ -151,12 +151,21 @@ def related_party_matching(tables: dict, policies: dict):
                 if _norm(emp.get(field)) == value:
                     matched += 1
                     eid = key_text(emp.get("employee_id"))
-                    findings.append(receipt(
-                        pid, (key_text(pname), f"employee_{field}", eid), "TENSION",
+                    employee_name = text(emp.get("name")) or " ".join(
+                        p for p in (text(emp.get("first_name")), text(emp.get("last_name"))) if p)
+                    same_name = bool(pkey and _name(employee_name) == pkey)
+                    match_reason = (
+                        f"related party {pname} matches employee {eid} by name and "
+                        f"{field.replace('_', ' ')} — confirm the role and pay are real and disclosed"
+                        if same_name else
                         f"related party {pname} shares "
                         f"{'an' if field[0] in 'aeiou' else 'a'} {field.replace('_', ' ')} with "
                         f"employee {eid} — a family member on the payroll? Confirm the "
-                        "role and pay are real and disclosed",
+                        "role and pay are real and disclosed"
+                    )
+                    findings.append(receipt(
+                        pid, (key_text(pname), f"employee_{field}", eid), "TENSION",
+                        match_reason,
                         {"finding_class": "CONJECTURE", "cycle": "estimates",
                          "employee": eid, "source_rows": src + [
                              source_ref("Payroll_master", emp, "employee_id")]}))

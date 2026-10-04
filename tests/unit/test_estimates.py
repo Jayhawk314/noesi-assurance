@@ -91,6 +91,17 @@ def test_related_parties_are_matched_across_the_engagements_data():
     assert stats["matches"] == 4
 
 
+def test_related_party_matching_does_not_call_the_same_person_a_family_member():
+    findings, stats = execute_procedure("related_parties.matching", {
+        "Related_parties": [{"party_name": "Jo Kestrel", "address": "9 Lindley Pl"}],
+        "Payroll_master": [{"employee_id": "E01", "name": "Jo Kestrel",
+                            "address": "9 Lindley Pl"}],
+    }, {})
+    assert stats["matches"] == 1
+    assert "matches employee e01 by name and address" in findings[0].reason.lower()
+    assert "family member" not in findings[0].reason.lower()
+
+
 def test_nothing_to_match_against_is_a_refusal_not_a_clean_result():
     findings, _ = execute_procedure("related_parties.matching",
                                     {"Related_parties": PARTIES}, {})
