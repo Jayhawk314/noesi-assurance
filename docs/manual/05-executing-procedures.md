@@ -32,6 +32,16 @@ versions, a digest of every input table, the effective policies) and a
 sealed result. Re-running later is *reperformance* — a new job with its
 own sequence number, never an overwrite.
 
+"Completed" is not the same as "tested", and the Runs tab says which:
+
+- **partly tested** — the run refused part of its population (for example
+  Benford with one population below the minimum) and tested the rest;
+- **tested nothing** — every part was refused; read its findings for why;
+- **stale** — a file or setting that this run read has changed since, or a
+  later rerun failed. The result is historical until you rerun it, and
+  readiness lists it (`PROCEDURE_RESULTS_STALE`). A change to a file or
+  setting the run did not read leaves it current.
+
 The live catalog on Coverage is the source of truth; it grows as a tested
 cycle earns a contract and executor. Read it in families rather than
 memorizing a frozen list:

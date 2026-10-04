@@ -33,8 +33,9 @@ Noesi adds is a record of the testing that can be checked.
 **Readiness** (Export tab, and SAD & Completion) derives every open item
 by name, each a fact about the data, the procedures and the findings:
 undisposed findings, procedures in the audit that could not run or have
-not run, missing materiality, unexplained deselections, and a broken
-decision trail. There are no boxes to tick: the completion work
+not run, results that are stale after a changed file or setting, high
+risks whose responses did not actually run, missing materiality,
+unexplained deselections, and a broken decision trail. There are no boxes to tick: the completion work
 (subsequent events, going concern, representations) is done through its
 procedures. Red readiness is the list working, not an error — each item
 names exactly what is outstanding.
@@ -60,10 +61,24 @@ digests. It does not prove who produced it, that the client's source
 documents are authentic or complete, or when it was made. Keep the
 exported record in the firm's archive like any other working paper.
 
-(Until 1 October 2026 the Workbench also locked and signed engagements.
-That was removed: a sign-off is the firm's act, not the tool's. An
-engagement locked before then was reopened by the upgrade; its old lock
-rows are kept as history.)
+(Until 2 October 2026 the Workbench also locked and signed engagements.
+That was removed (decided 1 October): a sign-off is the firm's act, not the
+tool's. An engagement locked before then was reopened by the upgrade; its
+old lock rows are kept as history.)
+
+**Backup and restore.** The whole data folder (the control database and
+every evidence file it names) backs up into one zip from the command line:
+
+```
+python -m workbench_api.backup create --data DIR --to FILE
+python -m workbench_api.backup verify FILE
+python -m workbench_api.backup restore FILE --data NEW_DIR
+```
+
+Restore goes into a new, empty folder, and is refused if any evidence file
+is missing, damaged, or not the one the database names. The backup is not
+encrypted or signed by Noesi; keep it on encrypted storage, and practise a
+restore before relying on it.
 
 ## In Kestrel
 

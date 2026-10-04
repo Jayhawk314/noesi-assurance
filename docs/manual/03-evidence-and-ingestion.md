@@ -89,15 +89,19 @@ first rows.
 QuickBooks does not export flat tables. A report exported to Excel has a
 title block, then groups (a row holding only a vendor or bank-account name,
 its detail rows, and a "Total for …" row), then a grand TOTAL and a
-timestamp. The workbench recognizes four standard reports as soon as they
+timestamp. The workbench recognizes these standard reports as soon as they
 are uploaded and offers a **recipe** for each role the report can feed:
 
 | Report | Can be read as |
 |---|---|
 | Bill Payment List | Payments |
-| Transaction List by Vendor | Vouchers, Payments or Purchase_orders (you choose) |
+| Transaction List by Vendor | Vouchers, Payments, Direct_payments (checks with no bill) or Purchase_orders (you choose) |
 | Unpaid Bills | Vouchers |
 | Vendor Contact List | Vendors |
+| Trial Balance | Trial_balance (two exports, this year and last, can be joined into one schedule; see below) |
+| A/R Aging Summary | AR_listing |
+| Inventory Valuation Summary | Inventory_listing |
+| Journal (default layout, or with Created on / Created by) | Journal_entries |
 
 A report with a single recipe has it chosen for you; one with several
 leaves the role blank until you pick. What a recipe does:
@@ -137,13 +141,17 @@ the workbench refuses to.
 
 ### The AP subledger-to-ledger tie
 
-When both an **Unpaid Bills** export and a **General Ledger** export are
-uploaded, Sources shows a panel to build the **AP control balance**:
+With an **Unpaid Bills** export uploaded, Sources shows a panel to build
+the **AP control balance**. The ledger side comes from either a **General
+Ledger** export or, when none is loaded, the loaded trial balance (the
+accounts named in the *Accounts payable control accounts in the trial
+balance* setting):
 
 1. The subledger balance is Unpaid Bills' grand-total open balance; the
    ledger balance is the Accounts Payable account's ending balance
-   (Beginning Balance plus the period's activity). Both reports are footed
-   first, and one that does not foot is refused.
+   (from the GL: Beginning Balance plus the period's activity; from the
+   trial balance: the named accounts' credit balance). The reports are
+   footed first, and one that does not foot is refused.
 2. The result is saved as a small schedule,
    `AP control balance <date> - QuickBooks.csv`, whose provenance names
    both exports by SHA-256. It
@@ -176,10 +184,13 @@ evidence still supports.
 
 Start with `--demo` to inspect the completed ingestion trail, then repeat a
 few sources by hand. Kestrel combines QuickBooks exports, client schedules,
-bank data, and auditor-prepared evidence. The QuickBooks Journal, trial
-balance, aging, inventory, and reconciliation are loaded through explicit
-hand-preparation functions where the current generic recipes cannot yet read
-the report safely; their provenance says so. No figures are invented.
+bank data, and auditor-prepared evidence. The QuickBooks exports (trial
+balances, A/R aging, inventory valuation, the Journal and the payables
+reports) load raw through their recipes. Files the Workbench cannot yet take
+raw are loaded as hand-prepared schedules, and their provenance says so: the
+inventory count, the bank reconciliation (QuickBooks gives that report only
+as PDF), the bank cutoff statement, transfers, pricing tests and adjusting
+entries. No figures are invented.
 
 On **Scope & Policies**, confirm the suggested mappings from the client's
 trial-balance labels to statement lines and map the allowance account as an

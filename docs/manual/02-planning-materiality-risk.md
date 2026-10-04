@@ -66,15 +66,18 @@ change. The legacy **Fraud in payables** course, lesson F2
 
 ## In the workbench
 
-On **SAD & Completion**:
+On **Planning & Risk**:
 
-- Set **materiality** with its basis and rationale. The workbench derives
-  performance materiality (75%) and the clearly-trivial threshold (5%)
-  from it, and both appear on the SAD and the workpaper.
+- Set **materiality** with its benchmark, percentage, amount and rationale.
+  The workbench derives performance materiality (75% unless you set
+  another rate) and the clearly-trivial threshold (5% unless you set
+  another) from it. Both rates are settings on **Scope & Policies**, and
+  both figures appear on the SAD and the workpaper.
 
-On **Planning & Risk** you keep the risk register itself. Record each risk
+On the same tab you keep the risk register itself. Record each risk
 of material misstatement **at the assertion level** — choose the assertion
-(occurrence, accuracy, authorization, cutoff, completeness), grade its
+(occurrence, existence, completeness, accuracy, valuation, cutoff,
+classification, presentation, rights or authorization), grade its
 **level** (unassessed → low → moderate → high → significant), and state the
 rationale and your planned response. Then **link the procedures that respond
 to it**; the screen offers the candidates whose contract addresses that same
@@ -89,27 +92,36 @@ because it will not manufacture the look of a computed number where the
 substance is professional judgment.
 
 The register is auditor **judgment**, not a computed output — the engine
-never grades a risk; it records the judgment and who made it. Two readiness
+never grades a risk; it records the judgment and who made it. Four readiness
 gates follow from the register, and each is a readiness blocker:
 
-- `HIGH_RISKS_WITHOUT_RESPONSE` — a significant risk with no planned response.
-- `HIGH_RISKS_WITHOUT_PROCEDURE` — a significant risk no procedure answers.
+- `RISKS_UNASSESSED` — a recorded risk still graded "unassessed".
+- `HIGH_RISKS_WITHOUT_RESPONSE` — a high or significant risk with no
+  planned response.
+- `HIGH_RISKS_WITHOUT_PROCEDURE` — a high or significant risk no procedure
+  answers.
+- `HIGH_RISK_RESPONSES_NOT_PERFORMED` — a high or significant risk linked to
+  a procedure that did not actually answer it: blocked, partly supplied,
+  left out, not run, run but tested nothing or only part, or a historical
+  result after its inputs changed. A link alone is not a response.
 
-That pair is the point: readiness will not pass an engagement that names
-a significant risk and then does nothing about it. (Noesi supplements
+The point: readiness will not pass an engagement that names a high or
+significant risk and then does nothing about it, or only appears to. (Noesi supplements
 the audit; it asks for no sign-off or second-person concurrence. Your firm's
 own review process stays where it is.)
 
-**Fraud risks go in the same register.** There is no separate fraud flag,
-so start the title with "Fraud:" and name the fraud risk factor in the
-rationale, for example "Fraud: self-approved payments during the
-supervisor gap", against **authorization**, linked to
-`ap.segregation_of_duties`. The payables procedures answer fraud risks in
-this cycle (look-alike vendors, self-approval, split payments, bank and
-ledger mismatches). Two AU-C 240 responses fall outside the workbench:
-journal-entry testing for management override, and procedures for the
-revenue presumption. Record those risks here anyway, with the response you
-perform elsewhere, so the plan shows how every fraud risk was answered.
+**Fraud risks go in the same register.** Tick the **fraud risk** box when
+you add the risk, and name the fraud risk factor in the rationale, for
+example "self-approved payments during the supervisor gap", against
+**authorization**, linked to `forensic.self_approved_payments` or
+`ap.segregation_of_duties`. The **Fraud** tab then gathers every risk marked
+this way with the fraud tests and their leads. Both presumed AU-C 240 risks
+have responses in the workbench: `je.journal_entry_testing` for management
+override, and the revenue procedures (`rev.sales_cutoff`,
+`rev.credit_memos_after_period_end`, the confirmation evaluations) for the
+revenue presumption. Where a response is performed outside the workbench,
+record the risk here anyway with that response, so the plan shows how every
+fraud risk was answered.
 
 Every procedure contract in the library also carries its cycle, its
 **assertions**, its stated **limitations**, and the data and policies it
@@ -127,7 +139,7 @@ documentation.
 Overall materiality is **15,000**, about 4.6% of pre-tax income. The demo
 records that benchmark and rationale; the SAD derives clearly trivial at
 750. The performance-materiality schedule allocates 33,000 across audit
-areas against a partner-approved cap of 2 × 15,000 = 30,000, so the planning
+areas against the cap set in the engagement's settings, 2 × 15,000 = 30,000, so the planning
 procedure reports a 3,000 over-allocation.
 
 Build the risk register from the case facts rather than from the findings.

@@ -33,6 +33,8 @@ the engine is making:
 | `CLASH` | two pieces of evidence contradict (amounts differ beyond tolerance; same person created and approved) | investigate; likely SAD candidate or control exception |
 | `ORPHAN` | something expected is absent (no bank clearing, no voucher, no approver) | determine what absence means here — timing, completeness, or worse |
 | `TENSION` | a pattern warrants review (a sub-threshold cluster, an identity twin, a value-flow ring) | treat as a lead; decide what further evidence settles it |
+| `AMBIGUOUS` | the engine could not decide, or refused to test (for example a Benford population below the minimum: *not tested*) | supply what is missing, or record the limit; a refusal is never a clean result |
+| `AGREE` | the evidence corroborates (for example a sampling evaluation within tolerable) | read it as a pass for that check only, within its stated limits |
 
 Every finding requires a **disposition** with a note:
 
@@ -55,7 +57,9 @@ The **SAD** screen aggregates unadjusted items against materiality,
 performance materiality, and clearly trivial, and concludes
 immaterial/material. Undisposed findings and invalid waivers (waived
 above the trivial threshold) are completion blockers. This is the gate that implements AU-C 450's "evaluate before
-you conclude".
+you conclude". When a run behind it is stale (a file or setting it read
+has changed, or a rerun failed), the screen marks the conclusion
+*historical* until you rerun.
 
 ## In Kestrel
 
