@@ -364,7 +364,8 @@ function ScreenBody({ tab, client, engagement, onError, onNavigate }: {
     case "What Changed":
       return <WhatChangedScreen client={client} eid={eid} onError={onError} />;
     case "SAD & Completion":
-      return <SadScreen client={client} eid={eid} onError={onError} />;
+      return <SadScreen client={client} eid={eid} onError={onError}
+                        onNavigate={goTo} />;
     case "Draft Opinion":
       return <OpinionScreen client={client} eid={eid} onError={onError} onNavigate={goTo} />;
     case "Export":

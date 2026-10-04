@@ -742,6 +742,8 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
             <tr key={run.run_id}>
               <td><b>{named(run.procedure_id)}</b><br /><code>{run.procedure_id}</code></td>
               <td><span className={`status ${run.status}`}>{run.status}</span>
+                {run.stale_reasons?.length > 0 && (
+                  <div className="status bad">stale: {run.stale_reasons.join(", ")}; rerun before relying on it</div>)}
                 {run.tested === "nothing" && (
                   <div className="status bad">tested nothing: see its findings</div>)}
                 {run.tested === "partly" && (
@@ -835,7 +837,9 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
               </td>
               <td><b>{named(finding.procedure_id)}</b><br /><code>{finding.procedure_id}</code>
                 {latestRun[finding.procedure_id] !== finding.run_id
-                  && <div className="note">earlier run</div>}</td>
+                  && <div className="note">earlier run</div>}
+                {((data?.runs ?? []).find((r: Run) => r.run_id === finding.run_id)?.stale_reasons?.length ?? 0) > 0
+                  && <div className="status bad">stale run: rerun before relying on this finding</div>}</td>
               <td>{finding.verdict.verdict}</td>
               <td><code>{finding.tags.assertion}</code></td>
               <td>{finding.tags.class}</td>
@@ -888,7 +892,9 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
 
 // --------------------------------------- screen 5: SAD, workflow, completion
 
-export function SadScreen({ client, eid, onError }: ScreenProps) {
+export function SadScreen({ client, eid, onError, onNavigate }: ScreenProps & {
+  onNavigate?: (tab: string) => void;
+}) {
   const load = useCallback(async () => {
     const [sad, workflow, readiness] = await Promise.all([
       client.sad(eid), client.workflow(eid), client.readiness(eid),
@@ -908,10 +914,17 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
   };
   const needsNoDataAssertion = readiness.blockers.some(
     (b) => b.code === "NO_DATA_WITHOUT_PARTNER_ASSERTION");
+  const staleRuns = readiness.blockers.some(
+    (b) => b.code === "PROCEDURE_RESULTS_STALE"
+        || b.code === "SELECTED_PROCEDURES_STALE");
 
   return (
     <>
       <h2>Summary of audit differences</h2>
+      {staleRuns && <div className="error-bar">
+        Some procedure results are historical after changed inputs or a failed rerun. Rerun
+        them before relying on this summary or its schedule.
+      </div>}
       <div className="panel">
         <span className="metric"><b>{sad.overall_materiality.toLocaleString()}</b>materiality</span>
         <span className="metric"><b>{sad.clearly_trivial.toLocaleString()}</b>clearly trivial</span>
@@ -921,9 +934,9 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
         <span className="metric"><b>{sad.total_unadjusted.toLocaleString()}</b>disposed as unadjusted</span>
         <span className="metric"><b>{sad.total_adjusted.toLocaleString()}</b>disposed as adjusted</span>
         <span className="metric">
-          <b className={`status ${sad.conclusion === "material" ? "broken"
+          <b className={`status ${staleRuns ? "pending" : sad.conclusion === "material" ? "broken"
             : sad.conclusion === "immaterial" ? "ok" : "pending"}`}>
-            {sad.conclusion ?? "open"}
+            {staleRuns ? `historical: ${sad.conclusion ?? "open"}` : sad.conclusion ?? "open"}
           </b>
           conclusion
         </span>
@@ -1005,6 +1018,15 @@ export function SadScreen({ client, eid, onError }: ScreenProps) {
         <span className="note"> (set on Planning &amp; Risk)</span>
       </p>
 
+      <h3>Completion status</h3>
+      <p className="note">
+        {readiness.ready ? "No Workbench readiness items remain open."
+          : `${readiness.blockers.length} kind(s) of Workbench readiness item remain open.`}
+        {" "}This is the supplement's own status, not audit approval or sign-off.
+      </p>
+      {readiness.blockers.length > 0 &&
+        <BlockerList blockers={readiness.blockers} onNavigate={onNavigate} />}
+
     </>
   );
 }
@@ -1024,6 +1046,8 @@ const BLOCKERS: Record<string, [string, string | null]> = {
   SELECTED_PROCEDURES_BLOCKED: ["Procedures in the audit cannot run: data missing. Load it, or leave them out with a reason.", "Coverage"],
   SELECTED_PROCEDURES_PARTIAL: ["Procedures in the audit can run only in part. Supply what is missing, or leave them out with a reason.", "Coverage"],
   SELECTED_PROCEDURES_PENDING_RUN: ["Procedures in the audit have not run yet.", "Runs & Findings"],
+  PROCEDURE_RESULTS_STALE: ["Procedure results are historical after changed inputs or a failed rerun. Rerun them before relying on the findings.", "Runs & Findings"],
+  SELECTED_PROCEDURES_STALE: ["Procedure results are historical after changed inputs or a failed rerun. Rerun them before relying on the findings.", "Runs & Findings"],
   PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE: ["Procedures are left out with no reason recorded.", "Coverage"],
   EVIDENCE_REVIEW_PENDING: ["Evidence received waits for review (no screen for this yet).", null],
   EXTRACTION_APPROVAL_PENDING: ["Source extractions wait for approval (no screen for this yet).", null],
@@ -1082,7 +1106,7 @@ export function BlockerList({ blockers, onNavigate }: {
           const [text, tab] = BLOCKERS[blocker.code] ?? [blocker.code, null];
           return (
             <tr key={blocker.code}>
-              <td>{text}<div className="note"><code>{blocker.code}</code></div></td>
+              <td title={`Internal code: ${blocker.code}`}>{text}</td>
               <td>{blocker.count}</td>
               <td>
                 {tab && onNavigate

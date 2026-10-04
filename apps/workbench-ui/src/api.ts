@@ -202,6 +202,7 @@ export interface Run {
   created_at: string;
   /** What a completed run tested: a refusal is a part not tested (null on error). */
   tested?: "all" | "partly" | "nothing" | "limited" | null;
+  stale_reasons: string[];
 }
 
 export interface Verdict {
@@ -248,11 +249,12 @@ export interface Risk {
 export interface FraudTest {
   procedure_id: string; scheme: string; basis: string; name: string;
   coverage: string; in_scope: boolean; missing: string[]; limitations: string;
-  last_run: { status: string; at: string; run_id: string } | null;
+  last_run: { status: string; at: string; run_id: string; stale_reasons: string[] } | null;
   findings: number; open: number;
   /** Why the test did not test (a refusal), one reason per refusal. */
   not_tested: string[];
   tested: "all" | "partly" | "nothing" | "limited" | null;
+  stale_reasons: string[];
 }
 
 export interface FraudView {
@@ -262,7 +264,7 @@ export interface FraudView {
   not_tested: Finding[];
   summary: { tests: number; run: number; cannot_run: number; partly: number; findings: number;
              open_findings: number; not_tested: number; partly_tested: number; limited: number;
-             fraud_risks: number };
+             fraud_risks: number; stale: number; historical_findings: number };
   presumed_risks: string[];
 }
 

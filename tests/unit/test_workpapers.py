@@ -53,9 +53,15 @@ def worked_engagement(service):
             BOB, eid, role=role, artifact_id=artifact["artifact_id"])
         service.normalize_source(BOB, eid, proposal["spec_id"])
 
+    # Freeze the engagement settings before the procedures run; a later
+    # setting change makes their receipts historical until rerun.
+    service.update_workflow(ALICE, eid, "policy",
+                            {"name": "split_threshold", "value": "10000"})
+    service.update_workflow(ALICE, eid, "materiality", {"amount": 10000.0})
+
     executed = {}
     for procedure_id, policies in (
-            ("ap.split_payment_review", {"split_threshold": "10000"}),
+            ("ap.split_payment_review", {}),
             ("ap.subledger_gl_balance_tie", {})):
         run = service.run_procedure(BOB, eid, procedure_id=procedure_id,
                                     policies=policies)
@@ -78,10 +84,6 @@ def worked_engagement(service):
             {"procedure_id": contract.procedure_id, "selected": False,
              "rationale": "no supporting export provided this period"})
 
-    # The split threshold is an approved engagement policy, not a run knob.
-    service.update_workflow(ALICE, eid, "policy",
-                            {"name": "split_threshold", "value": "10000"})
-    service.update_workflow(ALICE, eid, "materiality", {"amount": 10000.0})
     assert service.readiness(eid)["ready"] is True, service.readiness(eid)["blockers"]
     return eid
 

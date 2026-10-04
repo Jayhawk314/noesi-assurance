@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import html
 import json
+from collections import Counter
 
 
 def _esc(value) -> str:
@@ -140,9 +141,13 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
     risks = [r for r in manifest.get("risks", []) if not r.get("archived")]
     if risks:
         not_performed: dict = {}
+        legacy_items: list[str] = []
         for blocker in (opinion or {}).get("readiness_blockers") or []:
             if blocker.get("code") == "HIGH_RISK_RESPONSES_NOT_PERFORMED":
                 not_performed = dict(blocker.get("by_risk") or {})
+                legacy_items = list(blocker.get("items") or [])
+        titles = Counter(r.get("title") or r.get("risk_id") for r in risks)
+        unmatched_legacy = set(legacy_items)
         rows = []
         for r in risks:
             title = r.get("title") or r.get("risk_id")
@@ -151,6 +156,14 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
                 linked = json.loads(linked or "[]")
             # matched by risk id, never by title: two risks may share one
             gaps = list(not_performed.get(r.get("risk_id"), []))
+            # Older exported packets have only title-prefixed items. Match
+            # those when the title is unique; otherwise keep the ambiguity
+            # visible below the table instead of assigning it to both risks.
+            if not not_performed and titles[title] == 1:
+                prefix = f"{title}: "
+                matches = [item for item in legacy_items if item.startswith(prefix)]
+                gaps = [item[len(prefix):] for item in matches]
+                unmatched_legacy.difference_update(matches)
             rows.append([
                 title + (" (fraud risk)" if r.get("fraud") else ""),
                 r.get("assertion", ""), r.get("level", ""), r.get("response", ""),
@@ -159,6 +172,11 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
         sections.append("<h2>Risks of material misstatement</h2>" + _table(
             ["Risk", "Assertion", "Level", "Planned response", "Responding procedures",
              "Responses that did not run"], rows))
+        if unmatched_legacy and not not_performed:
+            sections.append("<p class='limits'>Older record: unassigned risk-response "
+                            "blockers (risk titles were not unique or could not be "
+                            "matched): " + "; ".join(_esc(item) for item in
+                                                      sorted(unmatched_legacy)) + "</p>")
 
     sections.append("<h2>Source inventory</h2>" + _table(
         ["File", "SHA-256", "Bytes", "State"],

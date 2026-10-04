@@ -193,9 +193,10 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
 
       {unmapped.length > 0 && (
         <>
-          <h3>Not on the map</h3>
+          <h3>Other procedures</h3>
           <p className="note">
-            These procedures are on no cycle map yet.
+            These procedures are still in Coverage and Runs. Cross-cycle fraud
+            tests appear on the Fraud tab; the diagrams show individual cycles.
           </p>
           <div className="table-wrap">
             <table className="dense">
@@ -206,7 +207,7 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
                 {unmapped.map((row) => (
                   <tr key={row.procedure_id}>
                     <td>{row.name}</td>
-                    <td>{row.cycle}</td>
+                    <td>{row.cycle.replace(/_/g, " ")}</td>
                     <td>
                       <span className={`status ${row.status}`}>{row.status}</span>
                     </td>

@@ -786,12 +786,26 @@ class WorkbenchService:
             procedure_id=procedure_id, procedure_version="v1",
             engine_version=_engine_version(procedure_id), tables=tables,
             policies=effective_policies, rerun_sequence=rerun_sequence)
+        # What the engine actually read (tables and policies), so a result is
+        # called stale only when one of its own inputs changed.
+        inputs_read: dict = {}
+
+        def execute_logged(pid, run_tables, run_policies):
+            from procedures_ap.readlog import TrackedPolicies, reading
+            tracked = TrackedPolicies(run_policies or {})
+            with reading() as roles:
+                try:
+                    return execute_procedure(pid, run_tables, tracked)
+                finally:
+                    inputs_read["roles"] = sorted(roles)
+                    inputs_read["policies"] = (
+                        None if tracked.read_all else sorted(tracked.read))
         if not_runnable:
             def refuse(*_args):
                 raise ValueError(not_runnable)
             bundle = run_job(manifest, tables, refuse)
         else:
-            bundle = run_job(manifest, tables, execute_procedure)
+            bundle = run_job(manifest, tables, execute_logged)
 
         def handler(uow):
             run_id = uow.runs.record(
@@ -799,8 +813,10 @@ class WorkbenchService:
                 job_id=manifest.job_id,
                 manifest={"input_tables": manifest.input_tables,
                           "policies": manifest.policies,
+                          "workflow_policies": base,
                           "engine_version": manifest.engine_version,
-                          "datasets": datasets_read},
+                          "datasets": datasets_read,
+                          **({"inputs_read": inputs_read} if inputs_read else {})},
                 status=bundle.status, summary=bundle.summary,
                 findings=list(bundle.findings), error=bundle.error,
                 result_digest=bundle.result_digest)
@@ -814,17 +830,65 @@ class WorkbenchService:
     def runs(self, engagement_id: str) -> list[dict]:
         rows = self._conn.execute(
             """SELECT run_id, procedure_id, job_id, status, summary, error,
-               executed_by, version, created_at, findings
+               executed_by, version, created_at, findings, manifest
                FROM procedure_run WHERE engagement_id = ?
                ORDER BY created_at, rowid""", (engagement_id,)).fetchall()
         out = []
+        if not rows:
+            return out
+        document, _ = self.workflow_document(engagement_id)
+        current_datasets = {
+            role: [d["dataset_id"] for d in states[-1][1]]
+            for role, states in self._role_states(engagement_id).items()}
         for row in rows:
             item = dict(row)
             item["summary"] = json.loads(item["summary"])
             findings = json.loads(item.pop("findings") or "[]")
+            manifest = json.loads(item.pop("manifest") or "{}")
+            current_policies = (self._engagement_policies(engagement_id, document)
+                                if item["procedure_id"] in CYCLE_CONTRACTS_BY_ID
+                                else document.get("policies") or {})
+            reasons = []
+            # Runs since 3 Oct record what the engine read; only those inputs
+            # can make the result stale. Older runs record everything loaded
+            # and every setting, so any change flags them (cautious).
+            read = manifest.get("inputs_read") or {}
+            roles = read.get("roles")
+            if "datasets" in manifest:
+                if roles is None:
+                    data_moved = manifest["datasets"] != current_datasets
+                else:
+                    data_moved = any(manifest["datasets"].get(role)
+                                     != current_datasets.get(role) for role in roles)
+                if data_moved:
+                    reasons.append("loaded data changed")
+            # New runs record the workflow settings separately from deliberate
+            # per-run overrides. Older runs have only the effective settings;
+            # conservatively flag a mismatch rather than call them current.
+            frozen_policies = manifest.get("workflow_policies",
+                                           manifest.get("policies", {}))
+            names = read.get("policies")
+            if names is None:
+                settings_moved = frozen_policies != current_policies
+            else:
+                settings_moved = any(frozen_policies.get(name) != current_policies.get(name)
+                                     for name in names)
+            if settings_moved:
+                reasons.append("settings changed")
+            item["stale_reasons"] = reasons
             item["tested"] = (None if item["status"] == "error"
                               else _how_much_tested(item["summary"], findings))
             out.append(item)
+        latest, completed = {}, {}
+        for item in out:
+            latest[item["procedure_id"]] = item
+            if item["status"] != "error":
+                completed[item["procedure_id"]] = item
+        for pid, attempt in latest.items():
+            previous = completed.get(pid)
+            if (attempt["status"] == "error" and previous
+                    and attempt["run_id"] != previous["run_id"]):
+                previous["stale_reasons"].append("latest rerun failed")
         return out
 
     def findings(self, engagement_id: str) -> list[dict]:
@@ -1136,11 +1200,12 @@ class WorkbenchService:
         shows as untested, never as clean."""
         coverage = {row["procedure_id"]: row
                     for row in self.coverage(engagement_id)["procedures"]}
-        latest, current = {}, {}
+        latest, completed = {}, {}
         for run in self.runs(engagement_id):
             latest[run["procedure_id"]] = run
             if run["status"] != "error":
-                current[run["procedure_id"]] = run["run_id"]
+                completed[run["procedure_id"]] = run
+        current = {pid: run["run_id"] for pid, run in completed.items()}
         # Only the latest completed run's findings: an older run's findings
         # are superseded by the rerun, never counted twice.
         gathered = [f for f in self.findings(engagement_id)
@@ -1156,6 +1221,12 @@ class WorkbenchService:
             row = coverage.get(pid)
             mine = [f for f in findings if f["procedure_id"] == pid]
             run = latest.get(pid)
+            finding_run = completed.get(pid)
+            historical_reasons = (list(finding_run["stale_reasons"])
+                                  if finding_run else [])
+            if (finding_run and run and finding_run["run_id"] != run["run_id"]
+                    and "latest rerun failed" not in historical_reasons):
+                historical_reasons.append("latest rerun failed")
             missing = []
             if row:
                 missing = list(row.get("missing_roles") or []) + sorted(
@@ -1170,13 +1241,15 @@ class WorkbenchService:
                 "missing": missing,
                 "limitations": (row.get("limitations") or "") if row else "",
                 "last_run": ({"status": run["status"], "at": run["created_at"],
-                              "run_id": run["run_id"]} if run else None),
+                              "run_id": run["run_id"],
+                              "stale_reasons": historical_reasons} if run else None),
                 "findings": len(mine),
                 "open": sum(1 for f in mine
                             if f["disposition"]["status"] in ("undisposed", "follow_up")),
                 "not_tested": [f["verdict"].get("reason", "") for f in refusals
                                if f["procedure_id"] == pid],
-                "tested": run["tested"] if run else None,
+                "tested": finding_run["tested"] if finding_run else None,
+                "stale_reasons": historical_reasons,
             })
         risks = [r for r in self.risks(engagement_id)["risks"] if r["fraud"]]
         return {
@@ -1188,17 +1261,24 @@ class WorkbenchService:
                 "tests": len(tests),
                 # a run that ended in error ran nothing: not counted as run
                 "run": sum(1 for t in tests if t["last_run"]
-                           and t["last_run"]["status"] != "error"),
+                           and t["last_run"]["status"] != "error"
+                           and not t["stale_reasons"]),
+                "stale": sum(1 for t in tests if t["stale_reasons"]),
                 "cannot_run": sum(1 for t in tests if t["coverage"]
                                   in ("blocked", "unsupported", "not_available")),
                 "partly": sum(1 for t in tests if t["coverage"] == "partial"),
-                "findings": len(findings),
-                "open_findings": sum(t["open"] for t in tests),
+                "findings": sum(t["findings"] for t in tests if not t["stale_reasons"]),
+                "open_findings": sum(t["open"] for t in tests if not t["stale_reasons"]),
+                "historical_findings": sum(t["findings"] for t in tests
+                                           if t["stale_reasons"]),
                 # a run that tested one population and refused another is
                 # partly tested, not untested (Codex review 3 Oct)
-                "not_tested": sum(1 for t in tests if t["tested"] == "nothing"),
-                "partly_tested": sum(1 for t in tests if t["tested"] == "partly"),
-                "limited": sum(1 for t in tests if t["tested"] == "limited"),
+                "not_tested": sum(1 for t in tests if t["tested"] == "nothing"
+                                  and not t["stale_reasons"]),
+                "partly_tested": sum(1 for t in tests if t["tested"] == "partly"
+                                     and not t["stale_reasons"]),
+                "limited": sum(1 for t in tests if t["tested"] == "limited"
+                               and not t["stale_reasons"]),
                 "fraud_risks": len(risks),
             },
             "presumed_risks": [
@@ -1737,14 +1817,25 @@ class WorkbenchService:
 
     def _overlay_runs(self, engagement_id: str, coverage: dict) -> dict:
         latest: dict[str, dict] = {}
+        completed: dict[str, dict] = {}
         for run in self.runs(engagement_id):
             latest[run["procedure_id"]] = run
+            if run["status"] != "error":
+                completed[run["procedure_id"]] = run
         for row in coverage.get("procedures", []):
             run = latest.get(row["procedure_id"])
             if not run:
                 continue
             if run["status"] == "error":
-                row["execution_status"] = "error"
+                previous = completed.get(row["procedure_id"])
+                if previous:
+                    row["execution_status"] = "stale"
+                    row["stale_reasons"] = previous["stale_reasons"]
+                else:
+                    row["execution_status"] = "error"
+            elif run["stale_reasons"]:
+                row["execution_status"] = "stale"
+                row["stale_reasons"] = run["stale_reasons"]
             else:
                 row["execution_status"] = "completed"
                 row["procedure_run"] = {"run_id": run["run_id"], "status": "completed"}

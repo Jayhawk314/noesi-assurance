@@ -99,3 +99,25 @@ def test_two_risks_with_one_title_keep_their_own_unperformed_responses(svc):
     svc.run_procedure("pa", eid, procedure_id="forensic.benford_first_digit")
     html = svc.workpaper_html("pa", eid)
     assert html.count("rev.sales_cutoff (blocked)") == 1
+
+
+def test_older_packet_keeps_its_unperformed_response_visible():
+    from assurance_workpapers.workpaper import render_workpaper
+    packet = {
+        "engagement": {"client_name": "Invented", "period_end": "2025-12-31"},
+        "generated": "2025-12-31", "packet_version": "noesi-evidence-packet-v4",
+        "software": "Noesi", "manifest": {"risks": [
+            {"risk_id": "r1", "title": "Sales", "procedure_ids": ["rev.sales_cutoff"]}],
+            "mapping_specs": []},
+        "opinion": {"status": "not_ready", "readiness_blockers": [
+            {"code": "HIGH_RISK_RESPONSES_NOT_PERFORMED", "count": 1,
+             "items": ["Sales: rev.sales_cutoff (not run)"]}]},
+    }
+    html = render_workpaper(packet)
+    assert "<td>rev.sales_cutoff (not run)</td>" in html
+    packet["manifest"]["risks"].append({
+        "risk_id": "r2", "title": "Sales", "procedure_ids": ["rev.sales_cutoff"]})
+    html = render_workpaper(packet)
+    assert "<td>rev.sales_cutoff (not run)</td>" not in html
+    assert "unassigned risk-response blockers" in html
+    assert "Sales: rev.sales_cutoff (not run)" in html

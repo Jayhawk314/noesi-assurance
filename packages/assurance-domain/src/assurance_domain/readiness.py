@@ -142,15 +142,23 @@ def readiness(report: dict, engagement: dict, sad: dict,
     selected_blocked = []
     selected_partial = []
     selected_pending_run = []
+    stale_results = []
     unjustified_exclusions = []
     for procedure in procedure_coverage.get("procedures", []):
         decision = engagement.get("procedures", {}).get(
             procedure.get("procedure_id"), {})
         selected = decision.get("selected", procedure.get("selected", True))
+        # Even a later-excluded procedure can have a latest historical result
+        # still shown in the SAD or draft opinion. Record its staleness before
+        # deciding whether the current procedure is included in scope.
+        if procedure.get("execution_status") == "stale":
+            stale_results.append(procedure.get("procedure_id"))
         if not selected:
             if not decision.get("rationale"):
                 unjustified_exclusions.append(procedure.get("procedure_id"))
             continue
+        # Freshness is independent of whether the replacement data can run
+        # the procedure at all.
         if procedure.get("status") == "blocked":
             selected_blocked.append(procedure.get("procedure_id"))
         elif procedure.get("status") == "partial":
@@ -169,6 +177,9 @@ def readiness(report: dict, engagement: dict, sad: dict,
         blockers.append({"code": "SELECTED_PROCEDURES_PENDING_RUN",
                          "count": len(selected_pending_run),
                          "items": selected_pending_run})
+    if stale_results:
+        blockers.append({"code": "PROCEDURE_RESULTS_STALE",
+                         "count": len(stale_results), "items": stale_results})
     if unjustified_exclusions:
         blockers.append({"code": "PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE",
                          "count": len(unjustified_exclusions),
@@ -183,6 +194,8 @@ def readiness(report: dict, engagement: dict, sad: dict,
         decision = engagement.get("procedures", {}).get(pid, {})
         if not decision.get("selected", procedure.get("selected", True)):
             status_of[pid] = "left out"
+        elif procedure.get("execution_status") == "stale":
+            status_of[pid] = "historical result; rerun required"
         elif procedure.get("status") in ("blocked", "partial", "unsupported"):
             status_of[pid] = {"partial": "partly supplied"}.get(
                 procedure["status"], procedure["status"])

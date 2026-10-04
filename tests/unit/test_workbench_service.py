@@ -249,6 +249,34 @@ def test_the_sad_carries_the_misstatement_schedule(service, engagement):
     assert sad["total_unadjusted"] == 0.0 and sad["candidates"] == 0
 
 
+def test_failed_latest_completion_rerun_marks_old_sad_schedule_historical(
+        service, engagement, monkeypatch):
+    import assurance_application.service as service_module
+
+    service.update_workflow(ALICE, engagement, "materiality",
+                            {"amount": 10000.0, "basis": "revenue"})
+    service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["completion"]})
+    _ingest(service, engagement, SCHEDULE_CSV, "schedule.csv", "Misstatements")
+    first = service.run_procedure(
+        BOB, engagement, procedure_id="completion.uncorrected_misstatements")
+    assert first["status"] == "completed"
+    assert service.sad(engagement)["conclusion"] == "material"
+
+    def fail(*_args):
+        raise ValueError("invented runner failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(service_module, "execute_procedure", fail)
+        failed = service.run_procedure(
+            BOB, engagement, procedure_id="completion.uncorrected_misstatements")
+    assert failed["status"] == "error"
+    assert service.sad(engagement)["schedule"] is not None  # old schedule retained
+    assert service.runs(engagement)[0]["stale_reasons"] == ["latest rerun failed"]
+    blockers = {b["code"]: b for b in service.readiness(engagement)["blockers"]}
+    assert blockers["PROCEDURE_RESULTS_STALE"]["items"] == [
+        "completion.uncorrected_misstatements"]
+
+
 def test_clearly_trivial_is_the_firms_policy(service, engagement):
     # B1: the firm sets clearly trivial; 2% of $200,000 materiality is $4,000.
     service.update_workflow(ALICE, engagement, "materiality",

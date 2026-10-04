@@ -136,3 +136,72 @@ def test_a_test_that_tested_one_population_and_refused_another_is_partly_tested(
     assert view["summary"]["not_tested"] == 0 and view["summary"]["partly_tested"] == 1
     [run] = [r for r in svc.runs(eid) if r["procedure_id"] == "forensic.benford_first_digit"]
     assert run["tested"] == "partly"
+
+
+def test_changed_policy_and_replaced_evidence_make_run_stale(svc):
+    # A completed receipt remains history, but cannot answer current scope.
+    eid = svc.create_engagement("pa", "Invented Company", "2025-12-31")["engagement_id"]
+    original = svc.store_source("pa", eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J1,1,2025-03-01,6000,150.00,\nJ1,2,2025-03-01,1000,,150.00\n"
+        b"J2,1,2025-04-01,6000,275.00,\nJ2,2,2025-04-01,1000,,275.00\n"),
+        media_type="text/csv", original_name="journal-original.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Journal_entries",
+                                      artifact_id=original["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    svc.update_workflow("pa", eid, "cycles", {"cycles": ["journal_entries"]})
+    svc.update_workflow("pa", eid, "policy", {"name": "benford_min_population", "value": "2"})
+    svc.run_procedure("pa", eid, procedure_id="forensic.benford_first_digit")
+    assert svc.runs(eid)[0]["stale_reasons"] == []
+    svc.update_workflow("pa", eid, "policy", {"name": "benford_min_population", "value": "1000"})
+    assert svc.runs(eid)[0]["stale_reasons"] == ["settings changed"]
+    blocker = next(b for b in svc.readiness(eid)["blockers"]
+                   if b["code"] == "PROCEDURE_RESULTS_STALE")
+    assert blocker["items"] == ["forensic.benford_first_digit"]
+    svc.run_procedure("pa", eid, procedure_id="forensic.benford_first_digit")
+    assert svc.runs(eid)[-1]["stale_reasons"] == []
+    replacement = svc.store_source("pa", eid, content=(
+        b"entry_id,line,entry_date,account,debit,credit\n"
+        b"J3,1,2025-05-01,6000,310.00,\nJ3,2,2025-05-01,1000,,310.00\n"),
+        media_type="text/csv", original_name="journal-revised.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Journal_entries",
+                                      artifact_id=replacement["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"], mode="replace")
+    assert svc.runs(eid)[-1]["stale_reasons"] == ["loaded data changed"]
+    summary = svc.fraud_view(eid)["summary"]
+    assert summary["stale"] == 1 and summary["run"] == 0
+    assert summary["findings"] == 0
+
+
+def test_failed_latest_rerun_does_not_make_old_fraud_finding_current(svc, monkeypatch):
+    import assurance_application.service as service_module
+
+    eid = svc.create_engagement("pa", "Invented Company", "2025-12-31")["engagement_id"]
+    art = svc.store_source("pa", eid, content=(
+        b"Flow ID,From,To,Amount,Date,Relation,Flow Type\n"
+        b"F1,Invented Company,Alpha,5000.00,2025-05-01,payment,vendor payment\n"
+        b"F2,Alpha,Beta,5000.00,2025-05-03,payment,transfer\n"
+        b"F3,Beta,Invented Company,5000.00,2025-05-06,payment,customer receipt\n"),
+        media_type="text/csv", original_name="flows.csv")
+    spec = svc.confirm_source_mapping("pa", eid, role="Value_flows",
+                                      artifact_id=art["artifact_id"])
+    svc.normalize_source("pa", eid, spec["spec_id"])
+    first = svc.run_procedure("pa", eid, procedure_id="forensic.closed_value_flow")
+    assert first["status"] == "completed"
+    assert svc.fraud_view(eid)["summary"]["findings"] > 0
+
+    def fail(*_args):
+        raise ValueError("invented runner failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(service_module, "execute_procedure", fail)
+        second = svc.run_procedure("pa", eid, procedure_id="forensic.closed_value_flow")
+    assert second["status"] == "error"
+    view = svc.fraud_view(eid)
+    test = next(t for t in view["tests"]
+                if t["procedure_id"] == "forensic.closed_value_flow")
+    assert test["stale_reasons"] == ["latest rerun failed"]
+    assert view["summary"]["run"] == 0
+    assert view["summary"]["stale"] == 1
+    assert view["summary"]["findings"] == 0
+    assert view["summary"]["historical_findings"] > 0

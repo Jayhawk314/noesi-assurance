@@ -53,8 +53,13 @@ export function FraudScreen({ client, eid, onError: _onError }: {
           {summary.not_tested} ran but did not test ·{" "}
           {summary.partly_tested} only partly tested ·{" "}
           {summary.limited} ran with a refusal; tested extent unclear ·{" "}
+          {summary.stale} historical after changed inputs or a failed rerun ·{" "}
           {summary.findings} finding{summary.findings === 1 ? "" : "s"},{" "}
           <b>{summary.open_findings} still open</b>
+          {summary.historical_findings > 0 && <>
+            {" · "}{summary.historical_findings} historical finding
+            {summary.historical_findings === 1 ? "" : "s"} from stale runs
+          </>}
         </p>
         <p className="note">
           This tab gathers the fraud work; it concludes nothing. A test that could
@@ -105,7 +110,9 @@ export function FraudScreen({ client, eid, onError: _onError }: {
                 <td><code>{t.procedure_id}</code>{!t.in_scope && <div className="note">not in scope</div>}</td>
                 <td><CanRun t={t} /></td>
                 <td>{t.last_run ? `${t.last_run.status}, ${t.last_run.at.slice(0, 10)}`
-                  : <span className="note">not run</span>}</td>
+                  : <span className="note">not run</span>}
+                  {t.stale_reasons.length > 0 &&
+                    <div className="status bad">stale: {t.stale_reasons.join(", ")}; rerun</div>}</td>
                 <td>{t.tested === "nothing"
                   ? <span className="status bad">not tested</span>
                   : <>{t.findings}{t.open > 0 && <span className="status pending"> ({t.open} open)</span>}
@@ -124,6 +131,10 @@ export function FraudScreen({ client, eid, onError: _onError }: {
 
       <div className="panel">
         <h3>What the fraud tests found</h3>
+        {summary.historical_findings > 0 && <p className="status bad">
+          Findings from stale runs are historical. Rerun after changed inputs
+          or a failed rerun before relying on them.
+        </p>}
         {findings.length === 0 ? (
           <p className="note">No fraud-test findings yet (or no fraud test has run).</p>
         ) : (

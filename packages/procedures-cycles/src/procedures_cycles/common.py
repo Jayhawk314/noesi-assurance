@@ -24,6 +24,8 @@ class PolicyError(ValueError):
 
 
 def records(tables: dict, role: str) -> list[dict]:
+    from procedures_ap.readlog import note_role
+    note_role(role)
     table = tables.get(role)
     if table is None:
         return []

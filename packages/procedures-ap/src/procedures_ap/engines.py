@@ -24,6 +24,7 @@ from typing import Callable
 from assurance_domain.money import fnum, parse_amount, sum_amounts
 from assurance_domain.receipts import Receipt
 
+from procedures_ap.readlog import note_role
 from procedures_ap.structural import content_hash  # date-aware, legacy-parity
 
 ENGINE_VERSION = "noesi-procedures-ap-v2"
@@ -33,6 +34,7 @@ _CENT = Decimal("0.01")
 
 
 def _records(tables: dict, role: str) -> list[dict]:
+    note_role(role)
     table = tables.get(role)
     return list(getattr(table, "records", table) or ()) if table is not None else []
 

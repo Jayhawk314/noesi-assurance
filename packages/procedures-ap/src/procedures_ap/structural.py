@@ -100,6 +100,8 @@ class AccountingGraph:
 
 
 def _records(tables: dict, name: str) -> list[dict]:
+    from procedures_ap.readlog import note_role
+    note_role(name)
     table = tables.get(name)
     return list(getattr(table, "records", table) or ()) if table is not None else []
 
