@@ -23,6 +23,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 1,
     slug: "fraud-why-it-happens",
+    video: {
+      file: "kestrel-f01-trust-is-not-a-control.mp4",
+      poster: "kestrel-f01-trust-is-not-a-control.jpg",
+      title: "Trust is not a control",
+      minutes: 3,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Why fraud happens",
     phase: "Fraud",
     question: "What turns an employee into a fraudster, and what at Kestrel made it possible?",
