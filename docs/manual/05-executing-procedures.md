@@ -39,8 +39,12 @@ own sequence number, never an overwrite.
 - **tested nothing** — every part was refused; read its findings for why;
 - **stale** — a file or setting that this run read has changed since, or a
   later rerun failed. The result is historical until you rerun it, and
-  readiness lists it (`PROCEDURE_RESULTS_STALE`). A change to a file or
-  setting the run did not read leaves it current.
+  while the procedure is in the audit, readiness lists it
+  (`PROCEDURE_RESULTS_STALE`). Left out with a reason, it stays labelled
+  stale but does not block; its findings still need a disposition. A change
+  to a file or setting the run did not read leaves it current. The
+  trial-balance line mapping counts as read only by runs that read the
+  trial balance or the prior statements.
 
 The live catalog on Coverage is the source of truth; it grows as a tested
 cycle earns a contract and executor. Read it in families rather than
