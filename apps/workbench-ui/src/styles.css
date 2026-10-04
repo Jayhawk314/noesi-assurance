@@ -95,7 +95,8 @@ header.app .who {
   align-items: center;
   gap: 0.45rem;
 }
-header.app .who code { color: var(--header-fg); font-weight: 650; }
+/* The global code style's light background left the white name nearly invisible on the header. */
+header.app .who code { color: var(--header-fg); background: rgba(255, 255, 255, 0.16); font-weight: 650; }
 
 main { padding: 1.1rem 1.4rem 3rem; max-width: 92rem; margin: 0 auto; }
 
