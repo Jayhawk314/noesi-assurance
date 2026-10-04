@@ -243,7 +243,7 @@ function LessonPage({ lesson, track, progress, onUpdate }: {
         </div>
       </header>
 
-      <LessonVideo title={lesson.title} />
+      <LessonVideo title={lesson.title} video={lesson.video} />
 
       <h2 className="step-title"><span className="step-k">Step 1</span> The idea</h2>
       {lesson.sections.slice(0, read).map((section, i) => (

@@ -14,6 +14,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 1,
     slug: "engagement-setup",
+    video: {
+      file: "kestrel-01-before-the-first-test.mp4",
+      poster: "kestrel-01-before-the-first-test.jpg",
+      title: "Before the first test",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Engagement setup",
     phase: "Planning",
     question: "Before any testing: what period, how big a mistake matters, and who does what?",
@@ -464,6 +471,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 5,
     slug: "payables",
+    video: {
+      file: "kestrel-05-one-invoice-paid-twice.mp4",
+      poster: "kestrel-05-one-invoice-paid-twice.jpg",
+      title: "One invoice, paid twice",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Payables",
     phase: "Fieldwork",
     question: "Is every bill real, recorded once, and paid to someone who should be paid?",
@@ -776,6 +790,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 8,
     slug: "payroll",
+    video: {
+      file: "kestrel-08-someone-who-isn-t-there.mp4",
+      poster: "kestrel-08-someone-who-isn-t-there.jpg",
+      title: "Someone who isn't there",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Payroll",
     phase: "Fieldwork",
     question: "Were the people paid real employees, paid the right amount, while they worked here?",
@@ -884,6 +905,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 9,
     slug: "property-and-equipment",
+    video: {
+      file: "kestrel-09-recompute-don-t-add-up.mp4",
+      poster: "kestrel-09-recompute-don-t-add-up.jpg",
+      title: "Recompute, don't add up",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Property and equipment",
     phase: "Fieldwork",
     question: "Do the assets exist, and is their cost and depreciation right?",
@@ -984,6 +1012,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 10,
     slug: "debt-equity-accruals",
+    video: {
+      file: "kestrel-10-foot-tie-recompute.mp4",
+      poster: "kestrel-10-foot-tie-recompute.jpg",
+      title: "Foot, tie, recompute",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Debt, equity, accruals",
     phase: "Fieldwork",
     question: "Do the schedules behind the balance sheet add up, tie to the ledger, and hold up on recomputation?",
@@ -1089,6 +1124,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 11,
     slug: "estimates-and-related-parties",
+    video: {
+      file: "kestrel-11-the-name-that-isn-t-on-the-list.mp4",
+      poster: "kestrel-11-the-name-that-isn-t-on-the-list.jpg",
+      title: "The name that isn't on the list",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Estimates and related parties",
     phase: "Fieldwork",
     question: "Does management's judgment lean one way, and who is on both sides of a deal?",
@@ -1182,6 +1224,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 12,
     slug: "completion",
+    video: {
+      file: "kestrel-12-after-the-year-ends.mp4",
+      poster: "kestrel-12-after-the-year-ends.jpg",
+      title: "After the year ends",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Completion",
     phase: "Completion",
     question: "Before the report: what happened after year end, what did management confirm, and what is left uncorrected?",
@@ -1288,6 +1337,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 13,
     slug: "the-opinion",
+    video: {
+      file: "kestrel-13-what-can-we-say.mp4",
+      poster: "kestrel-13-what-can-we-say.jpg",
+      title: "What can we say?",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "The opinion",
     phase: "Completion",
     question: "Given everything found, what can the auditor say, and what must the partner decide first?",

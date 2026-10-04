@@ -64,7 +64,8 @@ function textOf(lesson) {
     if (typeof v === "string") out.push([where, v]);
     else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${where}[${i}]`));
     else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) {
-      if (k === "row" || k === "key" || k === "keyModule" || k === "module" || k === "keyLines" || k === "n" || k === "minutes" || k === "answer") continue;
+      if (k === "row" || k === "key" || k === "keyModule" || k === "module" || k === "keyLines" || k === "n" || k === "minutes" || k === "answer"
+          || k === "file" || k === "poster") continue;   // video file names are not teaching text
       walk(x, `${where}.${k}`);
     }
   };

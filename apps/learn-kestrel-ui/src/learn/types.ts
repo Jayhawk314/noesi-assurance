@@ -45,6 +45,8 @@ export interface Ask {
 export interface Lesson {
   n: number;
   slug: string;
+  /** Optional teaching video (public/videos/; the single-file page plays it through jsDelivr). */
+  video?: { file: string; poster?: string; title: string; minutes: number; credits: string };
   title: string;
   phase: "Planning" | "Fieldwork" | "Completion" | "Fraud";
   question: string;
