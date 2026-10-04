@@ -59,6 +59,15 @@ def blank_engagement(report: dict) -> dict:
     }
 
 
+# Procedures whose latest result the draft opinion reads whether or not they
+# are in the audit (assurance_domain.opinion / service.draft_opinion).
+OPINION_INPUTS = frozenset({
+    "completion.uncorrected_misstatements",
+    "completion.going_concern_indicators",
+    "completion.representation_letter",
+    "debt.covenants",
+})
+
 def _phase_items(report: dict, phase: str) -> list[dict]:
     return [item for item in report.get("verdicts", [])
             if item.get("tags", {}).get("phase") == phase]
@@ -148,10 +157,15 @@ def readiness(report: dict, engagement: dict, sad: dict,
         decision = engagement.get("procedures", {}).get(
             procedure.get("procedure_id"), {})
         selected = decision.get("selected", procedure.get("selected", True))
-        # Even a later-excluded procedure can have a latest historical result
-        # still shown in the SAD or draft opinion. Record its staleness before
-        # deciding whether the current procedure is included in scope.
-        if procedure.get("execution_status") == "stale":
+        # A stale result blocks while the procedure is in the audit. Left out
+        # with a reason, its old findings still need a disposition (open
+        # findings) and the screens label them stale, so it does not block:
+        # otherwise a procedure that can no longer run could never clear it
+        # (review 3 Oct). The procedures the draft opinion reads are the
+        # exception: it reads their latest result even when left out.
+        if procedure.get("execution_status") == "stale" and (
+                selected or not decision.get("rationale")
+                or procedure.get("procedure_id") in OPINION_INPUTS):
             stale_results.append(procedure.get("procedure_id"))
         if not selected:
             if not decision.get("rationale"):

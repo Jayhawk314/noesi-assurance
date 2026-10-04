@@ -83,3 +83,24 @@ open with no archive event.
 ## Review status
 
 No second agent has reviewed the read-logging fix or this note.
+
+## Second-agent review of 1b6d7b1, and what was done (3 Oct, later)
+
+A separate Claude reviewed the commit (report only). It found no case of a
+result staying "current" after an input it read changed. Of what it reproduced:
+
+- **Fixed:** a line-mapping edit marked 31-33 unrelated Kestrel results
+  stale. The engine relabels the trial balance for every procedure, and the
+  relabelling counted as a read. Now it does not; the line mapping counts as
+  read only for runs that read the trial balance or prior statements. On
+  Kestrel the same edit now marks 12, all of which read the trial balance.
+- **Fixed:** a left-out procedure (with a reason) whose result went stale was
+  a readiness blocker that could never be cleared. It no longer blocks; its
+  findings still need dispositions. The four procedures the draft opinion
+  reads even when left out (uncorrected misstatements, going-concern
+  indicators, representation letter, covenants) still block.
+- **Not fixed, by decision:** runs recorded before 28 Sep 2026 have no
+  dataset record, so a replaced file does not flag them. New stores have
+  none.
+- **Not fixed, harmless:** a run made with a one-off setting override is
+  flagged when the engagement's own value of that setting later changes.

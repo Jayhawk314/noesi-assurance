@@ -86,14 +86,23 @@ def execute_procedure(procedure_id: str, tables: dict,
     # The engagement's account-to-line mapping (K8) turns the client's own
     # lead-schedule labels into the statement lines the procedures read. It
     # travels as a policy, so every run's manifest records the mapping used.
-    mapping_text = (policies or {}).get("line_mapping")
+    # Read without the read log (dict.get on the mapping itself): the mapping
+    # matters only to a run that reads the trial balance or prior statements,
+    # and the service counts it as read exactly then (review 3 Oct: any
+    # mapping edit marked 31 unrelated Kestrel results stale).
+    mapping_text = dict.get(policies, "line_mapping") if policies is not None else None
     if mapping_text:
         import json as _json
         from procedures_cycles.statements import apply_line_mapping
         mapping = _json.loads(mapping_text) if isinstance(mapping_text, str) else mapping_text
         for role in ("Trial_balance", "Prior_statements"):  # the same labels (B3)
             if role in tables:
-                tables = {**tables, role: apply_line_mapping(records(tables, role), mapping)}
+                # Relabelling is not the procedure reading the table: open it
+                # without the read log. A procedure that then reads the mapped
+                # table is logged by records() as usual.
+                table = tables[role]
+                rows = list(getattr(table, "records", table) or ())
+                tables = {**tables, role: apply_line_mapping(rows, mapping)}
     # A mapped column is not the same as a value on every row: a blank
     # required value must not turn into a zero or a skipped row (review
     # 2026-09-28, F2). Rows missing one are set aside, named, and not tested.

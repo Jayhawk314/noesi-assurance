@@ -798,8 +798,12 @@ class WorkbenchService:
                     return execute_procedure(pid, run_tables, tracked)
                 finally:
                     inputs_read["roles"] = sorted(roles)
+                    read_policies = set(tracked.read)
+                    # The line mapping relabels exactly these two tables.
+                    if roles & {"Trial_balance", "Prior_statements"}:
+                        read_policies.add("line_mapping")
                     inputs_read["policies"] = (
-                        None if tracked.read_all else sorted(tracked.read))
+                        None if tracked.read_all else sorted(read_policies))
         if not_runnable:
             def refuse(*_args):
                 raise ValueError(not_runnable)

@@ -80,6 +80,30 @@ def test_its_own_setting_a_newly_arrived_table_or_a_replaced_file_makes_it_stale
     assert _latest_reasons(svc, eid) == ["loaded data changed"]
 
 
+TRIAL_BALANCE = (b"account,description,balance,line\n"
+                 b"1000,Cash,5000.00,cash\n2000,Accounts payable,-3000.00,current_liabilities\n"
+                 b"3000,Equity,-2000.00,equity\n")
+
+
+def test_a_line_mapping_edit_marks_only_runs_that_read_the_trial_balance(svc):
+    # Review 3 Oct: every cycle run logged the line mapping as read, so one
+    # mapping edit marked 31 unrelated Kestrel results stale.
+    eid = _benford(svc)
+    _load(svc, eid, "Trial_balance", "tb.csv", TRIAL_BALANCE)
+    svc.update_workflow("me", eid, "cycles", {"cycles": ["journal_entries", "completion"]})
+    # A mapping already in force when the runs happen (as on Kestrel): the
+    # engine relabels the trial balance for every run, which is not a read.
+    svc.update_workflow("me", eid, "line_mapping", {"account": "2000", "line": "current_liabilities"})
+    svc.run_procedure("me", eid, procedure_id="forensic.benford_first_digit")
+    svc.run_procedure("me", eid, procedure_id="completion.going_concern_indicators")
+    latest = {r["procedure_id"]: r for r in svc.runs(eid)}
+    assert latest["completion.going_concern_indicators"]["status"] == "completed"
+    svc.update_workflow("me", eid, "line_mapping", {"account": "1000", "line": "cash"})
+    latest = {r["procedure_id"]: r for r in svc.runs(eid)}
+    assert latest["forensic.benford_first_digit"]["stale_reasons"] == []
+    assert latest["completion.going_concern_indicators"]["stale_reasons"] == ["settings changed"]
+
+
 def test_a_run_from_before_the_read_record_stays_cautious(svc):
     eid = _benford(svc)
     row = svc._conn.execute("SELECT run_id, manifest FROM procedure_run").fetchone()
