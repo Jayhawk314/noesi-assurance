@@ -21,6 +21,7 @@ from workbench_api.server import SessionAuth, build_server
 
 _UI_DIST = Path(__file__).resolve().parents[2] / "workbench-ui" / "dist"
 _STUDIO_DIST = Path(__file__).resolve().parents[2] / "studio-ui" / "dist"
+_KESTREL_DIST = Path(__file__).resolve().parents[2] / "learn-kestrel-ui" / "dist"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,8 +49,9 @@ def main(argv: list[str] | None = None) -> int:
     auth = SessionAuth.create(args.principal)
     static = _UI_DIST if _UI_DIST.is_dir() else None
     studio = _STUDIO_DIST if _STUDIO_DIST.is_dir() else None
+    kestrel = _KESTREL_DIST if _KESTREL_DIST.is_dir() else None
     server = build_server(service, auth, port=args.port, static_dir=static,
-                          studio_dir=studio)
+                          studio_dir=studio, kestrel_dir=kestrel)
 
     demo_note = ""
     if args.demo:
@@ -75,6 +77,8 @@ def main(argv: list[str] | None = None) -> int:
           + ("" if static else "   (UI not built; API only)"), flush=True)
     if studio:
         print(f"studio:     http://127.0.0.1:{port}/studio/", flush=True)
+    if kestrel:
+        print(f"learn:      http://127.0.0.1:{port}/kestrel/", flush=True)
     print(f"principal:  {args.principal}", flush=True)
     print(f"token:      {auth.token}", flush=True)
     if demo_note:

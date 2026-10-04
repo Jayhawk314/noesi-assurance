@@ -1,0 +1,102 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Noesi Audit Code Atlas</title>
+<link rel="stylesheet" href="code-atlas.css">
+<script src="vendor/highlight.min.js"></script>
+
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Noesi Assurance · manual supplement · Kestrel walk-through</span>
+  <h1>Audit Code Atlas</h1>
+  <p class="lede">Ten stops, one audit. At each stop: the audit question, what you do in Excel, the Noesi screen, and the route the request takes through the code, from the screen down to the record. Click any function to read its real source, with the lines that matter highlighted. Each stop ends with the maths and with what that stop can't establish.</p>
+  <div class="facts" id="facts"></div>
+</header>
+
+<div class="tools">
+  <div class="legend" id="legend">
+    <button type="button" data-l="screen" aria-pressed="true"><span class="dot"></span>Screen · what you click</button>
+    <button type="button" data-l="api" aria-pressed="true"><span class="dot"></span>API · the route</button>
+    <button type="button" data-l="service" aria-pressed="true"><span class="dot"></span>Service · orchestration</button>
+    <button type="button" data-l="engine" aria-pressed="true"><span class="dot"></span>Engine · the maths</button>
+    <button type="button" data-l="record" aria-pressed="true"><span class="dot"></span>Record · what's kept</button>
+  </div>
+  <div class="search">
+    <input id="q" type="search" placeholder="Find a function or file… (e.g. benford, vault)" aria-label="Find a function or file">
+    <span id="qcount">Tap a layer to hide it. Use "Walk this stop" to step through a stop's code in order.</span>
+  </div>
+</div>
+
+<div class="line" id="line"></div>
+
+<section class="idea" id="lessons">
+  <span class="eyebrow">Lesson by lesson · the Kestrel course</span>
+  <h2>Each Learn lesson, and the code behind it</h2>
+  <p>One stop per module and fraud lesson. The question, the by-hand work, the In Noesi steps and "what Noesi cannot do" are the lesson's own text. Each procedure chip opens its real source, found through the engine registry, with its contract's objective and limits. "What the key checks" lists the lesson's answer-key lines. Built by docs/manual/build_atlas_lessons.py.</p>
+  <div class="line" id="line2"></div>
+</section>
+
+<section class="idea" id="receipts">
+  <span class="eyebrow">Your idea · receipts for the system's own process</span>
+  <h2>A run sheet: Noesi's own lab-book page, printed by the machine</h2>
+  <p>Most of this is already built. Every run freezes a <b>job manifest</b> before it executes: the procedure, the engine version, a SHA-256 and row count for each input table, and every policy value in force. The job ID is the hash of all of that (<button class="inline-fn" data-sym="JobManifest">JobManifest</button>). Before running, <button class="inline-fn" data-sym="run_job">run_job</button> re-checks that the tables still match those hashes, and the result gets its own digest (<button class="inline-fn" data-sym="ResultBundle">ResultBundle</button>). So the system already keeps a receipt of its own process. It just never shows it to you as a page.</p>
+  <div class="two">
+    <div class="panel">
+      <h3>What a run sheet would print</h3>
+      <div class="sheet"><span class="k">RUN SHEET</span>  ar.confirmations_mus · rerun 0
+<span class="k">job</span>        job|4be1…9c07     <span class="k">result</span> 7f2a…e1d0
+<span class="k">engine</span>     cycles-v2  →  <span class="s">procedures_cycles/receivables.py:273</span>
+           <span class="s">confirmations_mus → sampling.mus_evaluate</span>
+<span class="k">inputs</span>     AR_listing      212 rows  sha256 9d1c…
+           Confirmations    38 rows  sha256 03be…
+<span class="e">dials</span>      ar_tolerable_misstatement     <span class="e">36,000</span>
+           ar_risk_incorrect_acceptance    <span class="e">0.05</span>
+           mus_interval                   <span class="e">9,400</span>
+<span class="k">verdicts</span>   AGREE 1 · CLASH 2
+<span class="r">receipts</span>   3 · each re-hashes in verify_packet
+<span class="w">limits</span>     Overstatement bound only; understatements
+           are listed separately.</div>
+      <p class="small">Invented figures. The policy names are the procedure's real required policies; the limits line is its contract's own text (procedures_cycles/contracts.py).</p>
+    </div>
+    <div class="panel">
+      <h3>The variable tweaks (dials)</h3>
+      <p><button class="inline-fn" data-sym="WorkbenchService.run_procedure">run_procedure</button> already takes per-run policy values on top of the engagement's, and <button class="inline-fn" data-sym="WorkbenchService.revision_impact">revision_impact</button> already reruns procedures in memory and compares findings without recording anything. Put the two together and you get a <b>sensitivity sheet</b>: "at 10% risk of incorrect acceptance instead of 5%, which findings change, and does the evaluation still exceed tolerable?"</p>
+      <p><b>One design rule I'd hold firm on:</b> a what-if must never land in the engagement record. A real run is journalled and exported, so a run made only to explore would read as a test you performed. Copy the pattern of revision_impact, which reruns in memory and records nothing. The what-if is computed, shown and printable, and never sealed.</p>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>How this ties your three ideas together</h3>
+    <ol class="steps">
+      <li><b>This atlas is the static half.</b> It shows where the code is at each stop, and it's the same for every audit.</li>
+      <li><b>The run sheet is the live half.</b> It shows which code ran on your data, with which dials, and what it found. Print one per stop as you do Kestrel and it becomes a lab-book page you didn't have to write.</li>
+      <li><b>Receipt-based reports</b> (fraud leads, untested areas, everything about existence) are run sheets filtered by a question.</li>
+    </ol>
+    <p class="small">Suggested order: the working paper's leftover "Approved" wording (stop 10) was fixed on 3 Oct. Then do Kestrel by hand with this atlas open. Then build the run sheet (read-only, from the manifest already stored), then in-memory what-ifs, then question-filtered reports. A run sheet proves the computation was recorded consistently. It doesn't prove the client's data was real or complete.</p>
+  </div>
+</section>
+</div>
+
+<div class="shade" id="shade" hidden></div>
+<aside class="drawer" id="drawer" hidden role="dialog" aria-labelledby="d-title" aria-modal="true">
+  <div class="d-head">
+    <div class="d-row">
+      <span class="pill" id="d-pill"></span>
+      <span class="d-stop" id="d-stop"></span>
+      <div class="d-nav">
+        <button class="btn" id="d-prev" type="button" title="Previous in this stop (←)">← Prev</button>
+        <button class="btn" id="d-next" type="button" title="Next in this stop (→)">Next →</button>
+        <button class="btn close" id="d-close" type="button" aria-label="Close (Esc)">✕</button>
+      </div>
+    </div>
+    <div class="d-title" id="d-title"></div>
+    <div class="d-row">
+      <span class="d-path" id="d-path"></span>
+      <button class="btn" id="d-copy" type="button">Copy path</button>
+    </div>
+  </div>
+  <div class="d-body" id="d-body"></div>
+</aside>
+
+
+
+<script src="code-atlas.js"></script>
+</body></html>

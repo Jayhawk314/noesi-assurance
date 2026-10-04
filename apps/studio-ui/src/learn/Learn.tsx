@@ -85,7 +85,7 @@ export function Learn({ route, standalone = false }: { route: string; standalone
         {!standalone && <a className="to-workbench" href="/">Workbench ↗</a>}
         <a className="to-workbench" href="https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/README.md" target="_blank" rel="noreferrer">Manual</a>
         <a className="to-workbench" href="https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/HOW-NOESI-WORKS.md" target="_blank" rel="noreferrer">How Noesi works</a>
-        <a className="to-workbench" href="https://htmlpreview.github.io/?https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/Noesi%20Audit%20Code%20Atlas.html" target="_blank" rel="noreferrer">Code Atlas</a>
+        <a className="to-workbench" href={standalone ? "https://claude.ai/artifact/G8vHnXznniL7k93te8SWrx" : "/kestrel/code-atlas.html"} target="_blank" rel="noreferrer">Code Atlas</a>
       </header>
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />

@@ -147,10 +147,18 @@ def main():
             assert html.count(old) == 1, f"template changed, cannot place: {old[:60]}"
             html = html.replace(old, new)
     PAGE.write_text(html, encoding="utf-8")
+    copy_to_learn()
     n_items = sum(len(s["items"]) for s in stops)
     print(f"{len(stops)} lesson stops, {n_items} procedures with source")
     for s in skipped:
         print("  screen, not a procedure:", s)
+
+
+def copy_to_learn():
+    """The Workbench copy, at /kestrel/code-atlas.html (see atlas_copy.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from atlas_copy import write_learn_copy
+    write_learn_copy(PAGE, ROOT)
 
 
 if __name__ == "__main__":

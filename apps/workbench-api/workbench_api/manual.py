@@ -83,6 +83,10 @@ def _inline(text: str) -> str:
         if href.startswith(("http://", "https://")):
             return (f'<a href="{href}" target="_blank" '
                     f'rel="noopener noreferrer">{label}</a>')
+        if href.startswith("/kestrel/") and ".." not in href:
+            # a page the Workbench itself serves (the Kestrel Learn build)
+            return (f'<a href="{href}" target="_blank" '
+                    f'rel="noopener noreferrer">{label}</a>')
         return label  # other repo-relative paths: keep the words, drop the link
 
     text = _LINK.sub(link, text)

@@ -96,7 +96,7 @@ _TOKEN_PLACEHOLDER = b"__NOESI_SESSION_TOKEN__"
 
 def build_server(service: WorkbenchService, auth: SessionAuth,
                  host: str = "127.0.0.1", port: int = 0,
-                 static_dir=None, studio_dir=None) -> ThreadingHTTPServer:
+                 static_dir=None, studio_dir=None, kestrel_dir=None) -> ThreadingHTTPServer:
     """Create (do not start) the hardened HTTP server.
 
     ``static_dir`` (the built workbench-ui dist) is served on non-/api GET
@@ -104,12 +104,14 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
     path-resolved strictly inside the directory, with a scripts-self CSP.
     The data plane stays fully authenticated. ``studio_dir`` (the built
     studio-ui dist) mounts the visual practitioner UI at ``/studio/`` under
-    the same rules.
+    the same rules. ``kestrel_dir`` (the built learn-kestrel-ui dist) mounts the
+    Kestrel Learn course, with its videos, at ``/kestrel/`` the same way.
     """
     write_lock = threading.Lock()
     from pathlib import Path
     static_root = Path(static_dir).resolve() if static_dir else None
     studio_root = Path(studio_dir).resolve() if studio_dir else None
+    kestrel_root = Path(kestrel_dir).resolve() if kestrel_dir else None
     globals_static_root = static_root
 
     class Handler(BaseHTTPRequestHandler):
@@ -304,6 +306,11 @@ def build_server(service: WorkbenchService, auth: SessionAuth,
                     and (raw_path == "/studio"
                          or raw_path.startswith("/studio/"))):
                 self._serve_static(raw_path[len("/studio"):], studio_root)
+                return
+            if (method == "GET" and kestrel_root is not None
+                    and (raw_path == "/kestrel"
+                         or raw_path.startswith("/kestrel/"))):
+                self._serve_static(raw_path[len("/kestrel"):], kestrel_root)
                 return
             if (method == "GET" and static_root is not None
                     and not raw_path.startswith("/api")):

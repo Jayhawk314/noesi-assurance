@@ -113,7 +113,15 @@ def main(write):
     if write:
         PAGE.write_text(html[:a] + json.dumps(data, ensure_ascii=False) + html[b:], encoding="utf-8")
         print("wrote", PAGE.name)
+        copy_to_learn()
     return 1 if missing or badmarks else 0
+
+
+def copy_to_learn():
+    """The Workbench copy, at /kestrel/code-atlas.html (see atlas_copy.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from atlas_copy import write_learn_copy
+    write_learn_copy(PAGE, ROOT)
 
 
 if __name__ == "__main__":
