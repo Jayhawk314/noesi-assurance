@@ -35,7 +35,7 @@ does not sign, approve, or decide: one user per engagement, and the judgments st
    - **CLASH:** an exception;
    - **ORPHAN:** something on one side with no match on the other;
    - **AMBIGUOUS:** the test refused to decide;
-   - **ERROR:** the test failed to run.
+   - **ERROR:** reserved in the schema. A run that fails is reported with the status "error" instead.
 6. **Decide.** The auditor gives each finding a disposition. The summary of audit differences (SAD)
    totals the misstatements by statement line against materiality (`assurance_domain/sad.py`).
 7. **Complete.** The readiness check lists, by name, everything still open. The draft opinion says what
@@ -47,7 +47,7 @@ does not sign, approve, or decide: one user per engagement, and the judgments st
 | Area | Method | Where |
 |---|---|---|
 | Footing and ties | Exact decimal arithmetic (no floating point for money); totals against TOTAL rows; subledger to ledger | `assurance_domain/money.py`, `procedures_cycles/statements.py` |
-| Analytics | Movement flagged when the change is over the % threshold or the amount threshold; ratios from mapped statement lines | `statements.py` |
+| Analytics | Movement flagged when the change passes the % threshold and the amount threshold (by default), or either one if the auditor sets `analytics_threshold_rule` to "or" (Kestrel does); ratios from mapped statement lines | `statements.py` |
 | Statistical sampling (MUS) | Sample size n = confidence factor ÷ (tolerable ÷ population); interval = population ÷ n; tainting = misstatement ÷ book value; upper misstatement limit by the textbook layering of Poisson upper limits | `procedures_cycles/sampling.py` |
 | Attribute sampling | Exact one-sided binomial upper deviation rate; sample size as the smallest n that keeps the upper bound under the tolerable rate | `sampling.py` |
 | Nonstatistical sampling | Ratio projection: sample misstatement × population $ ÷ sample $; allowance for sampling risk = tolerable − projected | `sampling.py` |
@@ -55,7 +55,7 @@ does not sign, approve, or decide: one user per engagement, and the judgments st
 | Recomputations | Depreciation (straight line), accruals and prepaids by days, interest on average balance, the covenant ratio | `ppe.py`, `accruals.py`, `debt_equity.py` |
 | Population completeness | Every account rolled forward: last year's balance + this year's Journal lines = this year's balance | `procedures_cycles/journal.py` |
 | Journal-entry traits | Weekend or holiday, round amount (≥ threshold and a multiple of the unit), unauthorized user, seldom-used account, posted after period end, manual with no description | `journal.py` |
-| Duplicates and twins | Same supplier invoice number across vendor records; vendor records with near-identical name, address or phone | `procedures_ap/engines.py`, `structural.py` |
+| Duplicates and twins | Same supplier invoice number across vendor records (`procedures_cycles/duplicates.py`); vendor records whose names match after legal suffixes are removed, plus vendors whose activity looks alike (amounts, months, who created them) | `procedures_ap/engines.py`, `structural.py` |
 | Split purchases | A vendor's payments grouped within a window, under the approval limit | `procedures_ap/engines.py` |
 | Check sequence | Gaps and reused numbers per bank account | `forensic.py` |
 | Vendor ↔ employee | Bank account, phone (last seven digits), tax ID, full name; and it says which fields couldn't be compared | `forensic.py` |
@@ -93,20 +93,22 @@ These are stated plainly because they are the point.
   Signatures come only from what the team recorded off the bank's images.
 - **It cannot see people.** It cannot confirm whether an employee exists, why an entry was posted, or
   whether a related party was left off management's list. Matching only finds names on the list.
-- **Thresholds are judgments.** Materiality, tolerances, windows and the Benford minimum are the
-  auditor's settings. Different settings give different findings.
+- **Thresholds are judgments.** Materiality, tolerances, the split window and the Benford minimum are the
+  auditor's settings, and different settings give different findings. Some limits are fixed in the code,
+  not settings: the round-trip screen uses a 2% amount tolerance, a 30-day window and at most 4 hops.
 - **Float arithmetic in the structural layer.** Twin and round-trip screening uses floating point (for
   parity with the prototype). It only produces leads routed to review, never SAD amounts.
 - **Known open items (4 Oct 2026):**
   - The related-party match words Jo Kestrel's address match as "employee e01, a family member?",
-    though E01 *is* Jo Kestrel.
+    though E01 *is* Jo Kestrel. A fix exists locally (`estimates.py`) but is not yet committed or
+    reviewed.
   - The demo labels all six hand-prepared files "from the QuickBooks export", though some come from
     bank, client or auditor files.
   - Going-concern indicators use the current ratio before adjustments.
   - A QuickBooks recipe version change turns most pages red instead of flagging the one file.
 
-  Each one may be a software bug, and none has been investigated yet.
-- **Tested so far on teaching cases.** It has 523 unit tests and is calibrated on Kestrel, but not yet
+  Each one may be a software bug. Apart from the first, none has been investigated yet.
+- **Tested so far on teaching cases.** It has 587 automated tests and is calibrated on Kestrel, but not yet
   checked on Oceanview with a working CPA, or on a real client.
 
 ## 6. What it adds to an audit

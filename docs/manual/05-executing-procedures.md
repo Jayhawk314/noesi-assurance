@@ -41,7 +41,8 @@ own sequence number, never an overwrite.
   later rerun failed. The result is historical until you rerun it, and
   while the procedure is in the audit, readiness lists it
   (`PROCEDURE_RESULTS_STALE`). Left out with a reason, it stays labelled
-  stale but does not block; its findings still need a disposition. A change
+  stale but does not block (except the procedures the draft opinion reads, which still block when
+  stale); its findings still need a disposition. A change
   to a file or setting the run did not read leaves it current. The
   trial-balance line mapping counts as read only by runs that read the
   trial balance or the prior statements.
