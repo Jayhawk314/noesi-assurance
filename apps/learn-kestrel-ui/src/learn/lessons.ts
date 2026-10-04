@@ -87,7 +87,7 @@ export const LESSONS: Lesson[] = [
         "Open this year's trial balance. Read the **As of** line under the title: that is the period end.",
         "Open the prior year's trial balance. The period starts the day after its **As of** date.",
         "Read the partner's approved materiality in the Policies table of the case README.",
-        "Write down the three roles an engagement team needs, and who at the firm may hold each.",
+        "Write down who prepares, who reviews and who signs on an engagement team, and note where that review happens: in the firm, outside Noesi.",
       ],
       asks: [
         { label: "Period start", row: "period start" },

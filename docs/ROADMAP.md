@@ -344,6 +344,12 @@ scripts first, James approves scripts and credits before voicing.
 - ~~Stale accruals, checks to vendors with no bills, employee/vendor shared
   addresses~~ **done** (checked 2 Oct: `accruals.recompute` stale accrual,
   `ap.payments_without_bills`, `payroll.register_tests` address match; each
+- **Team roles, review and sign-off (James, 4 Oct 2026): maybe one day.** Noesi has one user per
+  engagement and no preparer/reviewer/partner roles, review steps or sign-offs (decided 2 Oct: a
+  supplement, not audit software; see THE-REAL-GOAL.md). If Noesi grows toward full audit software,
+  these could come back as real features: separate logins per role, review notes, sign-off with a
+  date, and locks after sign-off. Learn module 1 teaches the roles as audit knowledge and says the
+  review happens in the firm, outside Noesi; update it if the features are added.
   matches on the Kestrel finish line).
 - **Codex depth review (docs/reviews/REVIEW-2026-10-02-depth-codex.md) fixed
   2 Oct:** a vouching row with no result is not vouched (1); a zero adjusted
