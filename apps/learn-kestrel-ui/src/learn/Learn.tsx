@@ -96,9 +96,13 @@ export function Learn({ route }: { route: string }) {
         <a className="to-workbench" href="#/learn/excel">Excel for audit</a>
         <a className="to-workbench" href="#/learn/map">Course map</a>
         <a className="to-workbench" href="#/learn/fraud">Fraud track</a>
-        {/* The manual, "How Noesi works" and the Code Atlas, on GitHub (the manual's front page links all three). */}
+        {/* The manual, "How Noesi works" and the Code Atlas, opened from GitHub in a new tab. */}
         <a className="to-workbench" href="https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/README.md"
            target="_blank" rel="noreferrer">Manual</a>
+        <a className="to-workbench" href="https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/HOW-NOESI-WORKS.md"
+           target="_blank" rel="noreferrer">How Noesi works</a>
+        <a className="to-workbench" href="https://htmlpreview.github.io/?https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/Noesi%20Audit%20Code%20Atlas.html"
+           target="_blank" rel="noreferrer">Code Atlas</a>
       </header>
       {target === "map" ? <CourseMap progress={progress} />
         : target === "documents" ? <Documents />
