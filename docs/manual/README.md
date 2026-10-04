@@ -27,9 +27,11 @@ names the requirement the gate implements.
 - **[How Noesi works](HOW-NOESI-WORKS.md)**: what it does, the maths it uses, what makes it different,
   its limits and possible errors, and what it adds to an audit.
 - **[The Audit Code Atlas](https://htmlpreview.github.io/?https://github.com/Jayhawk314/noesi-assurance/blob/main/docs/manual/Noesi%20Audit%20Code%20Atlas.html)**
-  (opens as a page): ten stops through a Kestrel audit, each with its route through the real source code.
+  (opens as a page): ten stops through a Kestrel audit, then every Learn lesson (13 modules, 9 fraud
+  lessons), each with its route through the real source code.
   In the repository it is `docs/manual/Noesi Audit Code Atlas.html`; open it in a browser. Its code
-  excerpts are refreshed from the source by `python docs/manual/refresh_atlas.py --write`.
+  excerpts are refreshed from the source by `python docs/manual/refresh_atlas.py --write` (the ten stops)
+  and `python docs/manual/build_atlas_lessons.py` (the lessons).
 
 ## The chapters
 
