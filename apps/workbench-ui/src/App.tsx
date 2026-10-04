@@ -165,6 +165,7 @@ function Workbench({ client }: { client: Client }) {
             user <code>{sessionPrincipal}</code>
           </span>
         )}
+        <a className="manual-toggle" href="/studio/" title="The Studio: the visual Learn course">Studio ↗</a>
         <button className={`manual-toggle ${manualOpen ? "active" : ""}`}
                 onClick={() => setManualOpen((open) => !open)}
                 title="The manual: the audit process and the workbench, taught together">
