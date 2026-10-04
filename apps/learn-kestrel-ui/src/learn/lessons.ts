@@ -93,7 +93,7 @@ export const LESSONS: Lesson[] = [
       steps: [
         DEMO_START,
         "**Header:** see the one user every step is recorded under.",
-        "**Scope & Policies:** read the period start, the audit areas switched on, and every approved policy.",
+        "**Scope & Policies:** read the period start, the audit areas switched on, and every policy set for this engagement. The firm's approval of audit judgments happens outside Noesi.",
         "**Planning & Risk:** read materiality and its basis (SAD & Completion shows it too).",
         "**Sources & Mappings:** check that every file loaded and none was refused. Note which files say they were **prepared by hand** from the case files (the count tags, the reconciliations, the auditor's schedules), and that the trial balance was **built from QuickBooks' own exports**.",
       ],
