@@ -133,6 +133,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 2,
     slug: "fraud-risk-assessment",
+    video: {
+      file: "kestrel-f02-the-risk-in-every-audit.mp4",
+      poster: "kestrel-f02-the-risk-in-every-audit.jpg",
+      title: "The risk in every audit",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Fraud risk assessment",
     phase: "Fraud",
     question: "Where could fraud happen at Kestrel, and which risks are presumed in every audit?",
@@ -239,6 +246,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 3,
     slug: "fraud-billing-schemes",
+    video: {
+      file: "kestrel-f03-a-bill-nobody-owed.mp4",
+      poster: "kestrel-f03-a-bill-nobody-owed.jpg",
+      title: "A bill nobody owed",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Billing schemes and shell vendors",
     phase: "Fraud",
     question: "How does a fake or duplicated bill get paid, and what trace does it leave?",
@@ -361,6 +375,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 4,
     slug: "fraud-splits-and-check-tampering",
+    video: {
+      file: "kestrel-f04-just-under-the-limit.mp4",
+      poster: "kestrel-f04-just-under-the-limit.jpg",
+      title: "Just under the limit",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Split purchases and check irregularities",
     phase: "Fraud",
     question: "How are approval limits and payment records got around, and where does it show?",
@@ -501,6 +522,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 5,
     slug: "fraud-payroll-schemes",
+    video: {
+      file: "kestrel-f05-paid-but-not-working-here.mp4",
+      poster: "kestrel-f05-paid-but-not-working-here.jpg",
+      title: "Paid, but not working here",
+      minutes: 1,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Payroll schemes",
     phase: "Fraud",
     question: "How does money leave through payroll, and what do the records show?",
@@ -595,6 +623,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 6,
     slug: "fraud-following-one-person",
+    video: {
+      file: "kestrel-f06-one-name-four-findings.mp4",
+      poster: "kestrel-f06-one-name-four-findings.jpg",
+      title: "One name, four findings",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Following one person",
     phase: "Fraud",
     question: "When do separate exceptions become a case, and what do you do next?",
@@ -692,6 +727,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 7,
     slug: "fraud-following-the-money",
+    video: {
+      file: "kestrel-f07-out-and-back-again.mp4",
+      poster: "kestrel-f07-out-and-back-again.jpg",
+      title: "Out, and back again",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Following the money",
     phase: "Fraud",
     question: "Cash moved between accounts at year end, and money left and came back. How do you tell a scheme from a normal transfer?",
@@ -801,6 +843,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 8,
     slug: "fraud-data-analysis",
+    video: {
+      file: "kestrel-f08-every-transaction.mp4",
+      poster: "kestrel-f08-every-transaction.jpg",
+      title: "Every transaction",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Data analysis for fraud detection",
     phase: "Fraud",
     question: "How do you test every transaction, and how do you read what the tests say, and don't say?",
@@ -889,6 +938,13 @@ export const FRAUD_LESSONS: Lesson[] = [
   {
     n: 9,
     slug: "fraud-prevention",
+    video: {
+      file: "kestrel-f09-next-time.mp4",
+      poster: "kestrel-f09-next-time.jpg",
+      title: "Next time",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Preventing it next time",
     phase: "Fraud",
     question: "Which controls would have stopped each scheme, and who has to be told?",

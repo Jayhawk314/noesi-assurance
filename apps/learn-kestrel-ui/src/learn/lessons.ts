@@ -125,6 +125,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 2,
     slug: "planning",
+    video: {
+      file: "kestrel-02-where-to-look-first.mp4",
+      poster: "kestrel-02-where-to-look-first.jpg",
+      title: "Where to look first",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Planning",
     phase: "Planning",
     question: "Where in the statements could a material misstatement hide, and how much error can each area carry?",
@@ -242,6 +249,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 3,
     slug: "journal-entries",
+    video: {
+      file: "kestrel-03-an-entry-nobody-would-question.mp4",
+      poster: "kestrel-03-an-entry-nobody-would-question.jpg",
+      title: "An entry nobody would question",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Journal entries",
     phase: "Fieldwork",
     question: "Did anyone push the books where they should not go, through an entry nobody would question?",
@@ -356,6 +370,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 4,
     slug: "revenue-and-receivables",
+    video: {
+      file: "kestrel-04-owed-and-collectible.mp4",
+      poster: "kestrel-04-owed-and-collectible.jpg",
+      title: "Owed, and collectible",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Revenue and receivables",
     phase: "Fieldwork",
     question: "Are the receivables real, owed in the amounts shown, and likely to be collected?",
@@ -593,6 +614,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 6,
     slug: "cash",
+    video: {
+      file: "kestrel-06-counted-once-in-the-right-year.mp4",
+      poster: "kestrel-06-counted-once-in-the-right-year.jpg",
+      title: "Counted once, in the right year",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Cash",
     phase: "Fieldwork",
     question: "Is the cash at year end really there, counted once, in the right period?",
@@ -691,6 +719,13 @@ export const LESSONS: Lesson[] = [
   {
     n: 7,
     slug: "inventory",
+    video: {
+      file: "kestrel-07-both-directions.mp4",
+      poster: "kestrel-07-both-directions.jpg",
+      title: "Both directions",
+      minutes: 2,
+      credits: "Narration: ElevenLabs voice “Guy”. Screens: Noesi Workbench and Noesi Learn on the Kestrel demo; spreadsheet views drawn from the case files. Photos: Wikimedia Commons, each credited on screen.",
+    },
     title: "Inventory",
     phase: "Fieldwork",
     question: "Is the stock on the listing really there, in the quantities shown, at the right cost?",
