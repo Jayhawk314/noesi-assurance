@@ -344,6 +344,20 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- **Fixed 25 Nov 2026: going concern on the adjusted figures** (one of the 4 Oct "possible software bugs").
+  `completion.going_concern_indicators` read the trial balance before the adjusting entries, though Learn module 12
+  already taught "recomputed from the adjusted figures". When `Adjusting_entries` are loaded it now applies them
+  (shared helper `apply_adjusting_entries`, also used by `fs.adjusted_trial_balance`), keeps the figures before them,
+  names indicators the adjustments raise or clear, and refuses by name an entry it cannot apply (REFUSAL, like
+  unclassified accounts; it counts as a possible scope limitation until dispositioned). Independent review found
+  two defects, both fixed with regressions: last year's signs on a Dr/Cr side-column TB, and an account on two TB
+  rows (which also gave `fs.adjusted_trial_balance` a false "does not foot"). Kestrel key: working capital
+  61,622.55, net income 326,229.12, equity 177,972.55, current ratio 1.1258 (1.1291 before; still below 1.20, still
+  "one point one three" in m12's narration, so no re-voice). Starlight: no indicators either way. 638 tests;
+  finish line 175/177. **Not checked:** the frames of rendered video m12 may still show 1.1291 on screen.
+- **Next candidate (25 Nov 2026), not started:** `ap.unrecorded_liabilities_search` reads Payments as the payments
+  after year end and Vouchers as the year-end unpaid listing. An engagement that loads the year's own bills and
+  payments (Starlight) cannot run it. Needs separate inputs for both; plan to James before building.
 - **Second Starlight review, 24 Nov 2026:** bank confirmations refuse missing/unreadable account, balance or date; zero remains a valid balance. Internal-control responsibility is a basic representation under AU-C 580.10(b). A fixed disclaimer keeps every basis reason but needs no further modification judgments. Work refusals remain visible; the auditor can record `not_material` when their possible effects do not justify modifying the opinion. Supplier references prefer the whole reference, using digits only as a fallback and refusing an ambiguous match only when used. Regression tests use invented data.
 - **Fixed 24 Nov 2026 (James: "fix everything first"): refused representations.** The draft opinion had treated
   any refused representation as an automatic disclaimer. Now only the basic ones of AU-C 580.25 (paragraphs .10-.11:

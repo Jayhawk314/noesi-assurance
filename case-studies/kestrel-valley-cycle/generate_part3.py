@@ -206,15 +206,32 @@ def final_misstatements(key):
 
 
 def going_concern(key):
+    """Judged on the statements as adjusted (AU-C 570 looks at the entity's
+    actual condition): the auditor's adjusting entries (auditor/
+    adjusting_entries.csv, written by generate.py) are applied first, the way
+    part 2 measures the covenant again. The figures before them are kept."""
     current = ["10100", "10200", "10300", "10900", "11000", "11900", "12100", "13000"]
     liabilities = ["20000", "21000", "22000", "23000"]
-    ca = sum(bal(CUR, n) for n in current)
-    cl = -sum(bal(CUR, n) for n in liabilities)
-    ni = -sum(bal(CUR, n) for n in (x[0] for x in g.TB) if n[0] in "456")
-    equity = -(bal(CUR, "30100") + bal(CUR, "31000") + bal(CUR, "32000")) + ni
+    effect: dict[str, D] = {}
+    with (g.AUDITOR / "adjusting_entries.csv").open(encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            n = r["Account"].split(" ", 1)[0]
+            effect[n] = effect.get(n, D("0")) + m(r["Debit"] or "0") - m(r["Credit"] or "0")
+
+    def figures(adj):
+        def b(n):
+            return bal(CUR, n) + adj.get(n, D("0"))
+        ca = sum(b(n) for n in current)
+        cl = -sum(b(n) for n in liabilities)
+        ni = -sum(b(n) for n in (x[0] for x in g.TB) if n[0] in "456")
+        equity = -(b("30100") + b("31000") + b("32000")) + ni
+        return {"working_capital": str(ca - cl), "net_income": str(ni), "equity": str(equity),
+                "current_ratio": str((ca / cl).quantize(D("0.0001"), rounding=ROUND_HALF_UP))}
+
     key["going_concern"] = {
-        "working_capital": str(ca - cl), "net_income": str(ni), "equity": str(equity),
-        "current_ratio": str((ca / cl).quantize(D("0.0001"), rounding=ROUND_HALF_UP)),
+        **figures(effect),
+        "basis": "after the adjusting entries AJE-1 to AJE-3",
+        "before_adjustments": figures({}),
         "floor": "1.20", "indicators": ["current_ratio_below_floor",
                                         "debt covenant breached (part 2)"],
         "note": "the engine's going-concern procedure needs its statement-line "

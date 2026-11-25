@@ -102,17 +102,16 @@ These are stated plainly because they are the point.
   4 hops is still fixed in the code.
 - **Float arithmetic in the structural layer.** Twin and round-trip screening uses floating point (for
   parity with the prototype). It only produces leads routed to review, never SAD amounts.
-- **Known open items (4 Oct 2026):**
-  - The related-party match words Jo Kestrel's address match as "employee e01, a family member?",
-    though E01 *is* Jo Kestrel. A fix exists locally (`estimates.py`) but is not yet committed or
-    reviewed.
+- **Known open items (4 Oct 2026, updated 25 Nov 2026):**
   - The demo labels all six hand-prepared files "from the QuickBooks export", though some come from
     bank, client or auditor files.
-  - Going-concern indicators use the current ratio before adjustments.
   - A QuickBooks recipe version change turns most pages red instead of flagging the one file.
 
-  Each one may be a software bug. Apart from the first, none has been investigated yet.
-- **Tested so far on teaching cases.** It has 587 automated tests and is calibrated on Kestrel, but not yet
+  Each may be a software bug; neither has been investigated yet. Closed since: the related-party
+  match that called Jo Kestrel a family member of herself (fixed in `38b756d`, 4 Oct), and the
+  going-concern indicators, which read the trial balance before the adjusting entries (fixed 25 Nov:
+  they are now judged after them, and the figures before them are kept).
+- **Tested so far on teaching cases.** It has 636 automated tests (25 Nov 2026) and is calibrated on Kestrel, but not yet
   checked on Oceanview with a working CPA, or on a real client.
 
 ## 6. What it adds to an audit

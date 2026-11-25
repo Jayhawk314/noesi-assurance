@@ -1141,29 +1141,29 @@
     "item": "going concern: working capital",
     "status": "match",
     "why": "",
-    "key": "63220.93",
-    "noesi": "63220.93"
+    "key": "61622.55",
+    "noesi": "61622.55"
    },
    {
     "item": "going concern: net income",
     "status": "match",
     "why": "",
-    "key": "327827.50",
-    "noesi": "327827.50"
+    "key": "326229.12",
+    "noesi": "326229.12"
    },
    {
     "item": "going concern: equity",
     "status": "match",
     "why": "",
-    "key": "179570.93",
-    "noesi": "179570.93"
+    "key": "177972.55",
+    "noesi": "177972.55"
    },
    {
     "item": "going concern: current ratio",
     "status": "match",
     "why": "",
-    "key": "1.1291",
-    "noesi": "1.1291"
+    "key": "1.1258",
+    "noesi": "1.1258"
    },
    {
     "item": "going-concern indicator: current ratio below floor",
@@ -2168,10 +2168,17 @@
     "above_materiality": true
    },
    "going_concern": {
-    "working_capital": "63220.93",
-    "net_income": "327827.50",
-    "equity": "179570.93",
-    "current_ratio": "1.1291",
+    "working_capital": "61622.55",
+    "net_income": "326229.12",
+    "equity": "177972.55",
+    "current_ratio": "1.1258",
+    "basis": "after the adjusting entries AJE-1 to AJE-3",
+    "before_adjustments": {
+     "working_capital": "63220.93",
+     "net_income": "327827.50",
+     "equity": "179570.93",
+     "current_ratio": "1.1291"
+    },
     "floor": "1.20",
     "indicators": [
      "current_ratio_below_floor",

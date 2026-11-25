@@ -354,43 +354,88 @@ def performance_materiality(tables: dict, policies: dict):
                       "exceptions": len(findings)}
 
 
-def adjusted_trial_balance(tables: dict, policies: dict):
-    pid = "fs.adjusted_trial_balance"
-    tb = records(tables, "Trial_balance")
-    entries = records(tables, "Adjusting_entries")
-    findings = []
-    by_account = {key_text(r.get("account")): r for r in tb}
+def apply_adjusting_entries(tb: list[dict], entries: list[dict]) -> dict:
+    """The trial balance after the adjusting entries, and what could not be applied.
+
+    An entry whose debits and credits differ is not applied at all; a line
+    posting to an account not on the trial balance is not applied. Both are
+    returned, in entry order, so the caller names them: figures built from a
+    partial set of adjustments must never pass for adjusted figures.
+
+    Every trial-balance row is kept, in order, with its other fields (line);
+    an account listed on more than one row gets its adjustment on its first
+    row, so no row is dropped and nothing is counted twice. ``balance`` and
+    ``prior_balance`` become debit-positive signed amounts and ``side`` is
+    cleared, since a side column no longer describes them; the prior balance
+    itself is never adjusted.
+    """
+    by_account: dict[str, dict] = {}
+    for r in tb:
+        by_account.setdefault(key_text(r.get("account")), r)
     adjustments: dict[str, Decimal] = {}
     grouped: dict[str, list[dict]] = {}
+    not_applied: list[tuple] = []
     for e in entries:
         grouped.setdefault(text(e.get("entry_id")), []).append(e)
     for entry_id, lines in grouped.items():
         dr = sum((money(x.get("debit")) for x in lines), ZERO)
         cr = sum((money(x.get("credit")) for x in lines), ZERO)
         if dr != cr:
+            not_applied.append(("unbalanced_entry", entry_id, dr, cr))
+            continue
+        for x in lines:
+            account = key_text(x.get("account"))
+            if account not in by_account:
+                not_applied.append(("unknown_account", entry_id, account))
+                continue
+            adjustments[account] = adjustments.get(account, ZERO) + \
+                money(x.get("debit")) - money(x.get("credit"))
+    rows, adjusted = [], set()
+    for row in tb:
+        account = key_text(row.get("account"))
+        change = ZERO
+        if account not in adjusted:
+            change = adjustments.get(account, ZERO)
+            adjusted.add(account)
+        rows.append({**row, "balance": (_signed(row) or ZERO) + change,
+                     "prior_balance": _signed(row, "prior_balance"), "side": ""})
+    return {"rows": rows, "adjustments": adjustments, "entries": len(grouped),
+            "not_applied": not_applied}
+
+
+def _by_account(rows: list[dict]) -> dict[str, Decimal]:
+    """Adjusted balance per account, summing an account listed on several rows."""
+    out: dict[str, Decimal] = {}
+    for r in rows:
+        account = key_text(r.get("account"))
+        out[account] = out.get(account, ZERO) + r["balance"]
+    return dict(sorted(out.items()))
+
+
+def adjusted_trial_balance(tables: dict, policies: dict):
+    pid = "fs.adjusted_trial_balance"
+    tb = records(tables, "Trial_balance")
+    entries = records(tables, "Adjusting_entries")
+    findings = []
+    applied = apply_adjusting_entries(tb, entries)
+    adjustments = applied["adjustments"]
+    for problem in applied["not_applied"]:
+        if problem[0] == "unbalanced_entry":
+            _, entry_id, dr, cr = problem
             findings.append(receipt(pid, ("unbalanced_entry", entry_id), "CLASH",
                                     f"adjusting entry {entry_id} does not balance: "
                                     f"debits {dr}, credits {cr}",
                                     {"finding_class": "PROVED_EXCEPTION",
                                      "cycle": "completion"}, dr - cr))
-            continue
-        for x in lines:
-            account = key_text(x.get("account"))
-            if account not in by_account:
-                findings.append(receipt(pid, ("unknown_account", entry_id, account),
-                                        "ORPHAN",
-                                        f"entry {entry_id} posts to account {account}, "
-                                        "which is not on the trial balance",
-                                        {"finding_class": "EXPECTED_BUT_MISSING",
-                                         "cycle": "completion"}))
-                continue
-            adjustments[account] = adjustments.get(account, ZERO) + \
-                money(x.get("debit")) - money(x.get("credit"))
-    adjusted_rows = []
-    for account, row in by_account.items():
-        before = _signed(row) or ZERO
-        after = before + adjustments.get(account, ZERO)
-        adjusted_rows.append({**row, "balance": after, "side": ""})
+        else:
+            _, entry_id, account = problem
+            findings.append(receipt(pid, ("unknown_account", entry_id, account),
+                                    "ORPHAN",
+                                    f"entry {entry_id} posts to account {account}, "
+                                    "which is not on the trial balance",
+                                    {"finding_class": "EXPECTED_BUT_MISSING",
+                                     "cycle": "completion"}))
+    adjusted_rows = applied["rows"]
     debits = sum((r["balance"] for r in adjusted_rows if r["balance"] > 0), ZERO)
     credits = -sum((r["balance"] for r in adjusted_rows if r["balance"] < 0), ZERO)
     if debits != credits:
@@ -401,14 +446,13 @@ def adjusted_trial_balance(tables: dict, policies: dict):
     before_fig = ratios(_totals(tb, "balance"))["figures"]
     after_fig = ratios(_totals(adjusted_rows, "balance"))["figures"]
     return findings, {
-        "population": len(tb), "entries": len(grouped),
+        "population": len(tb), "entries": applied["entries"],
         "adjustments": {a: v for a, v in sorted(adjustments.items())},
         "adjusted_debits": debits, "adjusted_credits": credits,
         "income_before_taxes": {"unadjusted": before_fig["income_before_taxes"],
                                 "adjusted": after_fig["income_before_taxes"]},
         "net_income_note": "income tax is not recomputed; adjust it by entry if needed",
-        "adjusted_balances": {a: r["balance"] for a, r in sorted(
-            ((key_text(r.get("account")), r) for r in adjusted_rows))},
+        "adjusted_balances": _by_account(adjusted_rows),
         "exceptions": len(findings)}
 
 

@@ -18,7 +18,7 @@ from procedures_cycles.common import (
     report_window, source_ref, text,
 )
 from procedures_cycles.journal import _entries, _line_amount
-from procedures_cycles.statements import LINES, _totals, ratios
+from procedures_cycles.statements import LINES, _totals, apply_adjusting_entries, ratios
 
 
 def subsequent_events(tables: dict, policies: dict):
@@ -96,51 +96,90 @@ def going_concern_indicators(tables: dict, policies: dict):
             f"{', '.join(unclassified[:12])}",
             {"finding_class": "REFUSAL", "cycle": "completion",
              "accounts": unclassified}))
+    # The statements being reported are the adjusted ones: when adjusting
+    # entries are loaded, the indicators are judged after them (AU-C 570
+    # evaluates the entity's actual condition, not the unaudited books). The
+    # figures before the adjustments stay in the result, and an indicator the
+    # adjustments raise or clear is named.
+    entries = records(tables, "Adjusting_entries")
+    applied = apply_adjusting_entries(tb, entries) if entries else None
+    if applied and applied["not_applied"]:
+        named = [f"{p[1]} ({'does not balance' if p[0] == 'unbalanced_entry' else f'account {p[2]} is not on the trial balance'})"
+                 for p in applied["not_applied"]]
+        findings.append(receipt(
+            pid, ("adjustments_not_applied",), "AMBIGUOUS",
+            f"{len(named)} adjusting entry problem(s) left out of the adjusted figures, so the "
+            f"indicators may be incomplete: {'; '.join(named[:12])}",
+            {"finding_class": "REFUSAL", "cycle": "completion",
+             "not_applied": [list(map(str, p)) for p in applied["not_applied"]]}))
     has_prior = any(r.get("prior_balance") not in (None, "") for r in tb)
-    years = {"current": ratios(_totals(tb, "balance"))}
-    if has_prior:
-        years["prior"] = ratios(_totals(tb, "prior_balance"))
 
-    def figure(year, name):
-        return years[year]["figures"][name]
+    def measure(rows):
+        current = ratios(_totals(rows, "balance"))
+        t = _totals(rows, "balance")
+        out = {"working_capital": money(current["figures"]["current_assets"]
+                                        - t["current_liabilities"]),
+               "equity": current["figures"]["equity"],
+               "net_income": money(current["figures"]["income_before_taxes"]
+                                   - t["income_tax"]),
+               "current_ratio": current["ratios"]["current_ratio"], "prior_net": None}
+        if has_prior:
+            pt = _totals(rows, "prior_balance")
+            prior = ratios(pt)
+            out["prior_net"] = money(prior["figures"]["income_before_taxes"] - pt["income_tax"])
+        return out
 
-    t = _totals(tb, "balance")
-    working_capital = money(figure("current", "current_assets") - t["current_liabilities"])
-    equity = figure("current", "equity")
-    net = money(figure("current", "income_before_taxes") - t["income_tax"])
+    def indicators(m):
+        """(key, reason, amount, evidence) for each condition, in a fixed order."""
+        found = []
+        wc, equity, net, ratio = (m["working_capital"], m["equity"], m["net_income"],
+                                  m["current_ratio"])
+        if wc < 0:
+            found.append(("negative_working_capital",
+                          f"current liabilities exceed current assets by {-wc}", wc,
+                          {"working_capital": wc}))
+        if equity < 0:
+            found.append(("equity_deficit", f"equity is a deficit of {-equity}", equity,
+                          {"equity": equity}))
+        if net < 0:
+            found.append(("net_loss", f"the period shows a net loss of {-net}", net,
+                          {"net": net}))
+            if m["prior_net"] is not None and m["prior_net"] < 0:
+                found.append(("recurring_losses",
+                              f"losses in both years ({-m['prior_net']} last year, {-net} "
+                              "this year)", net, {"prior_net": m["prior_net"]}))
+        if floor is not None and ratio is not None and ratio < floor:
+            found.append(("current_ratio_below_floor",
+                          f"the current ratio is {ratio}, below {floor}", None,
+                          {"ratio": ratio}))
+        return found
 
-    def indicator(key, reason, amount=None, **evidence):
+    before = measure(tb)
+    judged = measure(applied["rows"]) if applied else before
+    basis = "after adjusting entries" if applied else "unadjusted trial balance"
+    before_keys = [i[0] for i in indicators(before)]
+    for key, reason, amount, evidence in indicators(judged):
+        if applied and key not in before_keys:
+            reason += " (only after the adjusting entries)"
         findings.append(receipt(pid, (key,), "TENSION", reason + " — evaluate whether "
                                 "substantial doubt exists about the entity's ability to "
                                 "continue as a going concern (AU-C 570)",
                                 {"finding_class": "CONJECTURE", "cycle": "completion",
-                                 **evidence}, amount))
-
-    if working_capital < 0:
-        indicator("negative_working_capital",
-                  f"current liabilities exceed current assets by {-working_capital}",
-                  working_capital, working_capital=working_capital)
-    if equity < 0:
-        indicator("equity_deficit", f"equity is a deficit of {-equity}", equity,
-                  equity=equity)
-    if net < 0:
-        indicator("net_loss", f"the period shows a net loss of {-net}", net, net=net)
-        if has_prior:
-            pt = _totals(tb, "prior_balance")
-            prior_net = money(figure("prior", "income_before_taxes") - pt["income_tax"])
-            if prior_net < 0:
-                indicator("recurring_losses",
-                          f"losses in both years ({-prior_net} last year, {-net} this "
-                          "year)", net, prior_net=prior_net)
-    ratio = years["current"]["ratios"]["current_ratio"]
-    if floor is not None and ratio is not None and ratio < floor:
-        indicator("current_ratio_below_floor",
-                  f"the current ratio is {ratio}, below {floor}", ratio=ratio)
-    stats = {"population": len(tb), "working_capital": working_capital,
-             "equity": equity, "net_income": net,
-             "current_ratio": ratio, "unclassified_accounts": len(unclassified),
-             "indicators": len([f for f in findings if f.verdict == "TENSION"]),
+                                 "basis": basis, **evidence}, amount))
+    judged_keys = [i[0] for i in indicators(judged)]
+    stats = {"population": len(tb), "basis": basis,
+             "working_capital": judged["working_capital"], "equity": judged["equity"],
+             "net_income": judged["net_income"], "current_ratio": judged["current_ratio"],
+             "unclassified_accounts": len(unclassified),
+             "indicators": len(judged_keys),
              "exceptions": len(findings)}
+    if applied:
+        stats.update({
+            "adjusting_entries": applied["entries"],
+            "before_adjustments": {k: before[k] for k in (
+                "working_capital", "equity", "net_income", "current_ratio")},
+            "raised_by_adjustments": [k for k in judged_keys if k not in before_keys],
+            "cleared_by_adjustments": [k for k in before_keys if k not in judged_keys]})
     return findings, stats
 
 

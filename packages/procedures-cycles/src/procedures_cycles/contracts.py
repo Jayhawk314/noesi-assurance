@@ -590,15 +590,19 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
     ProcedureContract(
         "completion.going_concern_indicators", "Going-concern indicators",
         "Compute working capital, equity, and this year's and last year's result from "
-        "the classified trial balance, and list the conditions that call for a "
-        "going-concern evaluation.",
+        "the classified trial balance, after the adjusting entries when they are "
+        "loaded, and list the conditions that call for a going-concern evaluation.",
         "completion", ("valuation", "presentation"),
         {"Trial_balance": ("account", "balance", "line")},
         evidence_source="client trial balance with the auditor's line classification",
         denominator_role="Trial_balance",
         limitations="Financial indicators only; cash-flow forecasts, covenant breaches "
                     "(debt.covenants), lost customers and management's plans are "
-                    "evaluated separately (AU-C 570). Unclassified accounts are named.",
+                    "evaluated separately (AU-C 570). Unclassified accounts are named. "
+                    "Adjusting entries are applied as fs.adjusted_trial_balance applies "
+                    "them; an entry that cannot be applied is named. Income tax is not "
+                    "recomputed after the adjustments, and last year's figures are not "
+                    "adjusted.",
     ),
     ProcedureContract(
         "completion.representation_letter", "Management representation letter",
