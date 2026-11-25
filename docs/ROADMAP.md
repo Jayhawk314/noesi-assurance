@@ -320,8 +320,10 @@ reproduced stale-result bug and local fix, an older-packet compatibility fix,
 and an invented-store backup/restore drill. Full tests and the Kestrel
 calibration pass. A second agent reviewed the new code and found three stale
 result gaps, which received general fixes and invented-data regressions.
-The clicked UI evidence-replacement/What Changed check remains. Do not treat the earlier Phase 1
-status or green checks as a product-readiness verdict.
+**25 Nov follow-up:** the clicked Vouchers replacement/What Changed check passes on a fresh invented
+engagement, including rerun from What Changed and retention of the stale historical run. Reproducible
+script, reviewed screenshots and limits: `docs/WORKBENCH-REPLACEMENT-CHECK-2026-11-25.md`.
+Do not treat this bounded check or the earlier Phase 1 status as a product-readiness verdict.
 
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;

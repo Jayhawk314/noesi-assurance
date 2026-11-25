@@ -1,0 +1,36 @@
+← all engagements
+Flow Map
+Scope & Policies
+Planning & Risk
+Sources & Mappings
+Coverage
+Runs & Findings
+Fraud
+What Changed
+SAD & Completion
+Draft Opinion
+Export
+WHAT CHANGED refresh
+
+1 replaced file · 1 stale run · 1 finding move · 0 judgments to revisit · SAD unadjusted would move 0.00 · largest single change: above clearly trivial
+
+Thresholds: clearly trivial 0.00 · performance 0.00 · overall 0.00 — set materiality on Planning & Risk; until then every change is treated as above trivial.
+
+VOUCHERS: VOUCHERS.CSV → VOUCHERS_REVISED.CSV
+
+3 → 2 rows, matched on voucher_number · net -800.00 · largest row: above clearly trivial
+
+Row	Change	Amount effect
+V3	removed	800.00	above clearly trivial
+RUNS BUILT ON THE OLD FILE
+Procedure	Input that moved	Findings	Status	What to do
+ap.payment_voucher_reference	Vouchers	0 → 1	completed	rerun
+FINDINGS WHOSE STANDING MOVES
+new
+ap.payment_voucher_reference
+above clearly trivial
+— → 800.00 · your judgment: undisposed
+needs a disposition. The revised file raises an exception that did not exist before. It needs a disposition like any other.
+payment P3 cites voucher V3, which is absent from the voucher population
+
+An impact report compares recorded data and reperforms procedures in memory. It changes nothing, concludes nothing about misstatement, and covers only procedures that have been run at least once.

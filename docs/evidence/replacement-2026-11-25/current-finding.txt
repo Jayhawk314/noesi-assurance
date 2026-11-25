@@ -1,0 +1,53 @@
+← all engagements
+Flow Map
+Scope & Policies
+Planning & Risk
+Sources & Mappings
+Coverage
+Runs & Findings
+Fraud
+What Changed
+SAD & Completion
+Draft Opinion
+Export
+Procedure runs
+choose executable procedure…
+Payment-to-voucher reference
+run
+The engagement's settings (Scope & Policies) apply to every run automatically.
+PROCEDURE	STATUS	RUN BY	ERROR	DETAILS
+Payment-to-voucher reference
+ap.payment_voucher_reference	completed
+stale: loaded data changed; rerun before relying on it
+	local:JAMES	—
+run details
+
+Payment-to-voucher reference
+ap.payment_voucher_reference	completed	local:JAMES	—
+run details
+FINDINGS AND DISPOSITIONS
+every procedure (1)
+Payment-to-voucher reference (1)
+any disposition
+open (undisposed or follow up)
+undisposed
+cleared
+unadjusted
+adjusted
+waived
+follow_up
+ latest run of each procedure only
+showing 1 of 1
+download shown (CSV)
+	PROCEDURE	VERDICT	ASSERTION	CLASS	REASON	MAGNITUDE	DISPOSITION	NOTE
+	Payment-to-voucher reference
+ap.payment_voucher_reference	ORPHAN	occurrence	structural	payment P3 cites voucher V3, which is absent from the voucher population
+evidence
+	800
+undisposed
+cleared
+unadjusted
+adjusted
+waived
+follow_up
+		8525a88c3209…

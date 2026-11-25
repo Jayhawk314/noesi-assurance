@@ -98,7 +98,10 @@ or professional audit accuracy. See `docs/PRODUCTION-READINESS.md`.
 
 ## Remaining order
 
-1. Finish the clicked UI replacement/What Changed check on invented data.
+1. **Completed 25 Nov 2026 for Vouchers:** the clicked UI replacement/What Changed check on invented data,
+   including rerun and historical stale results. Script, independently reviewed evidence and limits are in
+   [the follow-up](WORKBENCH-REPLACEMENT-CHECK-2026-11-25.md). Earlier descriptions of this check as unfinished
+   are historical; broader screen and custody qualifications remain.
 2. Review the final wording and complete a clicked pass of replacement,
    What Changed, and other controls not exercised above.
 3. Keep the P0 client-data boundary separate from teaching readiness. Videos
