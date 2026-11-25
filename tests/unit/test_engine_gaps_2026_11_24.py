@@ -184,3 +184,27 @@ def test_the_deposit_test_is_a_cash_procedure_chosen_not_on_by_default():
     assert SCOPE_OF["cash.deposit_structuring"] == "cash"
     assert contract.default_selected is False
     assert contract.required_policies == ("structuring_threshold",)
+
+
+# ---------------------------------------------------------------- independent review, 2026-11-24
+def test_cashiers_checks_and_cash_letters_are_not_cash():
+    data = _deposits([("2025-07-01", "9500.00", "cashier's check", "A"),
+                      ("2025-07-01", "9500.00", "cash letter", "A"),
+                      ("2025-07-01", "9500.00", "non-cash", "A"),
+                      ("2025-07-01", "900.00", "Cash", "A")])
+    _, stats = cash.deposit_structuring(data, POLICY)
+    assert stats["cash_deposits"] == 1
+
+
+def test_undated_cash_is_refused_not_grouped_as_one_day():
+    data = _deposits([("", "9500.00", "cash", "A"), ("not a date", "9600.00", "cash", "B")])
+    findings, stats = cash.deposit_structuring(data, POLICY)
+    assert stats["undated"] == 2
+    assert [f.key[1:] for f in findings] == [("deposit_date", "not_readable"), ("cash", "not_tested")]
+
+
+def test_untyped_rows_among_typed_ones_are_named():
+    data = _deposits([("2025-07-01", "9500.00", "cash", "A"), ("2025-07-01", "9600.00", "", "A")])
+    findings, stats = cash.deposit_structuring(data, POLICY)
+    assert stats["untyped"] == 1
+    assert any(f.key[1:] == ("deposit_type", "missing_on_some") for f in findings)

@@ -344,6 +344,15 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- **Possible software bug, for James (found by the Starlight review, 24 Nov 2026): the draft opinion treats ANY
+  refused representation as requiring a disclaimer or withdrawal** (`completion.py` representation_letter, and
+  `assurance_domain/opinion.py`). AU-C 580.25 makes that automatic only for the representations of paragraphs
+  .10-.11 (responsibility for the statements, information provided, all transactions recorded; checked against the
+  AICPA text's search summary, paragraph numbers to be read in the text). Others (for example related parties) call for
+  re-evaluating management's integrity and the effect on the opinion (AU-C 580, 705). Not changed: Kestrel's lessons,
+  key and `test_kestrel_demo.py` rely on the current rule (Kestrel's refused representation is related parties).
+- Deposit test hardened after the independent review (24 Nov 2026): cash matched by whole word (a cashier's check or a
+  cash letter is not cash); undated cash and untyped rows are refused and counted, never grouped or dropped. 608 tests.
 - **Engine gaps from the Starlight teaching case (`../noesi-vice-keys/starlight`), fixed
   24 Nov 2026 (James: "fix noesi-assurance too")**, generically and tested on invented data
   (`tests/unit/test_engine_gaps_2026_11_24.py`), never fitted to the case:

@@ -16,6 +16,7 @@ end and against the reconciliations (kiting, transfers in transit).
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 
 from procedures_cycles.common import (
@@ -310,9 +311,15 @@ def interbank_transfers(tables: dict, policies: dict):
                       "transfers": rows, "period_end": pe, "exceptions": len(findings)}
 
 
+_CASH_WORDS = {"cash", "currency", "coin", "coins"}
+_NOT_CASH_WORDS = {"non", "letter", "cashier", "cashiers"}   # "non-cash", "cash letter", "cashier's check"
+
+
 def _is_cash(row: dict) -> bool:
-    kind = text(row.get("deposit_type")).lower()
-    return "cash" in kind or "currency" in kind
+    """Currency only, by whole word: a cashier's check or a cash letter is not cash
+    (independent review, 2026-11-24)."""
+    words = set(re.findall(r"[a-z]+", text(row.get("deposit_type")).lower()))
+    return bool(words & _CASH_WORDS) and not words & _NOT_CASH_WORDS
 
 
 def deposit_structuring(tables: dict, policies: dict):
@@ -345,8 +352,23 @@ def deposit_structuring(tables: dict, policies: dict):
     below_floor = money(threshold * (Decimal(100) - 2 * band) / 100)
     rows = records(tables, "Deposits")
     typed = any(text(r.get("deposit_type")) for r in rows)
+    untyped = [r for r in rows if not text(r.get("deposit_type"))] if typed else []
     cash_rows = [r for r in rows if _is_cash(r)] if typed else list(rows)
+    undated = [r for r in cash_rows if day(r.get("deposit_date")) is None]
+    cash_rows = [r for r in cash_rows if day(r.get("deposit_date")) is not None]
     findings = []
+    if undated:
+        findings.append(receipt(pid, ("deposit_date", "not_readable"), "AMBIGUOUS",
+                                f"{len(undated)} cash deposit(s) have no readable date and were not "
+                                "tested; supply the dates",
+                                {"finding_class": "REFUSAL", "cycle": "cash",
+                                 "rows": [r.get("source_row") for r in undated[:50]]}))
+    if untyped:
+        findings.append(receipt(pid, ("deposit_type", "missing_on_some"), "AMBIGUOUS",
+                                f"{len(untyped)} deposit(s) carry no type while others do; they were "
+                                "not treated as cash. Supply the type, or record why",
+                                {"finding_class": "REFUSAL", "cycle": "cash",
+                                 "rows": [r.get("source_row") for r in untyped[:50]]}))
     base_limits = ("a pattern is a lead for inquiry, not proof of intent; deposits made "
                    "through other accounts, banks or businesses are seen only if supplied")
     if not cash_rows:
@@ -355,6 +377,7 @@ def deposit_structuring(tables: dict, policies: dict):
                                 "deposit type, or record why the test is not needed",
                                 {"finding_class": "REFUSAL", "cycle": "cash"}))
         return findings, {"population": len(rows), "cash_deposits": 0,
+                          "undated": len(undated), "untyped": len(untyped),
                           "exceptions": len(findings)}
     if not typed:
         findings.append(receipt(pid, ("deposit_type", "not_supplied"), "AMBIGUOUS",
@@ -408,6 +431,7 @@ def deposit_structuring(tables: dict, policies: dict):
              "band_source": "default" if raw_band in (None, "") else "policy",
              "in_band": len(in_band), "band_just_below": len(below),
              "over_threshold": len(over), "same_day_split_days": split_days,
+             "undated": len(undated), "untyped": len(untyped),
              "exceptions": len(findings)}
     return findings, stats
 
