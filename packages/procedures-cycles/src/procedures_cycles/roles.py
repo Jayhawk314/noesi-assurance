@@ -67,6 +67,16 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "amount": ["amount", "value"],
         "cleared_date": ["cleared date", "date cleared", "bank date", "date"],
     },
+    # Bank deposit detail: one row per deposit slip, as the bank shows it.
+    "Deposits": {
+        "reference": ["reference", "slip", "slip number", "deposit slip", "deposit number",
+                      "slip #", "id"],
+        "deposit_date": ["deposit date", "posting date", "date", "bank date"],
+        "amount": ["amount", "deposit amount", "value"],
+        "deposit_type": ["type", "deposit type", "kind", "item type"],
+        "location": ["branch", "location", "teller location", "site"],
+        "description": ["description", "memo"],
+    },
     "Transfers": {
         "transfer_id": ["transfer id", "check number", "check no", "reference", "id"],
         "from_account": ["from account", "disbursing account", "from"],
@@ -129,6 +139,9 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "hours": ["hours", "total hours", "hours worked"],
         "pay_rate": ["pay rate", "rate", "hourly rate"],
         "check_number": ["check number", "check no", "num", "payment number"],
+        # where the pay actually went (a direct-deposit register carries it)
+        "bank_account": ["bank account", "deposit account", "direct deposit account",
+                         "paid to account"],
     },
     "Payroll_master": {
         "employee_id": ["employee id", "employee number", "employee no", "emp id",
@@ -354,7 +367,7 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
-               "received_books", "received_bank", "liability_date", "entry_date",
+               "received_books", "received_bank", "deposit_date", "liability_date", "entry_date",
                "posted_date", "invoice_date", "ship_date", "memo_date", "pay_date",
                "hire_date", "termination_date", "acquired_date", "disposal_date",
                "service_start", "service_end", "dated"}
@@ -367,6 +380,7 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Bank_reconciliation": ("account", "item_type"),
     "Cutoff_statement": ("account",),
     "Transfers": ("transfer_id",),
+    "Deposits": ("deposit_date",),
     "Inventory_listing": ("stock_number",),
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
@@ -402,6 +416,7 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Bank_reconciliation": ["bank reconciliation", "bank rec", "reconciliation"],
     "Cutoff_statement": ["cutoff statement", "cutoff bank statement", "cutoff"],
     "Transfers": ["transfers", "interbank transfers", "transfer schedule"],
+    "Deposits": ["deposits", "deposit detail", "bank deposits", "deposit slips"],
     "Inventory_listing": ["inventory listing", "final inventory", "inventory"],
     "Inventory_count": ["inventory count", "count sheet", "count sheets", "counts"],
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",

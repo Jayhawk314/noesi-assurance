@@ -24,7 +24,8 @@ def test_every_cycle_contract_has_an_executor_and_vice_versa():
 def test_scope_filters_contracts():
     assert contracts_for_scope(None) == ()
     ids = {c.procedure_id for c in contracts_for_scope(["cash", "nonsense"])}
-    assert ids == {"cash.bank_reconciliation", "cash.interbank_transfers"}
+    assert ids == {"cash.bank_reconciliation", "cash.interbank_transfers",
+                   "cash.deposit_structuring"}
 
 
 TB = [

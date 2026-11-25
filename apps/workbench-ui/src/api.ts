@@ -326,6 +326,8 @@ export interface CycleArea {
 }
 export interface CycleCatalog {
   areas: CycleArea[]; engagement_policies: string[]; general_policies: string[];
+  /** The fraud screens' settings, shown whatever cycles are in scope. */
+  fraud_policies?: string[];
   /** Each setting in words: label, kind of value (amount, percent, days...), meaning. */
   policy_text?: Record<string, { label: string; kind: string; meaning: string }>;
 }

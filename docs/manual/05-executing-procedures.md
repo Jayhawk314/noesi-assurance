@@ -87,6 +87,23 @@ fraud tests):
   the books. A cycle with a flow typed as a reversal, a correction, an
   intercompany or shared-service settlement is not reported, and the run
   counts it as suppressed.
+  "About the same amount" is a setting: every leg within 2% of the largest,
+  and every leg within 30 days, unless the team sets
+  `value_flow_amount_tolerance_pct` and `value_flow_window_days` (Scope &
+  Policies, *Fraud tests*). A launderer who keeps 3% of each loop passes the
+  default; set the tolerance to the cut you need to see, and the run records
+  the setting it used.
+- **Cash deposits kept under the reporting line** (`cash.deposit_structuring`,
+  cash cycle, off until chosen) reads the bank's deposit detail (role
+  *Deposits*: date, amount, type, branch). It lists each day whose cash
+  deposits, none over the threshold the team sets (`structuring_threshold`,
+  10,000 in the United States), add up to more than it, and a pile-up of cash
+  deposits just under the line compared with the band of the same width below
+  it (`structuring_band_pct`, 10% when left empty). Splitting cash to avoid the
+  bank's report is structuring, unlawful even with clean money (31 U.S.C.
+  5324), so a lead here is a possible illegal act to consider under AU-C 250.
+  It is never proof: intent is the question, and deposits through other
+  accounts, banks or businesses are not seen.
 - **First-digit (Benford) test** compares the first digits of journal lines,
   bills and payments with Benford's law, once the population reaches the
   minimum the team sets; below it, the result says *not tested*.

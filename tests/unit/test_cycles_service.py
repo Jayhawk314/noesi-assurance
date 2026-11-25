@@ -104,7 +104,10 @@ def test_cash_scope_runs_through_the_job_runner(service, engagement):
     service.update_workflow(ALICE, engagement, "cycles", {"cycles": ["cash"]})
     coverage = service.coverage(engagement)
     status = {p["procedure_id"]: p["status"] for p in coverage["procedures"]}
-    assert coverage["summary"]["total"] == 2   # cash only: no AP procedures (K14)
+    # cash only: no AP procedures (K14); the deposit test is listed, not selected
+    assert coverage["summary"]["total"] == 3
+    chosen = {p["procedure_id"]: p.get("selected") for p in coverage["procedures"]}
+    assert chosen["cash.deposit_structuring"] is False
     assert status["cash.bank_reconciliation"] == "blocked"
     recon = _ingest(service, engagement, REC_CSV, "bank_rec.csv",
                     "Bank_reconciliation")["reconciliation"]

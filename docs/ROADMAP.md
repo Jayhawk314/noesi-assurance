@@ -344,6 +344,20 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- **Engine gaps from the Starlight teaching case (`../noesi-vice-keys/starlight`), fixed
+  24 Nov 2026 (James: "fix noesi-assurance too")**, generically and tested on invented data
+  (`tests/unit/test_engine_gaps_2026_11_24.py`), never fitted to the case:
+  (1) the round-trip screen's amount tolerance and window are settings
+  (`value_flow_amount_tolerance_pct`, `value_flow_window_days`; 2% and 30 days when empty,
+  so default runs and the golden bundle are unchanged); (2) payroll register tests read the
+  account each payment went to (register field `bank_account`): accounts paid for more than
+  one employee, including people missing from the master, and pay sent to an account other
+  than the master's; (3) a new cash test, `cash.deposit_structuring` (role *Deposits*,
+  policy `structuring_threshold`, optional `structuring_band_pct`; off until chosen): one
+  day's cash deposits under the line that add up to more than it, and a pile-up just under
+  the line. Tests 605 pass; Kestrel finish line unchanged at 174/176. **Not built, still
+  candidates:** vendor statement reconciliation (a supplier's statement against the
+  vouchers), and bank confirmations (the `Confirmations` role is receivables only; 8.8).
 - **Team roles, review and sign-off (James, 4 Oct 2026): maybe one day.** Noesi has one user per
   engagement and no preparer/reviewer/partner roles, review steps or sign-offs (decided 2 Oct: a
   supplement, not audit software; see THE-REAL-GOAL.md). If Noesi grows toward full audit software,

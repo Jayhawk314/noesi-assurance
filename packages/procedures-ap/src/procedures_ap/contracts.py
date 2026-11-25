@@ -180,4 +180,11 @@ def procedures_for_assertion(assertion: str) -> list[str]:
 # on them). Kept outside the contract dataclass because contract content is
 # frozen against the Phase 0 golden bundle.
 OPTIONAL_POLICIES: tuple[str, ...] = ("split_window_days", "clearly_trivial_pct",
-                                      "performance_materiality_pct")
+                                      "performance_materiality_pct",
+                                      "value_flow_amount_tolerance_pct",
+                                      "value_flow_window_days")
+
+# The fraud screens' own settings, shown on Scope & Policies whatever cycles
+# are in scope (the round-trip screen runs on Value_flows in any engagement).
+FRAUD_POLICIES: tuple[str, ...] = ("value_flow_amount_tolerance_pct",
+                                   "value_flow_window_days")

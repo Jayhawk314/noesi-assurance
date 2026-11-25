@@ -341,6 +341,22 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "to it.",
     ),
     ProcedureContract(
+        "cash.deposit_structuring", "Cash deposits kept under the reporting line",
+        "List days whose cash deposits, each under the currency-reporting threshold, "
+        "add up to more than it, and a pile-up of cash deposits just under the "
+        "threshold.",
+        "cash", ("occurrence",),
+        {"Deposits": ("deposit_date", "amount")},
+        required_policies=("structuring_threshold",),
+        evidence_source="bank deposit detail (date, amount, type, branch) from the bank",
+        denominator_role="Deposits",
+        # Off until chosen: a cash-intensive client's audit selects it.
+        default_selected=False,
+        limitations="A pattern is a lead, never proof: structuring turns on intent. "
+                    "Only the deposits supplied are seen; other accounts, banks and "
+                    "businesses of the same people are not.",
+    ),
+    ProcedureContract(
         "inventory.count_listing_trace", "Count ↔ final listing, both directions",
         "Trace every counted item to the final listing (completeness) and every listed "
         "item to the count (existence), comparing identifying details.",
@@ -605,6 +621,7 @@ SCOPE_OF: dict[str, str] = {
     "forensic.benford_first_digit": "journal_entries",
     "cash.bank_reconciliation": "cash",
     "cash.interbank_transfers": "cash",
+    "cash.deposit_structuring": "cash",
     "inventory.count_listing_trace": "inventory",
     "inventory.pricing_projection": "inventory",
     "ppe.rollforward": "ppe",
@@ -633,7 +650,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "ar_expected_misstatement", "ar_estimated_sd", "ar_risk_incorrect_rejection",
     "search_interval", "search_start", "search_systematic_count", "ap_control_accounts",
     "pricing_sample_value", "ar_allowance_rates",
-    "dit_max_days",
+    "dit_max_days", "structuring_band_pct",
     "je_round_amount_threshold", "je_round_unit", "je_authorized_users",
     "je_seldom_used_max", "je_holidays", "je_manual_sources", "rev_credit_memo_days",
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
@@ -680,6 +697,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "search_start": {"payables"}, "search_systematic_count": {"payables"},
     "ap_control_accounts": {"payables"},
     "pricing_sample_value": {"inventory"}, "dit_max_days": {"cash"},
+    "structuring_band_pct": {"cash"},
     "je_round_amount_threshold": {"journal_entries"}, "je_round_unit": {"journal_entries"},
     "je_authorized_users": {"journal_entries"}, "je_seldom_used_max": {"journal_entries"},
     "je_holidays": {"journal_entries"}, "je_manual_sources": {"journal_entries"},

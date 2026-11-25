@@ -565,15 +565,56 @@ def _closure_slice(prefix: str):
     return run
 
 
+_ROUND_TRIP_TOLERANCE_PCT = Decimal("2")     # the screen's long-standing defaults,
+_ROUND_TRIP_WINDOW_DAYS = 30                 # used only while the auditor sets none
+
+
+def _round_trip_settings(policies: dict) -> tuple[float, int, dict]:
+    """The amount tolerance and the window: the auditor's settings, or the
+    defaults, said as such (Starlight, 2026-11-24: a fixed 2% let a launderer
+    who keeps 2.7% of every loop pass unseen)."""
+    raw_pct = policies.get("value_flow_amount_tolerance_pct")
+    raw_days = policies.get("value_flow_window_days")
+    pct = _ROUND_TRIP_TOLERANCE_PCT
+    if raw_pct not in (None, ""):
+        pct = parse_amount(str(raw_pct).strip().rstrip("%"))
+        if pct is None or pct < 0 or pct > 50:
+            raise ValueError("value_flow_amount_tolerance_pct must be a percent "
+                             "from 0 to 50")
+    days = _ROUND_TRIP_WINDOW_DAYS
+    if raw_days not in (None, ""):
+        try:
+            days = int(str(raw_days).strip())
+        except ValueError:
+            days = -1
+        if days < 1 or days > 366:
+            raise ValueError("value_flow_window_days must be a whole number of days "
+                             "from 1 to 366")
+    # 2 -> 0.02 exactly as before, so default runs keep their receipt ids.
+    tolerance = 0.02 if pct == _ROUND_TRIP_TOLERANCE_PCT else float(pct / 100)
+    said = {"amount_tolerance_pct": format(pct.normalize(), "f"),
+            "amount_tolerance_source": "default" if raw_pct in (None, "") else "policy",
+            "window_days": days,
+            "window_source": "default" if raw_days in (None, "") else "policy"}
+    return tolerance, days, said
+
+
 def _closed_value_flow(tables: dict, policies: dict) -> tuple[list[Receipt], dict]:
     from procedures_ap.structural import (
         build_rockwood_accounting_graph,
         directed_round_trip_findings,
     )
+    tolerance, days, said = _round_trip_settings(policies)
     # A neutral name for the client's own node (it was the Rockwood case's
     # name for every client). Round trips are found within Value_flows.
     findings, stats = directed_round_trip_findings(
-        build_rockwood_accounting_graph(tables, "the company"), 0.02)
+        build_rockwood_accounting_graph(tables, "the company"), tolerance,
+        max_days=days)
+    # A default run keeps the Phase 0 summary bit for bit (golden parity); its
+    # findings still carry the tolerance and window used. A run under the
+    # auditor's settings says which settings it used.
+    if "policy" in (said["amount_tolerance_source"], said["window_source"]):
+        stats = {**stats, **said}
     return findings, {"population": len(_records(tables, "Value_flows")),
                       "exceptions": len(findings), **stats}
 

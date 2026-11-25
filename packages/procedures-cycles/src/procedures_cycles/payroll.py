@@ -85,6 +85,7 @@ def register_tests(tables: dict, policies: dict):
                  {"employee": emp, "pay_date": paid, "payments": len(same),
                   "source_rows": [source_ref(REGISTER, r, "employee_id") for r in same]},
                  sum((money(r.get("net")) for r in same), ZERO))
+    shared_on_master: set[tuple[str, frozenset]] = set()
     for field, label in (("bank_account", "bank account"), ("address", "address")):
         sharing: dict[str, list[str]] = {}
         for emp, person in master.items():
@@ -93,9 +94,51 @@ def register_tests(tables: dict, policies: dict):
                 sharing.setdefault(value, []).append(emp)
         for value, emps in sorted(sharing.items()):
             if len(emps) > 1:
+                if field == "bank_account":
+                    shared_on_master.add((value, frozenset(emps)))
                 lead((",".join(sorted(emps)), f"shared_{field}"), "TENSION",
                      f"employees {', '.join(sorted(emps))} share one {label}",
                      {"employees": sorted(emps), field: value})
+    # Where the pay actually went, from the register itself (Starlight,
+    # 2026-11-24): a ghost who is not on the master has no master account to
+    # compare, but the register still shows the account the money reached.
+    _account = lambda v: " ".join(text(v).lower().split())
+    paid_into: dict[str, dict[str, list[dict]]] = {}
+    for row in rows:
+        acct = _account(row.get("bank_account"))
+        if acct:
+            paid_into.setdefault(acct, {}).setdefault(
+                key_text(row.get("employee_id")), []).append(row)
+    for acct, by_emp in sorted(paid_into.items()):
+        emps = sorted(by_emp)
+        if len(emps) > 1 and (acct, frozenset(emps)) not in shared_on_master:
+            paid = [r for e in emps for r in by_emp[e]]
+            off_master = [e for e in emps if e not in master]
+            lead((",".join(emps), "register_shared_bank_account"), "TENSION",
+                 f"the payroll register paid employees {', '.join(emps)} into one bank "
+                 f"account ({len(paid)} payments)"
+                 + (f"; {', '.join(off_master)} not on the employee master" if off_master
+                    else "")
+                 + " — one person collecting more than one pay?",
+                 {"employees": emps, "bank_account": acct, "not_on_master": off_master,
+                  "payments": len(paid),
+                  "source_rows": [source_ref(REGISTER, r, "employee_id") for r in paid[:50]]},
+                 sum((money(r.get("net")) for r in paid), ZERO))
+    for emp, person in sorted(master.items()):
+        on_file = _account(person.get("bank_account"))
+        if not on_file:
+            continue
+        for acct, by_emp in sorted(paid_into.items()):
+            if acct != on_file and emp in by_emp:
+                moved = by_emp[emp]
+                lead((emp, acct, "paid_to_other_account"), "TENSION",
+                     f"employee {emp}'s pay went {len(moved)} time(s) to account {acct}, "
+                     f"not the account on the employee master ({on_file}) — a change "
+                     "the employee asked for, or pay diverted?",
+                     {"employee": emp, "bank_account": acct, "master_account": on_file,
+                      "source_rows": [source_ref(REGISTER, r, "employee_id")
+                                      for r in moved[:50]]},
+                     sum((money(r.get("net")) for r in moved), ZERO))
     # An employee living at a vendor's address: the employee may own or
     # control the vendor (a conflict, or a shell). Only when a vendor list
     # with addresses is loaded.
@@ -136,6 +179,9 @@ def register_tests(tables: dict, policies: dict):
     stats = {"population": len(rows), "employees_on_master": len(master),
              "final_pay_grace_days": int(grace) if grace is not None else 0,
              "not_performed": not_performed,
+             "register_bank_accounts": ("compared" if paid_into
+                                        else "not in the register: only the master's "
+                                             "accounts were compared"),
              "leads_by_test": counts, "exceptions": len(findings)}
     return findings, stats
 

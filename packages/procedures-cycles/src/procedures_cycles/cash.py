@@ -16,8 +16,11 @@ end and against the reconciliations (kiting, transfers in transit).
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from procedures_cycles.common import (
-    ZERO, day, dec, key_text, money, policy_date, receipt, records, source_ref, text,
+    ZERO, PolicyError, day, dec, key_text, money, policy_date, policy_decimal, receipt,
+    records, source_ref, text,
 )
 
 ITEM_TYPES = ("bank_balance", "book_balance", "deposit_in_transit", "outstanding_check",
@@ -307,4 +310,106 @@ def interbank_transfers(tables: dict, policies: dict):
                       "transfers": rows, "period_end": pe, "exceptions": len(findings)}
 
 
-__all__ = ["bank_reconciliation", "interbank_transfers", "ITEM_TYPES"]
+def _is_cash(row: dict) -> bool:
+    kind = text(row.get("deposit_type")).lower()
+    return "cash" in kind or "currency" in kind
+
+
+def deposit_structuring(tables: dict, policies: dict):
+    """Cash deposits arranged to stay under the currency-reporting line.
+
+    A bank must report cash over the threshold in one business day, adding
+    up one customer's deposits across all its branches (31 CFR 1010.313; the
+    threshold is the auditor's setting, 10,000 in the United States).
+    Structuring is splitting cash to avoid that report, and is unlawful even
+    with clean money (31 U.S.C. 5324). Two patterns are screened:
+
+    * one day's cash deposits, each at or under the threshold, that add up
+      to more than it (split across slips or branches);
+    * a pile-up of deposits just under the threshold (the band set by
+      ``structuring_band_pct``), compared with the band of the same width
+      just below it.
+
+    Every result is a lead: intent is the question, and only people answer it.
+    """
+    pid = "cash.deposit_structuring"
+    threshold = money(policy_decimal(policies, "structuring_threshold"))
+    if threshold <= ZERO:
+        raise PolicyError("structuring_threshold must be a positive amount")
+    raw_band = policies.get("structuring_band_pct")
+    band = (dec(str(raw_band).strip().rstrip("%")) if raw_band not in (None, "")
+            else Decimal("10"))
+    if band is None or band <= 0 or band >= 50:
+        raise PolicyError("structuring_band_pct must be a percent above 0 and below 50")
+    floor = money(threshold * (Decimal(100) - band) / 100)
+    below_floor = money(threshold * (Decimal(100) - 2 * band) / 100)
+    rows = records(tables, "Deposits")
+    typed = any(text(r.get("deposit_type")) for r in rows)
+    cash_rows = [r for r in rows if _is_cash(r)] if typed else list(rows)
+    findings = []
+    base_limits = ("a pattern is a lead for inquiry, not proof of intent; deposits made "
+                   "through other accounts, banks or businesses are seen only if supplied")
+    if not cash_rows:
+        findings.append(receipt(pid, ("cash", "not_tested"), "AMBIGUOUS",
+                                "no deposit is typed as cash, so nothing was tested; map the "
+                                "deposit type, or record why the test is not needed",
+                                {"finding_class": "REFUSAL", "cycle": "cash"}))
+        return findings, {"population": len(rows), "cash_deposits": 0,
+                          "exceptions": len(findings)}
+    if not typed:
+        findings.append(receipt(pid, ("deposit_type", "not_supplied"), "AMBIGUOUS",
+                                "the deposits carry no type, so every deposit was treated as "
+                                "cash; checks and card settlements may be in the results",
+                                {"finding_class": "REFUSAL", "cycle": "cash"}))
+
+    def ref(r):
+        return source_ref("Deposits", r, "reference")
+
+    by_day: dict = {}
+    for r in cash_rows:
+        by_day.setdefault(day(r.get("deposit_date")), []).append(r)
+    split_days = 0
+    for when, same in sorted(by_day.items(), key=lambda kv: str(kv[0])):
+        amounts = [money(r.get("amount")) for r in same]
+        total = sum(amounts, ZERO)
+        if len(same) > 1 and total > threshold and all(a <= threshold for a in amounts):
+            split_days += 1
+            places = sorted({text(r.get("location")) for r in same if text(r.get("location"))})
+            findings.append(receipt(
+                pid, (str(when), "same_day_split"), "TENSION",
+                f"{when}: {len(same)} cash deposits, none over {threshold}, add up to "
+                f"{total}" + (f" across {', '.join(places)}" if len(places) > 1 else "")
+                + " — one day's cash split under the reporting line?",
+                {"finding_class": "CONJECTURE", "cycle": "cash", "deposit_date": when,
+                 "deposits": len(same), "total": total, "locations": places,
+                 "threshold": threshold, "source_rows": [ref(r) for r in same],
+                 "limits": base_limits}, total))
+    in_band = [r for r in cash_rows if floor <= money(r.get("amount")) <= threshold]
+    below = [r for r in cash_rows if below_floor <= money(r.get("amount")) < floor]
+    over = [r for r in cash_rows if money(r.get("amount")) > threshold]
+    if len(in_band) >= 2 and len(in_band) > len(below):
+        by_place: dict[str, int] = {}
+        for r in in_band:
+            place = text(r.get("location")) or "(no location)"
+            by_place[place] = by_place.get(place, 0) + 1
+        band_total = sum((money(r.get("amount")) for r in in_band), ZERO)
+        findings.append(receipt(
+            pid, ("band", str(floor), str(threshold)), "TENSION",
+            f"{len(in_band)} cash deposits between {floor} and {threshold} (total "
+            f"{band_total}), against {len(below)} in the band just below and {len(over)} "
+            f"over {threshold} — deposits kept under the reporting line?",
+            {"finding_class": "CONJECTURE", "cycle": "cash", "band_floor": floor,
+             "threshold": threshold, "in_band": len(in_band), "band_just_below": len(below),
+             "over_threshold": len(over), "by_location": by_place,
+             "source_rows": [ref(r) for r in in_band[:100]], "limits": base_limits},
+            band_total))
+    stats = {"population": len(rows), "cash_deposits": len(cash_rows),
+             "threshold": threshold, "band_pct": format(band.normalize(), "f"),
+             "band_source": "default" if raw_band in (None, "") else "policy",
+             "in_band": len(in_band), "band_just_below": len(below),
+             "over_threshold": len(over), "same_day_split_days": split_days,
+             "exceptions": len(findings)}
+    return findings, stats
+
+
+__all__ = ["bank_reconciliation", "deposit_structuring", "interbank_transfers", "ITEM_TYPES"]

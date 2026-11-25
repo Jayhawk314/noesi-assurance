@@ -60,6 +60,7 @@ does not sign, approve, or decide: one user per engagement, and the judgments st
 | Check sequence | Gaps and reused numbers per bank account | `forensic.py` |
 | Vendor ↔ employee | Bank account, phone (last seven digits), tax ID, full name; and it says which fields couldn't be compared | `forensic.py` |
 | Money out and back | Directed graph of payments; cycles back to the client with amounts within a tolerance and dates within a window; known legitimate flows (reversals, intercompany) set aside | `procedures_ap/structural.py` |
+| Cash kept under the reporting line | One day's cash deposits, each at or under the reporting threshold, that add up to more than it (the bank adds branches together, 31 CFR 1010.313); a pile-up just under the threshold against the band of the same width below it | `procedures_cycles/cash.py` |
 
 ## 4. What makes it different
 
@@ -94,8 +95,9 @@ These are stated plainly because they are the point.
 - **It cannot see people.** It cannot confirm whether an employee exists, why an entry was posted, or
   whether a related party was left off management's list. Matching only finds names on the list.
 - **Thresholds are judgments.** Materiality, tolerances, the split window and the Benford minimum are the
-  auditor's settings, and different settings give different findings. Some limits are fixed in the code,
-  not settings: the round-trip screen uses a 2% amount tolerance, a 30-day window and at most 4 hops.
+  auditor's settings, and different settings give different findings. The round-trip screen's amount
+  tolerance and window are settings (2% and 30 days when left empty, since 24 Nov 2026); its limit of
+  4 hops is still fixed in the code.
 - **Float arithmetic in the structural layer.** Twin and round-trip screening uses floating point (for
   parity with the prototype). It only produces leads routed to review, never SAD amounts.
 - **Known open items (4 Oct 2026):**

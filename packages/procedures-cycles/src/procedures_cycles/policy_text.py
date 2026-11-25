@@ -23,6 +23,16 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
         "Performance materiality, as a percent of materiality", PERCENT,
         "Overall performance materiality is this share of materiality; firms commonly "
         "use 50% to 75%. 75% when left empty."),
+    # fraud screens
+    "value_flow_amount_tolerance_pct": (
+        "Round trips: how far the amounts may differ", PERCENT,
+        "Money that leaves and comes back is a round trip when every leg is within this "
+        "percent of the largest. A launderer who keeps a larger cut passes a tighter "
+        "setting. 2% when left empty."),
+    "value_flow_window_days": (
+        "Round trips: most days from first leg to last", DAYS,
+        "A round trip is reported only when all its legs fall within this many days. "
+        "30 days when left empty."),
     # planning
     "pm_allocation_multiple": (
         "Allowed total of performance-materiality allocations", RATE,
@@ -126,6 +136,15 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
         "A population with fewer amounts of 10 or more than this is not tested. "
         "Nigrini suggests at least 1,000; below a few hundred the test says little."),
     # cash
+    "structuring_threshold": (
+        "Currency-reporting line for cash deposits", AMOUNT,
+        "Cash deposits at or under this amount that add up to more than it in one day, "
+        "and deposits piled up just under it, are listed. 10,000 in the United States "
+        "(31 CFR 1010.311)."),
+    "structuring_band_pct": (
+        "Cash deposits: width of the band just under the line", PERCENT,
+        "Deposits within this percent below the reporting line are counted and compared "
+        "with the band of the same width just below. 10% when left empty."),
     "dit_max_days": (
         "Deposits in transit: most days to reach the bank", DAYS,
         "A deposit in transit that reaches the bank more than this many days after "

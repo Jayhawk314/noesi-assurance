@@ -265,6 +265,23 @@ export function ScopeScreen({ client, eid, onError }: {
         </div>
       )}
 
+      {(catalog.data.fraud_policies ?? []).length > 0 && (
+        <div className="panel">
+          <h3>Fraud tests: settings</h3>
+          <p className="note">
+            The round-trip test (money that leaves and comes back) runs in any
+            engagement with a value-flows file. Its defaults (2%, 30 days) apply
+            until you set these, and every run says which were used.
+          </p>
+          <table className="dense">
+            <thead><tr><th>Setting</th><th>Current</th><th>Change</th></tr></thead>
+            <tbody>
+              {(catalog.data.fraud_policies ?? []).map((n) => policyRow(n, false))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {catalog.data.areas.filter((a) => inScope.has(a.scope)
         && (a.required_policies.length || a.optional_policies.length)).map((area) => (
         <div className="panel" key={`${area.scope}-policies`}>
