@@ -384,9 +384,8 @@ scripts first, James approves scripts and credits before voicing.
   Source: https://downloads.ctfassets.net/rb9cdnjh59cm/6SZYDorUSdWM3sjctjPnOL/d2cb13701145f8699624298a1b875c8a/ps-au-c-sections.pdf Kestrel: the draft now proposes qualified, adverse or disclaimer; the key's view (integrity
   in doubt, given the related-party round trip) is still a disclaimer. Key part 3, finish line (175 of 177), Learn
   lessons and key, standalone learn.html, manual chapter 7, Code Atlas and README updated; 610 tests.
-  **Not done (videos paused, voice credits need James):** Kestrel video m13 says "the draft opinion on Kestrel ... is
-  a disclaimer" (`komposos-labs-videos/noesi_learn_videos/kestrel/m13/SCRIPT.md`, FACTS K1). The draft now proposes
-  three options and the partner's decision leads to the disclaimer: the narration needs one line changed and re-voiced.
+  **Done 25 Nov 2026 (James: credits approved):** video m13 rewritten (script v2, facts 14/14), scenes 1, 4 and 5
+  re-voiced, re-rendered from new captures; m12 re-rendered for the adjusted going-concern figures. Both wired into Learn.
 - **Candidate (Starlight, 24 Nov 2026):** `ap.unrecorded_liabilities_search` reads the Payments role as the payments
   after year end, so an engagement that loads the year's own payments (for the duplicate, sequence and approval tests)
   cannot also run the search. A separate role for subsequent payments would let one engagement do both. Not built.
