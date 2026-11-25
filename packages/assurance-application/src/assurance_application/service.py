@@ -127,6 +127,14 @@ class EvidenceIntegrityError(RuntimeError):
     """
 
 
+class SourceNeedsRemapError(ValueError):
+    """A loaded file was read with a reader (workbook converter or QuickBooks
+    recipe version) this build no longer has. Only that file is affected: it
+    is set aside and named until it is mapped and confirmed again, and the
+    rest of the engagement stays readable (25 Nov 2026; before, one such file
+    made coverage, readiness and the draft opinion fail on every page)."""
+
+
 # The five judgments a disposition can record; "undisposed" is the absence
 # of one, not a settable value.
 _DISPOSITION_STATUSES = ("cleared", "unadjusted", "adjusted", "waived",
@@ -715,7 +723,12 @@ class WorkbenchService:
         """What a builder noted about a file now in use (a trial balance not
         at the period end, a prior year not one year before), so it stays in
         view wherever coverage is read, not only on the panel that built it."""
-        out = []
+        out = [{"role": role, "file": name,
+                "note": f"this build cannot read this file as it was mapped ({info['reason']}); "
+                        f"{role} is treated as not loaded until then",
+                "needs_remap": True}
+               for role, info in sorted(self._unreadable(engagement_id).items())
+               for name in info["files"]]
         for role, states in self._role_states(engagement_id).items():
             for dataset in states[-1][1]:
                 row = self._conn.execute(
@@ -740,7 +753,8 @@ class WorkbenchService:
         # Which loaded files the run read, so a combined input is on record.
         datasets_read = {
             role: [d["dataset_id"] for d in states[-1][1]]
-            for role, states in self._role_states(engagement_id).items()}
+            for role, states in self._role_states(engagement_id).items()
+            if role in tables}
         # Approved engagement policies (workflow document) apply to every
         # run; explicit per-run values override them. Coverage compiles
         # against the same document, so what coverage calls executable is
@@ -987,7 +1001,14 @@ class WorkbenchService:
             # they read now: a replacement and an addition both change it.
             (_, before_set), (latest, after_set) = states[-2], states[-1]
             previous = before_set[-1]
-            old_table = _combine([self._verified_table(d) for d in before_set])
+            # A file this build can no longer read (SourceNeedsRemapError) has
+            # no comparison to show; coverage's source notes name it.
+            if role in self._unreadable(engagement_id):
+                continue
+            try:
+                old_table = _combine([self._verified_table(d) for d in before_set])
+            except SourceNeedsRemapError:
+                continue
             revisions.append({
                 "role": role,
                 "versions": len(states),
@@ -2064,9 +2085,10 @@ class WorkbenchService:
         content = self._artifact_content(artifact_id)
         if xlsx.is_xlsx(content) or xlsx.is_legacy_xls(content):
             if extraction and extraction.get("converter") not in (None, xlsx.CONVERTER):
-                raise ValueError(
+                raise SourceNeedsRemapError(
                     f"this spec was read with {extraction.get('converter')!r}; "
-                    f"this build reads workbooks with {xlsx.CONVERTER!r}")
+                    f"this build reads workbooks with {xlsx.CONVERTER!r}. "
+                    f"Map and confirm the file again")
             header_row = (extraction or {}).get("header_row")
             try:
                 resolved, headers, rows = xlsx.extract(
@@ -2080,7 +2102,7 @@ class WorkbenchService:
             recipe = quickbooks.get(str(recipe_id))
             version = extraction.get("recipe_version") or recipe.version
             if version != recipe.version:
-                raise ValueError(
+                raise SourceNeedsRemapError(
                     f"this spec was read with {recipe.report} recipe version "
                     f"{version!r}; this build reads it as {recipe.version!r}. "
                     f"Map and confirm the file again")
@@ -2476,9 +2498,29 @@ class WorkbenchService:
         return row["original_name"] if row else ""
 
     def _tables(self, engagement_id: str) -> dict:
-        """The in-use datasets per role, rebuilt, digest-verified, combined."""
-        return {role: _combine([self._verified_table(d) for d in states[-1][1]])
-                for role, states in self._role_states(engagement_id).items()}
+        """The in-use datasets per role, rebuilt, digest-verified, combined.
+
+        A role whose file this build can no longer read (its recipe or
+        converter changed) is left out and recorded for _source_notes, so it
+        reads as not loaded, never as stale data; every other role is served.
+        A digest that no longer reproduces still raises: that is an integrity
+        failure, not a reader change."""
+        tables, unreadable = {}, {}
+        for role, states in self._role_states(engagement_id).items():
+            try:
+                tables[role] = _combine([self._verified_table(d) for d in states[-1][1]])
+            except SourceNeedsRemapError as exc:
+                unreadable[role] = {"files": [self._dataset_file(d) for d in states[-1][1]],
+                                    "reason": str(exc)}
+        self.__dict__.setdefault("_unreadable_roles", {})[engagement_id] = unreadable
+        return tables
+
+    def _unreadable(self, engagement_id: str) -> dict:
+        """Roles set aside by the last _tables call, rebuilt when not yet known."""
+        known = self.__dict__.get("_unreadable_roles", {})
+        if engagement_id not in known:
+            self._tables(engagement_id)
+        return self.__dict__["_unreadable_roles"][engagement_id]
 
 
 def _year_before(iso: str) -> str:

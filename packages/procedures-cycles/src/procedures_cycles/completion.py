@@ -52,22 +52,40 @@ def subsequent_events(tables: dict, policies: dict):
                  "amount": debits, "accounts": accounts,
                  "source_rows": [source_ref("Journal_entries", x, "entry_id")
                                  for x in lines]}, debits))
-    for payment in records(tables, "Payments"):
+    # Payments after period end may sit in the year's Payments or in the
+    # register of payments after year end (Subsequent_payments, 25 Nov 2026);
+    # both are read. A register line that repeats a Payments line (same
+    # number, date and amount) is the same payment and examined once; any
+    # other line is examined, as every Payments line always was.
+    in_payments = {(key_text(p.get("payment_number")), day(p.get("payment_date")),
+                    money(p.get("payment_amount")))
+                   for p in records(tables, "Payments")}
+    for role, payment in ([("Payments", p) for p in records(tables, "Payments")]
+                          + [("Subsequent_payments", p)
+                             for p in records(tables, "Subsequent_payments")]):
         paid = day(payment.get("payment_date"))
         if not inside(paid):
             continue
+        if role == "Subsequent_payments" and (
+                key_text(payment.get("payment_number")), paid,
+                money(payment.get("payment_amount"))) in in_payments:
+            continue
+        number = key_text(payment.get("payment_number"))
         reviewed["payments"] += 1
         amount = money(payment.get("payment_amount"))
+        # the same number in Payments with another date or amount: a second
+        # lead under its own key, so the two never merge
+        kind = ("payment_in_register" if role == "Subsequent_payments"
+                and number in {n for n, _, _ in in_payments} else "payment")
         if abs(amount) >= threshold:
-            number = key_text(payment.get("payment_number"))
             findings.append(receipt(
-                pid, (number, "payment"), "TENSION",
+                pid, (number, kind), "TENSION",
                 f"payment {number} of {abs(amount)} on {paid}, after period end, to "
                 f"{text(payment.get('vendor_number')) or 'an unnamed payee'} — does it "
                 "settle a liability that existed at period end, or signal a new event?",
                 {"finding_class": "CONJECTURE", "cycle": "completion", "date": paid,
                  "amount": amount,
-                 "source_rows": [source_ref("Payments", payment, "payment_number")]},
+                 "source_rows": [source_ref(role, payment, "payment_number")]},
                 abs(amount)))
     if not any(reviewed.values()):
         findings.append(receipt(

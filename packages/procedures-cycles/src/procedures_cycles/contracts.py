@@ -189,16 +189,37 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         "Select subsequent disbursements, and for each inspected one test whether the "
         "liability belonged on the year-end payables listing.",
         "payables", ("completeness", "cutoff", "accuracy"),
-        {"Vouchers": ("voucher_number", "voucher_amount"),
-         "Payments": ("payment_number", "voucher_number", "payment_amount"),
+        # The payments after year end and the year-end listing each have a
+        # role of their own (25 Nov 2026); each falls back to the older
+        # reading of Payments and Vouchers when it is not loaded. The engine
+        # chooses role by role, as coverage chooses the first set loaded.
+        {"Subsequent_payments": ("payment_number", "voucher_number", "payment_amount",
+                                 "payment_date"),
+         "Unpaid_bills": ("voucher_number", "voucher_amount"),
          "Disbursement_inspection": ("payment_number", "liability_date")},
+        alternative_fields=(
+            {"Subsequent_payments": ("payment_number", "voucher_number", "payment_amount",
+                                     "payment_date"),
+             "Vouchers": ("voucher_number", "voucher_amount"),
+             "Disbursement_inspection": ("payment_number", "liability_date")},
+            {"Payments": ("payment_number", "voucher_number", "payment_amount"),
+             "Unpaid_bills": ("voucher_number", "voucher_amount"),
+             "Disbursement_inspection": ("payment_number", "liability_date")},
+            {"Payments": ("payment_number", "voucher_number", "payment_amount"),
+             "Vouchers": ("voucher_number", "voucher_amount"),
+             "Disbursement_inspection": ("payment_number", "liability_date")},
+        ),
         required_policies=("period_end", "search_threshold"),
         evidence_source="subsequent check register; receiving reports and invoices "
                         "inspected by the auditor",
         policy_version="v1",
-        denominator_role="Payments",
+        denominator_role="Subsequent_payments",
         limitations="Cannot see liabilities never paid after year-end; unpaid invoices, "
-                    "vendor statements and receiving records are separate searches.",
+                    "vendor statements and receiving records are separate searches. "
+                    "Without Subsequent_payments, Payments is read as the payments after "
+                    "year end and Vouchers as the year-end listing, unchecked. A liability "
+                    "the auditor traced to another account (recorded_account) is taken "
+                    "as recorded there, not re-proved.",
     ),
     ProcedureContract(
         "ap.payments_without_bills", "Payments to vendors that never billed",

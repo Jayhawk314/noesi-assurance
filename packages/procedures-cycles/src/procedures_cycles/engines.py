@@ -112,7 +112,12 @@ def execute_procedure(procedure_id: str, tables: dict,
     # The input set this run uses: the required one, or an alternative the
     # contract accepts when that is what was loaded (review L5).
     from procedures_ap.contracts import active_input_set
-    fields = active_input_set(contract, lambda role: bool(records(tables, role)))
+    # Rows and mapped fields both count, as in coverage: a role loaded
+    # without a field its set needs does not serve that set (review 25 Nov).
+    fields = active_input_set(
+        contract, lambda role: bool(records(tables, role)),
+        lambda role, needed: set(needed) <= set().union(
+            *(r.keys() for r in records(tables, role))))
     tables, incomplete, excluded = _drop_incomplete_rows(procedure_id, fields, tables)
     empty_roles = [role for role in fields if not records(tables, role)]
     if empty_roles:
@@ -157,7 +162,11 @@ VALUE_OPTIONAL: dict[str, frozenset[str | tuple[str, str]]] = {
     # completeness search and must remain in the selection population. The
     # Vouchers role still requires its own voucher_number values.
     "ap.unrecorded_liabilities_search": frozenset({
-        "liability_date", ("Payments", "voucher_number")}),
+        "liability_date", ("Payments", "voucher_number"),
+        ("Subsequent_payments", "voucher_number"),
+        # an undated payment in the register after year end is named by the
+        # search itself ("not_after_period_end"), not dropped as incomplete
+        ("Subsequent_payments", "payment_date")}),
     "estimates.retrospective_review": frozenset({"prior_estimate", "outcome"}),
     "rev.sales_cutoff": frozenset({"ship_date"}),
     # Online transfers and deposit slips reach the bank with no reference;

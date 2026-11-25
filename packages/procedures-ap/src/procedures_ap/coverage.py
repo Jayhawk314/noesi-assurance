@@ -74,17 +74,20 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
         return roles, absent_fields
 
     for contract in contracts:
-        # The first input set fully loaded serves (review L5); when none is,
-        # the gaps reported are the required set's, as the contract asks.
-        missing_roles, missing_fields = gaps(contract.required_fields)
-        satisfied_by = list(contract.required_fields)
-        if missing_roles or missing_fields:
-            for alternative in contract.alternative_fields:
-                roles, absent = gaps(alternative)
-                if not roles and not absent:
-                    missing_roles, missing_fields = [], {}
-                    satisfied_by = list(alternative)
-                    break
+        # The first input set fully loaded serves (review L5). When none is,
+        # the gaps reported are those of the set closest to complete (fewest
+        # roles missing, the earlier set on a tie), as active_input_set
+        # chooses for a run: an engagement that loaded the older inputs is
+        # told the one file it lacks, not every file of a newer set (25 Nov).
+        sets = contract.input_sets()
+        found = [gaps(fields) for fields in sets]
+        served = next((i for i, (roles, absent) in enumerate(found)
+                       if not roles and not absent), None)
+        pick = served if served is not None else min(
+            range(len(sets)), key=lambda i: (len(found[i][0]), i))
+        missing_roles, missing_fields = found[pick]
+        basis = list(sets[pick])
+        satisfied_by = basis if served is not None else list(contract.required_fields)
         missing_policies = [name for name in contract.required_policies
                             if policies.get(name) in (None, "")]
         # D3: a software gap outranks any data status.
@@ -105,9 +108,9 @@ def compile_coverage(inventory: dict, *, policies: dict | None = None,
             "missing_policies": missing_policies,
             "population": inventory.get(
                 contract.denominator_role
-                if satisfied_by == list(contract.required_fields)
-                or contract.denominator_role in satisfied_by
-                else satisfied_by[0], {}).get("rows"),
+                if basis == list(contract.required_fields)
+                or contract.denominator_role in basis
+                else basis[0], {}).get("rows"),
             # D1: never "completed" at compile time.
             "execution_status": "not_run",
         })

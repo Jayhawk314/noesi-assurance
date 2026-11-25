@@ -185,6 +185,12 @@ ROLE_FILENAME_HINTS: dict[str, list[str]] = {
 }
 
 
+# Roles whose columns are another role's: headings cannot tell a payment
+# after year end (Subsequent_payments) from one in the year (Payments), so
+# these are chosen by file name or by the user, never guessed from headings.
+HEADER_GUESS_EXCLUDED: set[str] = set()
+
+
 def infer_role_from_headers(headers: list[str]) -> str | None:
     """Suggest the role a file's column headings best fit, for files whose
     name says nothing (``export (3).csv``). A role qualifies only when every
@@ -193,6 +199,8 @@ def infer_role_from_headers(headers: list[str]) -> str | None:
     picking one. A suggestion for the reviewer, never an approval."""
     best: list[tuple[int, str]] = []
     for role, schema in ROLE_SCHEMAS.items():
+        if role in HEADER_GUESS_EXCLUDED:
+            continue
         mapped = detect_columns(headers, schema)
         required = _REQUIRED.get(role, ())
         if len(mapped) < 2 or any(f not in mapped for f in required):

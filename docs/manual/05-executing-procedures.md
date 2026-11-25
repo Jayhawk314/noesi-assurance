@@ -101,6 +101,19 @@ fraud tests):
   and payments the supplier has not credited: in the mail within
   `statement_transit_days` (7 when left empty), a lead after that. It then
   reconciles the balances and names anything left unexplained.
+- **Search for unrecorded liabilities** (`ap.unrecorded_liabilities_search`,
+  payables) selects the payments after year end above `search_threshold` and
+  tests each inspected one against the year-end listing: a liability that arose
+  by period end must be on it, one that arose later must not. Since 25 Nov 2026
+  it reads its own inputs: role *Subsequent payments* (the register of payments
+  after year end) and role *Unpaid bills* (the year-end payables listing), so an
+  engagement can load the year's own payments and bills for the other tests as
+  well. Without them it reads *Payments* and *Vouchers* that way, as before. A
+  row in the register dated by year end, or undated, is named and left out. The
+  auditor's worksheet (role *Disbursement inspection*) may name the account a
+  liability was recorded in when it is not a payables bill (sales tax, accrued
+  expenses); it is then not called unrecorded. The subsequent-events review also
+  reads the register, so a payment there is examined once.
 - **Bank confirmations** (`cash.bank_confirmation`, cash, off until chosen)
   compares each balance the bank confirmed directly to the auditor (role *Bank
   confirmations*) with the reconciliation's bank balance, and lists accounts not

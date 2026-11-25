@@ -51,6 +51,23 @@ def _policies() -> dict:
 
 
 # (file or prepared label, role, prep function, QuickBooks recipe, load mode)
+# What each hand-prepared file was prepared from, for its provenance. Until
+# 25 Nov 2026 all six said "from the QuickBooks export", though only the bank
+# reconciliations come from QuickBooks (manual review, 4 Oct 2026, item 21).
+PREPARED_FROM = {
+    "inventory_count_prepared.csv": "the client's count tags (client/count_tags_2026-06-30.csv)",
+    "bank_reconciliation_prepared.csv": "the QuickBooks reconciliation reports "
+                                        "(quickbooks/Checking_Reconciliation.xlsx, "
+                                        "quickbooks/Payroll_Checking_Reconciliation.xlsx)",
+    "cutoff_statement_prepared.csv": "the bank's cutoff statement "
+                                     "(bank/first_prairie_xxxx2208_2026-07-01_to_2026-07-15.csv)",
+    "transfers_prepared.csv": "the auditor's interbank transfer schedule "
+                              "(auditor/interbank_transfers.csv)",
+    "pricing_tests_prepared.csv": "the auditor's pricing tests (auditor/pricing_tests.csv)",
+    "adjusting_entries_prepared.csv": "the auditor's proposed adjusting entries "
+                                      "(auditor/adjusting_entries.csv)",
+}
+
 LOADS = [
     ("quickbooks/AR_Aging_Summary.xlsx", "AR_listing", None,
      "qbo.ar_aging_summary.ar_listing", None),
@@ -142,8 +159,8 @@ def seed(service, partner: str) -> dict:
                     partner, eid, content=content,
                     media_type=XLSX if label.endswith(".xlsx") else "text/csv",
                     original_name=Path(label).name,
-                    provenance=("Kestrel Valley case, prepared by hand from the "
-                                "QuickBooks export" if prep else
+                    provenance=(f"Kestrel Valley case, prepared by hand from "
+                                f"{PREPARED_FROM[label]}" if prep else
                                 f"Kestrel Valley case: {label}"))["artifact_id"]
             spec = service.confirm_source_mapping(
                 partner, eid, role=role, artifact_id=stored[label],

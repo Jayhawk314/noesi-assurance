@@ -102,16 +102,18 @@ These are stated plainly because they are the point.
   4 hops is still fixed in the code.
 - **Float arithmetic in the structural layer.** Twin and round-trip screening uses floating point (for
   parity with the prototype). It only produces leads routed to review, never SAD amounts.
-- **Known open items (4 Oct 2026, updated 25 Nov 2026):**
-  - The demo labels all six hand-prepared files "from the QuickBooks export", though some come from
-    bank, client or auditor files.
-  - A QuickBooks recipe version change turns most pages red instead of flagging the one file.
-
-  Each may be a software bug; neither has been investigated yet. Closed since: the related-party
-  match that called Jo Kestrel a family member of herself (fixed in `38b756d`, 4 Oct), and the
-  going-concern indicators, which read the trial balance before the adjusting entries (fixed 25 Nov:
-  they are now judged after them, and the figures before them are kept).
-- **Tested so far on teaching cases.** It has 636 automated tests (25 Nov 2026) and is calibrated on Kestrel, but not yet
+- **Known open items (4 Oct 2026): all four closed.**
+  - The related-party match that called Jo Kestrel a family member of herself: fixed in `38b756d`
+    (4 Oct).
+  - The going-concern indicators read the trial balance before the adjusting entries: fixed 25 Nov;
+    they are judged after them, and the figures before them are kept.
+  - The demo labelled all six hand-prepared files "from the QuickBooks export": fixed 25 Nov; each
+    names the file it was prepared from.
+  - A QuickBooks recipe version change turned most pages red: reproduced and fixed 25 Nov. Seven reads
+    (coverage, readiness, the draft opinion and others) failed on one out-of-date file; now that file
+    is set aside, named in the coverage notes as needing to be mapped again, and everything else is
+    served.
+- **Tested so far on teaching cases.** It has 651 automated tests (25 Nov 2026) and is calibrated on Kestrel, but not yet
   checked on Oceanview with a working CPA, or on a real client.
 
 ## 6. What it adds to an audit

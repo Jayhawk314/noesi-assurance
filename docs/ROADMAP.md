@@ -355,9 +355,26 @@ scripts first, James approves scripts and credits before voicing.
   61,622.55, net income 326,229.12, equity 177,972.55, current ratio 1.1258 (1.1291 before; still below 1.20, still
   "one point one three" in m12's narration, so no re-voice). Starlight: no indicators either way. 638 tests;
   finish line 175/177. **Not checked:** the frames of rendered video m12 may still show 1.1291 on screen.
-- **Next candidate (25 Nov 2026), not started:** `ap.unrecorded_liabilities_search` reads Payments as the payments
-  after year end and Vouchers as the year-end unpaid listing. An engagement that loads the year's own bills and
-  payments (Starlight) cannot run it. Needs separate inputs for both; plan to James before building.
+- **Built 25 Nov 2026: the search for unrecorded liabilities with its own inputs.** New roles `Subsequent_payments`
+  (the register after year end) and `Unpaid_bills` (the year-end listing); `ap.unrecorded_liabilities_search` uses
+  each when loaded and otherwise reads Payments and Vouchers as before (Kestrel unchanged, 175/177). A register row
+  dated by year end, or undated, is refused by name. The inspection may carry `recorded_account` for a liability
+  recorded outside payables (sales tax). `completion.subsequent_events` also reads the register, once per payment
+  number. Starlight runs the search in Noesi: 10 payments selected, CHK-2372 (Gulf Restoration 8,740) unrecorded,
+  asserted against its key. Tests on invented data (`tests/unit/test_unrecorded_liabilities_roles.py`). Independent review
+  found six problems, five fixed with regressions: coverage, the executor and the engine now choose input sets by one
+  rule (rows and mapped fields; the closest set named when none serves, so older inputs are told only what they lack);
+  the subsequent-events review examines a register line once only when it repeats a Payments line exactly; a refused
+  register row is not also an orphan; the new roles take no file from Payments or Vouchers (not guessed from headings;
+  QuickBooks' Unpaid Bills stays Vouchers). Kept as designed and stated: an amount traced to another account is not
+  re-proved.
+- **Fixed 25 Nov 2026, the two remaining 4 Oct possible bugs.** (1) A QuickBooks recipe version change made coverage,
+  readiness, the draft opinion and four other reads fail for the whole engagement (reproduced on the Kestrel demo);
+  now the one file is set aside (`SourceNeedsRemapError`) and named in coverage's source notes until mapped again.
+  (2) The Kestrel demo labelled all six hand-prepared files "from the QuickBooks export"; each now names its source.
+  651 tests; finish line 175/177.
+  **Not done:** Kestrel's check 4433 stays "not in Noesi". Kestrel has no auditor's inspection worksheet for July,
+  and building one would add new auditor evidence to the public case.
 - **Second Starlight review, 24 Nov 2026:** bank confirmations refuse missing/unreadable account, balance or date; zero remains a valid balance. Internal-control responsibility is a basic representation under AU-C 580.10(b). A fixed disclaimer keeps every basis reason but needs no further modification judgments. Work refusals remain visible; the auditor can record `not_material` when their possible effects do not justify modifying the opinion. Supplier references prefer the whole reference, using digits only as a fallback and refusing an ambiguous match only when used. Regression tests use invented data.
 - **Fixed 24 Nov 2026 (James: "fix everything first"): refused representations.** The draft opinion had treated
   any refused representation as an automatic disclaimer. Now only the basic ones of AU-C 580.25 (paragraphs .10-.11:

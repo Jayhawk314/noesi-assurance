@@ -309,6 +309,28 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "classification": ["classification", "difference type", "reason"],
         "stratum": ["stratum", "group"],
     },
+    # The client's register of payments made after period end, up to the
+    # report date: the population the search for unrecorded liabilities
+    # selects from, kept apart from the year's own Payments (25 Nov 2026).
+    "Subsequent_payments": {
+        "payment_number": ["payment number", "payment no", "payment id", "payment",
+                           "reference", "disbursement number"],
+        "voucher_number": ["voucher number", "voucher no", "bill number", "invoice number",
+                           "voucher", "bill"],
+        "vendor_number": ["vendor number", "vendor no", "vendor", "payee", "supplier"],
+        "payment_amount": ["payment amount", "amount", "check amount", "paid amount"],
+        "payment_date": ["payment date", "date", "check date", "paid date"],
+        "check_number": ["check number", "check no", "cheque number"],
+    },
+    # The client's listing of bills unpaid at period end (the payables the
+    # client says it owed), kept apart from the year's own Vouchers.
+    "Unpaid_bills": {
+        "voucher_number": ["voucher number", "voucher no", "bill number", "invoice number",
+                           "voucher", "bill"],
+        "vendor_number": ["vendor number", "vendor no", "vendor", "supplier"],
+        "voucher_amount": ["open balance", "amount due", "balance", "amount", "voucher amount"],
+        "voucher_date": ["bill date", "invoice date", "date", "voucher date"],
+    },
     "Disbursement_inspection": {
         "payment_number": ["payment number", "payment no", "payment", "disbursement"],
         "voucher_number": ["voucher number", "voucher no", "voucher"],
@@ -317,6 +339,10 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "liability_amount": ["liability amount", "amount owed", "amount"],
         "document": ["document", "document reference", "support"],
         "conclusion": ["conclusion", "result", "outcome"],
+        # where the liability was recorded at period end when it is not a
+        # payables bill (sales tax payable, accrued expenses)
+        "recorded_account": ["recorded in", "recorded account", "recorded in account",
+                             "liability account"],
     },
     "Payment_approvals": {
         "payment_number": ["payment number", "check number", "check no", "payment no",
@@ -419,6 +445,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Journal_entries": ("entry_id", "account"),
     "Confirmations": ("customer_number",),
     "Disbursement_inspection": ("payment_number",),
+    "Subsequent_payments": ("payment_number",),
+    "Unpaid_bills": ("voucher_number",),
     "Payment_approvals": ("payment_number",),
     "Attribute_tests": ("attribute",),
     "Pricing_tests": ("stock_number",),
@@ -468,6 +496,13 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Journal_entries": ["journal entry listing", "je listing", "general journal",
                         "journal report"],
     "Confirmations": ["confirmations", "confirmation results", "confirms"],
+    "Subsequent_payments": ["subsequent payments", "subsequent disbursements",
+                            "payments after year end", "payments after period end",
+                            "subsequent check register"],
+    # Not "unpaid bills": QuickBooks' Unpaid Bills report keeps the role its
+    # recipe reads (Vouchers); the listing is chosen by name or by the user.
+    "Unpaid_bills": ["year end payables listing", "accounts payable listing", "ap listing",
+                     "year end unpaid bills"],
     "Disbursement_inspection": ["disbursement inspection", "subsequent disbursements inspection",
                                 "unrecorded liabilities"],
     "Payment_approvals": ["payment approvals", "check signers", "check signatures",
@@ -501,4 +536,5 @@ def register_roles() -> None:
     ingest._DATE_FIELDS.update(DATE_FIELDS)
     ingest._REQUIRED.update(REQUIRED)
     ingest.ROLE_FILENAME_HINTS.update(FILENAME_HINTS)
+    ingest.HEADER_GUESS_EXCLUDED.update({"Subsequent_payments", "Unpaid_bills"})
     _REGISTERED = True

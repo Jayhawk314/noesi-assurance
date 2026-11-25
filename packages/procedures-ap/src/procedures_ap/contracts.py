@@ -51,15 +51,20 @@ class ProcedureContract:
         return value
 
 
-def active_input_set(contract: ProcedureContract,
-                     has_rows) -> dict[str, tuple[str, ...]]:
-    """The input set a run uses: required_fields when every one of its roles
-    has rows, else the first alternative whose roles all do, else
-    required_fields (so the refusal names what the contract asks for)."""
-    for fields in contract.input_sets():
-        if all(has_rows(role) for role in fields):
+def active_input_set(contract: ProcedureContract, has_rows,
+                     has_fields=None) -> dict[str, tuple[str, ...]]:
+    """The input set a run uses, chosen as coverage chooses it: the first set
+    whose roles all have rows (and, given ``has_fields(role, fields)``, carry
+    the set's fields); when none does, the set closest to complete (fewest
+    roles without rows, the earlier on a tie), so the refusal names what is
+    actually missing."""
+    sets = contract.input_sets()
+    for fields in sets:
+        if all(has_rows(role) and (has_fields is None or has_fields(role, fields[role]))
+               for role in fields):
             return fields
-    return contract.required_fields
+    return min(sets, key=lambda fields: (sum(not has_rows(r) for r in fields),
+                                         sets.index(fields)))
 
 
 PROCEDURES: tuple[ProcedureContract, ...] = (

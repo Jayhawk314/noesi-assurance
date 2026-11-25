@@ -1402,7 +1402,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: "When the evidence itself is in doubt",
         blocks: [
-          { p: "Written representations underpin evidence throughout the audit. If management will not confirm its basic responsibilities (for the financial statements, for giving the auditor all information, and that all transactions are recorded), the auditor **must** disclaim an opinion or withdraw (AU-C 580)." },
+          { p: "Written representations underpin evidence throughout the audit. If management will not confirm its basic responsibilities (for the financial statements and for internal control over them, for giving the auditor all information, and that all transactions are recorded), the auditor **must** disclaim an opinion or withdraw (AU-C 580)." },
           { p: "For any other representation the auditor asked for, such as related parties, the refusal is a judgment: discuss it with management, re-evaluate management's integrity, and decide what it does to the rest. Can management's other statements be relied on at all? When that doubt runs through the statements, the auditor may be unable to form an opinion (AU-C 580, 705)." },
           { watch: "A disclaimer is not a stronger adverse opinion. It says the auditor cannot say, and why." },
         ],

@@ -436,3 +436,32 @@ def test_a_vendor_list_approved_under_the_old_reading_is_refused(service):
             PREPARER, eid, role="Vendors", artifact_id=artifact["artifact_id"],
             extraction={"recipe": "qbo.vendor_contact_list.vendors",
                         "recipe_version": "qbo-v1"})
+
+
+def test_a_recipe_version_change_sets_aside_only_that_file(service, monkeypatch):
+    # 25 Nov 2026 (HOW-NOESI-WORKS open item, reproduced on the Kestrel demo):
+    # one file read under an older recipe version made coverage, readiness,
+    # the draft opinion and four other reads fail for the whole engagement.
+    import dataclasses
+    svc, eid = service
+    unpaid, _, _ = _load(svc, eid, UNPAID, "Unpaid Bills.xlsx", "Vouchers",
+                         "qbo.unpaid_bills.vouchers")
+    _load(svc, eid, BILL_PAYMENTS, "Bill Payment List.xlsx", "Payments",
+          "qbo.bill_payment_list.payments")
+    rid = "qbo.unpaid_bills.vouchers"
+    monkeypatch.setitem(qb.RECIPES, rid, dataclasses.replace(qb.get(rid), version="qbo-v9"))
+    coverage = svc.coverage(eid)                      # raised ValueError before
+    notes = [n for n in coverage["source_notes"] if n.get("needs_remap")]
+    assert [(n["role"], n["file"]) for n in notes] == [("Vouchers", "Unpaid Bills.xlsx")]
+    assert "Map and confirm the file again" in notes[0]["note"]
+    assert set(svc._tables(eid)) == {"Payments"}      # the other file is still served
+    svc.readiness(eid)
+    svc.revision_impact(eid)
+    svc.fraud_view(eid)
+    # Mapped and confirmed again under this build's version, the file is back.
+    proposal = svc.confirm_source_mapping(PREPARER, eid, role="Vouchers",
+                                          artifact_id=unpaid["artifact_id"],
+                                          extraction={"recipe": rid})
+    svc.normalize_source(PREPARER, eid, proposal["spec_id"], mode="replace")
+    assert not [n for n in svc.coverage(eid)["source_notes"] if n.get("needs_remap")]
+    assert set(svc._tables(eid)) == {"Payments", "Vouchers"}

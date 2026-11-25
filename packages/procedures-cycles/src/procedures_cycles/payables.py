@@ -2,11 +2,15 @@
 """ap.unrecorded_liabilities_search — search for unrecorded liabilities.
 
 Inputs:
-- Vouchers: the year-end accounts payable listing (what the client says it owed);
-- Payments: disbursements made after year-end (the subsequent check register);
+- Unpaid_bills: the year-end accounts payable listing (what the client says
+  it owed); Vouchers is read that way when it is not loaded;
+- Subsequent_payments: disbursements made after year-end (the subsequent
+  check register); Payments is read that way when it is not loaded. A row in
+  it dated on or before period end, or undated, is named and left out;
 - Disbursement_inspection (auditor evidence): for each inspected payment
   line, the date the liability arose per the receiving report or service
-  invoice, and the amount owed at that date.
+  invoice, the amount owed at that date, and, for a liability recorded
+  outside payables (sales tax, accrued expenses), the account it was in.
 
 The engine:
 1. selects disbursements — every check whose total exceeds the approved
@@ -75,9 +79,51 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
     interval = dec(policies.get("search_interval"))
     start = dec(policies.get("search_start"))
     limit = dec(policies.get("search_systematic_count"))
-    listing = {key_text(v.get("voucher_number")): v for v in records(tables, "Vouchers")}
-    payments = records(tables, "Payments")
+    # The year-end listing and the payments after year end each have a role
+    # of their own (25 Nov 2026), so an engagement that loads the year's own
+    # bills and payments for the other tests can still run the search. Each
+    # falls back to the older reading (Vouchers as the listing, Payments as
+    # the payments after year end) when it is not loaded.
+    # A new role serves when it has rows and the fields the contract asks of
+    # it, the rule coverage and the executor apply (review 25 Nov 2026), so
+    # the run reads the input set coverage reports.
+    from procedures_cycles.contracts import CYCLE_CONTRACTS_BY_ID
+    needed = CYCLE_CONTRACTS_BY_ID[pid].required_fields
+
+    def serves(rows, role):
+        return bool(rows) and set(needed[role]) <= set().union(*(r.keys() for r in rows))
+
+    unpaid = records(tables, "Unpaid_bills")
+    if not serves(unpaid, "Unpaid_bills"):
+        unpaid = []
+    listing_role = "Unpaid_bills" if unpaid else "Vouchers"
+    listing = {key_text(v.get("voucher_number")): v
+               for v in (unpaid or records(tables, "Vouchers"))}
+    subsequent = records(tables, "Subsequent_payments")
+    if not serves(subsequent, "Subsequent_payments"):
+        subsequent = []
+    payments_role = "Subsequent_payments" if subsequent else "Payments"
     findings = []
+    if subsequent:
+        # A register of payments after year end that holds one dated by year
+        # end, or undated, is mixed: that row is named and left out, never
+        # selected as if it were subsequent.
+        payments = []
+        for p in subsequent:
+            paid_on = day(p.get("payment_date"))
+            if paid_on is not None and paid_on > period_end:
+                payments.append(p)
+                continue
+            pnum = key_text(p.get("payment_number"))
+            findings.append(receipt(
+                pid, (pnum, "not_after_period_end"), "AMBIGUOUS",
+                f"payment {pnum} in the payments after year end is "
+                f"{f'dated {paid_on}, on or before period end {period_end}' if paid_on else 'undated'}"
+                "; left out of the search",
+                {"finding_class": "REFUSAL", "cycle": "payables", "payment_date": paid_on,
+                 "source_rows": [source_ref("Subsequent_payments", p, "payment_number")]}))
+    else:
+        payments = records(tables, "Payments")
     # The auditor's inspection log is evidence too: two results for one line
     # contradict each other, and a result for a line that does not exist
     # usually hides a keying error. Neither is resolved by row order.
@@ -88,7 +134,9 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
         if key in inspections:
             conflicting.add(key)
         inspections[key] = row
-    payment_keys = {key_text(p.get("payment_number")) for p in payments}
+    # A register row refused above is named there; an inspection of it is not
+    # also an "inspection without payment" (review 25 Nov 2026).
+    payment_keys = {key_text(p.get("payment_number")) for p in (subsequent or payments)}
     for key in sorted(conflicting):
         findings.append(receipt(
             pid, (key, "conflicting_inspections"), "AMBIGUOUS",
@@ -109,7 +157,7 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
     selected = set(selection["above_threshold"]) | set(selection["systematic"])
     outcomes = {"properly_included": 0, "properly_excluded": 0, "unrecorded": 0,
                 "improperly_included": 0, "amount_difference": 0,
-                "concluded_by_reference": 0}
+                "concluded_by_reference": 0, "recorded_outside_payables": 0}
     payment_numbers_by_check: dict[str, set[str]] = {}
     for payment in payments:
         payment_numbers_by_check.setdefault(_check_of(payment), set()).add(
@@ -122,7 +170,7 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
         paid = money(p.get("payment_amount"))
         listed = listing.get(vnum)
         inspection = inspections.get(pnum)
-        ref = [source_ref("Payments", p, "payment_number")]
+        ref = [source_ref(payments_role, p, "payment_number")]
         if inspection is None:
             if _check_of(p) in selected:
                 findings.append(receipt(
@@ -164,8 +212,17 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
                     "liability_date": arose, "liability_amount": owed,
                     "document": text(inspection.get("document")),
                     "period_end": period_end, "source_rows": ref}
+        recorded_in = text(inspection.get("recorded_account"))
+        if recorded_in:
+            evidence["recorded_account"] = recorded_in
         if arose <= period_end:
-            if listed is None:
+            if listed is None and recorded_in:
+                # The auditor traced the liability to another account at period
+                # end (taxes, accrued expenses): it was recorded, outside the
+                # payables listing. The account is the auditor's finding, taken
+                # as recorded; it is not re-proved here.
+                outcomes["recorded_outside_payables"] += 1
+            elif listed is None:
                 outcomes["unrecorded"] += 1
                 net -= owed
                 findings.append(receipt(
@@ -213,6 +270,7 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
              "inspected_checks": sorted(inspected_checks),
              "outcomes": outcomes, "net_misstatement": net,
              "listed_vouchers": len(listing),
+             "listing_from": listing_role, "payments_from": payments_role,
              "exceptions": len(findings)}
     return findings, stats
 
