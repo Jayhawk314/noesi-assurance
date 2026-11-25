@@ -149,6 +149,11 @@ def going_concern_indicators(tables: dict, policies: dict):
 # sentence makes the representation. Wording is matched only to *suggest* a
 # code (every group of words present), never to accept one, because a
 # sentence can name a representation and deny it (re-review RR1).
+# AU-C 580.25: these (paragraphs .10-.11) not provided means a disclaimer or
+# withdrawal; any other is a judgment (AU-C 580, 705).
+BASIC_REPRESENTATIONS = frozenset({"fs_responsibility", "all_information",
+                                   "all_transactions_recorded"})
+
 REQUIRED_REPRESENTATIONS: dict[str, tuple[tuple[str, ...], ...]] = {
     "fs_responsibility": (("responsib",), ("financial statements",)),
     "internal_control": (("responsib",), ("internal control",)),
@@ -238,13 +243,18 @@ def representation_letter(tables: dict, policies: dict):
             state = f"recorded both obtained and {sorted(set(seen) - {'obtained'})}"
         else:
             state = f"marked {sorted(set(seen))}, not obtained"
+        basic = code in BASIC_REPRESENTATIONS
+        effect = ("AU-C 580.25 requires a disclaimer or withdrawal when this one is not "
+                  "provided" if basic else
+                  "discuss it with management, re-evaluate management's integrity, and "
+                  "decide the effect on the opinion (AU-C 580, 705)")
         findings.append(receipt(
             pid, (code, "not_obtained"), "CLASH",
             f"required representation {code.replace('_', ' ')} is {state} — a scope "
-            "limitation; AU-C 580 requires a disclaimer or withdrawal when required "
-            "representations are not provided",
+            f"limitation; {effect}",
             {"finding_class": "PROVED_EXCEPTION", "cycle": "completion",
              "representation": code, "status": seen or "missing",
+             "requires_disclaimer": basic,
              "uncoded_candidates": suggestions.get(code, [])}))
     dates = sorted({d for d in (day(r.get("dated")) for r in rows) if d})
     if not dates:

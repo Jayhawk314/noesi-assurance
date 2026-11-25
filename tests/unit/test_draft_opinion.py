@@ -43,12 +43,41 @@ def test_misstatements_above_materiality_leave_pervasiveness_to_the_partner():
     assert out["status"] == "not_ready"          # a decision is still open
 
 
-def test_missing_representations_point_to_a_disclaimer():
+def test_a_missing_basic_representation_requires_a_disclaimer():
+    """AU-C 580.25: responsibility for the statements, all information, all
+    transactions recorded (paragraphs .10-.11)."""
+    for code in ("fs_responsibility", "all_information", "all_transactions_recorded"):
+        rep = finding("completion.representation_letter", [code, "not_obtained"], "CLASH")
+        out = opinion([rep], run=summary("-100"))
+        assert out["proposed_opinion"] == "disclaimer" and out["opinion"] == "disclaimer"
+        assert out["missing_basic_representations"] == [code]
+
+
+def test_another_missing_representation_is_the_partners_judgment():
+    """A refused related-party representation is not an automatic disclaimer:
+    the partner re-evaluates integrity and decides the effect (AU-C 580, 705)."""
     rep = finding("completion.representation_letter", ["related_parties", "not_obtained"],
                   "CLASH")
     out = opinion([rep], run=summary("-100"))
-    assert out["proposed_opinion"] == "disclaimer"
+    assert out["proposed_opinion"] == "qualified_or_disclaimer"
     assert out["missing_representations"] == ["related_parties"]
+    assert out["missing_basic_representations"] == []
+    assert [d["decision"] for d in out["decisions_required"]] == ["effect_of_refused_representation"]
+    assert out["opinion"] is None
+    for answer, expected in (("not_pervasive", "qualified"), ("pervasive", "disclaimer"),
+                             ("integrity_in_doubt", "disclaimer")):
+        decided = draft_opinion(readiness=READY, sad=SAD, findings=[rep],
+                                misstatement_run=summary("-100"), materiality=15000,
+                                completion={},
+                                recorded={"effect_of_refused_representation": {"answer": answer}})
+        assert decided["opinion"] == expected, answer
+
+
+def test_the_basic_set_matches_the_representation_procedure():
+    from assurance_domain.opinion import BASIC_REPRESENTATIONS as in_opinion
+    from procedures_cycles.completion import BASIC_REPRESENTATIONS as in_procedure
+    from procedures_cycles.completion import REQUIRED_REPRESENTATIONS
+    assert in_opinion == in_procedure and in_opinion <= set(REQUIRED_REPRESENTATIONS)
 
 
 def test_an_open_scope_limitation_is_not_ignored_but_a_resolved_one_is():

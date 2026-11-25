@@ -2,7 +2,7 @@
 
 *Written by `finish_line_check.py` (ROADMAP step 0). It seeds the Workbench demo through the real service path, as `--demo` does, and compares each Learn module with `answer_key*.json`. Do not edit by hand; re-run the script.*
 
-**174 match, 0 differ, 2 not in Noesi** (37 procedures run).
+**175 match, 0 differ, 2 not in Noesi** (37 procedures run).
 
 | # | Module | Match | Differ | Not in Noesi |
 |---|---|---|---|---|
@@ -18,7 +18,7 @@
 | 10 | Debt, equity, accruals | 13 | 0 | 0 |
 | 11 | Estimates and related parties | 5 | 0 | 0 |
 | 12 | Completion | 32 | 0 | 1 |
-| 13 | The opinion | 5 | 0 | 0 |
+| 13 | The opinion | 6 | 0 | 0 |
 
 ## 1. Engagement setup
 
@@ -74,4 +74,4 @@ Matches: subsequent-event lead: JE 1071 settlement 30000.00; subsequent-event le
 
 ## 13. The opinion
 
-Matches: proposed opinion; basis: related-parties representation not provided; basis: misstatements above materiality on current assets; decision: going-concern conclusion (incl. covenant breach); decision: re-date the representation letter.
+Matches: proposed opinion; basis: related-parties representation not provided; basis: misstatements above materiality on current assets; decision: going-concern conclusion (incl. covenant breach); decision: re-date the representation letter; decision: effect of the refused representation.

@@ -48,8 +48,11 @@ def test_kestrel_demo_seeds_runs_and_is_idempotent(tmp_path):
     assert again == {"engagement_id": first["engagement_id"], "seeded": False}
     assert len(svc.list_engagements()) == 1
     opinion = svc.draft_opinion(first["engagement_id"])
-    assert opinion["proposed_opinion"] == "disclaimer"
+    # Related parties is not one of AU-C 580.25's basic representations: the
+    # partner decides its effect (changed 24 Nov 2026; it was an automatic disclaimer)
+    assert opinion["proposed_opinion"] == "qualified_adverse_or_disclaimer"
     assert opinion["missing_representations"] == ["related_parties"]
+    assert "effect_of_refused_representation" in {d["decision"] for d in opinion["decisions_required"]}
     # The raw exports a built schedule was made from are marked as its
     # inputs, so "map all" leaves them out (2 Oct 2026); nothing else is.
     marked = {a["original_name"]: a["built_into"]

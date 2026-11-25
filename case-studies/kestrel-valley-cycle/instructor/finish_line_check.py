@@ -579,6 +579,11 @@ def compare(d: dict) -> Check:  # noqa: C901 — one block per module, read top 
               for i in op.get("going_concern_indicators") or []))
     c("decision: re-date the representation letter", True,
       "correct_the_representation_letter" in decisions)
+    # 24 Nov 2026: a refused related-party representation is the partner's
+    # judgment (AU-C 580.25 makes only the basic ones an automatic disclaimer)
+    c("decision: effect of the refused representation", True,
+      "effect_of_refused_representation" in decisions
+      and not (op.get("missing_basic_representations") or []))
     return c
 
 

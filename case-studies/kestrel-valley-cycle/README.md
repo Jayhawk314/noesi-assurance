@@ -249,6 +249,11 @@ Planted items:
   left by accident; the numbers the key names, 4421, 4425, 4429 and 4433,
   were kept. July's 4427, 4428, 4430 and 4432 are routine.)
 
-The expected draft opinion is a **disclaimer**: the missing representation
-takes precedence. The partner still has to decide pervasiveness and record a
-going-concern conclusion.
+The expected draft opinion is **qualified, adverse or disclaimer**, with the
+partner's decisions open. The missing related-party representation is not one
+of the basic representations whose absence forces a disclaimer (AU-C 580.25),
+so its effect is the partner's decision; so are pervasiveness and the
+going-concern conclusion. In the key's view the refusal, with the round trip
+through a related-party customer, puts management's integrity in doubt, and the
+opinion is a disclaimer. (Until 24 Nov 2026 Noesi treated any refused
+representation as an automatic disclaimer.)

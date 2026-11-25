@@ -344,13 +344,17 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
-- **Possible software bug, for James (found by the Starlight review, 24 Nov 2026): the draft opinion treats ANY
-  refused representation as requiring a disclaimer or withdrawal** (`completion.py` representation_letter, and
-  `assurance_domain/opinion.py`). AU-C 580.25 makes that automatic only for the representations of paragraphs
-  .10-.11 (responsibility for the statements, information provided, all transactions recorded; checked against the
-  AICPA text's search summary, paragraph numbers to be read in the text). Others (for example related parties) call for
-  re-evaluating management's integrity and the effect on the opinion (AU-C 580, 705). Not changed: Kestrel's lessons,
-  key and `test_kestrel_demo.py` rely on the current rule (Kestrel's refused representation is related parties).
+- **Fixed 24 Nov 2026 (James: "fix everything first"): refused representations.** The draft opinion had treated
+  any refused representation as an automatic disclaimer. Now only the basic ones of AU-C 580.25 (paragraphs .10-.11:
+  responsibility for the statements, all information provided, all transactions recorded) force a disclaimer; any
+  other (for example related parties) adds the partner decision `effect_of_refused_representation` (not pervasive:
+  qualified; pervasive or integrity in doubt: disclaimer). Paragraph numbers from the AICPA text via a search summary;
+  read them in the text. Kestrel: the draft now proposes qualified, adverse or disclaimer; the key's view (integrity
+  in doubt, given the related-party round trip) is still a disclaimer. Key part 3, finish line (175 of 177), Learn
+  lessons and key, standalone learn.html, manual chapter 7, Code Atlas and README updated; 610 tests.
+  **Not done (videos paused, voice credits need James):** Kestrel video m13 says "the draft opinion on Kestrel ... is
+  a disclaimer" (`komposos-labs-videos/noesi_learn_videos/kestrel/m13/SCRIPT.md`, FACTS K1). The draft now proposes
+  three options and the partner's decision leads to the disclaimer: the narration needs one line changed and re-voiced.
 - **Candidate (Starlight, 24 Nov 2026):** `ap.unrecorded_liabilities_search` reads the Payments role as the payments
   after year end, so an engagement that loads the year's own payments (for the duplicate, sequence and approval tests)
   cannot also run the search. A separate role for subsequent payments would let one engagement do both. Not built.

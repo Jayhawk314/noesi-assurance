@@ -85,9 +85,12 @@ restore before relying on it.
 1. Review the adjusted trial balance, the final misstatement schedule, the
    July transaction leads, going-concern indicators, and the representation
    letter, through their procedures' results.
-2. Read the draft opinion as a proposal. The missing representation drives
-   its current direction, while pervasiveness and the going-concern conclusion
-   remain explicit partner decisions. Do not resolve either by editing the
+2. Read the draft opinion as a proposal. The missing related-party
+   representation is not one of the basic representations whose absence forces
+   a disclaimer (AU-C 580.25), so its effect is a partner decision, like
+   pervasiveness and the going-concern conclusion. With a round trip through a
+   related-party customer on the books, the key records "integrity in doubt",
+   and the opinion is then a disclaimer. Do not resolve either by editing the
    case data to make the screen green.
 3. Clear or follow up every finding, run every selected procedure,
    record the partner decisions, and watch readiness explain what remains.

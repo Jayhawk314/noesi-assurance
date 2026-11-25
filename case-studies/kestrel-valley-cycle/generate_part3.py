@@ -223,11 +223,14 @@ def going_concern(key):
 
 def expected_opinion(key):
     key["draft_opinion"] = {
-        "proposal": "disclaimer",
-        "why": "the related-parties representation is not provided (AU-C 580), "
-               "which takes precedence over the uncorrected misstatements above "
-               "materiality",
-        "also": ["uncorrected misstatements exceed materiality on "
+        # Changed 24 Nov 2026: a refused related-party representation is the
+        # partner's judgment, not an automatic disclaimer (AU-C 580.25 limits that
+        # to the basic representations of paragraphs .10-.11).
+        "proposal": "qualified_adverse_or_disclaimer",
+        "why": "the related-parties representation is not provided. It is not one of the basic representations whose absence requires a disclaimer (AU-C 580.25), so the partner re-evaluates management's integrity and decides its effect (AU-C 580, 705); the uncorrected misstatements above materiality are a second cause of modification",
+        "key_view": "in the key's view the refusal, with a round trip through a related-party customer on the books (part 1), puts management's integrity in doubt: the partner records 'integrity in doubt' and the opinion is a disclaimer",
+        "also": ["decision: the effect of the refused representation (AU-C 580, 705)",
+                 "uncorrected misstatements exceed materiality on "
                  f"{key['final_misstatements']['largest_line']} "
                  f"({key['final_misstatements']['largest']})",
                  "going-concern conclusion must be recorded (indicators present)",

@@ -6,7 +6,12 @@ standards point to; every judgment it cannot make (whether an effect is
 pervasive, whether substantial doubt exists) is returned as a decision the
 partner must record. The proposal follows the standards' ladder:
 
-- required written representations not provided -> disclaimer (AU-C 580);
+- a representation of AU-C 580.10-.11 not provided (management's responsibility
+  for the statements, all information provided, all transactions recorded)
+  -> disclaimer (AU-C 580.25);
+- any other requested representation not provided -> the partner re-evaluates
+  management's integrity and decides its effect (AU-C 580, 705): qualified,
+  or a disclaimer if pervasive or if management's integrity is in doubt;
 - a scope limitation still open -> qualified or disclaimer (AU-C 705),
   pervasiveness judged by the partner;
 - uncorrected misstatements above materiality -> qualified or adverse
@@ -27,6 +32,13 @@ from __future__ import annotations
 from decimal import Decimal
 
 _OPEN = ("undisposed", "follow_up")
+
+# The representations whose absence requires a disclaimer or withdrawal
+# (AU-C 580.25, which names those of paragraphs .10-.11). Kept here, not
+# imported, because this package imports no procedure code; a test holds it
+# equal to the representation-letter procedure's set.
+BASIC_REPRESENTATIONS = frozenset({"fs_responsibility", "all_information",
+                                   "all_transactions_recorded"})
 
 # How an internal code reads in the opinion's sentences. The structured
 # fields (missing_representations, going_concern_indicators, largest_line,
@@ -68,6 +80,8 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     # corrected before the report is dated (Kestrel parts 2-3, C1).
     missing_reps = sorted({str(f["verdict"]["key"][1]) for f in reps
                            if str(f["verdict"]["key"][-1]) == "not_obtained"})
+    basic_missing = [r for r in missing_reps if r in BASIC_REPRESENTATIONS]
+    other_missing = [r for r in missing_reps if r not in BASIC_REPRESENTATIONS]
     letter_issues = sorted({str(f["verdict"]["key"][-1]) for f in reps
                             if str(f["verdict"]["key"][1]) == "letter"})
     if letter_issues:
@@ -126,6 +140,16 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
 
     # --- the proposal: every cause of modification is evaluated, none hides
     # another (final review F2); missing representations still lead.
+    if other_missing and not basic_missing:
+        reasons.append(f"requested written representations not provided: "
+                       f"{', '.join(_say(r) for r in other_missing)}: discuss them with "
+                       "management, re-evaluate its integrity, and decide the effect on "
+                       "the opinion (AU-C 580, 705)")
+        if not answer("effect_of_refused_representation"):
+            decisions.append({"decision": "effect_of_refused_representation",
+                              "why": "qualified if the possible effects are material but "
+                                     "not pervasive; a disclaimer if pervasive, or if "
+                                     "management's integrity is in doubt (AU-C 580, 705)"})
     if refusals:
         reasons.append(f"{len(refusals)} scope limitation(s) still open: work the "
                        "engine could not perform on the evidence given")
@@ -146,14 +170,15 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                               "why": "qualified if material but not pervasive, adverse "
                                      "if pervasive (AU-C 705)"})
     modified = material or gc_undisclosed
-    if missing_reps:
+    scope = bool(refusals) or bool(other_missing)
+    if basic_missing:
         proposal = "disclaimer"
         reasons.insert(0, f"required written representations not provided: "
-                          f"{', '.join(_say(r) for r in missing_reps)} (AU-C 580 requires a disclaimer "
-                          "or withdrawal)")
-    elif refusals and modified:
+                          f"{', '.join(_say(r) for r in basic_missing)} (AU-C 580.25 requires a "
+                          "disclaimer or withdrawal)")
+    elif scope and modified:
         proposal = "qualified_adverse_or_disclaimer"
-    elif refusals:
+    elif scope:
         proposal = "qualified_or_disclaimer"
     elif modified:
         proposal = "qualified_or_adverse"
@@ -171,14 +196,17 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     pending_judgment = any(d["decision"] != "correct_the_representation_letter"
                            for d in decisions)
     opinion = None
-    if missing_reps:
+    if basic_missing:
         opinion = "disclaimer"
     elif not pending_judgment:
-        if refusals and answer("pervasiveness_of_scope_limitation") == "pervasive":
+        if other_missing and answer("effect_of_refused_representation") in (
+                "pervasive", "integrity_in_doubt"):
+            opinion = "disclaimer"
+        elif refusals and answer("pervasiveness_of_scope_limitation") == "pervasive":
             opinion = "disclaimer"
         elif modified and answer("pervasiveness_of_misstatement") == "pervasive":
             opinion = "adverse"
-        elif refusals or modified:
+        elif scope or modified:
             opinion = "qualified"
         else:
             opinion = "unmodified"
@@ -199,6 +227,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
         "materiality": str(m),
         "open_scope_limitations": len(refusals),
         "missing_representations": missing_reps,
+        "missing_basic_representations": basic_missing,
         "going_concern_indicators": indicators,
         "note": "A draft for the engagement partner. The opinion, and every "
                 "judgment listed under the decisions to record, is the partner's.",
@@ -207,6 +236,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
 
 # The judgments a partner records, and the answers each accepts.
 DECISION_ANSWERS: dict[str, tuple[str, ...]] = {
+    "effect_of_refused_representation": ("not_pervasive", "pervasive", "integrity_in_doubt"),
     "pervasiveness_of_scope_limitation": ("not_pervasive", "pervasive"),
     "pervasiveness_of_misstatement": ("not_pervasive", "pervasive"),
     "going_concern_conclusion": ("no_substantial_doubt", "substantial_doubt_disclosed",

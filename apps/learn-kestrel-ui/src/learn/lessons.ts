@@ -1385,7 +1385,7 @@ export const LESSONS: Lesson[] = [
     minutes: 30,
     objectives: [
       "Tell a misstatement from a scope limitation, and material from pervasive",
-      "Explain why a missing representation can outweigh a known misstatement",
+      "Explain when a missing representation forces a disclaimer, and when it is the partner's judgment",
       "List the decisions a partner records before the opinion",
     ],
     sections: [
@@ -1402,7 +1402,8 @@ export const LESSONS: Lesson[] = [
       {
         heading: "When the evidence itself is in doubt",
         blocks: [
-          { p: "Written representations underpin evidence throughout the audit. If management will not give one the auditor asked for, the auditor considers what it does to the rest: can management's other statements be relied on at all? When that doubt runs through the statements, the auditor may be unable to form an opinion." },
+          { p: "Written representations underpin evidence throughout the audit. If management will not confirm its basic responsibilities (for the financial statements, for giving the auditor all information, and that all transactions are recorded), the auditor **must** disclaim an opinion or withdraw (AU-C 580)." },
+          { p: "For any other representation the auditor asked for, such as related parties, the refusal is a judgment: discuss it with management, re-evaluate management's integrity, and decide what it does to the rest. Can management's other statements be relied on at all? When that doubt runs through the statements, the auditor may be unable to form an opinion (AU-C 580, 705)." },
           { watch: "A disclaimer is not a stronger adverse opinion. It says the auditor cannot say, and why." },
         ],
       },
@@ -1410,7 +1411,7 @@ export const LESSONS: Lesson[] = [
         heading: "Decisions before the report",
         blocks: [
           { p: "Some conclusions are the partner's alone and are recorded before any opinion: the going-concern conclusion when indicators are present, what to do about a representation letter that is incomplete or wrongly dated, and whether uncorrected misstatements are material." },
-          { kestrel: "At Kestrel the completion work leaves three things on the partner's desk: a missing representation, uncorrected misstatements on one statement line at materiality, and going-concern indicators including the breached covenant." },
+          { kestrel: "At Kestrel the completion work leaves the partner four decisions: the effect of the missing related-party representation, the uncorrected misstatements on one statement line at materiality, the going-concern indicators including the breached covenant, and the letter's date. With a round trip through a related-party customer already on the books, the key's view is that the refusal puts management's integrity in doubt, and the opinion is a disclaimer." },
         ],
       },
     ],
@@ -1425,6 +1426,10 @@ export const LESSONS: Lesson[] = [
         options: ["Unmodified", "Qualified", "Disclaimer", "Adverse, always"],
         answer: 1,
         why: "Material but not pervasive misstatement gives a qualified opinion. Adverse needs pervasiveness." },
+      { q: "Management signs every representation except that all related parties were disclosed. What follows?",
+        options: ["An automatic disclaimer", "The partner re-evaluates management's integrity and decides the effect: qualified, or a disclaimer if pervasive or integrity is in doubt", "Nothing: it is one line of many", "An adverse opinion"],
+        answer: 1,
+        why: "Only the basic representations force a disclaimer or withdrawal (AU-C 580). Any other refusal is a judgment about integrity and its effect (AU-C 580, 705)." },
       { q: "Why record the partner's going-concern conclusion before the opinion?",
         options: ["It is optional", "The opinion and its wording depend on it; it is a judgment the tool cannot make", "The lender asks for it", "To date the report"],
         answer: 1,
@@ -1441,6 +1446,7 @@ export const LESSONS: Lesson[] = [
       asks: [
         { label: "Proposed opinion", row: "proposed opinion" },
         { label: "What governs it", row: "basis: related-parties representation not provided", key: "part3.draft_opinion.why" },
+        { label: "Partner decision: the refused representation", row: "decision: effect of the refused representation" },
         { label: "Partner decision: going concern", row: "decision: going-concern conclusion (incl. covenant breach)" },
         { label: "Partner decision: the letter", row: "decision: re-date the representation letter" },
       ],
