@@ -60,6 +60,8 @@ does not sign, approve, or decide: one user per engagement, and the judgments st
 | Check sequence | Gaps and reused numbers per bank account | `forensic.py` |
 | Vendor ↔ employee | Bank account, phone (last seven digits), tax ID, full name; and it says which fields couldn't be compared | `forensic.py` |
 | Money out and back | Directed graph of payments; cycles back to the client with amounts within a tolerance and dates within a window; known legitimate flows (reversals, intercompany) set aside | `procedures_ap/structural.py` |
+| Supplier statements | Each line of a supplier's statement matched to vouchers by the supplier's invoice number and to payments by check number; invoices the books lack, amounts that differ, bills and payments the supplier does not show; balance reconciled, payments in the mail allowed for a set number of days | `procedures_cycles/payables.py` |
+| Bank confirmations | Each balance the bank confirmed against the reconciliation's bank balance; accounts unconfirmed, accounts the books do not show, obligations the bank reports | `procedures_cycles/cash.py` |
 | Cash kept under the reporting line | One day's cash deposits, each at or under the reporting threshold, that add up to more than it (the bank adds branches together, 31 CFR 1010.313); a pile-up just under the threshold against the band of the same width below it | `procedures_cycles/cash.py` |
 
 ## 4. What makes it different

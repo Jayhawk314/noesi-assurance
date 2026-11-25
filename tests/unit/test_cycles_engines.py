@@ -25,7 +25,7 @@ def test_scope_filters_contracts():
     assert contracts_for_scope(None) == ()
     ids = {c.procedure_id for c in contracts_for_scope(["cash", "nonsense"])}
     assert ids == {"cash.bank_reconciliation", "cash.interbank_transfers",
-                   "cash.deposit_structuring"}
+                   "cash.deposit_structuring", "cash.bank_confirmation"}
 
 
 TB = [

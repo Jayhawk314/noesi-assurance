@@ -344,12 +344,13 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+- **Second Starlight review, 24 Nov 2026:** bank confirmations refuse missing/unreadable account, balance or date; zero remains a valid balance. Internal-control responsibility is a basic representation under AU-C 580.10(b). A fixed disclaimer keeps every basis reason but needs no further modification judgments. Work refusals remain visible; the auditor can record `not_material` when their possible effects do not justify modifying the opinion. Supplier references prefer the whole reference, using digits only as a fallback and refusing an ambiguous match only when used. Regression tests use invented data.
 - **Fixed 24 Nov 2026 (James: "fix everything first"): refused representations.** The draft opinion had treated
   any refused representation as an automatic disclaimer. Now only the basic ones of AU-C 580.25 (paragraphs .10-.11:
-  responsibility for the statements, all information provided, all transactions recorded) force a disclaimer; any
+  responsibility for the statements and internal control, all information provided, all transactions recorded) force a disclaimer; any
   other (for example related parties) adds the partner decision `effect_of_refused_representation` (not pervasive:
-  qualified; pervasive or integrity in doubt: disclaimer). Paragraph numbers from the AICPA text via a search summary;
-  read them in the text. Kestrel: the draft now proposes qualified, adverse or disclaimer; the key's view (integrity
+  qualified; pervasive or integrity in doubt: disclaimer). AU-C 580.10(b) includes internal-control responsibility, verified against the AICPA published standard on 24 Nov 2026.
+  Source: https://downloads.ctfassets.net/rb9cdnjh59cm/6SZYDorUSdWM3sjctjPnOL/d2cb13701145f8699624298a1b875c8a/ps-au-c-sections.pdf Kestrel: the draft now proposes qualified, adverse or disclaimer; the key's view (integrity
   in doubt, given the related-party round trip) is still a disclaimer. Key part 3, finish line (175 of 177), Learn
   lessons and key, standalone learn.html, manual chapter 7, Code Atlas and README updated; 610 tests.
   **Not done (videos paused, voice credits need James):** Kestrel video m13 says "the draft opinion on Kestrel ... is
@@ -371,9 +372,9 @@ scripts first, James approves scripts and credits before voicing.
   than the master's; (3) a new cash test, `cash.deposit_structuring` (role *Deposits*,
   policy `structuring_threshold`, optional `structuring_band_pct`; off until chosen): one
   day's cash deposits under the line that add up to more than it, and a pile-up just under
-  the line. Tests 605 pass; Kestrel finish line unchanged at 174/176. **Not built, still
-  candidates:** vendor statement reconciliation (a supplier's statement against the
-  vouchers), and bank confirmations (the `Confirmations` role is receivables only; 8.8).
+  the line. Tests 605 pass; Kestrel finish line unchanged at 174/176. **Built later the same day:**
+  `ap.vendor_statement_reconciliation` (role *Vendor statements*) and `cash.bank_confirmation` (role *Bank
+  confirmations*; 8.8's cash half), both off until chosen so existing engagements are unchanged.
 - **Team roles, review and sign-off (James, 4 Oct 2026): maybe one day.** Noesi has one user per
   engagement and no preparer/reviewer/partner roles, review steps or sign-offs (decided 2 Oct: a
   supplement, not audit software; see THE-REAL-GOAL.md). If Noesi grows toward full audit software,

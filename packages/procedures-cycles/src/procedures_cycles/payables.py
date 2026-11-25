@@ -215,3 +215,243 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
              "listed_vouchers": len(listing),
              "exceptions": len(findings)}
     return findings, stats
+
+
+# --------------------------------------------------------------------------- supplier statements (2026-11-24)
+def _norm(value) -> str:
+    return " ".join("".join(c if c.isalnum() else " " for c in text(value).lower()).split())
+
+
+def _ref_keys(value) -> list[str]:
+    """How a reference is matched: the whole reference, then its digits alone
+    ("INV 1001" = "1001"; "Check #10" = check 10). Never one word of it."""
+    whole = _norm(value).replace(" ", "")
+    digits = "".join(c for c in text(value) if c.isdigit()).lstrip("0")
+    return [k for k in dict.fromkeys([whole, digits]) if k]
+
+
+_FORWARD = ("balance forward", "opening balance", "brought forward", "previous balance")
+
+
+def vendor_statement_reconciliation(tables: dict, policies: dict):
+    """Reconcile each supplier's statement of account with the books.
+
+    The statement is the supplier's own record, so it can show what the books
+    leave out: an invoice the client never recorded (a possible unrecorded
+    liability when dated by period end), an amount that differs, a payment the
+    supplier never received. Lines are matched to vouchers by the supplier's
+    invoice number and to payments by check or payment number, on the whole
+    reference or its digits. The vendor is identified by its number or by a name
+    that belongs to one vendor only.
+
+    The statement may open with a balance forward; the books are compared from
+    the statement's first dated line, with everything earlier as the books'
+    opening balance. A payment the supplier has not yet credited is "in transit"
+    within ``statement_transit_days`` of the statement date (7 when left empty),
+    and a lead after that. Whatever the listed items do not explain is reported.
+    """
+    pid = "ap.vendor_statement_reconciliation"
+    period_end = policy_date(policies, "period_end")
+    raw_days = policies.get("statement_transit_days")
+    transit_days = int(dec(raw_days)) if raw_days not in (None, "") else 7
+    names: dict[str, set[str]] = {}
+    numbers: set[str] = set()
+    for v in records(tables, "Vendors"):
+        numbers.add(key_text(v.get("vendor_number")))
+        if text(v.get("vendor_name")):
+            names.setdefault(_norm(v.get("vendor_name")), set()).add(key_text(v.get("vendor_number")))
+    vouchers, payments = records(tables, "Vouchers"), records(tables, "Payments")
+    numbers |= {key_text(r.get("vendor_number")) for r in vouchers + payments}
+    findings, per_vendor = [], {}
+    statements: dict[str, list[dict]] = {}
+    for row in records(tables, "Vendor_statements"):
+        raw = row.get("vendor")
+        src = [source_ref("Vendor_statements", row, "reference")]
+        if key_text(raw) in numbers:
+            statements.setdefault(key_text(raw), []).append(row)
+            continue
+        hits = names.get(_norm(raw), set())
+        if len(hits) == 1:
+            statements.setdefault(next(iter(hits)), []).append(row)
+            continue
+        why = (f"belongs to {len(hits)} vendors ({', '.join(sorted(hits))})" if hits
+               else "matches no vendor number or name")
+        findings.append(receipt(pid, (key_text(raw) or "blank", "vendor_not_identified"), "AMBIGUOUS",
+                                f"statement line for {text(raw)!r}: the vendor {why}; map it to one vendor",
+                                {"finding_class": "REFUSAL", "cycle": "payables", "source_rows": src}))
+    for vnum, lines in sorted(statements.items()):
+        as_of = max((d for d in (day(r.get("statement_date")) for r in lines) if d), default=period_end)
+        kinds = {id(r): _norm(r.get("item_type")) for r in lines}
+        forward = [r for r in lines if any(f in kinds[id(r)] for f in _FORWARD)]
+        items = [r for r in lines if r not in forward]
+        first = min((d for d in (day(r.get("item_date")) for r in items) if d), default=None)
+
+        def lead(key, verdict, reason, evidence, amount=None, cls="CONJECTURE"):
+            findings.append(receipt(pid, (vnum, *key), verdict, reason,
+                                    {"finding_class": cls, "cycle": "payables", "vendor": vnum,
+                                     "statement_date": as_of, **evidence}, amount))
+
+        def in_scope(d):
+            return d is None or d <= as_of
+
+        def before_first(d):
+            return first is not None and d is not None and d < first
+
+        v_all = [v for v in vouchers if key_text(v.get("vendor_number")) == vnum and in_scope(day(v.get("voucher_date")))]
+        p_all = [p for p in payments if key_text(p.get("vendor_number")) == vnum and in_scope(day(p.get("payment_date")))]
+        v_open = [v for v in v_all if before_first(day(v.get("voucher_date")))]
+        p_open = [p for p in p_all if before_first(day(p.get("payment_date")))]
+        v_rows = [v for v in v_all if v not in v_open]
+        p_rows = [p for p in p_all if p not in p_open]
+        books_opening = (sum((money(v.get("voucher_amount")) for v in v_open), ZERO)
+                         - sum((money(p.get("payment_amount")) for p in p_open), ZERO))
+        stmt_opening = sum((money(r.get("amount")) for r in forward), ZERO)
+        explained = ZERO
+        if (forward or books_opening) and stmt_opening != books_opening:
+            explained += stmt_opening - books_opening
+            lead(("opening", "opening_balance_differs"), "CLASH",
+                 f"vendor {vnum}: the statement opens at {stmt_opening} ("
+                 + ("balance forward" if forward else "no balance forward line")
+                 + f"); the books carry {books_opening} before {first}",
+                 {"statement_opening": stmt_opening, "books_opening": books_opening},
+                 stmt_opening - books_opening, cls="PROVED_EXCEPTION")
+
+        def index(rows, fields):
+            whole, digits = {}, {}
+            for row in rows:
+                for field in fields:
+                    value = row.get(field)
+                    full = _norm(value).replace(" ", "")
+                    number = "".join(c for c in text(value) if c.isdigit()).lstrip("0")
+                    for mapping, alias in ((whole, full), (digits, number)):
+                        if alias:
+                            mapping.setdefault(alias, {})[id(row)] = row
+            return whole, digits
+
+        def match(indexed, reference, table, src):
+            whole, digits = indexed
+            full = _norm(reference).replace(" ", "")
+            number = "".join(c for c in text(reference) if c.isdigit()).lstrip("0")
+            # An exact reference wins. Numeric aliases are a fallback only;
+            # unused collisions between aliases are not duplicate records.
+            hits = whole.get(full) or digits.get(number) or {}
+            if len(hits) > 1:
+                lead((full, f"duplicate_{table.lower()}_reference"), "AMBIGUOUS",
+                     f"vendor {vnum}: more than one {table.lower()} record answers to reference {reference!r}; the match is refused",
+                     {"source_rows": src + [source_ref(table, row, "voucher_number" if table == "Vouchers" else "payment_number") for row in hits.values()]}, cls="REFUSAL")
+                return None, True
+            return next(iter(hits.values()), None), False
+
+        book_inv = index(v_rows, ("invoice_number", "voucher_number"))
+        book_pay = index(p_rows, ("check_number", "payment_number"))
+        seen_inv, seen_pay, stmt_refs = set(), set(), {}
+        stmt_balance = stmt_opening
+        for r in items:
+            amount = money(r.get("amount"))
+            stmt_balance += amount
+            kind = kinds[id(r)]
+            keys = _ref_keys(r.get("reference"))
+            ref = text(r.get("reference"))
+            src = [source_ref("Vendor_statements", r, "reference")]
+            is_credit = "credit" in kind
+            is_payment = not is_credit and ("pay" in kind or "receipt" in kind or "received" in kind
+                                            or (not kind and amount < 0))
+            if (is_payment or is_credit) and amount > 0 or not (is_payment or is_credit) and amount < 0:
+                explained += amount
+                lead((keys[0] if keys else "blank", "sign_does_not_fit_type"), "AMBIGUOUS",
+                     f"vendor {vnum}: line {ref!r} ({text(r.get('item_type')) or 'no type'}) carries {amount}, "
+                     "the wrong sign for its type; not matched", {"source_rows": src}, cls="REFUSAL")
+                continue
+            if is_payment:
+                hit, ambiguous = match(book_pay, ref, "Payments", src)
+                if ambiguous:
+                    continue
+                if hit is None:
+                    explained += amount
+                    lead((keys[0] if keys else "blank", "payment_not_in_books"), "ORPHAN",
+                         f"vendor {vnum}: the statement credits a payment {ref!r} of {-amount} that the books "
+                         "do not show", {"source_rows": src}, -amount, cls="EXPECTED_BUT_MISSING")
+                    continue
+                seen_pay.add(id(hit))
+                paid = money(hit.get("payment_amount"))
+                if paid != -amount:
+                    explained += amount + paid
+                    lead((keys[0], "payment_amount_differs"), "CLASH",
+                         f"vendor {vnum}: payment {ref!r} is {paid} in the books; the supplier credited {-amount}",
+                         {"source_rows": src}, amount + paid, cls="PROVED_EXCEPTION")
+                continue
+            k0 = keys[0] if keys else "blank"
+            if k0 in stmt_refs:
+                explained += amount
+                lead((k0, "billed_twice_on_statement"), "CLASH",
+                     f"vendor {vnum}: the statement bills {ref!r} twice", {"source_rows": src}, amount,
+                     cls="PROVED_EXCEPTION")
+                continue
+            stmt_refs[k0] = r
+            hit, ambiguous = match(book_inv, ref, "Vouchers", src)
+            if ambiguous:
+                continue
+            if hit is None:
+                explained += amount
+                if is_credit:
+                    lead((k0, "credit_not_in_books"), "TENSION",
+                         f"vendor {vnum}: the statement gives a credit {ref!r} of {-amount}; no matching credit is recorded in the books: a credit memo the client has not booked?",
+                         {"source_rows": src}, -amount)
+                    continue
+                item_day = day(r.get("item_date"))
+                by_pe = item_day is not None and item_day <= period_end
+                lead((k0, "invoice_not_in_books"), "TENSION",
+                     f"vendor {vnum}: the statement bills {ref!r} for {amount} ({item_day}); the books show no "
+                     "such bill"
+                     + (": a possible unrecorded liability at period end (or a bill under another vendor or "
+                        "number)" if by_pe else ", dated after period end"),
+                     {"source_rows": src, "item_date": item_day, "by_period_end": by_pe}, amount)
+                continue
+            seen_inv.add(id(hit))
+            if money(hit.get("voucher_amount")) != amount:
+                diff = amount - money(hit.get("voucher_amount"))
+                explained += diff
+                lead((k0, "amount_differs"), "CLASH",
+                     f"vendor {vnum}: {ref!r} is {amount} on the statement and {money(hit.get('voucher_amount'))} "
+                     "in the books", {"source_rows": src}, diff, cls="PROVED_EXCEPTION")
+        for v in v_rows:
+            if id(v) in seen_inv:
+                continue
+            explained -= money(v.get("voucher_amount"))
+            name = text(v.get("invoice_number") or v.get("voucher_number"))
+            lead((_ref_keys(name)[0] if _ref_keys(name) else "blank", "bill_not_on_statement"), "TENSION",
+                 f"vendor {vnum}: bill {name} ({money(v.get('voucher_amount'))}) is in the books but not on the "
+                 "supplier's statement", {"source_rows": [source_ref("Vouchers", v, "voucher_number")]},
+                 money(v.get("voucher_amount")))
+        in_transit, stale = [], []
+        for p in p_rows:
+            if id(p) in seen_pay:
+                continue
+            paid_on = day(p.get("payment_date"))
+            amount = money(p.get("payment_amount"))
+            explained += amount                     # paid in the books, not yet credited: statement higher
+            ref = text(p.get("check_number")) or text(p.get("payment_number"))
+            if paid_on and (as_of - paid_on).days <= transit_days:
+                in_transit.append(ref)
+            else:
+                stale.append(ref)
+                lead((_ref_keys(ref)[0] if _ref_keys(ref) else "blank", "payment_not_credited"), "TENSION",
+                     f"vendor {vnum}: payment {ref} of {amount} ({paid_on}) is not credited on the statement "
+                     f"of {as_of}, more than {transit_days} days later: did the supplier receive it?",
+                     {"source_rows": [source_ref("Payments", p, "payment_number")]}, amount)
+        books_balance = books_opening + (sum((money(v.get("voucher_amount")) for v in v_rows), ZERO)
+                                         - sum((money(p.get("payment_amount")) for p in p_rows), ZERO))
+        unexplained = stmt_balance - books_balance - explained
+        per_vendor[vnum] = {"statement_date": as_of, "statement_balance": stmt_balance,
+                            "books_balance": books_balance, "statement_opening": stmt_opening,
+                            "books_opening": books_opening, "payments_in_transit": in_transit,
+                            "payments_not_credited": stale, "unexplained": unexplained}
+        if unexplained != ZERO:
+            lead(("balance", "unexplained_difference"), "CLASH",
+                 f"vendor {vnum}: statement {stmt_balance} against books {books_balance}; {unexplained} is not "
+                 "explained by the items listed", {}, unexplained, cls="PROVED_EXCEPTION")
+    stats = {"population": sum(len(v) for v in statements.values()), "vendors": len(statements),
+             "period_end": period_end, "transit_days": transit_days,
+             "transit_days_source": "default" if raw_days in (None, "") else "policy",
+             "per_vendor": per_vendor, "exceptions": len(findings)}
+    return findings, stats

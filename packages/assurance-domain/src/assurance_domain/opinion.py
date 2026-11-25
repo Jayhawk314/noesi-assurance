@@ -7,7 +7,7 @@ pervasive, whether substantial doubt exists) is returned as a decision the
 partner must record. The proposal follows the standards' ladder:
 
 - a representation of AU-C 580.10-.11 not provided (management's responsibility
-  for the statements, all information provided, all transactions recorded)
+  for the statements and internal control, all information provided, all transactions recorded)
   -> disclaimer (AU-C 580.25);
 - any other requested representation not provided -> the partner re-evaluates
   management's integrity and decides its effect (AU-C 580, 705): qualified,
@@ -37,7 +37,7 @@ _OPEN = ("undisposed", "follow_up")
 # (AU-C 580.25, which names those of paragraphs .10-.11). Kept here, not
 # imported, because this package imports no procedure code; a test holds it
 # equal to the representation-letter procedure's set.
-BASIC_REPRESENTATIONS = frozenset({"fs_responsibility", "all_information",
+BASIC_REPRESENTATIONS = frozenset({"fs_responsibility", "internal_control", "all_information",
                                    "all_transactions_recorded"})
 
 # How an internal code reads in the opinion's sentences. The structured
@@ -140,7 +140,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
 
     # --- the proposal: every cause of modification is evaluated, none hides
     # another (final review F2); missing representations still lead.
-    if other_missing and not basic_missing:
+    if other_missing:
         reasons.append(f"requested written representations not provided: "
                        f"{', '.join(_say(r) for r in other_missing)}: discuss them with "
                        "management, re-evaluate its integrity, and decide the effect on "
@@ -151,11 +151,13 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                                      "not pervasive; a disclaimer if pervasive, or if "
                                      "management's integrity is in doubt (AU-C 580, 705)"})
     if refusals:
-        reasons.append(f"{len(refusals)} scope limitation(s) still open: work the "
-                       "engine could not perform on the evidence given")
+        reasons.append(f"{len(refusals)} potential scope limitation(s) still open: work the "
+                       "engine could not perform on the evidence given; the auditor assesses the possible effects")
+        if answer("pervasiveness_of_scope_limitation") == "not_material":
+            reasons.append("the auditor assessed these work refusals as having no material possible effect")
         if not answer("pervasiveness_of_scope_limitation"):
             decisions.append({"decision": "pervasiveness_of_scope_limitation",
-                              "why": "qualified if the possible effects are material "
+                              "why": "unmodified for this cause if the possible effects are not material; qualified if material "
                                      "but not pervasive, disclaimer if pervasive "
                                      "(AU-C 705)"})
     if material or gc_undisclosed:
@@ -170,7 +172,17 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
                               "why": "qualified if material but not pervasive, adverse "
                                      "if pervasive (AU-C 705)"})
     modified = material or gc_undisclosed
-    scope = bool(refusals) or bool(other_missing)
+    scope = (bool(refusals) and answer("pervasiveness_of_scope_limitation") != "not_material") or bool(other_missing)
+    # Keep every basis reason, but a settled disclaimer needs no additional
+    # modification judgments. Letter and going-concern duties still apply.
+    fixed_disclaimer = bool(basic_missing) or (
+        bool(other_missing) and answer("effect_of_refused_representation") in
+        ("pervasive", "integrity_in_doubt")) or (
+        bool(refusals) and answer("pervasiveness_of_scope_limitation") == "pervasive")
+    if fixed_disclaimer:
+        decisions = [d for d in decisions if d["decision"] not in (
+            "effect_of_refused_representation", "pervasiveness_of_scope_limitation",
+            "pervasiveness_of_misstatement")]
     if basic_missing:
         proposal = "disclaimer"
         reasons.insert(0, f"required written representations not provided: "
@@ -185,7 +197,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     else:
         proposal = "unmodified"
         reasons.append(f"uncorrected misstatements ({largest:,.2f}) are below materiality "
-                       f"({m:,.2f}); no open scope limitation; no missing written "
+                       f"({m:,.2f}); no material scope limitation established; no missing written "
                        "representation recorded")
     if indicators and gc_concluded:
         reasons.append("going-concern conclusion recorded: "
@@ -196,7 +208,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
     pending_judgment = any(d["decision"] != "correct_the_representation_letter"
                            for d in decisions)
     opinion = None
-    if basic_missing:
+    if fixed_disclaimer:
         opinion = "disclaimer"
     elif not pending_judgment:
         if other_missing and answer("effect_of_refused_representation") in (
@@ -237,7 +249,7 @@ def draft_opinion(*, readiness: dict, sad: dict, findings: list[dict],
 # The judgments a partner records, and the answers each accepts.
 DECISION_ANSWERS: dict[str, tuple[str, ...]] = {
     "effect_of_refused_representation": ("not_pervasive", "pervasive", "integrity_in_doubt"),
-    "pervasiveness_of_scope_limitation": ("not_pervasive", "pervasive"),
+    "pervasiveness_of_scope_limitation": ("not_material", "not_pervasive", "pervasive"),
     "pervasiveness_of_misstatement": ("not_pervasive", "pervasive"),
     "going_concern_conclusion": ("no_substantial_doubt", "substantial_doubt_disclosed",
                                  "substantial_doubt_not_disclosed"),

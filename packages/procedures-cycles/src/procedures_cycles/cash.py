@@ -21,7 +21,7 @@ from decimal import Decimal
 
 from procedures_cycles.common import (
     ZERO, PolicyError, day, dec, key_text, money, policy_date, policy_decimal, receipt,
-    records, source_ref, text,
+    records, source_ref, strict_day, text,
 )
 
 ITEM_TYPES = ("bank_balance", "book_balance", "deposit_in_transit", "outstanding_check",
@@ -436,4 +436,72 @@ def deposit_structuring(tables: dict, policies: dict):
     return findings, stats
 
 
-__all__ = ["bank_reconciliation", "deposit_structuring", "interbank_transfers", "ITEM_TYPES"]
+
+
+def bank_confirmation(tables: dict, policies: dict):
+    """The bank's confirmed balances against the reconciliations' bank balances.
+
+    A confirmation the auditor sent and received directly is the strongest cash
+    evidence there is. Listed: a balance that differs; an account in the
+    reconciliations the bank did not confirm; an account the bank confirms that
+    the reconciliations do not have (an account off the books?); a confirmation
+    not as of period end; and any loan or other obligation the bank reports.
+    """
+    pid = "cash.bank_confirmation"
+    pe = policy_date(policies, "period_end")
+    findings = []
+    recs = _recs(tables)
+    book_bank = {acct: sum((money(r.get("amount")) for r in rec["items"]["bank_balance"]), ZERO)
+                 for acct, rec in recs.items() if rec["items"]["bank_balance"]}
+    confirmed: dict[str, dict] = {}
+    for c in records(tables, "Bank_confirmations"):
+        acct = key_text(c.get("account"))
+        src = [source_ref("Bank_confirmations", c, "account")]
+        base = {"cycle": "cash", "account": acct, "source_rows": src}
+        as_of = strict_day(c.get("as_of"))
+        amount = dec(c.get("confirmed_balance"))
+        invalid = (["account"] if not acct else [])
+        invalid += ["as_of"] if as_of is None else []
+        invalid += ["confirmed_balance"] if amount is None or not amount.is_finite() else []
+        if invalid:
+            findings.append(receipt(pid, (acct, "confirmation_incomplete", str(c.get("_row", ""))),
+                                    "AMBIGUOUS", f"bank confirmation: unreadable or missing {', '.join(invalid)}; not compared",
+                                    {**base, "finding_class": "REFUSAL", "invalid_fields": invalid}))
+            continue
+        if acct in confirmed:
+            findings.append(receipt(pid, (acct, "confirmed_twice"), "AMBIGUOUS",
+                                    f"account {acct} has more than one confirmation; keep one",
+                                    {**base, "finding_class": "REFUSAL"}))
+            continue
+        confirmed[acct] = c
+        if as_of != pe:
+            findings.append(receipt(pid, (acct, "not_as_of_period_end"), "CLASH",
+                                    f"account {acct}: confirmed as of {as_of or 'no date'}, not period end {pe}",
+                                    {**base, "finding_class": "PROVED_EXCEPTION", "as_of": as_of}))
+        bal = money(c.get("confirmed_balance"))
+        if acct not in book_bank:
+            findings.append(receipt(pid, (acct, "account_not_reconciled"), "TENSION",
+                                    f"the bank confirms account {acct} with {bal}, but no reconciliation has it: "
+                                    "an account the books do not show?",
+                                    {**base, "finding_class": "CONJECTURE", "confirmed_balance": bal}, bal))
+        elif bal != book_bank[acct]:
+            findings.append(receipt(pid, (acct, "balance_differs"), "CLASH",
+                                    f"account {acct}: the bank confirms {bal}; the reconciliation's bank balance "
+                                    f"is {book_bank[acct]}",
+                                    {**base, "finding_class": "PROVED_EXCEPTION", "confirmed_balance": bal,
+                                     "reconciliation_bank_balance": book_bank[acct]}, bal - book_bank[acct]))
+        other = text(c.get("loans_and_other")).strip()
+        if other and other.lower().rstrip(".") not in ("none", "no", "nil", "0", "-", "n/a", "not applicable"):
+            findings.append(receipt(pid, (acct, "obligation_reported"), "TENSION",
+                                    f"account {acct}: the bank reports {other!r}: is it recorded and disclosed?",
+                                    {**base, "finding_class": "CONJECTURE", "reported": other}))
+    for acct in sorted(set(book_bank) - set(confirmed)):
+        findings.append(receipt(pid, (acct, "not_confirmed"), "ORPHAN",
+                                f"account {acct} is reconciled but has no confirmation from the bank",
+                                {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "cash", "account": acct}))
+    stats = {"population": len(confirmed), "reconciled_accounts": len(book_bank),
+             "confirmed_accounts": len(confirmed), "period_end": pe, "exceptions": len(findings)}
+    return findings, stats
+
+
+__all__ = ["bank_confirmation", "bank_reconciliation", "deposit_structuring", "interbank_transfers", "ITEM_TYPES"]

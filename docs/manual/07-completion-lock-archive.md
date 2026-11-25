@@ -102,3 +102,5 @@ restore before relying on it.
 One caution to carry back to practice: a record that checks proves the
 *file's* consistency, not the audit's quality. A tidy record of thin work
 is still thin work — which is why every chapter before this one exists.
+
+Written representations of responsibility for the statements and internal control, all information provided, and all transactions recorded are the basic set (AU-C 580.10–.11, .25). Other missing representations require the partner's assessment. Work the engine refuses is a potential evidence gap, not an automatic material scope limitation: the auditor may record `not_material` with a reason when alternative procedures suffice. A settled disclaimer retains every basis reason without demanding further modification judgments.

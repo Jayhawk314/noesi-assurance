@@ -93,6 +93,21 @@ fraud tests):
   Policies, *Fraud tests*). A launderer who keeps 3% of each loop passes the
   default; set the tolerance to the cut you need to see, and the run records
   the setting it used.
+- **Supplier statements** (`ap.vendor_statement_reconciliation`, payables, off
+  until chosen) reads the statements of account the suppliers send the auditor
+  (role *Vendor statements*: vendor, statement date, date, type, reference,
+  amount). It lists invoices the books lack (an unrecorded liability?), amounts
+  that differ, bills the supplier does not show, credits the books do not show,
+  and payments the supplier has not credited: in the mail within
+  `statement_transit_days` (7 when left empty), a lead after that. It then
+  reconciles the balances and names anything left unexplained.
+- **Bank confirmations** (`cash.bank_confirmation`, cash, off until chosen)
+  compares each balance the bank confirmed directly to the auditor (role *Bank
+  confirmations*) with the reconciliation's bank balance, and lists accounts not
+  confirmed, accounts the bank confirms that no reconciliation has, a
+  confirmation not as of period end, and loans or other obligations the bank
+  reports. SAS No. 150 will require cash confirmations for periods ending on or
+  after December 15, 2028.
 - **Cash deposits kept under the reporting line** (`cash.deposit_structuring`,
   cash cycle, off until chosen) reads the bank's deposit detail (role
   *Deposits*: date, amount, type, branch). It lists each day whose cash

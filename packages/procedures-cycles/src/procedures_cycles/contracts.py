@@ -169,6 +169,22 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "normal approximation weak.",
     ),
     ProcedureContract(
+        "ap.vendor_statement_reconciliation", "Supplier statement reconciliation",
+        "Match each supplier's statement of account to the bills and payments, list "
+        "invoices the books lack, amounts that differ, bills and payments the supplier "
+        "does not show, and reconcile the balances.",
+        "payables", ("completeness", "existence", "accuracy"),
+        {"Vendor_statements": ("vendor", "reference", "amount"),
+         "Vouchers": ("voucher_number", "voucher_amount"),
+         "Payments": ("payment_number", "payment_amount")},
+        required_policies=("period_end",),
+        evidence_source="statements of account the suppliers sent directly to the auditor",
+        denominator_role="Vendor_statements",
+        default_selected=False,
+        limitations="Covers the suppliers whose statements were obtained; a supplier the client "
+                    "hides is not asked. A statement the client hands over can be altered.",
+    ),
+    ProcedureContract(
         "ap.unrecorded_liabilities_search", "Search for unrecorded liabilities",
         "Select subsequent disbursements, and for each inspected one test whether the "
         "liability belonged on the year-end payables listing.",
@@ -339,6 +355,21 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
         denominator_role="Transfers",
         limitations="Covers the transfers scheduled; an omitted transfer is invisible "
                     "to it.",
+    ),
+    ProcedureContract(
+        "cash.bank_confirmation", "Bank confirmations",
+        "Compare each balance the bank confirmed directly to the auditor with the "
+        "reconciliation's bank balance, and list accounts unconfirmed, accounts the "
+        "books do not show, and obligations the bank reports.",
+        "cash", ("existence", "completeness", "rights"),
+        {"Bank_confirmations": ("account", "confirmed_balance"),
+         "Bank_reconciliation": ("account", "item_type", "amount")},
+        required_policies=("period_end",),
+        evidence_source="confirmations sent and received directly by the auditor",
+        denominator_role="Bank_confirmations",
+        default_selected=False,
+        limitations="Only as good as the confirmation process: the auditor must send and receive "
+                    "them directly. Accounts at banks nobody asked are not seen.",
     ),
     ProcedureContract(
         "cash.deposit_structuring", "Cash deposits kept under the reporting line",
@@ -622,6 +653,8 @@ SCOPE_OF: dict[str, str] = {
     "cash.bank_reconciliation": "cash",
     "cash.interbank_transfers": "cash",
     "cash.deposit_structuring": "cash",
+    "cash.bank_confirmation": "cash",
+    "ap.vendor_statement_reconciliation": "payables",
     "inventory.count_listing_trace": "inventory",
     "inventory.pricing_projection": "inventory",
     "ppe.rollforward": "ppe",
@@ -650,7 +683,7 @@ OPTIONAL_POLICIES: tuple[str, ...] = (
     "ar_expected_misstatement", "ar_estimated_sd", "ar_risk_incorrect_rejection",
     "search_interval", "search_start", "search_systematic_count", "ap_control_accounts",
     "pricing_sample_value", "ar_allowance_rates",
-    "dit_max_days", "structuring_band_pct",
+    "dit_max_days", "structuring_band_pct", "statement_transit_days",
     "je_round_amount_threshold", "je_round_unit", "je_authorized_users",
     "je_seldom_used_max", "je_holidays", "je_manual_sources", "rev_credit_memo_days",
     "payroll_final_pay_days", "ppe_accumulated_depreciation_accounts",
@@ -697,7 +730,7 @@ _OPTIONAL_POLICY_SCOPES: dict[str, set[str]] = {
     "search_start": {"payables"}, "search_systematic_count": {"payables"},
     "ap_control_accounts": {"payables"},
     "pricing_sample_value": {"inventory"}, "dit_max_days": {"cash"},
-    "structuring_band_pct": {"cash"},
+    "structuring_band_pct": {"cash"}, "statement_transit_days": {"payables"},
     "je_round_amount_threshold": {"journal_entries"}, "je_round_unit": {"journal_entries"},
     "je_authorized_users": {"journal_entries"}, "je_seldom_used_max": {"journal_entries"},
     "je_holidays": {"journal_entries"}, "je_manual_sources": {"journal_entries"},

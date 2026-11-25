@@ -51,6 +51,8 @@ EXECUTORS: dict[str, Callable[[dict, dict], tuple[list[Receipt], dict]]] = {
     "cash.bank_reconciliation": cash.bank_reconciliation,
     "cash.interbank_transfers": cash.interbank_transfers,
     "cash.deposit_structuring": cash.deposit_structuring,
+    "cash.bank_confirmation": cash.bank_confirmation,
+    "ap.vendor_statement_reconciliation": payables.vendor_statement_reconciliation,
     "inventory.count_listing_trace": inventory.count_listing_trace,
     "inventory.pricing_projection": inventory.pricing_projection,
     "ppe.rollforward": ppe.rollforward,

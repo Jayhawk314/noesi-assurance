@@ -67,6 +67,24 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
         "amount": ["amount", "value"],
         "cleared_date": ["cleared date", "date cleared", "bank date", "date"],
     },
+    # A supplier's statement of account, line by line (invoices positive,
+    # payments received negative), as the supplier sent it to the auditor.
+    "Vendor_statements": {
+        "vendor": ["vendor", "vendor number", "vendor name", "supplier", "supplier name"],
+        "statement_date": ["statement date", "as of", "as at"],
+        "item_date": ["date", "item date", "transaction date", "invoice date"],
+        "item_type": ["type", "item type", "transaction type"],
+        "reference": ["reference", "invoice number", "document", "number", "ref"],
+        "amount": ["amount", "value", "debit credit"],
+    },
+    # The bank's reply to the auditor's confirmation request, one row per account.
+    "Bank_confirmations": {
+        "account": ["account", "bank account", "account name"],
+        "confirmed_balance": ["confirmed balance", "balance per bank", "balance", "balance at"],
+        "as_of": ["as of", "as at", "confirmation date", "date"],
+        "loans_and_other": ["loans and other", "loans", "other obligations", "liabilities",
+                            "loans lines of credit guarantees"],
+    },
     # Bank deposit detail: one row per deposit slip, as the bank shows it.
     "Deposits": {
         "reference": ["reference", "slip", "slip number", "deposit slip", "deposit number",
@@ -351,7 +369,7 @@ ROLE_SCHEMAS: dict[str, dict[str, list[str]]] = {
     },
 }
 
-AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
+AMOUNT_FIELDS = {"confirmed_balance", "balance", "prior_balance", "book_value", "confirmed_value",
                  "client_misstatement", "liability_amount", "recorded_cost",
                  "audited_cost", "debit", "credit", "identified", "likely",
                  "current_assets", "noncurrent_assets", "current_liabilities",
@@ -367,7 +385,7 @@ AMOUNT_FIELDS = {"balance", "prior_balance", "book_value", "confirmed_value",
 # Note: "amount" is already an AP amount field; cycle roles reuse it.
 
 DATE_FIELDS = {"item_date", "cleared_date", "disbursed_books", "disbursed_bank",
-               "received_books", "received_bank", "deposit_date", "liability_date", "entry_date",
+               "received_books", "received_bank", "deposit_date", "statement_date", "item_date", "as_of", "liability_date", "entry_date",
                "posted_date", "invoice_date", "ship_date", "memo_date", "pay_date",
                "hire_date", "termination_date", "acquired_date", "disposal_date",
                "service_start", "service_end", "dated"}
@@ -381,6 +399,8 @@ REQUIRED: dict[str, tuple[str, ...]] = {
     "Cutoff_statement": ("account",),
     "Transfers": ("transfer_id",),
     "Deposits": ("deposit_date",),
+    "Vendor_statements": ("vendor",),
+    "Bank_confirmations": ("account",),
     "Inventory_listing": ("stock_number",),
     "Inventory_count": ("stock_number",),
     "Sales_invoices": ("invoice_number",),
@@ -417,6 +437,9 @@ FILENAME_HINTS: dict[str, list[str]] = {
     "Cutoff_statement": ["cutoff statement", "cutoff bank statement", "cutoff"],
     "Transfers": ["transfers", "interbank transfers", "transfer schedule"],
     "Deposits": ["deposits", "deposit detail", "bank deposits", "deposit slips"],
+    "Vendor_statements": ["vendor statements", "supplier statements", "statements of account",
+                          "distributor statements"],
+    "Bank_confirmations": ["bank confirmation", "bank confirmations", "confirmation from the bank"],
     "Inventory_listing": ["inventory listing", "final inventory", "inventory"],
     "Inventory_count": ["inventory count", "count sheet", "count sheets", "counts"],
     "Sales_invoices": ["sales invoices", "sales invoice listing", "sales listing",

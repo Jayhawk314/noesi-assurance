@@ -221,3 +221,29 @@ def test_a_decision_is_recorded_with_a_reason(tmp_path):
     recorded = svc.draft_opinion(eid)["recorded_decisions"]
     assert recorded["pervasiveness_of_misstatement"]["decided_by"] == "pa"
     conn.close()
+
+
+def test_internal_control_is_a_basic_representation_under_580_10b():
+    rep = finding("completion.representation_letter", ["internal_control", "not_obtained"], "CLASH")
+    assert opinion([rep], run=summary())["opinion"] == "disclaimer"
+
+
+def test_fixed_disclaimer_keeps_all_causes_without_requiring_irrelevant_judgments():
+    basic = finding("completion.representation_letter", ["fs_responsibility", "not_obtained"], "CLASH")
+    other = finding("completion.representation_letter", ["related_parties", "not_obtained"], "CLASH")
+    gap = finding("some.procedure", ["not_tested"], "AMBIGUOUS", cls="REFUSAL")
+    out = opinion([basic, other, gap], run=summary("20000"))
+    assert out["opinion"] == "disclaimer" and out["decisions_required"] == []
+    assert any("related parties" in reason for reason in out["basis"])
+    assert any("20,000" in reason for reason in out["basis"])
+    out = draft_opinion(readiness=READY, sad=SAD, findings=[other, gap], misstatement_run=summary("20000"),
+        materiality=15000, completion={}, recorded={"effect_of_refused_representation": {"answer": "integrity_in_doubt"}})
+    assert out["opinion"] == "disclaimer" and out["decisions_required"] == []
+
+
+def test_an_immaterial_work_refusal_stays_visible_without_modifying_the_opinion():
+    gap = finding("forensic.benford", ["too_few"], "AMBIGUOUS", cls="REFUSAL")
+    out = draft_opinion(readiness=READY, sad=SAD, findings=[gap], misstatement_run=summary(),
+        materiality=15000, completion={}, recorded={"pervasiveness_of_scope_limitation": {"answer": "not_material"}})
+    assert out["opinion"] == "unmodified" and out["open_scope_limitations"] == 1
+    assert any("no material possible effect" in r for r in out["basis"])

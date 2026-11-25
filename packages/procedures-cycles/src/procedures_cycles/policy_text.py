@@ -136,6 +136,10 @@ POLICY_TEXT: dict[str, tuple[str, str, str]] = {
         "A population with fewer amounts of 10 or more than this is not tested. "
         "Nigrini suggests at least 1,000; below a few hundred the test says little."),
     # cash
+    "statement_transit_days": (
+        "Supplier statements: days a payment may be in the mail", DAYS,
+        "A payment the books show but the supplier's statement does not credit is in transit "
+        "within this many days of the statement date, and a lead after that. 7 when left empty."),
     "structuring_threshold": (
         "Currency-reporting line for cash deposits", AMOUNT,
         "Cash deposits at or under this amount that add up to more than it in one day, "

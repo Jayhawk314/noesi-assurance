@@ -151,7 +151,7 @@ def going_concern_indicators(tables: dict, policies: dict):
 # sentence can name a representation and deny it (re-review RR1).
 # AU-C 580.25: these (paragraphs .10-.11) not provided means a disclaimer or
 # withdrawal; any other is a judgment (AU-C 580, 705).
-BASIC_REPRESENTATIONS = frozenset({"fs_responsibility", "all_information",
+BASIC_REPRESENTATIONS = frozenset({"fs_responsibility", "internal_control", "all_information",
                                    "all_transactions_recorded"})
 
 REQUIRED_REPRESENTATIONS: dict[str, tuple[tuple[str, ...], ...]] = {
