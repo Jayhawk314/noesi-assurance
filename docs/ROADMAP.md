@@ -351,6 +351,9 @@ scripts first, James approves scripts and credits before voicing.
   AICPA text's search summary, paragraph numbers to be read in the text). Others (for example related parties) call for
   re-evaluating management's integrity and the effect on the opinion (AU-C 580, 705). Not changed: Kestrel's lessons,
   key and `test_kestrel_demo.py` rely on the current rule (Kestrel's refused representation is related parties).
+- **Candidate (Starlight, 24 Nov 2026):** `ap.unrecorded_liabilities_search` reads the Payments role as the payments
+  after year end, so an engagement that loads the year's own payments (for the duplicate, sequence and approval tests)
+  cannot also run the search. A separate role for subsequent payments would let one engagement do both. Not built.
 - Deposit test hardened after the independent review (24 Nov 2026): cash matched by whole word (a cashier's check or a
   cash letter is not cash); undated cash and untyped rows are refused and counted, never grouped or dropped. 608 tests.
 - **Engine gaps from the Starlight teaching case (`../noesi-vice-keys/starlight`), fixed
