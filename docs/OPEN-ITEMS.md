@@ -29,7 +29,7 @@ Last updated 26 Nov 2026.
 
 | # | Item | Notes |
 |---|------|-------|
-| 3.1 | Keyboard-only use of the Workbench not checked | Dark mode and an 820 px window were checked 26 Nov. |
+| 3.1 | A full keyboard-only pass of every screen | Checked 26 Nov: tabs, Flow Map boxes and arrows (arrows fixed). Forms and tables were not walked by keyboard. |
 | 3.2 | Wiring the cycles into the structural layer | ROADMAP parking lot, agreed as later (26 Sep). |
 
 ## Closed
@@ -58,4 +58,5 @@ Last updated 26 Nov 2026.
 | 26 Nov 2026 | Partner report sign-off: dropped under the supplement rule (no sign-offs, James 30 Sep) | — |
 | 26 Nov 2026 | Studio clicked in a browser: course pages carry the course-date notice; journey's Collect no longer reads "32 of 10", Scope's next step names what is missing, the new-data banner says added or replaced | 986a5c9 |
 | 26 Nov 2026 | Readiness names which procedures the open misstatements came from | 986a5c9 |
-| 26 Nov 2026 | Every Workbench table scrolls in a narrow window (Coverage and Sources ran past the edge at 820 px); dark mode checked | see below |
+| 26 Nov 2026 | Every Workbench table scrolls in a narrow window (Coverage and Sources ran past the edge at 820 px); dark mode checked | 261e993 |
+| 26 Nov 2026 | Flow Map arrows reachable and opened by keyboard (they were mouse only) | see git log |

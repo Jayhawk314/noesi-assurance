@@ -56,6 +56,8 @@
 .fm-node.selected .fm-box { stroke: var(--accent); stroke-width: 2.5; }
 .fm-node:focus { outline: none; }
 .fm-node:focus-visible .fm-box { stroke: var(--accent); stroke-width: 2.5; }
+.fm-edge:focus { outline: none; }
+.fm-edge:focus-visible .fm-chip-box { stroke: var(--accent); stroke-width: 2.5; }
 
 /* ------------------------------------------------------------------ edges */
 

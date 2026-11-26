@@ -1,5 +1,5 @@
 // Copyright (c) 2026 James Hawkins. PolyForm Noncommercial License 1.0.0 — see LICENSE.md.
-import { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Client, CoverageRow } from "../api";
 import {
   CYCLE_MAPS, CycleMap, MapEdge, MapNode, NODE_H, NODE_W, mappedProcedureIds,
@@ -273,7 +273,18 @@ function Diagram(
         const count = edge.procedures.filter(inScope).length;
         return (
           <g key={edge.id} className={`fm-edge ${kind}`}
-             onClick={() => count && onSelect({ kind: "edge", edge })}>
+             onClick={() => count && onSelect({ kind: "edge", edge })}
+             // Reachable by keyboard like the boxes (26 Nov 2026: mouse only).
+             {...(count ? {
+               tabIndex: 0, role: "button",
+               "aria-label": `${edge.from.replace(/_/g, " ")} to ${edge.to.replace(/_/g, " ")}: ${count} procedure${count === 1 ? "" : "s"}`,
+               onKeyDown: (event: React.KeyboardEvent) => {
+                 if (event.key === "Enter" || event.key === " ") {
+                   event.preventDefault();
+                   onSelect({ kind: "edge", edge });
+                 }
+               },
+             } : {})}>
             <path className="fm-line" d={d} markerEnd={arrowFor(state)} />
             <path className="fm-hit" d={d} />
             {count > 0 && (

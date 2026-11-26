@@ -37,6 +37,6 @@ The script was kept outside the repository; its steps are listed here so the pas
 
 ## Not covered
 
-- Keyboard-only use.
+- Keyboard-only use beyond the tabs and the Flow Map (both reached by keyboard; the arrows were mouse-only and now take focus and Enter).
 - Every control on every screen was not exercised: the bulk disposition form, run-only policy values,
   archive and restore (clicked on 3 Oct), and folder upload (3 Oct) were not repeated.
