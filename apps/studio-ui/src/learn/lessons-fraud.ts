@@ -392,8 +392,8 @@ export const FRAUD_LESSONS: Lesson[] = [
       where: ["Workbench → Runs & Findings", "Workbench → What Changed (for the corrected file in Assignment 11)"],
       doesNot: [
         "It reads only vendor number and name, so **shared tax IDs, addresses or bank accounts** are yours to find.",
-        "On Harborline's files no procedure finds VCH-2026-9338: you find it by reading the data. (Since September 2026, `ap.duplicate_bills` tests for duplicates, but it needs the supplier's invoice number, which Harborline's vouchers do not carry.)",
-        "Harborline's engagement does not compare vendors with employee records. (Since October 2026, `forensic.vendor_employee_match` does, by name, when the employee master is loaded.)",
+        "On Harborline's files no procedure finds VCH-2026-9338: you find it by reading the data. (Since September 2026, `ap.duplicate_bills` tests for duplicates when the payables cycle is chosen, but it needs the supplier's invoice number, which Harborline's vouchers do not carry.)",
+        "Harborline's engagement does not compare vendors with employee records. (Since October 2026, with the payroll cycle chosen and the payroll employee master loaded, `forensic.vendor_employee_match` compares vendors with employees by bank account, phone, tax ID and name.)",
       ],
       tryIt: "Start with --demo, run ap.vendor_relational_twins, and compare its pairs with the tax-ID pairs from your spreadsheet.",
     },    video: {
@@ -807,7 +807,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       where: ["Workbench → Runs & Findings", "Workbench → 📖 manual, chapter 5"],
       doesNot: [
         "It states each excess as a percentage of its voucher, but it does not notice that three findings share the same rate. Connecting them is your analysis.",
-        "It has **no bid-rigging, conflict-of-interest or vendor-pricing test**, and no employee–vendor relationship data.",
+        "It has **no bid-rigging, conflict-of-interest or vendor-pricing test**, and Harborline's engagement holds no employee–vendor relationship data. (Since October 2026, with the payroll cycle chosen, `forensic.vendor_employee_match` compares vendors with employees, and a related-party list can be matched with `related_parties.matching`.)",
         "It cannot see anything outside the company's books, which is where a bribe is paid.",
       ],
       tryIt: "Start with --demo, run ap.document_chain, and filter its findings to the overpayments. Add the percentage column yourself in Excel and compare.",
@@ -1059,7 +1059,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       ],
       where: ["Workbench → Coverage", "Workbench → Runs & Findings", "Workbench → Sources & Mappings (refusals)"],
       doesNot: [
-        "Harborline's engagement runs no Benford test; do it in a spreadsheet. (Since October 2026, `forensic.benford_first_digit` tests the journal's first digits, and says \"not tested\" below the population size its bands are meant for.)",
+        "Harborline's engagement runs no Benford test; do it in a spreadsheet. (Since October 2026, with the journal-entries cycle chosen, `forensic.benford_first_digit` tests the first digits of journal lines, bills and payments, each apart, and reports a population smaller than the minimum you set (`benford_min_population`) as not tested.)",
         "It does not group overlapping findings into one problem. That is your analysis.",
         "It sees only the files you load, and never concludes intent.",
       ],

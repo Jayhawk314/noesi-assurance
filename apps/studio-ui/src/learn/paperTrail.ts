@@ -396,7 +396,7 @@ export const PAPERS: Paper[] = [
       { mark: 2, title: "Who signs", text: "Those with overall responsibility and knowledge: normally the CEO and CFO. A refusal is a scope limitation." },
       { title: "Representations are not evidence of amounts", text: "Paragraph 3 does not prove liabilities are complete. It supports your search for unrecorded liabilities and does not replace it." },
     ],
-    noesi: "With the completion cycle chosen, Noesi's representation-letter procedure (`completion.representation_letter`) reads the representations you record and names any requested one not provided, which the draft opinion treats as a possible disclaimer (AU-C 580). Noesi does not draft the letter.",
+    noesi: "With the completion cycle chosen, Noesi's representation-letter procedure (`completion.representation_letter`) reads the representations you record and names any representation AU-C 580 requires that was not obtained. The draft opinion proposes a disclaimer when a basic one (AU-C 580.10–.11) is missing, and asks you to judge the effect of any other. Noesi does not draft the letter.",
     lessons: [10],
   },
 ];

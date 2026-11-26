@@ -336,3 +336,18 @@ def test_liabilities_traced_to_one_account_share_its_credit():
     leads = {f.key[1]: f for f in findings if f.key[2] == "recorded_account_below_liability"}
     # 8,000 fits in 10,000; the next 7,000 has only 2,000 left.
     assert set(leads) == {"eft-0115"} and leads["eft-0115"].score == D("5000")
+
+
+def test_an_exact_account_number_wins_and_descriptions_count():
+    # Second review, 26 Nov 2026.
+    ledger = [{"account": "2200", "description": "Sales tax payable", "balance": D("-9500"), "side": ""},
+              {"account": "2200-01", "description": "Sales tax, county", "balance": D("-100"), "side": ""}]
+    for said in ("2200", "02200", "2200.0"):
+        findings, stats = _search(ledger, said)
+        assert stats["outcomes"]["recorded_outside_payables"] == 1, said
+        assert not {k for k in keys(findings) if k[0] == "eft-0115"}, said
+    described = [{"account": "2200 Sales Tax Payable", "description": "Sales tax collected",
+                  "balance": D("-9500"), "side": ""}]
+    findings, stats = _search(described, "Sales tax collected")
+    assert stats["outcomes"]["recorded_outside_payables"] == 1
+    assert not {k for k in keys(findings) if k[0] == "eft-0115"}

@@ -121,3 +121,21 @@ def test_older_packet_keeps_its_unperformed_response_visible():
     assert "<td>rev.sales_cutoff (not run)</td>" not in html
     assert "unassigned risk-response blockers" in html
     assert "Sales: rev.sales_cutoff (not run)" in html
+
+
+def test_not_ready_names_the_open_items_in_words():
+    # 26 Nov 2026: the working paper printed readiness codes only. An unknown
+    # code still prints as it is, so nothing is hidden.
+    from assurance_workpapers.workpaper import render_workpaper
+    packet = {
+        "engagement": {"client_name": "Invented", "period_end": "2025-12-31"},
+        "generated": "2025-12-31", "packet_version": "noesi-evidence-packet-v4",
+        "software": "Noesi", "manifest": {"risks": [], "mapping_specs": []},
+        "opinion": {"status": "not_ready", "readiness_blockers": [
+            {"code": "FINDINGS_OPEN", "count": 3},
+            {"code": "SOMETHING_NEW_LATER", "count": 1}]},
+    }
+    html = render_workpaper(packet)
+    assert "findings undisposed or marked for follow-up (3)" in html
+    assert "FINDINGS_OPEN" not in html
+    assert "SOMETHING_NEW_LATER (1)" in html

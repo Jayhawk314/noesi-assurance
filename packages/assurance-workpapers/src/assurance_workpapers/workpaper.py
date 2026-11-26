@@ -51,6 +51,41 @@ code { font-size: 0.75rem; word-break: break-all; }
 """
 
 
+# Readiness codes in words, as the Workbench's screens say them (screens.tsx
+# BLOCKERS). A code missing here prints as it is, so nothing is hidden
+# (26 Nov 2026: the working paper printed only the codes).
+_BLOCKER_WORDS = {
+    "MATERIALITY_NOT_SET": "materiality is not set",
+    "RISKS_UNASSESSED": "risks with no level assessed",
+    "HIGH_RISKS_WITHOUT_RESPONSE": "high or significant risks with no planned response",
+    "HIGH_RISKS_WITHOUT_PROCEDURE": "high or significant risks with no procedure linked",
+    "HIGH_RISK_RESPONSES_NOT_PERFORMED": "high or significant risks answered by a procedure "
+                                         "that did not run",
+    "CONTROLS_UNASSESSED": "controls not assessed",
+    "CONTROL_RELIANCE_UNSUPPORTED": "reliance on a control not assessed as effective",
+    "SELECTED_PROCEDURES_BLOCKED": "procedures in the audit that cannot run (data missing)",
+    "SELECTED_PROCEDURES_PARTIAL": "procedures in the audit that can run only in part",
+    "SELECTED_PROCEDURES_PENDING_RUN": "procedures in the audit not run yet",
+    "PROCEDURE_RESULTS_STALE": "results left historical by changed inputs",
+    "SELECTED_PROCEDURES_STALE": "results left historical by changed inputs",
+    "PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE": "procedures left out with no reason recorded",
+    "EVIDENCE_REVIEW_PENDING": "evidence waiting for review",
+    "EXTRACTION_APPROVAL_PENDING": "source extractions waiting for approval",
+    "TRANSFORMATION_APPROVAL_PENDING": "source transformations waiting for approval",
+    "MISSTATEMENTS_UNRESOLVED": "misstatements not yet disposed",
+    "SUBSTANTIVE_ITEMS_UNRESOLVED": "review items not yet disposed",
+    "FINDINGS_OPEN": "findings undisposed or marked for follow-up",
+    "WAIVERS_ABOVE_TRIVIAL_THRESHOLD": "findings above clearly trivial that were waived",
+    "SCOPE_ITEMS_UNRESOLVED": "scope refusals not yet resolved",
+    "NO_DATA_WITHOUT_PARTNER_ASSERTION": "no data loaded and no reason recorded",
+    "DECISION_TRAIL_BROKEN": "the journal's hash chain does not verify",
+}
+
+
+def _blocker_words(code) -> str:
+    return _BLOCKER_WORDS.get(str(code), str(code))
+
+
 def render_workpaper(packet: dict) -> str:
     engagement = packet["engagement"]
     manifest = packet.get("manifest") or {}
@@ -117,7 +152,7 @@ Packet {_esc(packet['packet_version'])} · generated {_esc(packet['generated'])}
                 "<h2>Opinion</h2><div class='limits'><b>NOT READY.</b> The evidence "
                 "does not yet support any opinion; what follows is where the "
                 "record points so far. Still open: "
-                + (_esc(", ".join(f"{b.get('code')} ({b.get('count')})"
+                + (_esc("; ".join(f"{_blocker_words(b.get('code'))} ({b.get('count')})"
                                   for b in blockers))
                    or "the partner's decisions listed under Still to decide")
                 + ".</div>", 1)

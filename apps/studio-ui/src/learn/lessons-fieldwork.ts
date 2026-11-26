@@ -243,8 +243,8 @@ export const FIELDWORK: Lesson[] = [
       ],
       where: ["Studio → Exceptions (judge in plain words)", "Studio → What changed (cascade)", "Workbench → Runs & Findings, What Changed", "Workbench → Sources & Mappings (QuickBooks files, AP subledger-to-ledger tie)"],
       doesNot: [
-        "On Harborline's files it runs **no search for unrecorded liabilities**: PAY-2026-0055 surfaces as a reference exception, and the unrecorded-liability judgment is yours. (Since September 2026, `ap.unrecorded_liabilities_search` runs that search when you load the payments after year end and your inspection results.)",
-        "On Harborline's files it finds **no duplicate invoices**: Harborline's Assignment 11 exists to show that silence. (Since September 2026, `ap.duplicate_bills` looks for them, but it needs the supplier's invoice number, which Harborline's vouchers do not carry.)",
+        "On Harborline's files it runs **no search for unrecorded liabilities**: PAY-2026-0055 surfaces as a reference exception, and the unrecorded-liability judgment is yours. (Since September 2026, `ap.unrecorded_liabilities_search` runs that search when the payables cycle is chosen in Scope & Policies, the payments after year end, the year-end unpaid bills and your inspection results are loaded, and you set `search_threshold`.)",
+        "On Harborline's files it finds **no duplicate invoices**: Harborline's Assignment 11 exists to show that silence. (Since September 2026, `ap.duplicate_bills` looks for them when the payables cycle is chosen, but it needs the supplier's invoice number, which Harborline's vouchers do not carry.)",
         "It does not check cutoff on receipts, because the receipts file has no receiving-cutoff test.",
         "It does not connect to QuickBooks. You export the reports and upload them.",
         "It reads only the Accounts Payable balance from a General Ledger export, not the full ledger detail. If the two reports are dated differently, it notes the mismatch but does not yet refuse the tie.",
@@ -338,7 +338,7 @@ export const FIELDWORK: Lesson[] = [
       coverage: "partial",
       summary: "Harborline's engagement tests payables only. Since September 2026, Noesi has receivables and revenue procedures for an engagement that chooses that cycle.",
       does: [
-        "With the receivables cycle chosen in Scope & Policies: the receivables listing tied to the ledger with the allowance recomputed (`ar.listing_tie`), sales cutoff against shipping evidence (`rev.sales_cutoff`), credit memos after period end (`rev.credit_memos_after_period_end`), and confirmation results evaluated (`ar.confirmations_nonstatistical`, `ar.confirmations_mus`, `ar.confirmations_difference`).",
+        "With the receivables cycle chosen in Scope & Policies: the receivables listing tied to the ledger, with the allowance recomputed when you set allowance rates (`ar.listing_tie`), sales cutoff against shipping evidence (`rev.sales_cutoff`), credit memos after period end (`rev.credit_memos_after_period_end`), and confirmation results evaluated (`ar.confirmations_nonstatistical`, `ar.confirmations_mus`, `ar.confirmations_difference`).",
         "The **evidence vault** keeps PDFs, CSVs, Excel files and scanned images (PNG, JPEG) unaltered with a SHA-256 fingerprint, for example confirmation replies received as PDFs.",
       ],
       where: ["Workbench → Scope & Policies (choose the cycle)", "Workbench → Sources & Mappings", "Workbench → Runs & Findings"],

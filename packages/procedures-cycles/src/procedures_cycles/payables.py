@@ -239,6 +239,8 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
                     evidence["recorded_account_balance"] = balance
                     # Liabilities traced to one account share its credit: two
                     # 600 items do not both fit in a 1,000 credit (review 26 Nov).
+                    # Taken in register order, so the later payment carries the
+                    # excess; the total flagged does not depend on the order.
                     before = credit_used.get(account, ZERO)
                     credit_used[account] = before + owed
                     room = -balance - before
@@ -328,27 +330,33 @@ def _words(value: str) -> list[str]:
 
 
 def _find_account(ledger: dict, named: str) -> tuple[str, Decimal] | None:
-    """The trial balance account an inspection names: by number ("2200"), by
-    number and name ("2200 Sales Tax Payable", in either the inspection or the
-    trial balance), or by its name alone. Punctuation and spacing do not count
-    ("2200 - Sales Tax Payable"). A number whose name disagrees with the
-    account's, or a name or number shared by two accounts, names none
-    (review 26 Nov 2026)."""
+    """The trial balance account an inspection names: exactly ("2200", also
+    "02200" or "2200.0"), by number and name ("2200 Sales Tax Payable", in
+    either the inspection or the trial balance), or by its name alone, matched
+    against the account cell's name or its description. Punctuation and
+    spacing do not count. A number whose name disagrees with the account's, or
+    a name or number shared by two accounts, names none (reviews 26 Nov 2026).
+    Ledger keys are key_text values (lowercased)."""
+    exact = key_text(named)
+    if exact in ledger:
+        return exact, ledger[exact][2]
     said = _words(named)
     if not said:
         return None
+    # An account number is a word of digits only: "401k" is part of a name.
+    said_number = key_text(said[0]) if said[0].isdigit() else ""
     candidates = []
     for account, (_, description, balance) in ledger.items():
         words = _words(account)
-        number = words[0] if words and any(c.isdigit() for c in words[0]) else ""
-        name = words[1:] if number else words
-        name = name or _words(description)
-        if number and said[0] == number:
+        number = key_text(words[0]) if words and words[0].isdigit() else ""
+        cell_name = words[1:] if number else words
+        names = [n for n in (cell_name, _words(description)) if n]
+        if number and said_number == number:
             rest = said[1:]
-            # "2200" alone, or "2200" with this account's name (or the start of it).
-            if not rest or rest == name[:len(rest)]:
+            # The number alone, or with this account's name (or its start).
+            if not rest or any(rest == n[:len(rest)] for n in names):
                 candidates.append((account, balance))
-        elif name and said == name:
+        elif not said_number and any(said == n for n in names):
             candidates.append((account, balance))
     if len(candidates) == 1:
         return candidates[0]

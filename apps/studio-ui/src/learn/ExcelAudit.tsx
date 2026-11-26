@@ -62,7 +62,7 @@ const EXERCISES: Exercise[] = [
     ],
     formula: "=IF(AND(D2>=9000,D2<10000),\"check\",\"\")",
     answer: "7 payments. Five are to V1042 between September 14 and 22 (9,850, 9,720, 9,905, 9,640, 9,880; total 48,995). The other two (PAY-2026-0027 to V1005, PAY-2026-0054 to V1026) are single payments: an amount near the limit is not a split by itself; a cluster is.",
-    noesi: "ap.split_payment_review, with the split threshold and window policies approved, reports the V1042 cluster only.",
+    noesi: "ap.split_payment_review, with the split threshold and window policies set, reports the V1042 cluster only.",
   },
   {
     skill: "XLOOKUP across two sheets",
