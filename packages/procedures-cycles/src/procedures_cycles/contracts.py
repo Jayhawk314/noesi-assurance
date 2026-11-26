@@ -218,8 +218,10 @@ CYCLE_PROCEDURES: tuple[ProcedureContract, ...] = (
                     "vendor statements and receiving records are separate searches. "
                     "Without Subsequent_payments, Payments is read as the payments after "
                     "year end and Vouchers as the year-end listing, unchecked. A liability "
-                    "the auditor traced to another account (recorded_account) is taken "
-                    "as recorded there, not re-proved.",
+                    "the auditor traced to another account (recorded_account) is checked "
+                    "against the trial balance when one is loaded (the account exists and "
+                    "its period-end credit covers the liability); the entry itself is not "
+                    "re-proved, and without a trial balance the account is taken as stated.",
     ),
     ProcedureContract(
         "ap.payments_without_bills", "Payments to vendors that never billed",

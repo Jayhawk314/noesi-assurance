@@ -147,6 +147,7 @@ export function FlowMapScreen({ client, eid, onError, onGoToSources }: Props) {
           rowsFor={rowsFor}
           asideFor={asideFor}
           linkState={linkState}
+          inScope={(id) => byId.has(id)}
           selected={selected}
           onSelect={setSelected}
         />
@@ -230,6 +231,8 @@ interface DiagramProps {
   rowsFor: (role: string) => number | null;
   asideFor: (role: string) => number;
   linkState: (ids: string[]) => ProcState | null;
+  /** Whether a procedure is in this engagement's coverage at all. */
+  inScope: (procedureId: string) => boolean;
   selected: { kind: "node"; node: MapNode } | { kind: "edge"; edge: MapEdge } | null;
   onSelect: (
     value: { kind: "node"; node: MapNode } | { kind: "edge"; edge: MapEdge },
@@ -237,7 +240,7 @@ interface DiagramProps {
 }
 
 function Diagram(
-  { map, roleState, rowsFor, asideFor, linkState, selected, onSelect }: DiagramProps,
+  { map, roleState, rowsFor, asideFor, linkState, inScope, selected, onSelect }: DiagramProps,
 ) {
   const arrowFor = (state: ProcState | null) =>
     `url(#fm-arrow-${state ?? "structural"})`;
@@ -264,7 +267,10 @@ function Diagram(
         const d = edge.points
           .map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`)
           .join(" ");
-        const count = edge.procedures.length;
+        // Procedures outside the engagement's scope are not counted: an arrow
+        // with none in scope is drawn as structure only (it showed an unstyled
+        // black chip, 26 Nov 2026).
+        const count = edge.procedures.filter(inScope).length;
         return (
           <g key={edge.id} className={`fm-edge ${kind}`}
              onClick={() => count && onSelect({ kind: "edge", edge })}>
@@ -332,6 +338,11 @@ function ProcedureRow(
       ([role, fields]) => `${role} is missing ${fields.join(", ")}`),
     ...row.missing_policies.map((policy) => `needs policy ${policy}`),
   ];
+  // A procedure with more than one input set says which one serves, so an
+  // arrow drawn for one set is not read as needing that set.
+  const runsOn = row.satisfied_by
+    ?? (row.alternative_fields?.length && row.status !== "blocked" && row.required_fields
+      ? Object.keys(row.required_fields) : null);
   return (
     <div className="fm-proc">
       <div className="fm-proc-head">
@@ -352,6 +363,9 @@ function ProcedureRow(
         )}
       </div>
       <p className="note" style={{ margin: "0.25rem 0 0" }}>{row.objective}</p>
+      {runsOn && (
+        <p className="note">Runs on: {runsOn.map((role) => role.replace(/_/g, " ")).join(", ")}</p>
+      )}
       {gaps.length > 0 && <p className="fm-gap">Blocked by: {gaps.join("; ")}</p>}
       {row.limitations && <p className="note">{row.limitations}</p>}
     </div>
@@ -388,7 +402,7 @@ function NodeDetail(
       </div>
       {procedures.length > 0 ? (
         <>
-          <p className="note">Procedures that test this data on its own:</p>
+          <p className="note">Procedures that start from this data (each names any other data it needs):</p>
           {procedures.map((row) => (
             <ProcedureRow key={row.procedure_id} row={row}
                           running={running} onRun={onRun} />
@@ -396,8 +410,8 @@ function NodeDetail(
         </>
       ) : (
         <p className="fm-hint">
-          No procedure tests this data alone — it is evidence for the links
-          drawn from it.
+          {node.note ?? "No procedure tests this data alone — it is evidence for the links "
+            + "drawn from it."}
         </p>
       )}
     </>

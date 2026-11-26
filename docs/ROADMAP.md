@@ -116,7 +116,7 @@ From the private friction log and CYCLES-ROLLOUT §6.
 |---|---|
 | ~~B1~~ done | Policy `clearly_trivial_pct` (5% unset), one rate for the SAD, concurrence and revision impact; set on the Scope screen. |
 | ~~B2~~ done | The SAD carries the evaluated misstatement schedule (signed, by line) and cannot conclude "immaterial" while a line reaches materiality; the schedule's "material" verdict is no longer counted as one more misstatement. |
-| ~~B3~~ done | Role `Prior_statements` (line, amount as reported): prior ratios and averages (inventory turnover) without a comparative TB; given both, disagreements are flagged. Limit: account movements still need the TB's prior column, and revision impact does not yet mark analytics stale when this file changes. |
+| ~~B3~~ done | Role `Prior_statements` (line, amount as reported): prior ratios and averages (inventory turnover) without a comparative TB; given both, disagreements are flagged. Limit: account movements still need the TB's prior column. (Revision impact now marks the analytics stale when this file changes: 26 Nov 2026.) |
 
 ### C. QuickBooks imports
 30 Sep 2026 (Claude): real exports taken from James's QuickBooks Online
@@ -347,6 +347,12 @@ scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
 The single list of open items is `docs/OPEN-ITEMS.md`.
+- **26 Nov 2026, from OPEN-ITEMS:** the search checks a `recorded_account` against the trial balance when one is
+  loaded (the account must exist; a credit smaller than the liability is a lead); What Changed compares every table a
+  run read, so a revised `Prior_statements` marks the analytics stale (and the two graph screens after a vouchers
+  revision, which the Runs screen already did); the Flow Map draws the search's new inputs, vendor statements, bank
+  confirmations and last year's statements; the stale-run status reads "finished, on the old file". Invented-data
+  tests; 656 pass; Kestrel 175/177; Starlight passes (account 2200 covers the December sales tax).
 - **Fixed 25 Nov 2026: going concern on the adjusted figures** (one of the 4 Oct "possible software bugs").
   `completion.going_concern_indicators` read the trial balance before the adjusting entries, though Learn module 12
   already taught "recomputed from the adjusted figures". When `Adjusting_entries` are loaded it now applies them

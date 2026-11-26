@@ -134,14 +134,17 @@ export function WhatChangedScreen({ client, eid, onError }: {
         <h3>Runs built on the old file</h3>
         {stale_runs.length === 0 ? <p className="note">None: every run already used the current files.</p> : (
         <table>
-          <thead><tr><th>Procedure</th><th>Input that moved</th><th>Findings</th><th>Status</th><th>What to do</th></tr></thead>
+          <thead><tr><th>Procedure</th><th>Input that moved</th><th>Findings</th><th>Old run</th><th>What to do</th></tr></thead>
           <tbody>
             {stale_runs.map((run) => (
               <tr key={run.run_id}>
                 <td>{run.procedure_id}</td>
                 <td>{run.changed_inputs.join(", ")}</td>
                 <td>{run.findings_before} → {run.findings_after}</td>
-                <td className={`status ${run.status}`}>{run.status}</td>
+                {/* The run's own lifecycle status: "completed" beside "stale" read as a
+                    contradiction (25 Nov check), so say what it means here. */}
+                <td className={`status ${run.status}`}>
+                  {run.status === "completed" ? "finished, on the old file" : run.status}</td>
                 <td>{run.action === "rerun"
                   ? <button className="action"
                             onClick={() => client.runProcedure(eid, run.procedure_id, {})

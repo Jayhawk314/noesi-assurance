@@ -1046,8 +1046,13 @@ class WorkbenchService:
         for procedure_id, run in sorted(latest_runs.items()):
             manifest = json.loads(run["manifest"])
             inputs = manifest.get("input_tables", {})
+            # The contract's roles and, for runs since 3 Oct, every table the
+            # engine actually read: an optional input such as Prior_statements
+            # is in no input set, yet a revised one changes the result (B3).
+            read_roles = (manifest.get("inputs_read") or {}).get("roles")
+            watched = needs.get(procedure_id, set(inputs)) | set(read_roles or ())
             changed_roles = sorted(
-                role for role in needs.get(procedure_id, set(inputs))
+                role for role in watched
                 if inputs.get(role, {}).get("sha256")
                 != current_digest.get(role))
             if not changed_roles:

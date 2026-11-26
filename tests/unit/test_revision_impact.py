@@ -124,10 +124,14 @@ def test_harborline_revised_vouchers_reach_runs_findings_and_judgments(service):
     assert [row["key"] for row in revision["diff"]["added"]] == ["VCH-2026-9338"]
     assert {row["key"] for row in revision["diff"]["changed"]} == {
         "VCH-2026-0009", "VCH-2026-0030"}
-    # Only procedures that read Vouchers go stale.
+    # Only procedures that read Vouchers go stale: the four whose contracts
+    # name it, and the two screens that build their graph from all the
+    # activity, vouchers included (recorded as read; the Runs screen already
+    # called them stale, 26 Nov 2026).
     assert {run["procedure_id"] for run in report["stale_runs"]} == {
         "ap.document_chain", "ap.payment_voucher_reference",
-        "ap.three_way_receipt_match", "ap.voucher_po_reference"}
+        "ap.three_way_receipt_match", "ap.voucher_po_reference",
+        "ap.vendor_relational_twins", "forensic.closed_value_flow"}
     cards = {card["finding_uid"]: card for card in report["cards"]}
     assert cards[receipt_gap]["action"] == "revisit_disposition"
     assert cards[orphan_payment]["action"] == "revisit_disposition"
@@ -145,3 +149,43 @@ def test_a_row_that_only_moved_is_not_changed():
     new[0]["amount"] = "120.00"
     [changed] = diff_records(old, new, ("voucher_number",), LIMITS)["changed"]
     assert [f["field"] for f in changed["fields"]] == ["amount"]
+
+
+_TB_CSV = ("Account,Description,Balance,Side,Line\n1010,Cash,100000,DR,cash\n"
+           "1100,Receivables,50000,DR,receivables\n1200,Inventory,80000,DR,inventory\n"
+           "2000,Payables,70000,CR,current_liabilities\n3000,Equity,160000,CR,equity\n"
+           "4000,Sales,400000,CR,sales\n5000,Cost of sales,300000,DR,cost_of_sales\n").encode()
+_PRIOR = "Line,Amount\ncash,80000\nreceivables,40000\ninventory,{inv}\ncurrent_liabilities,50000\n"
+
+
+def test_a_revised_optional_input_makes_the_run_stale(service):
+    # 26 Nov 2026 (ROADMAP B3 limit): Prior_statements is in no input set of
+    # the analytics contract, so What Changed never compared it and a revised
+    # file left the analytics run "current". Invented figures.
+    eid = service.create_engagement(USER, "Invented Co", "2025-12-31")["engagement_id"]
+    service.update_workflow(USER, eid, "cycles", {"cycles": ["planning"]})
+
+    def load(content, name, role, mode=None):
+        artifact = service.store_source(USER, eid, content=content, media_type="text/csv",
+                                        original_name=name)
+        spec = service.confirm_source_mapping(USER, eid, role=role,
+                                              artifact_id=artifact["artifact_id"])
+        return service.normalize_source(USER, eid, spec["spec_id"], mode=mode)
+
+    load(_TB_CSV, "tb.csv", "Trial_balance")
+    load(_PRIOR.format(inv=70000).encode(), "prior.csv", "Prior_statements")
+    run = service.run_procedure(USER, eid, procedure_id="fs.trial_balance_analytics")
+    assert run["summary"]["prior_source"] == "prior-year statement figures"
+    assert service.revision_impact(eid)["summary"]["stale_runs"] == 0
+
+    load(_PRIOR.format(inv=90000).encode(), "prior_revised.csv", "Prior_statements",
+         mode="replace")
+    report = service.revision_impact(eid)
+    assert [(r["procedure_id"], r["changed_inputs"]) for r in report["stale_runs"]] == [
+        ("fs.trial_balance_analytics", ["Prior_statements"])]
+    (revision,) = report["revisions"]
+    (changed,) = revision["diff"]["changed"]
+    assert changed["key"] == "inventory" and changed["amount_change"] == 20000.0
+    # The Runs screen says the same.
+    (listed,) = [r for r in service.runs(eid) if r["run_id"] == run["run_id"]]
+    assert listed["stale_reasons"] == ["loaded data changed"]

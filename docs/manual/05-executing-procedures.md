@@ -112,8 +112,13 @@ fraud tests):
   row in the register dated by year end, or undated, is named and left out. The
   auditor's worksheet (role *Disbursement inspection*) may name the account a
   liability was recorded in when it is not a payables bill (sales tax, accrued
-  expenses); it is then not called unrecorded. The subsequent-events review also
-  reads the register, so a payment there is examined once.
+  expenses); it is then not called unrecorded. When a trial balance is loaded,
+  that account must be in it (by number, name, or both) and its period-end
+  credit must cover the liability: an account not there is refused until the
+  worksheet is corrected, and a balance too small is a lead to inspect. Without a
+  trial balance the account is taken as the worksheet states it. The
+  subsequent-events review also reads the register, so a payment there is
+  examined once.
 - **Bank confirmations** (`cash.bank_confirmation`, cash, off until chosen)
   compares each balance the bank confirmed directly to the auditor (role *Bank
   confirmations*) with the reconciliation's bank balance, and lists accounts not

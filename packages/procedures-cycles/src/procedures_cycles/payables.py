@@ -150,6 +150,7 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
             {"finding_class": "EXPECTED_BUT_MISSING", "cycle": "payables"}))
     for key in conflicting:
         inspections.pop(key)
+    ledger = _ledger_accounts(records(tables, "Trial_balance"))
     selection = select_disbursements(payments, threshold,
                                      int(interval) if interval else None,
                                      int(start) if start else None,
@@ -219,9 +220,34 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
             if listed is None and recorded_in:
                 # The auditor traced the liability to another account at period
                 # end (taxes, accrued expenses): it was recorded, outside the
-                # payables listing. The account is the auditor's finding, taken
-                # as recorded; it is not re-proved here.
+                # payables listing. With a trial balance loaded, that account
+                # must be in it and hold at least this much credit (26 Nov
+                # 2026); the entry itself is still the auditor's finding.
+                found = _find_account(ledger, recorded_in) if ledger else None
+                if ledger and found is None:
+                    findings.append(receipt(
+                        pid, (pnum, "recorded_account_not_in_trial_balance"), "AMBIGUOUS",
+                        f"payment {pnum}: the inspection says the {owed} liability was "
+                        f"recorded in {recorded_in!r}, which is not an account in the "
+                        "trial balance; correct the account or the inspection",
+                        {**evidence, "finding_class": "REFUSAL"}))
+                    continue
                 outcomes["recorded_outside_payables"] += 1
+                if found is not None:
+                    account, balance = found
+                    evidence["recorded_account_balance"] = balance
+                    credit = -balance
+                    if credit < owed:
+                        findings.append(receipt(
+                            pid, (pnum, "recorded_account_below_liability"), "TENSION",
+                            f"payment {pnum}: account {account} is said to hold the {owed} "
+                            f"liability, but its period-end balance is {balance} "
+                            f"({'a credit of ' + str(credit) if credit > 0 else 'no credit'}); "
+                            "inspect the entry",
+                            {**evidence, "finding_class": "CONJECTURE",
+                             "limits": "the account may hold the liability net of other "
+                                       "items, or the balance may be wrong"},
+                            owed - max(credit, ZERO)))
             elif listed is None:
                 outcomes["unrecorded"] += 1
                 net -= owed
@@ -271,8 +297,45 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
              "outcomes": outcomes, "net_misstatement": net,
              "listed_vouchers": len(listing),
              "listing_from": listing_role, "payments_from": payments_role,
+             "recorded_accounts_checked": bool(ledger),
              "exceptions": len(findings)}
     return findings, stats
+
+
+def _ledger_accounts(rows: list[dict]) -> dict[str, tuple[str, str, Decimal]]:
+    """Trial balance accounts by number: (account, description, debit-positive
+    balance), repeated rows summed."""
+    from procedures_cycles.statements import _signed
+    out: dict[str, tuple[str, str, Decimal]] = {}
+    for row in rows:
+        account = key_text(row.get("account"))
+        if not account:
+            continue
+        balance = _signed(row) or ZERO
+        _, description, before = out.get(account, (account, text(row.get("description")), ZERO))
+        out[account] = (account, description, before + balance)
+    return out
+
+
+def _find_account(ledger: dict, named: str) -> tuple[str, Decimal] | None:
+    """The trial balance account an inspection names: by number ("2200"), by
+    number and name ("2200 Sales Tax Payable", either side), or by its name
+    alone. A number or name shared by two accounts names neither."""
+    wanted = key_text(named)
+    if wanted in ledger:
+        return wanted, ledger[wanted][2]
+    first = key_text(named.split()[0]) if named.split() else ""
+    if first in ledger:
+        return first, ledger[first][2]
+    # A QuickBooks trial balance names accounts "2200 Sales Tax Payable".
+    by_number = [a for a in ledger if a.split()[0] == wanted]
+    if len(by_number) == 1:
+        return by_number[0], ledger[by_number[0]][2]
+    by_name = [a for a, (_, desc, _) in ledger.items()
+               if desc and " ".join(desc.lower().split()) == " ".join(named.lower().split())]
+    if len(by_name) == 1:
+        return by_name[0], ledger[by_name[0]][2]
+    return None
 
 
 # --------------------------------------------------------------------------- supplier statements (2026-11-24)

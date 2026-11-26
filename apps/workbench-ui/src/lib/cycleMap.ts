@@ -17,8 +17,11 @@ export interface MapNode {
   label: string;
   x: number;
   y: number;
-  /** Procedures that test this dataset alone, with no counterparty. */
+  /** Procedures drawn on this box: they start from this dataset (each
+   *  names any other data it needs in its detail). */
   procedures?: string[];
+  /** What reads this dataset, for a box no arrow or procedure explains. */
+  note?: string;
 }
 
 export interface MapEdge {
@@ -51,7 +54,7 @@ const PAYABLES: CycleMap = {
     "Each box is a set of records you supplied. Each arrow is a procedure "
     + "that tests whether one set agrees with the next.",
   width: 800,
-  height: 454,
+  height: 566,
   nodes: [
     {
       role: "Vendors", label: "Vendors", x: 24, y: 28,
@@ -76,7 +79,15 @@ const PAYABLES: CycleMap = {
       x: 600, y: 364,
     },
     {
-      role: "Value_flows", label: "Value flows", x: 24, y: 364,
+      role: "Subsequent_payments", label: "Paid after year end", x: 24, y: 364,
+    },
+    { role: "Unpaid_bills", label: "Unpaid at year end", x: 24, y: 476 },
+    {
+      role: "Vendor_statements", label: "Vendor statements", x: 312, y: 476,
+      procedures: ["ap.vendor_statement_reconciliation"],
+    },
+    {
+      role: "Value_flows", label: "Value flows", x: 600, y: 476,
       procedures: ["forensic.closed_value_flow"],
     },
   ],
@@ -115,9 +126,23 @@ const PAYABLES: CycleMap = {
       points: [[200, 171], [312, 171]], labelAt: [256, 171],
       procedures: ["ap.payments_without_bills"],
     },
+    // The search reads the register after year end and the year-end unpaid
+    // bills when they are loaded, else Payments and Vouchers (the contract's
+    // alternative input sets); each arrow it can run over carries it, and its
+    // detail names the set that serves.
     {
       id: "inspection-payments", from: "Disbursement_inspection", to: "Payments",
       points: [[200, 283], [312, 283]], labelAt: [256, 283],
+      procedures: ["ap.unrecorded_liabilities_search"],
+    },
+    {
+      id: "subsequent-inspection", from: "Subsequent_payments", to: "Disbursement_inspection",
+      points: [[112, 364], [112, 314]], labelAt: [112, 339],
+      procedures: ["ap.unrecorded_liabilities_search"],
+    },
+    {
+      id: "unpaid-subsequent", from: "Unpaid_bills", to: "Subsequent_payments",
+      points: [[112, 476], [112, 426]], labelAt: [112, 451],
       procedures: ["ap.unrecorded_liabilities_search"],
     },
     {
@@ -185,8 +210,10 @@ const CASH = cycle("cash", "Cash", 2, [
   { role: "Cutoff_statement", label: "Cutoff bank statement", ...at(0, 0) },
   { role: "Bank_reconciliation", label: "Bank reconciliation", ...at(1, 0) },
   { role: "Transfers", label: "Bank transfers", ...at(1, 1) },
+  { role: "Bank_confirmations", label: "Bank confirmations", ...at(2, 0) },
 ], [
   ["Cutoff_statement", "Bank_reconciliation", ["cash.bank_reconciliation"]],
+  ["Bank_confirmations", "Bank_reconciliation", ["cash.bank_confirmation"]],
   ["Transfers", "Bank_reconciliation", ["cash.interbank_transfers"]],
 ]);
 
@@ -230,6 +257,10 @@ const CLOSE = cycle("completion", "Journal, planning and completion", 4, [
   { role: TB, label: "Trial balance", ...at(1, 1),
     procedures: ["fs.trial_balance_analytics", "completion.going_concern_indicators"] },
   { role: "Adjusting_entries", label: "Adjusting entries", ...at(2, 1) },
+  { role: "Prior_statements", label: "Last year's statements", ...at(2, 0),
+    note: "Last year's figures as reported. The trial balance analytics read them for "
+      + "prior ratios and averages when the trial balance has no prior column, and "
+      + "flag any line where the two disagree." },
   { role: "Performance_materiality", label: "PM allocations", ...at(1, 0),
     procedures: ["planning.performance_materiality"] },
   { role: "Attribute_tests", label: "Control tests", ...at(0, 0),

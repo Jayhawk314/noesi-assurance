@@ -161,6 +161,9 @@ export interface CoverageRow {
   missing_roles: string[];
   /** Present when an alternative input set (not the required one) serves. */
   satisfied_by?: string[];
+  required_fields?: Record<string, string[]>;
+  /** Other input sets that serve as well as required_fields. */
+  alternative_fields?: Record<string, string[]>[];
   missing_fields: Record<string, string[]>;
   missing_policies: string[];
   population: number | null;

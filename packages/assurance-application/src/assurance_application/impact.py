@@ -36,6 +36,7 @@ _AMOUNT_FIELDS = ("voucher_amount", "payment_amount", "po_amount", "amount",
 # are "not_measured", never "none".
 ROLE_AMOUNT_FIELDS: dict[str, tuple[str, ...]] = {
     "Trial_balance": ("balance",),
+    "Prior_statements": ("amount",),
     "AR_listing": ("balance",),
     "Confirmations": ("confirmed_value",),
     "Inventory_listing": ("cost",),
@@ -60,6 +61,8 @@ ROLE_AMOUNT_FIELDS: dict[str, tuple[str, ...]] = {
     "Adjusting_entries": ("amount", "debit-credit"),
     "Sales_invoices": ("amount",),
     "Credit_memos": ("amount",),
+    "Disbursement_inspection": ("liability_amount",),
+    "Payment_approvals": ("payment_amount",),
 }
 
 # How rows of each canonical role are matched across file versions.
@@ -76,6 +79,7 @@ KEY_FIELDS: dict[str, tuple[str, ...]] = {
     "Value_flows": ("source_entity", "target_entity"),
     # the cycle record types (Kestrel and any case built like it)
     "Trial_balance": ("account",),
+    "Prior_statements": ("line",),
     "Journal_entries": ("entry_id", "line"),
     "Adjusting_entries": ("entry_id", "account"),
     "AR_listing": ("customer_number",),
@@ -107,6 +111,11 @@ KEY_FIELDS: dict[str, tuple[str, ...]] = {
     "Representations": ("code",),
     "Misstatements": ("reference", "description"),
     "Performance_materiality": ("account",),
+    "Sales_invoices": ("invoice_number",),
+    "Credit_memos": ("memo_number",),
+    "Disbursement_inspection": ("payment_number",),
+    "Payment_approvals": ("payment_number",),
+    "Attribute_tests": ("attribute",),
 }
 
 _SIGNIFICANCE_ORDER = ("none", "below_trivial", "not_measured",

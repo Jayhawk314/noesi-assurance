@@ -248,3 +248,59 @@ def test_the_new_roles_take_no_file_from_the_older_ones():
                                     "Payment Amount", "Check Number", "Voucher Number"]) == "Payments"
     assert infer_role_from_headers(["Voucher Number", "Vendor Number", "Invoice Number",
                                     "Voucher Date", "Voucher Amount"]) == "Vouchers"
+
+
+def _tb(account, balance, side, description="Sales Tax Payable"):
+    return [{"account": "1010", "description": "Cash", "balance": D("50000"), "side": "DR"},
+            {"account": account, "description": description, "balance": D(balance),
+             "side": side}]
+
+
+def _search(tb, recorded="2200 Sales Tax Payable"):
+    inspected = [dict(r) for r in INSPECTED]
+    inspected[2]["recorded_account"] = recorded
+    tables = {"Unpaid_bills": UNPAID, "Subsequent_payments": SUBSEQUENT,
+              "Disbursement_inspection": inspected}
+    if tb is not None:
+        tables["Trial_balance"] = tb
+    return execute_procedure(PID, tables, POLICIES)
+
+
+def test_a_recorded_account_is_checked_against_the_trial_balance():
+    # 26 Nov 2026: the account the auditor traced a liability to was taken at
+    # its word. With a trial balance loaded it must exist there and its
+    # period-end credit must cover the liability. Invented figures.
+    for recorded in ("2200", "2200 Sales Tax Payable", "sales tax payable"):
+        findings, stats = _search(_tb("2200", "9500", "CR"), recorded)
+        assert stats["recorded_accounts_checked"] is True
+        assert stats["outcomes"]["recorded_outside_payables"] == 1, recorded
+        assert not {k for k in keys(findings) if k[0] == "eft-0115"}, recorded
+    # A QuickBooks-style account cell, number and name together.
+    findings, stats = _search(_tb("2200 Sales Tax Payable", "9500", "CR"), "2200")
+    assert stats["outcomes"]["recorded_outside_payables"] == 1
+    assert not {k for k in keys(findings) if k[0] == "eft-0115"}
+
+
+def test_a_recorded_account_missing_from_the_trial_balance_is_refused():
+    findings, stats = _search(_tb("2200", "9500", "CR"), "2210")
+    assert ("eft-0115", "recorded_account_not_in_trial_balance") in keys(findings, "AMBIGUOUS")
+    # Neither recorded nor unrecorded: the inspection must be corrected first.
+    assert stats["outcomes"]["recorded_outside_payables"] == 0
+    assert ("eft-0115", "unrecorded") not in keys(findings)
+
+
+def test_a_recorded_account_too_small_to_hold_the_liability_is_a_lead():
+    findings, stats = _search(_tb("2200", "3000", "CR"))   # 3,000 credit < 7,000 owed
+    (lead,) = [f for f in findings if f.key[1:] == ("eft-0115", "recorded_account_below_liability")]
+    assert lead.verdict == "TENSION" and lead.score == D("4000")
+    assert stats["outcomes"]["recorded_outside_payables"] == 1
+    findings, _ = _search(_tb("2200", "500", "DR"))        # a debit holds none of it
+    (lead,) = [f for f in findings if f.key[1:] == ("eft-0115", "recorded_account_below_liability")]
+    assert lead.score == D("7000")
+
+
+def test_without_a_trial_balance_the_recorded_account_is_taken_as_stated():
+    findings, stats = _search(None, "2210")
+    assert stats["recorded_accounts_checked"] is False
+    assert stats["outcomes"]["recorded_outside_payables"] == 1
+    assert not {k for k in keys(findings) if k[0] == "eft-0115"}
