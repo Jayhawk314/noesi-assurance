@@ -155,6 +155,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
   return (
     <>
       <h2>Source inventory</h2>
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>File</th><th>SHA-256</th><th>Bytes</th><th>State</th>
@@ -218,6 +219,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
           ))}
         </tbody>
       </table>
+      </div>
       <form className="inline" onSubmit={(e) => { e.preventDefault(); void upload(); }}>
         <input type="file" ref={fileInput} accept=".csv,.txt,.xlsx,.xls,.pdf,.json,.png,.jpg,.jpeg" multiple />
         <button className="action" type="submit">upload sources</button>
@@ -265,6 +267,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
           </button>
         </form>
       )}
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>Role</th><th>Status</th><th>Mapped by</th>
@@ -321,8 +324,10 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
           ))}
         </tbody>
       </table>
+      </div>
 
       <h3>Normalized datasets</h3>
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>Role</th><th>Rows in / loaded / rejected</th>
@@ -357,6 +362,7 @@ export function SourcesScreen({ client, eid, onError }: ScreenProps) {
           ))}
         </tbody>
       </table>
+      </div>
       <p className="note">
         Datasets are rebuilt from the immutable artifact through the confirmed
         mapping on every read and digest-verified — reperformance is the read
@@ -471,6 +477,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
           download (CSV)
         </button>
       </div>
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>Procedure</th><th>Cycle</th><th>Status</th><th>In the audit</th>
@@ -551,7 +558,9 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
           })}
         </tbody>
       </table>
+      </div>
       <h3>Evidence requests</h3>
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>Kind</th><th>Item</th><th>Owner</th><th>Unlocks</th></tr>
@@ -567,6 +576,7 @@ export function CoverageScreen({ client, eid, onError, clientName = "" }: Screen
           ))}
         </tbody>
       </table>
+      </div>
     </>
   );
 }
@@ -732,6 +742,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           The engagement's settings (Scope & Policies) apply to every run automatically.
         </span>
       </form>
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>Procedure</th><th>Status</th><th>Run by</th>
@@ -757,6 +768,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           ))}
         </tbody>
       </table>
+      </div>
 
       <h3>Findings and dispositions</h3>
       <form className="inline" onSubmit={(e) => e.preventDefault()}>
@@ -973,6 +985,7 @@ export function SadScreen({ client, eid, onError, onNavigate }: ScreenProps & {
           </span>
         </form>
       )}
+      <div className="table-wrap">
       <table className="dense">
         <thead><tr><th>Unadjusted item</th><th>Reason</th><th>Amount</th></tr></thead>
         <tbody>
@@ -985,11 +998,13 @@ export function SadScreen({ client, eid, onError, onNavigate }: ScreenProps & {
           ))}
         </tbody>
       </table>
+      </div>
 
       <h3>Misstatement schedule, by statement line</h3>
       {sad.schedule ? (
         <>
           <p className="note">{sad.schedule.note}.</p>
+          <div className="table-wrap">
           <table className="dense">
             <thead><tr><th>Line</th><th>Signed effect</th><th /></tr></thead>
             <tbody>
@@ -1004,6 +1019,7 @@ export function SadScreen({ client, eid, onError, onNavigate }: ScreenProps & {
               ))}
             </tbody>
           </table>
+          </div>
         </>
       ) : (
         <p className="note">
@@ -1101,6 +1117,7 @@ export function BlockerList({ blockers, onNavigate }: {
   onNavigate?: (tab: string) => void;
 }) {
   return (
+    <div className="table-wrap">
     <table className="dense">
       <thead><tr><th>Still open</th><th>Count</th><th>Where</th><th>Items</th></tr></thead>
       <tbody>
@@ -1125,6 +1142,7 @@ export function BlockerList({ blockers, onNavigate }: {
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 

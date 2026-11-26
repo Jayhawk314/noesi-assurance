@@ -29,11 +29,8 @@ Last updated 26 Nov 2026.
 
 | # | Item | Notes |
 |---|------|-------|
-| 3.1 | Studio not clicked in a browser after the lesson corrections | Built and text-checked only. |
-| 3.2 | Dark mode, narrow windows and keyboard-only use of the Workbench not checked | `docs/WORKBENCH-WALKTHROUGH-2026-11-26.md`. |
-| 3.3 | Nine Workbench tables have no scroll wrapper | None seen clipping at 1440 px; the findings table, which did, is fixed. |
-| 3.4 | Readiness "Misstatements are not yet disposed" lists no items | The count is right; the items column is empty. |
-| 3.5 | Wiring the cycles into the structural layer | ROADMAP parking lot, agreed as later (26 Sep). |
+| 3.1 | Keyboard-only use of the Workbench not checked | Dark mode and an 820 px window were checked 26 Nov. |
+| 3.2 | Wiring the cycles into the structural layer | ROADMAP parking lot, agreed as later (26 Sep). |
 
 ## Closed
 
@@ -59,3 +56,6 @@ Last updated 26 Nov 2026.
 | 26 Nov 2026 | Full clicked Workbench walkthrough; layout fixes; working paper names open items in words | d149315, 03290c2 |
 | 26 Nov 2026 | Code Atlas refreshed; refresher no longer cuts an excerpt at a multi-line string | a90b06d |
 | 26 Nov 2026 | Partner report sign-off: dropped under the supplement rule (no sign-offs, James 30 Sep) | — |
+| 26 Nov 2026 | Studio clicked in a browser: course pages carry the course-date notice; journey's Collect no longer reads "32 of 10", Scope's next step names what is missing, the new-data banner says added or replaced | 986a5c9 |
+| 26 Nov 2026 | Readiness names which procedures the open misstatements came from | 986a5c9 |
+| 26 Nov 2026 | Every Workbench table scrolls in a narrow window (Coverage and Sources ran past the edge at 820 px); dark mode checked | see below |

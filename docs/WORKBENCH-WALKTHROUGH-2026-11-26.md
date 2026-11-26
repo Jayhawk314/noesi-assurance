@@ -25,10 +25,18 @@ The script was kept outside the repository; its steps are listed here so the pas
 - The working paper printed readiness codes ("SELECTED_PROCEDURES_BLOCKED (6)"); it now names them in the
   screens' words.
 
+## Checked afterwards the same day
+
+- Studio (`/studio/`) clicked: course home, course map, fraud track, lesson 10 and the journey. Fixed: the
+  journey's Collect stage counted every loaded role against Harborline's ten payables files ("32 of 10");
+  Scope's next step read only "Set" when partial procedures lacked fields, not policies; the new-data
+  banner said "replaced" for rows added.
+- Dark mode (Flow Map, Runs & Findings, Draft Opinion) reads correctly.
+- At 820 px wide, Coverage and one Sources table ran past the page edge; every table now scrolls inside
+  its own box, and no table overflows on any tab.
+
 ## Not covered
 
-- Studio (`/studio/`) was built and its text corrected, but not clicked in a browser.
-- Dark mode, narrow windows and keyboard-only use were not checked.
+- Keyboard-only use.
 - Every control on every screen was not exercised: the bulk disposition form, run-only policy values,
   archive and restore (clicked on 3 Oct), and folder upload (3 Oct) were not repeated.
-- Nine other tables have no scroll wrapper; none was seen clipping on the demo at 1440 px wide.
