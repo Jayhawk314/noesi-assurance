@@ -23,10 +23,16 @@ def py_block(lines, i):
     while lines[k].lstrip().startswith("@"):       # decorators: the block starts at the def/class below
         k += 1
     j = k + 1
+    # A line inside a triple-quoted string can start at column 0 without ending
+    # the block (render_workpaper's provenance text did, 26 Nov 2026).
+    in_string = None
     while j < len(lines):
         s = lines[j]
-        if s.strip() and (len(s) - len(s.lstrip())) <= indent and not s.lstrip().startswith((")", "]", "}")):
+        if in_string is None and s.strip() and (len(s) - len(s.lstrip())) <= indent                 and not s.lstrip().startswith((")", "]", "}")):
             break
+        for quote in ('"""', "'''"):
+            if in_string in (None, quote) and s.count(quote) % 2:
+                in_string = None if in_string == quote else quote
         j += 1
     while j > i + 1 and not lines[j - 1].strip():
         j -= 1
