@@ -324,6 +324,9 @@ result gaps, which received general fixes and invented-data regressions.
 engagement, including rerun from What Changed and retention of the stale historical run. Reproducible
 script, reviewed screenshots and limits: `docs/WORKBENCH-REPLACEMENT-CHECK-2026-11-25.md`.
 Do not treat this bounded check or the earlier Phase 1 status as a product-readiness verdict.
+**26 Nov follow-up:** a full clicked pass on the Kestrel demo (every tab, every Flow Map cycle, all five
+disposition types with notes kept after reload, every Draft Opinion decision, export verified offline):
+`docs/WORKBENCH-WALKTHROUGH-2026-11-26.md`, with its fixes and what it did not cover.
 
 ### Done on 2026-09-29
 Codex's F1-F3 fixes; seldom-used accounts measured within the period;
@@ -507,14 +510,14 @@ The single list of open items is `docs/OPEN-ITEMS.md`.
   **Fixed 2 Oct:** a schedule's source exports (named in its provenance) are
   marked "used to build …" and left out of "map all"; their own button still
   maps them. Tested on the Kestrel seed (the two Trial Balance exports and
-  Unpaid Bills, nothing else). Not checked on screen.
-- Oceanview's offline scripts (run_full.py, run_noesi.py, workflow_full.py)
-  still call the signing key and the lock removed in D9 stage 2, so they do
-  not run; the Workbench's Oceanview loader (load_workbench.py) was fixed.
-- Studio's Harborline lessons still teach chairs, locks and concurrence.
-- apps/learn-kestrel-streamlit/learn.html is a built page that still shows
-  Kestrel's old June check numbers (renumbered 2 Oct); rebuild it if that
-  app is kept.
+  Unpaid Bills, nothing else). Seen on screen 26 Nov.
+- ~~Oceanview's offline scripts do not run~~ **Checked 26 Nov:** run_noesi.py and
+  run_full.py run (no lock or signing calls remain); workflow_full.py is a module
+  run_full imports. run_full.py now writes UTF-8 so a redirected run does not fail.
+- ~~Studio's Harborline lessons still teach chairs, locks and concurrence.~~ **Fixed
+  26 Nov** (4099ebc, 03290c2); the Harborline videos still narrate them (OPEN-ITEMS 1.4).
+- ~~apps/learn-kestrel-streamlit/learn.html shows old check numbers~~ **Checked 26 Nov:**
+  rebuilt from source, byte-identical; already current.
 - Regenerating Kestrel rewrites six .xlsx files with identical cell values
   but different bytes (openpyxl version); harmless, seen 2 Oct.
 

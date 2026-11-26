@@ -11,32 +11,29 @@ Last updated 26 Nov 2026.
 
 | # | Item | Why it is open |
 |---|------|----------------|
-| 1.1 | Push noesi-assurance `main` (3fc61af, 8a863a9, 7c3434b, e690277) | Claude Code's permission check blocked the push. Run `git push origin main` in the repo. |
-| 1.2 | Push noesi-vice-keys `main` to noesi-starlight (d8f399a, ae901f2, 1b9a90c) | Same. Confirmed 26 Nov: the remote's main is still 08e8174. |
+| 1.1 | Push noesi-assurance `main` | Claude Code's permission check blocked the push. |
+| 1.2 | Push noesi-vice-keys `main` to noesi-starlight | Same. |
 | 1.3 | komposos-labs-videos has no version history | Not a git repo. The m12/m13 changes exist only on disk, with `_backup_2026-11-25_*` copies. Decide whether it becomes a repo. |
+| 1.4 | Nine Harborline lesson videos narrate removed or outdated facts: l1 (chairs), l2 (concurrence, lock), l3 (lock), l5 (review chairs), l6 ("no search for unrecorded liabilities"), l9 ("no inventory procedures"), l10 (the lock, six completion checks), f2 ("no fraud flag", "doesn't test journal entries"), f8 ("no Benford test") | Checked 26 Nov against `noesi_learn_videos/*/SCRIPT.md`. The Studio course now says the videos predate the October changes. Remaking them means new screen captures and ElevenLabs credits for a course Kestrel Learn replaces: remake, or retire the Harborline videos. |
 
-## 2. Real gaps, checked this session
+## 2. Known limits, kept by design
 
 | # | Item | Notes |
 |---|------|-------|
-| 2.1 | Flow Map does not draw `Subsequent_payments` or `Unpaid_bills`; the search's arrow still points at Payments | Flow Map work was dropped 30 Sep (ROADMAP §D). Fix only if the map is kept. |
-| 2.2 | What Changed, "Runs built on the old file": a stale run shows status "completed" | True of the run but reads oddly beside "stale". Wording only. |
-| 2.3 | The search takes the auditor's `recorded_account` at its word | Designed limit, stated in the contract: a payment the auditor traced to another account is not re-checked against that account. |
-| 2.4 | Kestrel 175/177: PO overrun and July check 4433 "not in Noesi" | Kept on purpose (ROADMAP §C, closed 2 Oct). Reopen only with an export that links bills to POs and payments. |
-| 2.5 | `Prior_statements`: revision impact does not mark analytics stale when that file changes | From ROADMAP §B3, stated as a limit. |
+| 2.1 | Kestrel 175/177: PO overrun and July check 4433 "not in Noesi" | ROADMAP §C, closed 2 Oct. Reopen only with an export that links bills to POs and payments. |
+| 2.2 | The search checks a recorded account's existence and credit, not the entry itself | Stated in the contract. An account named in a form the matcher does not read ("Acct 2200") is refused until the worksheet is corrected. |
+| 2.3 | Benford leaves out amounts under 10 | Noesi's own choice, stated in the contract; no Nigrini source found for it. |
+| 2.4 | `Prior_statements`: account movements still need the trial balance's prior column | ROADMAP §B3. |
 
-## 3. Carried from the roadmap, not rechecked 26 Nov
+## 3. Smaller gaps found 26 Nov
 
-| # | Item | Source |
-|---|------|--------|
-| 3.1 | Oceanview's offline scripts (run_full.py, run_noesi.py, workflow_full.py) still call the signing key and the lock removed in D9, so they do not run | ROADMAP parking lot |
-| 3.2 | Studio's Harborline lessons still teach chairs, locks and concurrence (removed from the product in D9) | ROADMAP parking lot, D9 |
-| 3.3 | apps/learn-kestrel-streamlit/learn.html shows Kestrel's old June check numbers | ROADMAP parking lot. Rebuild it or retire that app. |
-| 3.4 | Sources "used to build …" marking: tested on the seed, not checked on screen | ROADMAP parking lot, 2 Oct |
-| 3.5 | Benford minimum of 1,000: the source page (Nigrini 2012) was never checked | ROADMAP parking lot, 2 Oct |
-| 3.6 | Phase 1 exit checks: a full invented-data engagement through the Workbench UI, and a screen-by-screen wording check | ROADMAP §E, 3 Oct. Parts were done 3 Oct and 25 Nov; there is no full pass on record. |
-| 3.7 | Wiring the cycles into the structural layer | ROADMAP parking lot, agreed as later (26 Sep) |
-| 3.8 | Partner report sign-off | ROADMAP parking lot. Likely out of scope under the supplement rule (no sign-offs). |
+| # | Item | Notes |
+|---|------|-------|
+| 3.1 | Studio not clicked in a browser after the lesson corrections | Built and text-checked only. |
+| 3.2 | Dark mode, narrow windows and keyboard-only use of the Workbench not checked | `docs/WORKBENCH-WALKTHROUGH-2026-11-26.md`. |
+| 3.3 | Nine Workbench tables have no scroll wrapper | None seen clipping at 1440 px; the findings table, which did, is fixed. |
+| 3.4 | Readiness "Misstatements are not yet disposed" lists no items | The count is right; the items column is empty. |
+| 3.5 | Wiring the cycles into the structural layer | ROADMAP parking lot, agreed as later (26 Sep). |
 
 ## Closed
 
@@ -50,3 +47,15 @@ Last updated 26 Nov 2026.
 | 25 Nov 2026 | M13 lesson lists internal control as a basic representation | 8a863a9 |
 | 25 Nov 2026 | Videos m12 (1.1258 on screen) and m13 (opinion judgment) re-rendered; m13 re-voiced | 7c3434b |
 | 25 Nov 2026 | Clicked replace + What Changed check | e690277 |
+| 26 Nov 2026 | Flow Map draws the search's new inputs, vendor statements, bank confirmations and last year's statements; no unstyled chip for out-of-scope arrows | 693dee4, 3277bb4 |
+| 26 Nov 2026 | What Changed: a stale run reads "finished, on the old file" | 693dee4 |
+| 26 Nov 2026 | The search checks a recorded account against the trial balance (exists, credit covers it, credit shared across liabilities); two independent reviews, all findings fixed | 693dee4, 3277bb4, 03290c2 |
+| 26 Nov 2026 | A revised `Prior_statements` (or any table a run read) marks the run stale in What Changed | 693dee4 |
+| 26 Nov 2026 | Oceanview offline scripts run (the roadmap note was stale; `run_full.py` made safe to redirect; private, not in git) | — |
+| 26 Nov 2026 | Studio's Harborline course: lock, chairs, concurrence and run review removed; procedures added since named with their cycle and date; fact-checked by a second agent | 4099ebc, 03290c2 |
+| 26 Nov 2026 | Kestrel Learn page check numbers: rebuilt from source, byte-identical, so already current | — |
+| 26 Nov 2026 | Sources "used to build" marking seen on screen | — |
+| 26 Nov 2026 | Benford: 1,000 minimum and the conformity bands checked against Nigrini's sources | aba3eb3 |
+| 26 Nov 2026 | Full clicked Workbench walkthrough; layout fixes; working paper names open items in words | d149315, 03290c2 |
+| 26 Nov 2026 | Code Atlas refreshed; refresher no longer cuts an excerpt at a multi-line string | a90b06d |
+| 26 Nov 2026 | Partner report sign-off: dropped under the supplement rule (no sign-offs, James 30 Sep) | — |
