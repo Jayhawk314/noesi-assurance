@@ -80,9 +80,13 @@ export function Overview({ bundle, onView }: { bundle: Bundle; onView: (v: ViewI
     <div className="grid">
       {bundle.impact && bundle.impact.summary.revised_files > 0 && (
         <button className="alert warn wide" onClick={() => onView("changes")}>
-          <b>The client replaced {bundle.impact.revisions.map((r) => r.role).join(", ")}.</b>{" "}
+          {/* "replaced" only for a replacement: Kestrel's July journal is added
+              to the year's (26 Nov 2026). */}
+          <b>New client data: {bundle.impact.revisions.map((r) =>
+            r.load_mode === "add" ? `rows added to ${r.role.replace(/_/g, " ")}`
+              : `${r.role.replace(/_/g, " ")} replaced`).join(", ")}.</b>{" "}
           {bundle.impact.summary.stale_runs} test(s) and {bundle.impact.summary.judgments_to_revisit} of
-          your judgment(s) rest on the old version — see what changed →
+          your judgment(s) rest on the earlier version — see what changed →
         </button>
       )}
 

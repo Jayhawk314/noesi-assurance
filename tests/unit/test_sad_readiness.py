@@ -164,3 +164,15 @@ def test_a_bare_one_is_not_read_as_one_percent_performance_materiality():
     for bad in ("1", "0.5%", "5"):
         with pytest.raises(ValueError, match="from 10%"):
             performance_rate(bad)
+
+
+def test_open_misstatements_are_counted_by_procedure():
+    # 26 Nov 2026 walkthrough: readiness named only the number of open
+    # misstatements; the screens now say which procedures they came from.
+    report = {"findings": [], "refusals": []}
+    sad = {"open_count": 3,
+           "open_misstatements_by_procedure": {"ar.listing_tie": 2, "ppe.rollforward": 1}}
+    produced = readiness(report, _green_engagement(report), sad)
+    (blocker,) = [b for b in produced["blockers"] if b["code"] == "MISSTATEMENTS_UNRESOLVED"]
+    assert blocker["count"] == 3
+    assert blocker["by_procedure"] == {"ar.listing_tie": 2, "ppe.rollforward": 1}

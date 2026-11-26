@@ -1668,6 +1668,16 @@ class WorkbenchService:
         for uid in open_findings:
             by_procedure[procedure_of[uid]] = by_procedure.get(procedure_of[uid], 0) + 1
         summary["open_findings_by_procedure"] = by_procedure
+        # The same count for open misstatement candidates: readiness named
+        # only their number (26 Nov 2026 walkthrough).
+        open_candidates = {
+            row["finding_uid"] for row in rows
+            if row["verdict"] != "AGREE" and _is_candidate(row)
+            and row["disposition"] in ("undisposed", "follow_up")}
+        candidates_by_procedure: dict[str, int] = {}
+        for uid in sorted(open_candidates):
+            candidates_by_procedure[procedure_of[uid]] =                 candidates_by_procedure.get(procedure_of[uid], 0) + 1
+        summary["open_misstatements_by_procedure"] = candidates_by_procedure
         # B2: one summary. The misstatement schedule, once evaluated by
         # completion.uncorrected_misstatements, is the signed, projected,
         # by-statement-line view; it rides on the SAD, and the SAD cannot

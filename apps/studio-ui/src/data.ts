@@ -98,6 +98,13 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
     (p) => p.selected && p.status === "executable");
   const partial = bundle.coverage.procedures.filter(
     (p) => p.selected && p.status === "partial");
+  // The record sets the procedures in the audit still need (coverage's own
+  // list), not Harborline's ten payables files: a multi-cycle engagement
+  // read "32 of 10 record sets loaded" (26 Nov 2026).
+  const neededRoles = new Set(bundle.coverage.procedures
+    .filter((p) => p.selected && p.status !== "unsupported")
+    .flatMap((p) => p.missing_roles));
+  const partialPolicies = [...new Set(partial.flatMap((p) => p.missing_policies))];
   const latest = latestRuns(bundle.runs);
   const stale = new Set((bundle.impact?.stale_runs ?? []).map((r) => r.procedure_id));
   const toRun = executable
@@ -123,16 +130,17 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
     },
     {
       id: "collect", title: "Collect", question: "What did the client give us?",
-      state: state(loadedRoles.size >= ROLES.length, loadedRoles.size > 0),
-      progress: [loadedRoles.size, ROLES.length],
-      detail: `${loadedRoles.size} of ${ROLES.length} record sets loaded`,
+      state: state(loadedRoles.size > 0 && neededRoles.size === 0, loadedRoles.size > 0),
+      progress: [loadedRoles.size, loadedRoles.size + neededRoles.size],
+      detail: `${loadedRoles.size} record sets loaded`
+        + (neededRoles.size ? `; ${neededRoles.size} more needed by procedures in the audit` : ""),
     },
     {
       id: "scope", title: "Scope", question: "What can this data actually prove?",
       state: state(executable.length > 0 && partial.length === 0, executable.length > 0),
       progress: [executable.length, bundle.coverage.procedures.length],
       detail: `${executable.length} procedures runnable` +
-        (partial.length ? `, ${partial.length} waiting on a policy` : ""),
+        (partial.length ? `, ${partial.length} only in part` : ""),
     },
     {
       id: "test", title: "Test", question: "Run the procedures",
@@ -178,16 +186,22 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
     case "collect":
       next = { stage: open,
                action: { kind: "workbench", tab: "Sources & Mappings" },
-               headline: `Load the client's files (${ROLES.length - loadedRoles.size} record sets missing)`,
+               headline: neededRoles.size
+                 ? `Load the client's files (${neededRoles.size} record sets the audit still needs), or leave out the procedures that need them`
+                 : "Load the client's files",
                why: "Upload, map and confirm each file's columns, then load it. Refused columns are real facts about the data." };
       break;
     case "scope":
       next = { stage: open,
                action: { kind: "workbench", tab: "Coverage" },
-               headline: partial.length
-                 ? `Set ${partial.flatMap((p) => p.missing_policies).join(", ")}`
-                 : "Nothing is runnable yet",
-               why: "Some procedures need an engagement decision, like the client's approval limit, before they can test anything." };
+               headline: partialPolicies.length
+                 ? `Set ${partialPolicies.join(", ")}`
+                 : partial.length
+                   ? `Supply what ${partial.length} procedure(s) lack, or leave them out with a reason`
+                   : "Nothing is runnable yet",
+               why: partialPolicies.length
+                 ? "Some procedures need an engagement decision, like the client's approval limit, before they can test anything."
+                 : "Some procedures can run only in part: a field they need is missing from a file. Coverage names it." };
       break;
     case "test":
       next = { stage: open, action: { kind: "run", procedureIds: toRun },

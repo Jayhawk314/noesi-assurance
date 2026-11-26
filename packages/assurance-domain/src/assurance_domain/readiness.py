@@ -281,7 +281,9 @@ def readiness(report: dict, engagement: dict, sad: dict,
     open_misstatements = int(sad.get("open_count") or sad.get("undisposed") or 0)
     if open_misstatements:
         blockers.append({"code": "MISSTATEMENTS_UNRESOLVED",
-                         "count": open_misstatements})
+                         "count": open_misstatements,
+                         "by_procedure": dict(
+                             sad.get("open_misstatements_by_procedure") or {})})
     review_open = int(sad.get("review_open_count") or 0)
     if review_open:
         blockers.append({"code": "SUBSTANTIVE_ITEMS_UNRESOLVED",
