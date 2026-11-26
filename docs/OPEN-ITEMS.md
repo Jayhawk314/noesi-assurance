@@ -59,4 +59,4 @@ Last updated 26 Nov 2026.
 | 26 Nov 2026 | Studio clicked in a browser: course pages carry the course-date notice; journey's Collect no longer reads "32 of 10", Scope's next step names what is missing, the new-data banner says added or replaced | 986a5c9 |
 | 26 Nov 2026 | Readiness names which procedures the open misstatements came from | 986a5c9 |
 | 26 Nov 2026 | Every Workbench table scrolls in a narrow window (Coverage and Sources ran past the edge at 820 px); dark mode checked | 261e993 |
-| 26 Nov 2026 | Flow Map arrows reachable and opened by keyboard (they were mouse only) | see git log |
+| 26 Nov 2026 | Flow Map arrows reachable and opened by keyboard (they were mouse only) | 4eaa348 |
