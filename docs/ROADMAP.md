@@ -346,6 +346,7 @@ hand, in Noesi, compare with the key); Kestrel's own documents; new videos,
 scripts first, James approves scripts and credits before voicing.
 
 ## Parking lot
+The single list of open items is `docs/OPEN-ITEMS.md`.
 - **Fixed 25 Nov 2026: going concern on the adjusted figures** (one of the 4 Oct "possible software bugs").
   `completion.going_concern_indicators` read the trial balance before the adjusting entries, though Learn module 12
   already taught "recomputed from the adjusted figures". When `Adjusting_entries` are loaded it now applies them
@@ -356,7 +357,7 @@ scripts first, James approves scripts and credits before voicing.
   rows (which also gave `fs.adjusted_trial_balance` a false "does not foot"). Kestrel key: working capital
   61,622.55, net income 326,229.12, equity 177,972.55, current ratio 1.1258 (1.1291 before; still below 1.20, still
   "one point one three" in m12's narration, so no re-voice). Starlight: no indicators either way. 638 tests;
-  finish line 175/177. **Not checked:** the frames of rendered video m12 may still show 1.1291 on screen.
+  finish line 175/177. m12 re-rendered 25 Nov with 1.1258 on screen and frames checked (7c3434b).
 - **Built 25 Nov 2026: the search for unrecorded liabilities with its own inputs.** New roles `Subsequent_payments`
   (the register after year end) and `Unpaid_bills` (the year-end listing); `ap.unrecorded_liabilities_search` uses
   each when loaded and otherwise reads Payments and Vouchers as before (Kestrel unchanged, 175/177). A register row
