@@ -429,7 +429,11 @@ _BENFORD = {d: math.log10(1 + 1 / d) for d in range(1, 10)}
 
 def _first_digit(amount: Decimal) -> int | None:
     a = abs(amount)
-    if a < 10:          # Nigrini: amounts under 10 are left out of the test
+    # Amounts under 10 are left out (stated in the contract's limitations):
+    # they are mostly fixed small charges, not amounts that grow naturally.
+    # A design choice; checked 26 Nov 2026, it is not in Nigrini's 1999
+    # Journal of Accountancy article and was not found in his 2012 material.
+    if a < 10:
         return None
     return int(str(int(a))[0])
 

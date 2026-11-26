@@ -476,8 +476,12 @@ The single list of open items is `docs/OPEN-ITEMS.md`.
   last); L7 wording. Left as history: old engagements' `principal_assignment`
   rows still fill a display-only "reviewer" slot in readiness's team.
 - **Benford decided 2 Oct (Claude, James: "you decide"):** the demo's
-  minimum stays 1,000 (Nigrini 2012 as recalled; the page is still not
-  checked). Below it the test says "not tested" rather than judge a hundred
+  minimum stays 1,000. **Checked 26 Nov 2026:** Nigrini's own 2012
+  conference slides (ACFE, p. 10) say Benford "works best on datasets with
+  > 1,000 records"; the mean absolute deviation bands (0.006 / 0.012 /
+  0.015) match Nigrini (2012, table 7.1) as cited by independent papers. Leaving
+  out amounts under 10 is Noesi's own choice, stated in the contract; no Nigrini
+  source for it was found, so the code no longer attributes it to him. Below it the test says "not tested" rather than judge a hundred
   amounts on bands meant for large populations; a "fail" at 100 would be a
   false lead. The test is now **in by default** for every engagement, so it
   no longer reads "left out without a reason"; Coverage asks the auditor for
