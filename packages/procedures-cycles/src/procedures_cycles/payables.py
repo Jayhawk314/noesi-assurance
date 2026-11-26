@@ -151,6 +151,7 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
     for key in conflicting:
         inspections.pop(key)
     ledger = _ledger_accounts(records(tables, "Trial_balance"))
+    credit_used: dict[str, Decimal] = {}   # liabilities already placed in each account
     selection = select_disbursements(payments, threshold,
                                      int(interval) if interval else None,
                                      int(start) if start else None,
@@ -236,18 +237,23 @@ def unrecorded_liabilities_search(tables: dict, policies: dict):
                 if found is not None:
                     account, balance = found
                     evidence["recorded_account_balance"] = balance
-                    credit = -balance
-                    if credit < owed:
+                    # Liabilities traced to one account share its credit: two
+                    # 600 items do not both fit in a 1,000 credit (review 26 Nov).
+                    before = credit_used.get(account, ZERO)
+                    credit_used[account] = before + owed
+                    room = -balance - before
+                    if room < owed:
+                        evidence["traced_to_account_before"] = before
                         findings.append(receipt(
                             pid, (pnum, "recorded_account_below_liability"), "TENSION",
                             f"payment {pnum}: account {account} is said to hold the {owed} "
-                            f"liability, but its period-end balance is {balance} "
-                            f"({'a credit of ' + str(credit) if credit > 0 else 'no credit'}); "
+                            f"liability, but its period-end balance is {balance}"
+                            f"{f' and {before} of other liabilities is already traced to it' if before else ''}; "
                             "inspect the entry",
                             {**evidence, "finding_class": "CONJECTURE",
                              "limits": "the account may hold the liability net of other "
                                        "items, or the balance may be wrong"},
-                            owed - max(credit, ZERO)))
+                            owed - max(room, ZERO)))
             elif listed is None:
                 outcomes["unrecorded"] += 1
                 net -= owed
@@ -317,24 +323,35 @@ def _ledger_accounts(rows: list[dict]) -> dict[str, tuple[str, str, Decimal]]:
     return out
 
 
+def _words(value: str) -> list[str]:
+    return _norm(value).split()
+
+
 def _find_account(ledger: dict, named: str) -> tuple[str, Decimal] | None:
     """The trial balance account an inspection names: by number ("2200"), by
-    number and name ("2200 Sales Tax Payable", either side), or by its name
-    alone. A number or name shared by two accounts names neither."""
-    wanted = key_text(named)
-    if wanted in ledger:
-        return wanted, ledger[wanted][2]
-    first = key_text(named.split()[0]) if named.split() else ""
-    if first in ledger:
-        return first, ledger[first][2]
-    # A QuickBooks trial balance names accounts "2200 Sales Tax Payable".
-    by_number = [a for a in ledger if a.split()[0] == wanted]
-    if len(by_number) == 1:
-        return by_number[0], ledger[by_number[0]][2]
-    by_name = [a for a, (_, desc, _) in ledger.items()
-               if desc and " ".join(desc.lower().split()) == " ".join(named.lower().split())]
-    if len(by_name) == 1:
-        return by_name[0], ledger[by_name[0]][2]
+    number and name ("2200 Sales Tax Payable", in either the inspection or the
+    trial balance), or by its name alone. Punctuation and spacing do not count
+    ("2200 - Sales Tax Payable"). A number whose name disagrees with the
+    account's, or a name or number shared by two accounts, names none
+    (review 26 Nov 2026)."""
+    said = _words(named)
+    if not said:
+        return None
+    candidates = []
+    for account, (_, description, balance) in ledger.items():
+        words = _words(account)
+        number = words[0] if words and any(c.isdigit() for c in words[0]) else ""
+        name = words[1:] if number else words
+        name = name or _words(description)
+        if number and said[0] == number:
+            rest = said[1:]
+            # "2200" alone, or "2200" with this account's name (or the start of it).
+            if not rest or rest == name[:len(rest)]:
+                candidates.append((account, balance))
+        elif name and said == name:
+            candidates.append((account, balance))
+    if len(candidates) == 1:
+        return candidates[0]
     return None
 
 

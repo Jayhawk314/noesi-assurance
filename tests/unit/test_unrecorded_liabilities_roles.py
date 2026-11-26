@@ -304,3 +304,35 @@ def test_without_a_trial_balance_the_recorded_account_is_taken_as_stated():
     assert stats["recorded_accounts_checked"] is False
     assert stats["outcomes"]["recorded_outside_payables"] == 1
     assert not {k for k in keys(findings) if k[0] == "eft-0115"}
+
+
+def test_recorded_account_matching_follows_number_and_name(tmp_path=None):
+    # Review 26 Nov 2026: number-plus-name in the account column, spacing and
+    # punctuation, a name alone, and a number whose name disagrees.
+    qbo = [{"account": "2200 Sales Tax Payable", "balance": D("-9500")}]
+    for said in ("2200", "2200 Sales Tax Payable", "Sales Tax Payable", "2200 Sales Tax",
+                 "2200  Sales Tax Payable", "2200 - Sales Tax Payable"):
+        findings, stats = _search(qbo, said)
+        assert stats["outcomes"]["recorded_outside_payables"] == 1, said
+        assert not {k for k in keys(findings) if k[0] == "eft-0115"}, said
+    two = [{"account": "2200", "description": "Accrued wages", "balance": D("-500"), "side": ""},
+           {"account": "2300", "description": "Sales tax payable", "balance": D("-9500"),
+            "side": ""}]
+    findings, _ = _search(two, "2200 Sales Tax Payable")   # number and name disagree
+    assert ("eft-0115", "recorded_account_not_in_trial_balance") in keys(findings, "AMBIGUOUS")
+    findings, _ = _search(two, "2023 audit accrual")      # a year is not an account
+    assert ("eft-0115", "recorded_account_not_in_trial_balance") in keys(findings, "AMBIGUOUS")
+
+
+def test_liabilities_traced_to_one_account_share_its_credit():
+    inspected = [dict(r) for r in INSPECTED]
+    inspected[0]["recorded_account"] = "2200"   # CHK-101 is listed; not used
+    inspected[1]["recorded_account"] = "2200"   # CHK-102, 8,000, arose 20 Dec, not listed
+    inspected[2]["recorded_account"] = "2200"   # EFT-0115, 7,000
+    tables = {"Unpaid_bills": UNPAID, "Subsequent_payments": SUBSEQUENT,
+              "Disbursement_inspection": inspected, "Trial_balance": _tb("2200", "10000", "CR")}
+    findings, stats = execute_procedure(PID, tables, POLICIES)
+    assert stats["outcomes"]["recorded_outside_payables"] == 2
+    leads = {f.key[1]: f for f in findings if f.key[2] == "recorded_account_below_liability"}
+    # 8,000 fits in 10,000; the next 7,000 has only 2,000 left.
+    assert set(leads) == {"eft-0115"} and leads["eft-0115"].score == D("5000")

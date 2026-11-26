@@ -340,8 +340,10 @@ function ProcedureRow(
   ];
   // A procedure with more than one input set says which one serves, so an
   // arrow drawn for one set is not read as needing that set.
-  const runsOn = row.satisfied_by
-    ?? (row.alternative_fields?.length && row.status !== "blocked" && row.required_fields
+  // Only for a procedure that can run: coverage names no served set otherwise,
+  // and the required set would be the wrong answer (review 26 Nov 2026).
+  const runsOn = row.status !== "executable" ? null : row.satisfied_by
+    ?? (row.alternative_fields?.length && row.required_fields
       ? Object.keys(row.required_fields) : null);
   return (
     <div className="fm-proc">
