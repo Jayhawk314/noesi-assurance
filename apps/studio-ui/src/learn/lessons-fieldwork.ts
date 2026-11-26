@@ -101,20 +101,20 @@ export const FIELDWORK: Lesson[] = [
     },
     noesi: {
       coverage: "full",
-      summary: "Noesi is built around evidence integrity and full-population testing. Each run is frozen, can be reperformed, and is reviewed by two other people.",
+      summary: "Noesi is built around evidence integrity and full-population testing. Each run is frozen, can be reperformed, and records who ran it and when.",
       does: [
-        "**Upload → map → approve → normalize.** The original file is stored unaltered in a vault, identified by its SHA-256 fingerprint. The column mapping is proposed by one person and approved by another. Row counts must reconcile: rows in = rows loaded + rows rejected.",
+        "**Upload → map → confirm → load.** The original file is stored unaltered in a vault, identified by its SHA-256 fingerprint. You confirm the column mapping in one step (checking that the columns map right is a data check, not a sign-off). Row counts must reconcile: rows in = rows loaded + rows rejected.",
         "**Refused fields** are recorded as audit facts: data the client did not provide.",
         "**Reperform-on-read.** Every screen rebuilds the data from the original file and refuses to show data it cannot reproduce.",
-        "Each **run** freezes a manifest (procedure, engine version, a fingerprint of every input table, policies). A run is reviewed by the reviewer and approved by the partner, three different chairs.",
+        "Each **run** freezes a manifest (procedure, engine version, a fingerprint of every input table, policies). Who ran it, and when, stays on record; a run whose inputs later change is marked stale.",
       ],
-      where: ["Workbench → Sources & Mappings", "Workbench → Runs & Findings", "Studio → Next step 'Run', 'Review', 'Approve'"],
+      where: ["Workbench → Sources & Mappings", "Workbench → Runs & Findings", "Studio → Next step 'Run'"],
       doesNot: [
-        "It does **no sampling**: no sample-size calculator, random selection, or attribute-test workpaper.",
+        "Harborline's tests sample nothing: each reads the whole population. (Since September 2026 some cycle procedures evaluate samples you drew, such as confirmations by monetary-unit sampling, `ar.confirmations_mus`, and attribute tests of controls; Noesi still does not inspect the items.)",
         "It does not inspect documents or judge authenticity. It compares records.",
-        "It reads CSV and Excel (.xlsx) files, and has ready-made readings for four standard QuickBooks Online reports (Lesson 6). Other formats, such as PDF statements, are kept as evidence but not tested.",
+        "It reads CSV and Excel (.xlsx) files, and has ready-made readings for standard QuickBooks Online reports (Lesson 6). Other formats, such as PDF statements, are kept as evidence but not tested.",
       ],
-      tryIt: "In Studio, follow the Next step card through Run, Review and Approve, switching chairs when it asks.",
+      tryIt: "In Studio, follow the Next step card through Run, then open Workbench → Runs & Findings to see who ran each test, when, and on which files.",
     },
     video: {
       file: "learn-5-twenty-five-clean-payments.mp4",
@@ -233,18 +233,18 @@ export const FIELDWORK: Lesson[] = [
     },
     noesi: {
       coverage: "full",
-      summary: "Accounts payable is Noesi's home ground: eleven procedures, recorded judgments, and a trail of what changed when the client's files changed.",
+      summary: "Accounts payable is Noesi's home ground: eleven procedures on Harborline's files, recorded judgments, and a trail of what changed when the client's files changed.",
       does: [
         "It runs the AP procedures: **payment→voucher** and **voucher→PO references**, **document chain**, **three-way match**, **segregation of duties**, **vendor twins**, **split payments**, **subledger–GL tie**, **bank clearing**, **GL posting** and **closed value flows**.",
-        "Every exception needs a **disposition** with a note: cleared, unadjusted, adjusted, waived, or follow-up. Above clearly trivial, the disposition is a **proposal until a second person concurs**.",
+        "Every exception needs a **disposition** with a note: cleared, unadjusted, adjusted, waived, or follow-up. A waiver above clearly trivial stays an open item.",
         "**What Changed** compares a corrected client file with the one it replaced. It names the stale runs, shows which exceptions appear, disappear or move, and flags the judgments to revisit. It changes nothing by itself.",
         "It reads **QuickBooks Online exports** directly (Excel files): Unpaid Bills, Bill Payment List, Transaction List by Vendor and Vendor Contact List. It recomputes every subtotal and refuses a report whose layout it doesn't recognize.",
-        "From an **Unpaid Bills** export and a **General Ledger** export it builds the AP control balance: both reports footed first, then saved as a source file that goes through the same propose and approve steps as any other.",
+        "From an **Unpaid Bills** export and a **General Ledger** export it builds the AP control balance: both reports footed first, then saved as a source file that goes through the same confirm and load steps as any other.",
       ],
       where: ["Studio → Exceptions (judge in plain words)", "Studio → What changed (cascade)", "Workbench → Runs & Findings, What Changed", "Workbench → Sources & Mappings (QuickBooks files, AP subledger-to-ledger tie)"],
       doesNot: [
-        "It has **no subsequent-disbursements search procedure**. PAY-2026-0055 surfaces as a reference exception, but the unrecorded-liability judgment is yours.",
-        "It does not detect duplicate invoices. Harborline's Assignment 11 exists to show that silence.",
+        "On Harborline's files it runs **no search for unrecorded liabilities**: PAY-2026-0055 surfaces as a reference exception, and the unrecorded-liability judgment is yours. (Since September 2026, `ap.unrecorded_liabilities_search` runs that search when you load the payments after year end and your inspection results.)",
+        "On Harborline's files it finds **no duplicate invoices**: Harborline's Assignment 11 exists to show that silence. (Since September 2026, `ap.duplicate_bills` looks for them, but it needs the supplier's invoice number, which Harborline's vouchers do not carry.)",
         "It does not check cutoff on receipts, because the receipts file has no receiving-cutoff test.",
         "It does not connect to QuickBooks. You export the reports and upload them.",
         "It reads only the Accounts Payable balance from a General Ledger export, not the full ledger detail. If the two reports are dated differently, it notes the mismatch but does not yet refuse the tie.",
@@ -335,15 +335,16 @@ export const FIELDWORK: Lesson[] = [
       deliver: "A one-page receivables plan.",
     },
     noesi: {
-      coverage: "none",
-      summary: "Noesi does not audit revenue or receivables yet. Here is what it can and cannot hold.",
+      coverage: "partial",
+      summary: "Harborline's engagement tests payables only. Since September 2026, Noesi has receivables and revenue procedures for an engagement that chooses that cycle.",
       does: [
+        "With the receivables cycle chosen in Scope & Policies: the receivables listing tied to the ledger with the allowance recomputed (`ar.listing_tie`), sales cutoff against shipping evidence (`rev.sales_cutoff`), credit memos after period end (`rev.credit_memos_after_period_end`), and confirmation results evaluated (`ar.confirmations_nonstatistical`, `ar.confirmations_mus`, `ar.confirmations_difference`).",
         "The **evidence vault** keeps PDFs, CSVs, Excel files and scanned images (PNG, JPEG) unaltered with a SHA-256 fingerprint, for example confirmation replies received as PDFs.",
-        "The engagement's review, disposition and lock disciplines apply to the whole file.",
       ],
-      where: ["Workbench → Sources & Mappings (upload documents)"],
+      where: ["Workbench → Scope & Policies (choose the cycle)", "Workbench → Sources & Mappings", "Workbench → Runs & Findings"],
       doesNot: [
-        "It has **no receivables or revenue procedures**, no confirmation tracking, and no aging or allowance tools. Coverage will not invent them, and AP engines cannot be relabeled as AR tests.",
+        "It does not send confirmations or track replies; you record the results and it evaluates them.",
+        "Harborline's case files hold no receivables records, so none of these run on this course's data.",
       ],
     },
     video: {
@@ -433,7 +434,7 @@ export const FIELDWORK: Lesson[] = [
       ],
       where: ["Studio → Overview (the 'Cleared bank' and 'Posted to GL' circles)", "Workbench → Runs & Findings"],
       doesNot: [
-        "It does not audit the cash balance itself: no bank-reconciliation workpaper, deposits in transit, receipts side, or bank confirmation tracking.",
+        "On Harborline's engagement it does not audit the cash balance itself. (With the cash cycle chosen it re-performs the bank reconciliation against the cutoff statement, `cash.bank_reconciliation`, and tests interbank transfers, both since September 2026; since November 2026 it also compares bank confirmations and screens deposits kept under the reporting line.)",
         "Its 2% tolerance hides small differences. In Harborline, one 0.9% difference is correctly silent, so reconcile by hand to find it.",
       ],
     },
@@ -511,15 +512,15 @@ export const FIELDWORK: Lesson[] = [
       deliver: "A count-attendance plan.",
     },
     noesi: {
-      coverage: "none",
-      summary: "Noesi has no inventory procedures. Count attendance is physical work that no software performs.",
+      coverage: "partial",
+      summary: "Count attendance is physical work that no software performs. Harborline's engagement has no inventory procedures; since September 2026 Noesi traces counts and projects pricing tests when the inventory cycle is chosen.",
       does: [
         "The vault can keep count sheets and price lists as PDF, CSV or Excel files, unaltered and fingerprinted.",
         "The **three-way match** touches inventory indirectly: it flags invoices without receipts, which is also an inventory-completeness signal.",
       ],
       where: ["Workbench → Sources & Mappings (store documents)"],
       doesNot: [
-        "It has no count, test-count, cutoff, pricing or obsolescence procedures. Coverage will never report inventory as tested.",
+        "It does not attend the count. With the inventory cycle chosen it traces your count tags to the final listing and back (`inventory.count_listing_trace`) and projects your pricing tests (`inventory.pricing_projection`); it has no cutoff or obsolescence procedure.",
       ],
     },
     video: {

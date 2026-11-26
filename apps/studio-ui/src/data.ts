@@ -173,7 +173,7 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
     case "plan":
       next = { stage: open, action: { kind: "materiality" },
                headline: "Set materiality",
-               why: "Every later judgment — what is trivial, what needs a second opinion, what goes on the SAD — is measured against it." };
+               why: "Every later judgment — what is trivial, what may be waived, what goes on the SAD — is measured against it." };
       break;
     case "collect":
       next = { stage: open,
@@ -185,7 +185,7 @@ export function journey(bundle: Bundle): { stages: Stage[]; next: NextStep | nul
       next = { stage: open,
                action: { kind: "workbench", tab: "Coverage" },
                headline: partial.length
-                 ? `Approve ${partial.flatMap((p) => p.missing_policies).join(", ")}`
+                 ? `Set ${partial.flatMap((p) => p.missing_policies).join(", ")}`
                  : "Nothing is runnable yet",
                why: "Some procedures need an engagement decision, like the client's approval limit, before they can test anything." };
       break;

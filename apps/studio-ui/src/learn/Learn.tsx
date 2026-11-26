@@ -99,6 +99,18 @@ export function Learn({ route, standalone = false }: { route: string; standalone
   );
 }
 
+/** The course predates later Noesi changes; say so where a learner starts. */
+function CourseDate() {
+  return (
+    <p className="small muted">This course was written on the Harborline case, an accounts-payable
+      engagement, in September 2026. Noesi has since gained procedures for the other cycles; each
+      lesson's Noesi panel says what runs on Harborline and names what now exists for an engagement
+      that chooses those cycles. Sign-offs, reviews and the lock were removed in October 2026: the
+      panels are corrected, but some lesson videos were recorded before and still show or mention
+      them. The current course is Kestrel Learn.</p>
+  );
+}
+
 function Home({ progress }: { progress: Progress }) {
   const done = LESSONS.filter((l) => progress[l.slug]?.done).length;
   const next = LESSONS.find((l) => !progress[l.slug]?.done) ?? LESSONS[0];
@@ -119,6 +131,7 @@ function Home({ progress }: { progress: Progress }) {
           <span className="muted">{done} of {LESSONS.length} lessons complete</span>
         </div>
         <div className="progress big"><div style={{ width: `${(100 * done) / LESSONS.length}%` }} /></div>
+        <CourseDate />
       </section>
 
       {PHASES.map((phase) => (
@@ -388,10 +401,11 @@ function CourseMap({ progress }: { progress: Progress }) {
       <section className="lesson-section">
         <h2>How to read this</h2>
         <p>Noesi is strongest where the audit is <b>records and judgment trails</b>: planning decisions,
-          accounts-payable testing across whole populations, dispositions, review, and completion. It is
-          absent where the audit is <b>physical or external</b>: confirmations, inventory counts, and
-          inspecting documents. The course teaches every step because the audit needs every step; the
-          map shows honestly which ones the tool helps with today.</p>
+          testing whole populations, dispositions, and what is still open at completion. It is absent
+          where the audit is <b>physical or external</b>: attending counts, sending confirmations, and
+          inspecting documents; it evaluates the results you record. The course teaches every step
+          because the audit needs every step; the map shows which ones the tool helps with.</p>
+        <CourseDate />
       </section>
     </main>
   );
@@ -409,6 +423,7 @@ function FraudHome({ progress }: { progress: Progress }) {
         <p>How occupational fraud works in purchasing and payables, and how it is found. Each lesson
           teaches the idea, works it on <b>Harborline Marine</b>'s planted schemes, and ends with what
           Noesi does, and does not do. A finding is always a lead, never proof of fraud.</p>
+        <CourseDate />
         <div className="hero-actions">
           <a className="primary" href={`#/learn/fraud/${next.n}`}>{done ? `Continue with lesson F${next.n}` : "Start lesson F1"}</a>
           <a className="secondary" href="#/learn/excel">Excel for audit</a>

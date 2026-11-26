@@ -10,13 +10,11 @@ const BLOCKER_TEXT: Record<string, string> = {
   HIGH_RISKS_WITHOUT_RESPONSE: "high risks have no planned response",
   HIGH_RISKS_WITHOUT_PROCEDURE: "high risks have no procedure answering them",
   HIGH_RISK_RESPONSES_NOT_PERFORMED: "high risks are answered by procedures that did not run",
-  RISKS_AWAITING_CONCURRENCE: "risk assessments await a second person",
   CONTROLS_UNASSESSED: "controls are not assessed",
   CONTROL_RELIANCE_UNSUPPORTED: "control reliance is not supported by tests",
   SELECTED_PROCEDURES_BLOCKED: "selected procedures cannot run on this data",
   SELECTED_PROCEDURES_PARTIAL: "selected procedures wait on a policy",
   SELECTED_PROCEDURES_PENDING_RUN: "selected procedures have not been run",
-  PROCEDURE_RUN_REVIEW_PENDING: "test runs still need review or approval",
   PROCEDURE_EXCLUSIONS_WITHOUT_RATIONALE: "excluded procedures lack a written reason",
   NO_DATA_WITHOUT_PARTNER_ASSERTION: "no data was tested and the partner has not said why",
   EVIDENCE_REVIEW_PENDING: "evidence items await review",
@@ -26,17 +24,14 @@ const BLOCKER_TEXT: Record<string, string> = {
   SUBSTANTIVE_ITEMS_UNRESOLVED: "substantive items are unresolved",
   FINDINGS_OPEN: "findings still need a decision (undisposed or follow-up)",
   SCOPE_ITEMS_UNRESOLVED: "scope items are unresolved",
-  DISPOSITIONS_AWAITING_CONCURRENCE: "judgments above trivial await a second person",
   WAIVERS_ABOVE_TRIVIAL_THRESHOLD: "items were waived that are too large to waive",
-  COMPLETION_PROCEDURES_INCOMPLETE: "completion checks are not done",
-  COMPLETION_EVIDENCE_MISSING: "completion checks lack a note",
   DECISION_TRAIL_BROKEN: "the decision journal does not verify",
 };
 
+// Concurrence, run review, completion checks and stages were removed in
+// October 2026; readiness no longer produces their codes.
 const blockerText = (code: string) => BLOCKER_TEXT[code]
-  ?? (code.endsWith("_NOT_COMPLETE")
-    ? `the ${code.replace("_NOT_COMPLETE", "").toLowerCase()} stage is not marked complete`
-    : code.toLowerCase().replace(/_/g, " "));
+  ?? code.toLowerCase().replace(/_/g, " ");
 
 export function Conclude({ bundle }: { bundle: Bundle }) {
   const { sad, readiness } = bundle;

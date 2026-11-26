@@ -263,16 +263,17 @@ export const FRAUD_LESSONS: Lesson[] = [
     },
     noesi: {
       coverage: "partial",
-      summary: "Noesi keeps the assessed risks and links each one to the procedures that answer it, with a second person's agreement for the serious ones. It does not have a separate fraud category, and it cannot answer fraud risks that need data it does not test.",
+      summary: "Noesi keeps the assessed risks, marks the fraud risks among them, and links each one to the procedures that answer it. It cannot answer fraud risks that need data it does not test.",
       does: [
         "The **risk register** records a title, the assertion at risk (occurrence, completeness, accuracy, authorization or cutoff), a level from unassessed to significant, a rationale and a planned response.",
         "Each risk links to the **procedures that respond** to it; Coverage then shows whether the data you loaded can actually run them.",
-        "A risk rated **high** or **significant** needs a second person's concurrence. Completion is blocked while any risk is unassessed, or while a high or significant risk has no response or no linked procedure.",
+        "Readiness keeps open any risk that is unassessed, or a high or significant risk with no response or no linked procedure.",
+        "A risk can be marked **fraud risk** (AU-C 240); the **Fraud** tab gathers the marked risks, every test that looks for a fraud scheme, and what those tests found, and reminds you of the presumed risks.",
       ],
-      where: ["Workbench → Planning & Risk", "Workbench → Coverage", "Workbench → 📖 manual, chapter 2"],
+      where: ["Workbench → Planning & Risk", "Workbench → Fraud", "Workbench → Coverage", "Workbench → 📖 manual, chapter 2"],
       doesNot: [
-        "It has no fraud flag or fraud-risk-factor fields. Name fraud in the title and rationale.",
-        "It does not test journal entries, estimates or revenue, so management override and the revenue presumption need work outside it.",
+        "It has no fraud-risk-factor fields. Write the factors into the rationale.",
+        "On Harborline's accounts-payable engagement it tests no journal entries, estimates or revenue, so management override and the revenue presumption need work outside it. (Since September 2026 those procedures exist when their cycles are chosen.)",
         "It keeps no record of the team discussion or the inquiries AU-C 240 requires.",
       ],
       tryIt: "Start with --demo, open Planning & Risk, and add \"Fraud: self-approved payments during the supervisor gap\" against authorization, linked to ap.segregation_of_duties.",
@@ -382,7 +383,7 @@ export const FRAUD_LESSONS: Lesson[] = [
     },
     noesi: {
       coverage: "partial",
-      summary: "Noesi finds look-alike vendors by name, payments that cite vouchers missing from the file, and vouchers paid without a matching receipt. It does not compare tax IDs or bank accounts, and it has no duplicate-invoice test.",
+      summary: "Noesi finds look-alike vendors by name, payments that cite vouchers missing from the file, and vouchers paid without a matching receipt. It does not compare tax IDs or bank accounts, and on Harborline's files it finds no duplicate invoices.",
       does: [
         "`ap.vendor_relational_twins` flags vendors with **near-identical names** (and vendors with near-identical activity). Its stated limit: \"A structural twin is an investigation lead, not proof of duplication or fraud.\"",
         "`ap.payment_voucher_reference` flags payments whose voucher is **not in the voucher population**, like PAY-2026-0013.",
@@ -391,8 +392,8 @@ export const FRAUD_LESSONS: Lesson[] = [
       where: ["Workbench → Runs & Findings", "Workbench → What Changed (for the corrected file in Assignment 11)"],
       doesNot: [
         "It reads only vendor number and name, so **shared tax IDs, addresses or bank accounts** are yours to find.",
-        "It has **no duplicate-invoice test**. VCH-2026-9338 is found by reading the data, not by a procedure.",
-        "It does not compare vendors with employee records.",
+        "On Harborline's files no procedure finds VCH-2026-9338: you find it by reading the data. (Since September 2026, `ap.duplicate_bills` tests for duplicates, but it needs the supplier's invoice number, which Harborline's vouchers do not carry.)",
+        "Harborline's engagement does not compare vendors with employee records. (Since October 2026, `forensic.vendor_employee_match` does, by name, when the employee master is loaded.)",
       ],
       tryIt: "Start with --demo, run ap.vendor_relational_twins, and compare its pairs with the tax-ID pairs from your spreadsheet.",
     },    video: {
@@ -950,7 +951,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       where: ["Workbench → Runs & Findings (forensic.closed_value_flow)", "Workbench → Sources & Mappings (the Value_flows refusal)"],
       doesNot: [
         "It does not test whether the extract is complete or reconcile it to payments, the bank or the ledger. That tie-out is yours.",
-        "It does not look up who owns a counterparty, and it has no related-party list.",
+        "It does not look up who owns a counterparty. (A related-party list can be matched to the books with `related_parties.matching` when the estimates cycle is chosen; Harborline's engagement does not.)",
         "It does not follow money outside the company's own records, and it never concludes intent.",
       ],
       tryIt: "Start with --demo, run forensic.closed_value_flow, open the finding and follow its three source rows back to value_flows.csv.",
@@ -1050,15 +1051,15 @@ export const FRAUD_LESSONS: Lesson[] = [
     },
     noesi: {
       coverage: "partial",
-      summary: "Noesi runs every payables test on the whole population and tells you its tolerances and refusals. It has no Benford test, and it cannot see beyond the files.",
+      summary: "Noesi runs every payables test on the whole population and tells you its tolerances and refusals. It cannot see beyond the files.",
       does: [
-        "Eleven full-population procedures, each with a stated tolerance and limitation; coverage shows what can and cannot run on the loaded data.",
+        "On Harborline, eleven full-population procedures, each with a stated tolerance and limitation; coverage shows what can and cannot run on the loaded data.",
         "Refuses fields it cannot map instead of guessing, and records the refusal.",
         "Every finding waits for a person's disposition.",
       ],
       where: ["Workbench → Coverage", "Workbench → Runs & Findings", "Workbench → Sources & Mappings (refusals)"],
       doesNot: [
-        "It has no Benford or first-digit test; do it in a spreadsheet.",
+        "Harborline's engagement runs no Benford test; do it in a spreadsheet. (Since October 2026, `forensic.benford_first_digit` tests the journal's first digits, and says \"not tested\" below the population size its bands are meant for.)",
         "It does not group overlapping findings into one problem. That is your analysis.",
         "It sees only the files you load, and never concludes intent.",
       ],
@@ -1158,7 +1159,7 @@ export const FRAUD_LESSONS: Lesson[] = [
       summary: "Noesi supplies the evidence behind each deficiency. Classifying deficiencies and writing the letter is yours.",
       does: [
         "Findings, dispositions and the summary of audit differences give each deficiency its evidence and amounts.",
-        "The signed, locked workpaper keeps what you concluded and when.",
+        "The exported record keeps what you concluded and when, with the journal behind it.",
       ],
       where: ["Workbench → Runs & Findings", "Workbench → SAD & Completion"],
       doesNot: [
