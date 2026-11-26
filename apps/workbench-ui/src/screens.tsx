@@ -812,6 +812,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           </span>
         </form>
       )}
+      <div className="table-wrap">
       <table className="dense">
         <thead>
           <tr><th>
@@ -886,6 +887,7 @@ export function RunsScreen({ client, eid, onError, clientName = "" }: ScreenProp
           ))}
         </tbody>
       </table>
+      </div>
     </>
   );
 }

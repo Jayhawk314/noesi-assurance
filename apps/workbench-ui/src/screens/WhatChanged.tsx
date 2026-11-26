@@ -71,7 +71,7 @@ export function WhatChangedScreen({ client, eid, onError }: {
   return (
     <>
       <div className="panel">
-        <h3>What changed <button className="small" onClick={reload}>refresh</button></h3>
+        <h3>What changed <button className="action" onClick={reload}>refresh</button></h3>
         <p className="note">
           {(() => {
             const added = revisions.filter((r) => r.load_mode === "add").length;
@@ -103,7 +103,7 @@ export function WhatChangedScreen({ client, eid, onError }: {
             {rev.diff.key_fields.join(" + ")} · net {money(rev.diff.net_amount_change)} ·{" "}
             largest row: <Sig level={rev.diff.significance} />
           </p>
-          <table>
+          <table className="dense">
             <thead><tr><th>Row</th><th>Change</th><th>Amount effect</th><th /></tr></thead>
             <tbody>
               {rev.diff.added.map((row, i) => (
@@ -133,7 +133,7 @@ export function WhatChangedScreen({ client, eid, onError }: {
       <div className="panel">
         <h3>Runs built on the old file</h3>
         {stale_runs.length === 0 ? <p className="note">None: every run already used the current files.</p> : (
-        <table>
+        <table className="dense">
           <thead><tr><th>Procedure</th><th>Input that moved</th><th>Findings</th><th>Old run</th><th>What to do</th></tr></thead>
           <tbody>
             {stale_runs.map((run) => (

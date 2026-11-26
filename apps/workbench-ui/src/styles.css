@@ -164,6 +164,9 @@ table.dense td {
   vertical-align: top;
 }
 table.dense tr:last-child td { border-bottom: none; }
+/* In a table, an identifier keeps its words whole: "occurrence" broke after
+   its ninth letter (26 Nov 2026). The table scrolls instead (.table-wrap). */
+table.dense code { word-break: normal; overflow-wrap: break-word; }
 table.dense tbody tr:hover td { background: var(--row-hover); }
 
 code {
