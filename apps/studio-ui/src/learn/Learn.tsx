@@ -106,8 +106,10 @@ function CourseDate() {
       engagement, in September 2026. Noesi has since gained procedures for the other cycles; each
       lesson's Noesi panel says what runs on Harborline and names what now exists for an engagement
       that chooses those cycles. Sign-offs, reviews and the lock were removed in October 2026: the
-      panels are corrected, but some lesson videos were recorded before and still show or mention
-      them. The current course is Kestrel Learn.</p>
+      panels are corrected, and in November 2026 the video scenes that described them were cut and
+      the old panel was blurred where a video still scrolls past it. The videos were recorded in
+      September, so their screens show the Workbench as it was then; the panel under each lesson is
+      current. The current course is Kestrel Learn.</p>
   );
 }
 
