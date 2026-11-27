@@ -5,7 +5,7 @@ One list of what still needs doing across noesi-assurance, noesi-vice-keys
 only copied from an older note. Move an item to "Closed" with its date and commit
 when it is done; never delete it.
 
-Last updated 26 Nov 2026.
+Last updated 27 Nov 2026.
 
 ## 1. Waiting on James
 
@@ -13,8 +13,7 @@ Last updated 26 Nov 2026.
 |---|------|----------------|
 | 1.1 | Push noesi-assurance `main` | Claude Code's permission check blocked the push. |
 | 1.2 | Push noesi-vice-keys `main` to noesi-starlight | Same. |
-| 1.3 | komposos-labs-videos has no version history | Not a git repo. The m12/m13 changes exist only on disk, with `_backup_2026-11-25_*` copies. Decide whether it becomes a repo. |
-| 1.4 | Nine Harborline lesson videos narrate removed or outdated facts: l1 (chairs), l2 (concurrence, lock), l3 (lock), l5 (review chairs), l6 ("no search for unrecorded liabilities"), l9 ("no inventory procedures"), l10 (the lock, six completion checks), f2 ("no fraud flag", "doesn't test journal entries"), f8 ("no Benford test") | Checked 26 Nov against `noesi_learn_videos/*/SCRIPT.md`. The Studio course now says the videos predate the October changes. Remaking them means new screen captures and ElevenLabs credits for a course Kestrel Learn replaces: remake, or retire the Harborline videos. |
+| 1.5 | Harborline is in this public repository (39 tracked files: `case-studies/harborline-marine`, the Studio course and its videos) | Checked 27 Nov: github.com/Jayhawk314/noesi-assurance answers publicly. James: Harborline is too close to the copyrighted Oceanview case and is not for others. Keep it, move it to a private repository, or remove it (it stays in the public history unless that is rewritten). |
 
 ## 2. Known limits, kept by design
 
@@ -60,3 +59,6 @@ Last updated 26 Nov 2026.
 | 26 Nov 2026 | Readiness names which procedures the open misstatements came from | 986a5c9 |
 | 26 Nov 2026 | Every Workbench table scrolls in a narrow window (Coverage and Sources ran past the edge at 820 px); dark mode checked | 261e993 |
 | 26 Nov 2026 | Flow Map arrows reachable and opened by keyboard (they were mouse only) | 4eaa348 |
+| 27 Nov 2026 | komposos-labs-videos under git, local only (media ignored; blender and The Framifold are their own repositories) | a54245f |
+| 27 Nov 2026 | Nine Harborline videos: outdated Noesi scenes cut; the September panel blurred where a kept scene shows it; Studio copies, minutes and course note updated (v1 kept) | 48cab72, 9002a88 |
+| 27 Nov 2026 | Kestrel videos from 4 Oct spot-checked: 63 Workbench frames, all on the current screens; the 30 Sep silent previews moved to `kestrel/_stale_previews_2026-09-30` | 9002a88 |
